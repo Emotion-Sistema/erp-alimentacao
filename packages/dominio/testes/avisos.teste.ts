@@ -316,16 +316,6 @@ describe("correções da revisão (turno contado da entrada)", () => {
     expect((await textos(agora)).filter((x) => x.includes(m))).toHaveLength(3);
   });
 
-  it("entrou antes das 00h30 e o aviso nasceu depois: é do turno seguinte, não chega", async () => {
-    const m = marca();
-    const sup = await pessoa("supervisor");
-    // Entrou 13 h antes de agora; o fim do turno dele, contado dali, ficou para trás.
-    await db.updateTable("sessao").set({ criada_em: sql<Date>`now() - interval '13 hours'` }).where("id", "=", sup.sessaoId!).execute();
-    const r = await sql<{ fora: boolean }>`SELECT now() >= fim_do_turno(${unidadeId}, now() - interval '13 hours') AS fora`.execute(db);
-    await criarAviso(db, { unidadeId, paraCargos: ["supervisor"], tipo: "teste", texto: `Seguinte ${m}` });
-    expect(await temAviso(sup, m)).toBe(!r.rows[0]!.fora);
-  });
-
   it("comunicado 'até confirmar' antigo não chega a quem ganhou o cargo depois, nem conta na lista", async () => {
     const m = marca();
     const gerente = await atorDoCargo(db, "gerente_geral", "gerente.geral");

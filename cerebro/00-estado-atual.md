@@ -15,8 +15,8 @@ Atualizado em: 14/11/2026
 - Regra do responsável: nunca ignorar falha (CLAUDE.md); testes rodam em ordem embaralhada.
 - **E04 (base visual e cascas) feita** no PR #11 (merge 858ad9f; decisão 0012).
 - **E05 (avisos) em andamento** (decisão 0013): banco, domínio, rotas, telas, 155 testes +
-  63 de tela, na branch. Revisão 1 reprovou (turno contado da entrada; corrigido); falta a
-  revisão 2, o PR e o merge.
+  63 de tela, na branch. Revisão 1 reprovou (turno contado da entrada; corrigido); revisão 2
+  aprovou. PR aberto para a `main`.
 - Pendente na E06: separar papéis do PostgreSQL (decisão 0010).
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
   gratuito; a trava do repositório é a única barreira automática.
