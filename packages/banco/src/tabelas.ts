@@ -124,6 +124,14 @@ export interface AvisoDestinoTabela {
   resolvido_em: Instante | null;
 }
 
+export interface TurnoTabela {
+  id: Generated<number>;
+  unidade_id: number;
+  nome: string;
+  inicio: string; // "HH:MM:SS", hora local da unidade
+  fim: string; // "24:00:00" = meia-noite
+}
+
 export interface AuditoriaTabela {
   id: Generated<string>;
   ocorrido_em: Instante;
@@ -149,4 +157,5 @@ export interface BancoTabelas {
   estacao_presenca: EstacaoPresencaTabela;
   aviso: AvisoTabela;
   aviso_destino: AvisoDestinoTabela;
+  turno: TurnoTabela;
 }

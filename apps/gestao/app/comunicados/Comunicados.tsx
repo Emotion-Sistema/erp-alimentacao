@@ -110,7 +110,7 @@ export function Comunicados({ cargos }: { cargos: { valor: string; texto: string
             </label>
             <label className="comunicados__opcao">
               <input type="radio" name="validade" checked={validade === "turno"} onChange={() => setValidade("turno")} />
-              Só no turno de hoje
+              Só neste turno
             </label>
           </fieldset>
           <Botao type="submit" disabled={enviando}>

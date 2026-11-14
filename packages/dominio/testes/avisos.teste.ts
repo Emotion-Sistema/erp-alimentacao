@@ -85,10 +85,10 @@ describe("aviso operacional: cargo, unidade e turno", () => {
     expect(await temAviso(sup, m)).toBe(false);
   });
 
-  it("vale até o fim do turno em que nasceu (00h30 da unidade)", async () => {
+  it("vale até o fim do turno em que nasceu", async () => {
     const id = await criarAviso(db, { unidadeId, paraCargos: ["supervisor"], tipo: "teste", texto: `Validade ${marca()}` });
     const r = await sql<{ ok: boolean }>`
-      SELECT expira_em = fim_do_turno(unidade_id, criado_em) AS ok FROM aviso WHERE id = ${id}`.execute(db);
+      SELECT expira_em = fim_do_aviso(unidade_id, criado_em) AS ok FROM aviso WHERE id = ${id}`.execute(db);
     expect(r.rows[0]?.ok).toBe(true);
   });
 
@@ -282,7 +282,7 @@ describe("comunicados da gerência", () => {
     expect(c.pessoas.find((p) => p.usuarioId === at.usuarioId)?.situacao).toBe("novo");
   });
 
-  it("comunicado 'só no turno de hoje' vence no fim do turno; 'até ler' não vence", async () => {
+  it("comunicado 'só neste turno' vence no fim do turno; 'até ler' não vence", async () => {
     const gerente = await atorDoCargo(db, "gerente_geral", "gerente.geral");
     const turno = await enviarComunicado(db, gerente, { texto: `Hoje ${marca()}`, cargos: ["caixa"], validade: "turno" });
     const ateLer = await enviarComunicado(db, gerente, { texto: `Sempre ${marca()}`, cargos: ["caixa"] });
@@ -299,8 +299,8 @@ describe("comunicados da gerência", () => {
   });
 });
 
-describe("correções da revisão (turno contado da entrada)", () => {
-  it("sessão aberta que passou das 00h30: fora do turno, não recebe aviso operacional nem comunicado do turno", async () => {
+describe("correções da revisão (fora do turno)", () => {
+  it("sessão aberta desde ontem: fora do turno, não recebe aviso operacional nem comunicado do turno", async () => {
     const m = marca();
     const sup = await pessoa("supervisor");
     const agora = await pessoa("supervisor"); // entrou agora, já com o cargo
@@ -360,5 +360,57 @@ describe("correções da revisão (turno contado da entrada)", () => {
     await expect(
       sql`UPDATE aviso_destino SET visto_em = entregue_em - interval '1 hour' WHERE aviso_id = ${id} AND usuario_id = ${a.usuarioId}`.execute(db),
     ).rejects.toThrow();
+  });
+});
+
+describe("turnos da equipe (horas fixas, São Paulo): Turno 1 08h-15h30, Turno 2 15h30-23h30", () => {
+  let un: number;
+  beforeAll(async () => {
+    un = await outraUnidade();
+    await db
+      .insertInto("turno")
+      .values([
+        { unidade_id: un, nome: "Turno 1", inicio: "08:00", fim: "15:30" },
+        { unidade_id: un, nome: "Turno 2", inicio: "15:30", fim: "23:30" },
+      ])
+      .execute();
+  });
+  // 10/11/2026, terça; São Paulo = UTC-3.
+  const turno = async (local: string) =>
+    (await sql<{ nome: string; fim: Date }>`SELECT nome, fim FROM turno_em(${un}, ${local + "-03:00"}::timestamptz)`.execute(db)).rows[0];
+  const fimDoAviso = async (local: string) =>
+    (await sql<{ f: Date }>`SELECT fim_do_aviso(${un}, ${local + "-03:00"}::timestamptz) AS f`.execute(db)).rows[0]!.f.toISOString();
+  const noTurno = async (entrou: string, agora: string) =>
+    (await sql<{ ok: boolean }>`SELECT pessoa_no_turno(${un}, ${entrou + "-03:00"}::timestamptz, ${agora + "-03:00"}::timestamptz) AS ok`.execute(db)).rows[0]!.ok;
+
+  it("qual turno está em andamento", async () => {
+    expect(await turno("2026-11-10T07:59:00")).toBeUndefined();
+    expect((await turno("2026-11-10T08:00:00"))?.nome).toBe("Turno 1");
+    expect((await turno("2026-11-10T15:29:00"))?.nome).toBe("Turno 1");
+    expect((await turno("2026-11-10T15:30:00"))?.nome).toBe("Turno 2");
+    expect((await turno("2026-11-10T23:29:00"))?.nome).toBe("Turno 2");
+    expect(await turno("2026-11-10T23:30:00")).toBeUndefined();
+    expect(await turno("2026-11-11T02:00:00")).toBeUndefined();
+  });
+
+  it("aviso vale até o fim do turno em que nasceu; fora de turno, 30 min", async () => {
+    expect(await fimDoAviso("2026-11-10T09:00:00")).toBe("2026-11-10T18:30:00.000Z"); // 15h30
+    expect(await fimDoAviso("2026-11-10T15:30:00")).toBe("2026-11-11T02:30:00.000Z"); // 23h30
+    expect(await fimDoAviso("2026-11-10T23:40:00")).toBe("2026-11-11T03:10:00.000Z"); // +30 min
+  });
+
+  it("quem está no turno: entrou no mesmo dia de trabalho e há turno em andamento", async () => {
+    expect(await noTurno("2026-11-10T07:55:00", "2026-11-10T09:00:00")).toBe(true);
+    expect(await noTurno("2026-11-10T07:05:00", "2026-11-10T16:00:00")).toBe(true); // faz os dois turnos
+    expect(await noTurno("2026-11-10T15:20:00", "2026-11-10T22:00:00")).toBe(true);
+    expect(await noTurno("2026-11-10T06:59:00", "2026-11-10T09:00:00")).toBe(false); // mais de 1 h antes
+    expect(await noTurno("2026-11-09T22:00:00", "2026-11-10T09:00:00")).toBe(false); // sessão de ontem
+    expect(await noTurno("2026-11-10T16:00:00", "2026-11-10T23:45:00")).toBe(false); // depois do Turno 2
+    expect(await noTurno("2026-11-10T07:30:00", "2026-11-10T07:50:00")).toBe(false); // antes do Turno 1
+  });
+
+  it("unidade sem turno cadastrado: ninguém está no turno", async () => {
+    const vazia = await outraUnidade();
+    expect((await sql<{ ok: boolean }>`SELECT pessoa_no_turno(${vazia}, now(), now()) AS ok`.execute(db)).rows[0]!.ok).toBe(false);
   });
 });

@@ -15,7 +15,8 @@ Atualizado em: 14/11/2026
 - Regra do responsável: nunca ignorar falha (CLAUDE.md); testes rodam em ordem embaralhada.
 - **E04 (base visual e cascas) feita** no PR #11 (merge 858ad9f; decisão 0012).
 - **E05 (avisos) feita** no PR #12 (merge 5a3ceac; decisão 0013): avisos por cargo ativo, unidade e
-  turno (conta da entrada até 00h30), comunicados com confirmação de leitura, sino em todo app.
+  turno, comunicados com confirmação de leitura, sino em todo app. Turnos da equipe respondidos
+  (Turno 1 08h-15h30, Turno 2 15h30-23h30): ajuste na migração 0005, em PR próprio.
   154 testes + 63 de tela; revisão reprovou 1x (corrigido) e aprovou.
 - Próxima etapa: **E06** (homologação na VPS), depois do "ok" do responsável.
 - Pendente na E06: separar papéis do PostgreSQL (decisão 0010).

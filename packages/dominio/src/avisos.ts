@@ -1,13 +1,12 @@
 /**
  * Central de avisos (RC-18, decisão 0013).
  *
- * Quem recebe: a pessoa com o cargo ATIVO certo, na unidade certa e no turno. "Estar no
- * turno" é ter entrado (sessão válida); a sessão some no fim do turno. A entrega é feita
- * quando a pessoa abre o aplicativo (e a cada consulta da caixa de avisos):
- * - aviso operacional: só enquanto vale, até o fim do turno em que nasceu. Quem entra
- *   depois disso (outro dia, outro turno) não recebe;
- * - comunicado da gerência: para quem tem o cargo, até confirmar a leitura (ou só no turno
- *   de hoje, se quem mandou escolheu assim).
+ * Quem recebe: a pessoa com o cargo ATIVO certo, na unidade certa e no turno (Turno 1
+ * 08h-15h30, Turno 2 15h30-23h30; tabela `turno`). A entrega é feita quando a pessoa abre o
+ * aplicativo (e a cada consulta da caixa de avisos):
+ * - aviso operacional: só enquanto vale, até o fim do turno em que nasceu;
+ * - comunicado da gerência: para quem tem o cargo, até confirmar a leitura (ou só neste
+ *   turno, se quem mandou escolheu assim).
  * Cada pessoa tem a própria situação: novo, visto, resolvido. Nada é apagado.
  */
 import { sql, type Banco } from "@erp/banco";
@@ -25,7 +24,7 @@ export type SituacaoDoAviso = "novo" | "visto" | "resolvido";
 
 export const TEXTO_MAX = 500;
 
-/** Aviso operacional (nasce de um fato do sistema). Vale até o fim do turno de hoje. */
+/** Aviso operacional (nasce de um fato do sistema). Vale até o fim do turno em andamento. */
 export async function criarAviso(
   db: Executor,
   a: {
@@ -49,7 +48,7 @@ export async function criarAviso(
       prioridade: a.prioridade ?? "normal",
       natureza: "operacional",
       para_usuario_id: a.paraUsuarioId ?? null,
-      expira_em: sql<Date>`fim_do_turno(${a.unidadeId}, now())`,
+      expira_em: sql<Date>`fim_do_aviso(${a.unidadeId}, now())`,
       dados: JSON.stringify(a.dados ?? {}),
     })
     .returning("id")
@@ -78,17 +77,16 @@ async function recusarSemEntrada(db: Banco, ator: Ator | null, acao: string) {
  * Entrega à pessoa os avisos que valem para ela AGORA. Pode rodar muitas vezes ao mesmo
  * tempo: cada pessoa recebe cada aviso uma vez só.
  *
- * O turno da pessoa vai da entrada até o fim do turno da unidade contado a partir da hora
- * em que ela entrou (`fim_do_turno(unidade, sessao.criada_em)`). A sessão pode durar mais
- * (12 h), mas depois desse horário a pessoa está FORA do turno: não recebe aviso
- * operacional nem comunicado "só no turno de hoje". Comunicado "até confirmar" chega a
- * quem já tinha o cargo quando ele foi enviado.
+ * Turnos da equipe (tabela `turno`; Turno 1 08h-15h30, Turno 2 15h30-23h30). A pessoa está
+ * no turno se há turno em andamento e ela entrou no mesmo dia de trabalho
+ * (`pessoa_no_turno`). Fora disso não recebe aviso operacional nem comunicado "só neste
+ * turno". Comunicado "até confirmar" chega a quem já tinha o cargo quando ele foi enviado.
  */
 async function entregar(db: Banco, ator: Ator & { cargoAtivo: string; unidadeId: number }) {
   if (!ator.sessaoId) return; // estação da cozinha: avisos na tela de produção (E14)
   await sql`
     WITH turno AS (
-      SELECT now() < fim_do_turno(${ator.unidadeId}, s.criada_em) AS dentro
+      SELECT pessoa_no_turno(${ator.unidadeId}, s.criada_em, now()) AS dentro
       FROM sessao s WHERE s.id = ${ator.sessaoId}
     )
     INSERT INTO aviso_destino (aviso_id, usuario_id, cargo)
@@ -234,7 +232,7 @@ const dadosComunicado = z.object({
     .max(CARGOS.length)
     .refine((l) => new Set(l).size === l.length, "Cargo repetido."),
   prioridade: z.enum(PRIORIDADES).default("normal"),
-  /** "turno": só para quem entrar até o fim do turno de hoje; "ate_ler": fica até cada um confirmar. */
+  /** "turno": só para quem está neste turno, até ele acabar; "ate_ler": fica até cada um confirmar. */
   validade: z.enum(["turno", "ate_ler"]).default("ate_ler"),
 });
 
@@ -256,7 +254,7 @@ export async function enviarComunicado(db: Banco, ator: Ator | null, dados: unkn
         prioridade: d.prioridade,
         natureza: "comunicado",
         autor_id: quem.usuarioId,
-        expira_em: d.validade === "turno" ? sql<Date>`fim_do_turno(${unidadeId}, now())` : null,
+        expira_em: d.validade === "turno" ? sql<Date>`fim_do_aviso(${unidadeId}, now())` : null,
       })
       .returning("id")
       .executeTakeFirstOrThrow();

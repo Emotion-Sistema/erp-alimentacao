@@ -1,7 +1,7 @@
 # 0013: central de avisos, por cargo e turno
 
 - Data: 14/11/2026
-- Status: aceita (E05), com hipóteses a confirmar (item 9)
+- Status: aceita (E05); hipóteses respondidas em 14/11/2026 (item 9), turnos revistos (item 1)
 - Assunto da sessão: E05, avisos
 - Complementa: RC-18, decisões 0011 e 0012
 
@@ -11,19 +11,21 @@ cargo e ao turno certos; quem está fora do turno não recebe aviso operacional.
 existe escala de turnos por pessoa no sistema.
 
 ## Decisão
-1. **O turno conta da entrada.** O turno da pessoa vai da hora em que ela entrou até o
-   fim do turno da unidade (00h30) contado a partir dali. A sessão pode durar mais
-   (12 h), mas depois desse horário a pessoa está fora do turno: não recebe aviso
-   operacional nem comunicado "só no turno de hoje" (correção da revisão). Sem sessão,
-   não recebe nada. Quem entra de madrugada, depois das 00h30, tem um turno de 30 min
-   (mesma regra do tablet, migração 0003); um aviso que nasce de madrugada também vale 30 min.
+1. **Turnos da equipe** (resposta do responsável, 14/11/2026): **Turno 1, 08h às 15h30;
+   Turno 2, 15h30 às 23h30** (tabela `turno`, migração 0005, hora local da unidade). É o
+   horário de quem trabalha; o horário de abertura da loja é outro (9h ou 10h, fecha
+   23h30). A pessoa está **no turno** quando há turno em andamento e ela entrou no mesmo
+   dia de trabalho (até 1 h antes do primeiro turno). Quem faz os dois turnos continua no
+   turno; uma sessão aberta ontem à noite não vale hoje de manhã; depois das 23h30 ninguém
+   está no turno. Sem sessão, não recebe nada. A tela para mudar os turnos vem com os
+   horários (E07/E12); até lá, só pelo banco.
 2. **Dois tipos de aviso** (`aviso.natureza`):
    - **operacional**: nasce de um fato do sistema (ex.: código bloqueado). Vale **até o fim
-     do turno em que nasceu** (`fim_do_turno` da unidade, 00h30). Quem entra depois disso
-     (no dia seguinte, por exemplo) não recebe;
+     do turno em que nasceu** (15h30 ou 23h30). Quem só está no turno seguinte não recebe.
+     Nascido fora de turno, vale 30 min e fica só registrado;
    - **comunicado**: recado da gerência para um ou mais cargos, com **confirmação de
      leitura** ("Li e entendi"). Fica até cada um confirmar, ou só no turno de hoje, se
-     quem mandou escolheu assim. O "até confirmar" vale para quem já tinha o cargo
+     quem mandou escolheu "só neste turno". O "até confirmar" vale para quem já tinha o cargo
      quando ele foi enviado: funcionário novo não recebe os comunicados antigos.
 3. **Quem recebe:** o cargo **ativo** da pessoa precisa estar entre os cargos do aviso, na
    mesma unidade. Quem tem dois cargos só vê, em cada momento, os avisos do cargo com que
@@ -65,13 +67,14 @@ existe escala de turnos por pessoa no sistema.
 - Conexão permanente (SSE/WebSocket) já agora: mais peças no servidor; 15 s basta para os
   avisos de hoje. Revisar quando chegarem pedido pronto e pedido novo (E13/E14).
 
-## Hipóteses a confirmar com o responsável
-9. (a) Turno = tempo em que a pessoa está com o aplicativo aberto (entrou e não saiu); não
-   há turnos com nome (manhã, noite). (b) Só dono, administrador e gerente geral mandam
-   comunicados; o supervisor não. As duas são fáceis de mudar.
+## Hipóteses respondidas (14/11/2026)
+9. (a) Há dois turnos com nome: Turno 1 (08h-15h30) e Turno 2 (15h30-23h30); a loja abre e
+   fecha no horário já combinado. (b) Ninguém começa a trabalhar de madrugada. (c) Só dono,
+   administrador e gerente geral mandam comunicados: confirmado.
 
 ## Critério de aceite e evidência
-`packages/dominio/testes/avisos.teste.ts` contra PostgreSQL: cargo certo e nenhum outro,
+`packages/dominio/testes/avisos.teste.ts` contra PostgreSQL (turnos com horas fixas no fuso de
+São Paulo; nos bancos de teste os turnos cobrem o dia todo, para não depender da hora): cargo certo e nenhum outro,
 cargo ativo, outra unidade, validade até o fim do turno, quem entra depois do fim do turno
 não recebe, aviso para uma pessoa, recusas sem sessão ou com segundo fator pendente,
 entrega concorrente sem duplicar, situação só para a frente, banco recusa apagar,
