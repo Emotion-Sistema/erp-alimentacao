@@ -1,7 +1,7 @@
 # 0011: matriz de permissões, cargo ativo, bloqueios, segundo fator e estação da cozinha
 
 - Data: 14/11/2026
-- Status: aceita (E03). Itens marcados **hipótese** aguardam confirmação do responsável.
+- Status: aceita (E03). Hipóteses respondidas pelo responsável em 14/11/2026 (seção própria).
 - Assunto da sessão: E03, cargos, login e auditoria
 - Complementa: RC-12, decisões 0008 e 0010
 
@@ -20,13 +20,15 @@ A permissão vem **só do cargo ativo**. O que não está listado é recusado e 
 | Configuração do sistema | ✓ | | | | | | | | | |
 | Lançar pedido | ✓ | ✓ | | ✓ | ✓ | | | | | |
 | Ver os próprios pedidos / todos | ✓ | ✓ | | – / ✓ | ✓ / – | – / ✓ | | | | |
-| Alterar e cancelar pedido | ✓ | ✓ | | ✓ | | | | | | |
+| Alterar pedido | ✓ | ✓ | | ✓ | ✓ (avisa os supervisores) | | | | | |
+| Cancelar pedido | ✓ | ✓ | | ✓ | | | | | | |
 | **Marcar Entregue** | | | | | ✓ | | | | ✓ | |
 | Ver a produção | ✓ | ✓ | | ✓ | | | ✓ | ✓ | | |
 | **Operar a produção** (fila, iniciar, pronto) | | | | | | | ✓ | ✓ | | |
 | **Ação sensível na cozinha** (perda, ajuste, "acabou") | | | | | | | ✓ | | | |
 | Estoque da cozinha / do salão | ✓ / ✓ | ✓ / ✓ | | – / ✓ | | | ✓ / – | | | |
-| Compras | ✓ | ✓ | | | | | | | | |
+| Compras do estoque (comida, bebida) | ✓ | ✓ | | | | | | | | |
+| Compras de materiais (utensílios, eletrodomésticos) | ✓ | ✓ | ✓ | | | | | | | |
 | Custos da área | ✓ | ✓ | ✓ | | | | | | | |
 | **Operar o caixa** / **marcar Pago** | | | | | | ✓ / ✓ | | | | |
 | Autorizações do caixa e do atendimento | ✓ | ✓ | | ✓ | | | | | | |
@@ -84,13 +86,19 @@ Quem sobra sozinha na tela vira a ativa. Cadastrar o tablet encerra, na mesma re
 sessão do gestor que fez o cadastro. A própria pessoa troca o código, mas não se desbloqueia.
 Cada gestor só mexe em gente da própria unidade (criar, dar cargo, desligar, desbloquear, listar).
 
-## Hipóteses a confirmar com o responsável
-1. Atendente **não** altera nem cancela pedido (só supervisor e acima).
-2. Financeiro **não** faz compras; vê custos.
-3. Segundo fator só para dono e administrador (não para financeiro e gerente geral).
-4. Supervisor vê funcionários e desbloqueia código, mas **não** cria nem desliga.
-5. Caixa vê todos os pedidos (precisa, para cobrar a mesa).
-6. Senha: 5 erros e 15 minutos de bloqueio. Fim do turno padrão: 23:30.
+## Respostas do responsável (14/11/2026)
+1. **Atendente altera pedido** (não cancela). Toda alteração feita por atendente **avisa os
+   supervisores** e aparece para o gerente numa **aba própria de alterações**, para ele entender
+   se o pedido foi lançado errado ou se o cliente trocou (motivo obrigatório). Tela e aviso: E13 e E15.
+2. **Financeiro compra**, mas fora do estoque de comida: material físico, utensílios,
+   eletrodomésticos (ação `compras.materiais`). Compras do estoque continuam com o gerente geral.
+   **Hipótese:** o gerente geral também pode comprar materiais (tem tudo, exceto financeiro); confirmar.
+3. Segundo fator só para dono e administrador: ok.
+4. Supervisor vê funcionários e desbloqueia código, sem criar nem desligar: ok.
+5. **Caixa vê todos os pedidos**: sim. Tela com **mapa visual das mesas**, mostrando quais estão
+   livres e ocupadas; um toque na mesa abre as funções dela. Tela: E13 e E17 (RC-13).
+6. Senha: 5 erros e 15 minutos: ok. **Fim do turno da cozinha: a confirmar** (hora em que a
+   cozinha fecha); até lá fica 23:30, configurável por unidade.
 
 ## Limites conhecidos
 - O aviso "bloqueado" só aparece para login que existe: com 5 tentativas dá para saber se um
