@@ -8,6 +8,7 @@ import { ACOES, ACOES_EXCLUSIVAS, ACOES_FINANCEIRAS, CARGOS, PERMISSOES, QUEM_AT
 
 const GESTAO_SEM_FINANCEIRO: Acao[] = [
   "usuarios.ver", "usuarios.gerenciar", "codigos.desbloquear", "estacoes.gerenciar", "estacoes.ver", "auditoria.ver",
+  "comunicados.enviar",
   "pedidos.lancar", "pedidos.ver_proprios", "pedidos.ver_todos", "pedidos.alterar", "pedidos.cancelar",
   "producao.ver", "estoque.cozinha", "estoque.salao", "compras.gerenciar", "compras.materiais", "custos.ver",
   "caixa.autorizar", "motoboys.organizar",

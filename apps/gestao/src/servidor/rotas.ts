@@ -9,7 +9,11 @@ import {
   atorDaEstacao,
   atorDaSessao,
   ativarNaEstacao,
-  avisosDoCargo,
+  caixaDeAvisos,
+  enviarComunicado,
+  listarComunicados,
+  marcarVistos,
+  resolverAviso,
   cadastrarEstacao,
   confirmarSegundoFator,
   consultarAuditoria,
@@ -190,7 +194,18 @@ export const verAuditoria = seguro(async (req) => {
   return json(await consultarAuditoria(obterBanco(), await ator(req), filtros));
 });
 
-export const verAvisos = seguro(async (req) => json(await avisosDoCargo(obterBanco(), await ator(req))));
+export const verAvisos = seguro(async (req) => json(await caixaDeAvisos(obterBanco(), await ator(req))));
+
+export const marcarAvisosVistos = seguro(async (req) => json({ marcados: await marcarVistos(obterBanco(), await ator(req), await corpoJson(req)) }));
+
+export const resolverUmAviso = seguroComId(async (req, p) => {
+  await resolverAviso(obterBanco(), await ator(req), idDe(p));
+  return json({ ok: true });
+});
+
+export const verComunicados = seguro(async (req) => json(await listarComunicados(obterBanco(), await ator(req))));
+
+export const novoComunicado = seguro(async (req) => json(await enviarComunicado(obterBanco(), await ator(req), await corpoJson(req)), 201));
 
 // ---------- estações (gestor) ----------
 

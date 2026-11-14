@@ -108,6 +108,20 @@ export interface AvisoTabela {
   tipo: string;
   texto: string;
   dados: ColumnType<Record<string, unknown>, string | undefined, never>;
+  prioridade: Generated<"urgente" | "normal" | "informativo">;
+  natureza: Generated<"operacional" | "comunicado">;
+  autor_id: number | null;
+  para_usuario_id: number | null;
+  expira_em: Instante | null;
+}
+
+export interface AvisoDestinoTabela {
+  aviso_id: string;
+  usuario_id: number;
+  cargo: string;
+  entregue_em: Instante;
+  visto_em: Instante | null;
+  resolvido_em: Instante | null;
 }
 
 export interface AuditoriaTabela {
@@ -134,4 +148,5 @@ export interface BancoTabelas {
   estacao: EstacaoTabela;
   estacao_presenca: EstacaoPresencaTabela;
   aviso: AvisoTabela;
+  aviso_destino: AvisoDestinoTabela;
 }

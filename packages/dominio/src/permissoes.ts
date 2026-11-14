@@ -48,6 +48,8 @@ export const ACOES = [
   "estacoes.ver", // tela Geral: quem está em cada estação
   "auditoria.ver",
   "configuracao.gerenciar",
+  // Comunicação (RC-18): recados da gerência com confirmação de leitura
+  "comunicados.enviar",
   // Pedido e atendimento
   "pedidos.lancar",
   "pedidos.ver_proprios",

@@ -1,4 +1,4 @@
-/** Consultas de leitura: auditoria (RC-17, base) e avisos do cargo. */
+/** Consultas de leitura: auditoria (RC-17, base). Avisos ficam em avisos.ts. */
 import type { Banco } from "@erp/banco";
 import { z } from "zod";
 import { auditar } from "./auditoria";
@@ -41,22 +41,4 @@ export async function consultarAuditoria(db: Banco, ator: Ator | null, filtros: 
   if (f.ate) q = q.where("auditoria.ocorrido_em", "<=", f.ate);
   if (f.antesDe) q = q.where("auditoria.id", "<", String(f.antesDe));
   return q.orderBy("auditoria.id", "desc").limit(f.limite).execute();
-}
-
-/** Avisos para o cargo ativo, na unidade dele (central completa na E05). */
-export async function avisosDoCargo(db: Banco, ator: Ator | null) {
-  if (!ator || ator.segundoFator === "pendente") {
-    await auditar(db, { usuarioId: ator?.usuarioId ?? null, acao: "avisos.ver", resultado: "recusado", detalhes: { motivo: ator ? "segundo_fator_pendente" : "sem_sessao" }, ip: ator?.ip ?? null });
-    if (!ator) throw new ErroDeRegra("nao_autenticado", "Entre com seu usuário para continuar.");
-    throw new ErroDeRegra("segundo_fator", "Confirme o código do aplicativo autenticador.");
-  }
-  if (!ator.cargoAtivo || !ator.unidadeId) return [];
-  return db
-    .selectFrom("aviso")
-    .select(["id", "criado_em as criadoEm", "tipo", "texto"])
-    .where("unidade_id", "=", ator.unidadeId)
-    .where((eb) => eb(eb.val(ator.cargoAtivo), "=", eb.fn.any("para_cargos")))
-    .orderBy("id", "desc")
-    .limit(50)
-    .execute();
 }
