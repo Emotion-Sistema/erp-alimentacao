@@ -44,6 +44,8 @@ funciona e só começa quando a anterior foi aceita. Modelos: ver `05-uso-dos-mo
 | **E16** Estimativa de tempo | Fila, capacidade, faixa e horário previstos | Opus | Valor bate com a conta manual |
 | **Portão 1** 🚪 | **Ensaio na loja, sem dinheiro:** uma noite com o sistema rodando em paralelo ao que existe hoje | — | 👉 Equipe usou, problemas anotados e corrigidos |
 
+Critérios da E13 vindos da E03 (decisão 0011): atendente só altera **pedido próprio**, com **motivo obrigatório** (lançado errado ou cliente trocou); o **aviso aos supervisores** é gravado na mesma transação; o gerente vê as alterações numa aba própria; alteração de pedido já liberado para produção gera movimento compensatório, nunca uma segunda baixa. Tudo com teste por cargo direto no servidor.
+
 ## Bloco D: caixa e dinheiro
 | Etapa | Entrega | Modelos | Pronto quando |
 |---|---|---|---|

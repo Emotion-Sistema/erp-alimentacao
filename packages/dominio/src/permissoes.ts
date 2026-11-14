@@ -62,7 +62,8 @@ export const ACOES = [
   // Estoque por área (decisão 0008, item 2)
   "estoque.cozinha",
   "estoque.salao", // bebidas do salão, cafeteria e potes de sorvete
-  "compras.gerenciar",
+  "compras.gerenciar", // compras do estoque (ingredientes, bebidas): gerente geral
+  "compras.materiais", // material físico, utensílios, eletrodomésticos (fora do estoque de comida)
   "custos.ver", // custos da área: compras, custo dos itens, perdas, custo do prato
   // Caixa
   "caixa.operar", // a própria sessão e a movimentação do dia
@@ -115,7 +116,7 @@ export const PERMISSOES: Readonly<Record<Cargo, readonly Acao[]>> = {
   administrador: TUDO,
   // Tudo, exceto financeiro (RC-12, decisão 0008) e configuração do sistema.
   gerente_geral: sem(TUDO, ACOES_FINANCEIRAS, "configuracao.gerenciar"),
-  financeiro: ["financeiro.ver", "financeiro.gerenciar", "faturamento.ver", "caixa.fechamentos_ver", "contabil.ver", "custos.ver"],
+  financeiro: ["financeiro.ver", "financeiro.gerenciar", "faturamento.ver", "caixa.fechamentos_ver", "contabil.ver", "custos.ver", "compras.materiais"],
   supervisor: [
     "usuarios.ver",
     "codigos.desbloquear",
@@ -128,7 +129,8 @@ export const PERMISSOES: Readonly<Record<Cargo, readonly Acao[]>> = {
     "estoque.salao",
     "caixa.autorizar",
   ],
-  atendente: ["pedidos.lancar", "pedidos.ver_proprios", "pedidos.marcar_entregue"],
+  // Atendente altera pedido; os supervisores são avisados e o gerente vê numa aba própria (14/11/2026).
+  atendente: ["pedidos.lancar", "pedidos.ver_proprios", "pedidos.alterar", "pedidos.marcar_entregue"],
   caixa: ["caixa.operar", "pagamento.marcar_pago", "motoboys.organizar", "pedidos.ver_todos"],
   cozinheira: ["producao.ver", "producao.operar", "producao.sensivel", "estoque.cozinha"],
   auxiliar_cozinha: ["producao.ver", "producao.operar"],

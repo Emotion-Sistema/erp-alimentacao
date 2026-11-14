@@ -85,9 +85,9 @@ describe("cargo ativo", () => {
     let a = (await entrar(db, { login: p.login, senha: SENHA }, origem)).ator;
     expect(a.cargos).toEqual(["supervisor", "atendente"]);
     expect(a.cargoAtivo).toBe("supervisor");
-    await exigir(db, a, "pedidos.alterar");
+    await exigir(db, a, "pedidos.cancelar");
     a = await trocarCargoAtivo(db, a, { cargo: "atendente" });
-    expect((await erroDe(exigir(db, a, "pedidos.alterar"))).codigo).toBe("sem_permissao");
+    expect((await erroDe(exigir(db, a, "pedidos.cancelar"))).codigo).toBe("sem_permissao");
     const r = (await atorDaSessao(db, (await entrar(db, { login: p.login, senha: SENHA }, origem)).token))!;
     expect(r.cargoAtivo).toBe("supervisor"); // cada sessão tem o seu
     expect((await erroDe(trocarCargoAtivo(db, a, { cargo: "dono" }))).codigo).toBe("sem_permissao");
@@ -104,7 +104,7 @@ describe("cargo ativo", () => {
     const a = (await atorDaSessao(db, token))!;
     expect(a.cargos).toEqual(["atendente"]);
     expect(a.cargoAtivo).toBeNull();
-    expect((await erroDe(exigir(db, a, "pedidos.alterar"))).codigo).toBe("sem_permissao");
+    expect((await erroDe(exigir(db, a, "pedidos.cancelar"))).codigo).toBe("sem_permissao");
     const historico = await db.selectFrom("usuario_perfil").select(["perfil_codigo", "removido_em", "removido_por"]).where("usuario_id", "=", p.id).orderBy("id").execute();
     expect(historico.map((h) => [h.perfil_codigo, !!h.removido_em, h.removido_por])).toEqual([["atendente", false, null], ["supervisor", true, adm.usuarioId]]);
   });

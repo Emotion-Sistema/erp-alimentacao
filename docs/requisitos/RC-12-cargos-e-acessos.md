@@ -11,7 +11,7 @@ pode fazer vem do cargo. Permissão é verificada no servidor em cada ação.
 | **Gerente geral** | Tudo, **exceto financeiro** | Áreas do andar de baixo; **faz as compras** pedidas pelo estoque; aprova ajustes e exceções |
 | **Financeiro** | Financeiro completo | Da compra ao pagamento, conciliação e documentos para a contabilidade externa (RC-15) |
 | **Supervisor** | Atendimento, salão e funcionários de salão; cozinha **só para ver**; alterar e corrigir pedidos; estoque dos freezers de bebida do salão, da cafeteria e dos potes de sorvete (RC-11) | Turno do salão; autorizações do caixa e do atendimento |
-| **Atendente** | Atendimento: mesas, pedidos, acompanhamento, entrega | Lança o pedido e marca **Entregue** |
+| **Atendente** | Atendimento: mesas, pedidos, acompanhamento, entrega; **altera pedido** (não cancela) | Lança o pedido e marca **Entregue**. Cada alteração feita por atendente avisa os supervisores e aparece para o gerente numa aba de alterações, com motivo (lançado errado ou cliente trocou) |
 | **Caixa** | Frente de caixa e a própria movimentação do dia (RC-13) | Recebe; **só o caixa marca Pago**; organiza motoboys |
 | **Cozinheira** | Telas de produção; estoque de alimentos da cozinha: abastecer a linha, contagem, perda, "acabou" | Produção e controle do estoque que usa |
 | **Auxiliar de cozinha** | Telas de produção (fila, iniciar, pronto); contagem quando designado | Apoio à produção |
@@ -53,6 +53,10 @@ Cozinheira e auxiliar usam a mesma tela; o cargo define os botões que aparecem.
 
 **Opção de evolução:** crachá de aproximação (NFC) ou crachá com QR Code lido pela
 câmera do tablet, para entrar sem digitar. Avaliar depois de ver o uso real do código.
+
+## Compras (definido em 14/11/2026)
+Gerente geral compra o que é de estoque (alimentos, bebidas). Financeiro compra o que não é de
+estoque de comida: material físico, utensílios, eletrodomésticos.
 
 ## Aparelhos
 Aparelhos internos são Android da empresa e ficam na loja; o aplicativo interno só abre

@@ -14,6 +14,9 @@ não tem acesso ao financeiro: vê só a movimentação do próprio dia.
 - **Painel de contas:** mesas e comandas abertas, com situação de cada uma: em
   atendimento, **entregue aguardando pagamento**, conta pedida. As que esperam pagamento
   há mais tempo ficam no topo e mudam de cor.
+- **Mapa das mesas** (definido em 14/11/2026): visual claro de todas as mesas, mostrando as
+  livres e as ocupadas com a situação de cada uma; **um toque na mesa abre as funções dela**
+  (ver pedidos, conta, receber, juntar ou transferir). O caixa vê todos os pedidos.
 - **Lançar pedido** de balcão, retirada e telefone direto no caixa (segue o RC-01).
 - **Pedidos online:** já chegam pagos pelo provedor; o caixa só acompanha.
 - **Botão "Pedir a conta"** no aplicativo do atendente faz a mesa aparecer destacada aqui.

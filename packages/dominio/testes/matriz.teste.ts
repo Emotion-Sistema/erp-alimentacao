@@ -9,7 +9,7 @@ import { ACOES, ACOES_EXCLUSIVAS, ACOES_FINANCEIRAS, CARGOS, PERMISSOES, QUEM_AT
 const GESTAO_SEM_FINANCEIRO: Acao[] = [
   "usuarios.ver", "usuarios.gerenciar", "codigos.desbloquear", "estacoes.gerenciar", "estacoes.ver", "auditoria.ver",
   "pedidos.lancar", "pedidos.ver_proprios", "pedidos.ver_todos", "pedidos.alterar", "pedidos.cancelar",
-  "producao.ver", "estoque.cozinha", "estoque.salao", "compras.gerenciar", "custos.ver",
+  "producao.ver", "estoque.cozinha", "estoque.salao", "compras.gerenciar", "compras.materiais", "custos.ver",
   "caixa.autorizar", "motoboys.organizar",
 ];
 const FINANCEIRO: Acao[] = ["financeiro.ver", "financeiro.gerenciar", "faturamento.ver", "caixa.fechamentos_ver", "contabil.ver"];
@@ -18,9 +18,9 @@ const ESPERADO: Record<Cargo, Acao[]> = {
   dono: [...GESTAO_SEM_FINANCEIRO, "configuracao.gerenciar", ...FINANCEIRO],
   administrador: [...GESTAO_SEM_FINANCEIRO, "configuracao.gerenciar", ...FINANCEIRO],
   gerente_geral: GESTAO_SEM_FINANCEIRO,
-  financeiro: [...FINANCEIRO, "custos.ver"],
+  financeiro: [...FINANCEIRO, "custos.ver", "compras.materiais"],
   supervisor: ["usuarios.ver", "codigos.desbloquear", "estacoes.ver", "pedidos.lancar", "pedidos.ver_todos", "pedidos.alterar", "pedidos.cancelar", "producao.ver", "estoque.salao", "caixa.autorizar"],
-  atendente: ["pedidos.lancar", "pedidos.ver_proprios", "pedidos.marcar_entregue"],
+  atendente: ["pedidos.lancar", "pedidos.ver_proprios", "pedidos.alterar", "pedidos.marcar_entregue"],
   caixa: ["caixa.operar", "pagamento.marcar_pago", "motoboys.organizar", "pedidos.ver_todos"],
   cozinheira: ["producao.ver", "producao.operar", "producao.sensivel", "estoque.cozinha"],
   auxiliar_cozinha: ["producao.ver", "producao.operar"],
