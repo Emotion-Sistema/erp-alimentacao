@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    name: Lint, tipos, testes e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: erp
+          POSTGRES_PASSWORD: erp
+          POSTGRES_DB: erp
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U erp -d erp"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      DATABASE_URL: postgres://erp:erp@localhost:5432/erp
+      DATABASE_URL_TESTE: postgres://erp:erp@localhost:5432/erp_teste
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Tipos
+        run: pnpm tipos
+      - name: Banco de teste
+        run: PGPASSWORD=erp psql -h localhost -U erp -d erp -c "CREATE DATABASE erp_teste OWNER erp;"
+      - name: Migrações aplicam, revertem e aplicam de novo
+        run: pnpm banco:migrar && pnpm banco:reverter && pnpm banco:migrar
+      - name: Testes (PostgreSQL real)
+        run: pnpm teste
+      - name: Build
+        run: pnpm build

@@ -1,0 +1,16 @@
+{
+  "name": "@erp/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc -p . --noEmit",
+    "tipos": "tsc -p . --noEmit"
+  },
+  "dependencies": {
+    "@erp/banco": "workspace:*",
+    "pg-boss": "^12.38.2",
+    "tsx": "^4.23.15"
+  }
+}

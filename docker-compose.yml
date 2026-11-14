@@ -1,0 +1,19 @@
+# Ambiente de desenvolvimento: só o PostgreSQL. As aplicações rodam com `pnpm dev`.
+services:
+  banco:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: erp
+      POSTGRES_DB: erp
+    ports:
+      - "5432:5432"
+    volumes:
+      - banco-dados:/var/lib/postgresql/data
+      - ./infra/banco-inicial.sql:/docker-entrypoint-initdb.d/banco-inicial.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      interval: 2s
+      retries: 30
+volumes:
+  banco-dados:

@@ -3,15 +3,15 @@
 Atualizado em: 14/11/2026
 
 ## Em que pé estamos
-- Fase: **E01 (conferência) concluída**; respostas do responsável registradas na decisão
-  0009. Ainda não existe código de aplicação.
-- Próxima tarefa: **T01 parte 2 = E02 (fundação)**, em `feat/fundacao`, depois do "ok"
-  (`docs/tarefas/T01-conferencia-e-fundacao.md`).
+- Fase: **E02 (fundação) feita** no PR #4: monorepositório, banco, login e permissões no
+  servidor, CI. Comandos no `CLAUDE.md`; bibliotecas na decisão 0010.
+- Próxima etapa: **E03** (cargos, login e auditoria completos), depois do "ok" do responsável.
+- Pendente na E06: separar papéis do PostgreSQL (decisão 0010).
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
   gratuito; a trava do repositório é a única barreira automática.
 - Contexto: aviso a cada 10% (de 1 milhão); no aviso, atualizar o cérebro e pedir `/compact`.
-- Login: "autenticação própria" = no nosso servidor, com bibliotecas mantidas (aceito em
-  14/11/2026; registrar na decisão de bibliotecas da E02, número 0010).
+- GitHub: Caminho A (14/11/2026): plano gratuito, sem proteção de branch; a trava do
+  repositório é a barreira. Rever antes da E23.
 - Modelos: base Opus 5.5; Sonnet e Haiku por subagentes (`docs/05-uso-dos-modelos.md`).
 - Aguardando: respostas do dono da empresa ao questionário em PDF (previstas para 14/11/2026).
 - No ar (produção): **nada**. Homologação: **não existe ainda**.
@@ -52,3 +52,4 @@ Tudo sobre um núcleo único. Detalhes em `docs/01-visao-e-escopo.md`.
 |---|---|---|---|
 | 13/11/2026 | Preparação do projeto (F0) | Instruções, requisitos, cérebro, skills e travas criados | `diario/2026-11-13-preparacao-do-projeto.md` |
 | 14/11/2026 | T01 parte 1 (E01): conferência e teste das travas | Estrutura juntada na `main` (PR #1); trava de `producao` bloqueou; 2 brechas e 3 propostas | `diario/2026-11-14-t01-conferencia.md` |
+| 14/11/2026 | E02: fundação técnica | Monorepositório, banco, login/permissões, CI; revisão independente achou 1 defeito grave (corrigido) | `diario/2026-11-14-e02-fundacao.md` |

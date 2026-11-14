@@ -1,0 +1,29 @@
+# PREPARADO, NÃO ATIVADO. Implanta em producao.
+# Gatilho previsto: push na producao (só depois de "Publique tudo"). Será ativado na etapa E23, quando o servidor e os
+# segredos do GitHub existirem (decisão 0004). Até lá só roda à mão e para no
+# primeiro passo, sem tocar em servidor nenhum.
+name: Implantar (producao)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: implantar-producao
+  cancel-in-progress: false
+
+jobs:
+  implantar:
+    runs-on: ubuntu-latest
+    environment: producao
+    steps:
+      - name: Ainda não ativado
+        run: |
+          echo "Implantação em producao ainda não está ativada (etapa E23)."
+          exit 1
+      # Passos previstos para a ativação:
+      # 1. checkout; 2. build da imagem Docker; 3. enviar ao servidor por SSH com a chave
+      #    guardada nos segredos do GitHub; 4. aplicar migrações; 5. trocar a versão;
+      # 6. conferir /api/saude; 7. se falhar, voltar para a versão anterior.

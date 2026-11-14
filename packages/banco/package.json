@@ -1,0 +1,18 @@
+{
+  "name": "@erp/banco",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "migrar": "tsx src/cli.ts migrar",
+    "reverter": "tsx src/cli.ts reverter",
+    "tipos": "tsc -p ."
+  },
+  "dependencies": {
+    "kysely": "^0.29.9",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
+  }
+}

@@ -1,0 +1,8 @@
+/* Layout das páginas da gestão. Só variáveis do tema: nenhuma cor fixa. */
+.pagina { max-width: 960px; margin: 0 auto; padding: var(--espaco-4, 1rem); }
+.pagina-centro {
+  min-height: 100dvh; display: grid; place-items: center;
+  padding: var(--espaco-4, 1rem);
+}
+.pagina-centro > * { width: 100%; max-width: 420px; }
+form { display: grid; gap: var(--espaco-4, 1rem); }

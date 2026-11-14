@@ -110,7 +110,19 @@ Máquina virtual com Docker e PostgreSQL pré-instalados (parados: inicie o que 
 Não alcança equipamentos da loja. Só chega à sessão o que está neste repositório.
 
 ## Comandos
-Instalar, testar, lint e subir ambiente: A DEFINIR na etapa E02. Atualize aqui quando existirem.
+| Para quê | Comando |
+|---|---|
+| Subir tudo (banco, migrações, dados fictícios, gestão :3000, loja :3001, site :3002, worker) | `pnpm dev` |
+| Instalar dependências | `pnpm install` |
+| Lint / tipos / testes / tudo | `pnpm lint` / `pnpm tipos` / `pnpm teste` / `pnpm verificar` |
+| Build dos apps | `pnpm build` |
+| Migrações: aplicar / reverter a última | `pnpm banco:migrar` / `pnpm banco:reverter` |
+| Dados fictícios | `pnpm banco:semente` (login = cargo, ex. `gerente.geral`; senha `senha-de-teste-123`) |
+
+Na sessão na nuvem: `service postgresql start` antes (banco `erp` e `erp_teste`, usuário `erp`/`erp`;
+crie com `CREATE ROLE erp LOGIN PASSWORD 'erp' CREATEDB` e os dois bancos se não existirem).
+Sem PostgreSQL local, `pnpm dev` sobe o do `docker-compose.yml`. Os testes usam `DATABASE_URL_TESTE`
+(precisa terminar em `_teste`; é apagado a cada execução).
 
 ## Skills (em `.claude/skills/`)
 `encerrar-sessao`, `publicar`, `nova-ideia-cliente`, `checklist-pr`, `migracao-segura`,

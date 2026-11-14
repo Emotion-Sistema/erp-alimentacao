@@ -3,7 +3,7 @@
 Lista viva do que depende do responsável. O Claude acrescenta e marca como feito.
 
 ## Agora (para começar)
-- [ ] 👉 Dar o "ok" para a E02 (fundação).
+- [ ] 👉 Conferir o PR #4 (aba Checks verde) e dar o "ok" para a E03.
 - [ ] 👉 Em claude.ai/code, conectar o GitHub e instalar o app do Claude neste repositório.
 
 ## Assim que possível (destrava o trabalho)
@@ -34,6 +34,8 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Enviar a mensagem: **Publique tudo**
 
 ## Feito
+- [x] Escolher o Caminho A para a proteção de branch (14/11/2026)
+- [x] Dar o "ok" para a E02 (14/11/2026)
 - [x] Responder às perguntas da conferência da T01 (14/11/2026)
 - [x] Abrir a primeira sessão e pedir a tarefa T01 (14/11/2026)
 - [x] Criar repositório privado no GitHub (13/11/2026)
