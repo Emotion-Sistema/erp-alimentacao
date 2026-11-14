@@ -71,8 +71,8 @@ Como funciona:
   a unidade está aberta e antes do último pedido da cozinha, a categoria está no horário daquele
   canal, não há pausa e o estoque permite (seção 2). Fora do horário, o produto aparece como
   "disponível a partir das 11h" e o pedido é recusado pelo servidor, mesmo que a tela tente.
-- **Quem muda horários: só o gerente geral e o dono** (definido em 14/11/2026). Nem o
-  administrador muda. Na E07 isso vira a ação `horarios.gerenciar` na matriz (decisão 0011), com teste por cargo.
+- **Quem muda horários: só o gerente geral, o dono e o administrador** (definido em 14/11/2026).
+  Nenhum outro cargo muda. Na E07 isso vira a ação `horarios.gerenciar` na matriz (decisão 0011), com teste por cargo.
 - Toda mudança de horário fica registrada com autor (RC-17).
 - Entra no cadastro de categorias (E07) e na disponibilidade (E12).
 
