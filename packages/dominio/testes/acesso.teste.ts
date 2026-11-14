@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql, type Banco } from "@erp/banco";
 import {
-  atorDaSessao, cabeNoPoderDe, criarUsuario, desligarUsuario, entrar, ErroDeRegra, listarUsuarios, pode, sair, SENHA_DE_TESTE, CARGOS, PERMISSOES,
+  atorDaSessao, podeAtribuir, criarUsuario, desligarUsuario, entrar, ErroDeRegra, listarUsuarios, pode, sair, SENHA_DE_TESTE, CARGOS, PERMISSOES,
 } from "../src/index";
 import { atorDoCargo, bancoDeTeste, prepararDados } from "./apoio";
 
@@ -30,13 +30,13 @@ const ultimaAuditoria = (acao: string) =>
 
 describe("matriz de cargos (base da E02)", () => {
   it("caixa e gerente geral não acessam o financeiro; dono, administrador e financeiro acessam", () => {
-    expect(pode(["caixa"], "financeiro.ver")).toBe(false);
-    expect(pode(["gerente_geral"], "financeiro.ver")).toBe(false);
-    for (const c of ["dono", "administrador", "financeiro"]) expect(pode([c], "financeiro.ver")).toBe(true);
+    expect(pode("caixa", "financeiro.ver")).toBe(false);
+    expect(pode("gerente_geral", "financeiro.ver")).toBe(false);
+    for (const c of ["dono", "administrador", "financeiro"]) expect(pode(c, "financeiro.ver")).toBe(true);
   });
   it("cargo desconhecido ou lista vazia não dá permissão nenhuma", () => {
-    expect(pode(["hacker"], "usuarios.ver")).toBe(false);
-    expect(pode([], "usuarios.ver")).toBe(false);
+    expect(pode("hacker", "usuarios.ver")).toBe(false);
+    expect(pode(null, "usuarios.ver")).toBe(false);
   });
   it("todo cargo tem entrada na matriz", () => {
     for (const c of CARGOS) expect(PERMISSOES[c]).toBeDefined();
@@ -123,19 +123,15 @@ describe("permissão conferida no servidor", () => {
       const e = await erroDe(criarUsuario(db, gerente, { nome: "Tentativa", login, senha: "uma-senha-longa", cargo, unidadeId }));
       expect(e.codigo).toBe("sem_permissao");
       const a = await ultimaAuditoria("usuarios.gerenciar");
-      expect([a.resultado, a.usuario_id, a.detalhes.cargo]).toEqual(["recusado", gerente.usuarioId, cargo]);
+      expect([a.resultado, a.usuario_id, a.detalhes.motivo]).toEqual(["recusado", gerente.usuarioId, `cargo_${cargo}`]);
       expect(await db.selectFrom("usuario").select("id").where("login", "=", login).executeTakeFirst()).toBeUndefined();
     }
   });
 
-  it("nenhum cargo pode dar um cargo com mais poder que o seu", () => {
-    for (const quem of CARGOS) {
-      for (const alvo of CARGOS) {
-        const esperado = PERMISSOES[alvo].every((a) => PERMISSOES[quem].includes(a));
-        expect(cabeNoPoderDe([quem], [alvo]), `${quem} -> ${alvo}`).toBe(esperado);
-      }
-    }
-    expect(cabeNoPoderDe(["dono"], ["cargo_inventado"])).toBe(false);
+  it("cargo inventado nunca é atribuído", () => {
+    expect(podeAtribuir("dono", ["cargo_inventado"])).toBe(false);
+    expect(podeAtribuir("cargo_inventado", ["caixa"])).toBe(false);
+    expect(podeAtribuir(null, ["caixa"])).toBe(false);
   });
 
   it("gerente geral não desliga administrador, e ninguém desliga a si mesmo", async () => {

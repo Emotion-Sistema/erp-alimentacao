@@ -1,6 +1,8 @@
 import { ErroDeRegra } from "@erp/dominio";
 
 export const COOKIE_SESSAO = "erp_sessao";
+/** Cookie do aparelho cadastrado como estação da cozinha (dura até a estação ser desligada). */
+export const COOKIE_ESTACAO = "erp_estacao";
 
 const STATUS: Record<ErroDeRegra["codigo"], number> = {
   nao_autenticado: 401,
@@ -8,6 +10,9 @@ const STATUS: Record<ErroDeRegra["codigo"], number> = {
   dados_invalidos: 400,
   conflito: 409,
   nao_encontrado: 404,
+  bloqueado: 429,
+  segundo_fator: 401,
+  confirmar_codigo: 401,
 };
 
 export function json(dados: unknown, status = 200, cabecalhos: HeadersInit = {}): Response {
@@ -25,10 +30,18 @@ export function respostaDeErro(e: unknown): Response {
 }
 
 export function tokenDaRequisicao(req: Request): string | null {
+  return lerCookie(req, COOKIE_SESSAO);
+}
+
+export function tokenDaEstacao(req: Request): string | null {
+  return lerCookie(req, COOKIE_ESTACAO);
+}
+
+function lerCookie(req: Request, procurado: string): string | null {
   const cookie = req.headers.get("cookie") ?? "";
   for (const parte of cookie.split(";")) {
     const [nome, ...valor] = parte.trim().split("=");
-    if (nome !== COOKIE_SESSAO) continue;
+    if (nome !== procurado) continue;
     try {
       return decodeURIComponent(valor.join("="));
     } catch {
@@ -59,6 +72,11 @@ export function conferirOrigem(req: Request): void {
 export function cookieSessao(token: string, expiraEm: Date): string {
   const seguro = process.env.NODE_ENV === "production" ? "; Secure" : "";
   return `${COOKIE_SESSAO}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Expires=${expiraEm.toUTCString()}${seguro}`;
+}
+
+export function cookieEstacao(token: string): string {
+  const seguro = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${COOKIE_ESTACAO}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${400 * 24 * 3600}${seguro}`;
 }
 
 export function cookieApagado(): string {

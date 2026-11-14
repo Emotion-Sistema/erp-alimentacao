@@ -8,7 +8,7 @@ export interface EmpresaTabela {
   razao_social: string;
   nome_fantasia: string;
   cnpj: string | null; // CNPJ sempre texto
-  criado_em: Generated<Instante>;
+  criado_em: Instante;
 }
 
 export interface UnidadeTabela {
@@ -16,14 +16,15 @@ export interface UnidadeTabela {
   empresa_id: number;
   nome: string;
   fuso_horario: Generated<string>;
-  criado_em: Generated<Instante>;
+  fim_turno: Generated<string>; // "HH:MM:SS", hora local da unidade
+  criado_em: Instante;
 }
 
 export interface SetorTabela {
   id: Generated<number>;
   unidade_id: number;
   nome: string;
-  criado_em: Generated<Instante>;
+  criado_em: Instante;
 }
 
 export interface PerfilTabela {
@@ -37,30 +38,79 @@ export interface UsuarioTabela {
   login: string;
   senha_hash: string | null;
   ativo: Generated<boolean>;
-  criado_em: Generated<Instante>;
+  criado_em: Instante;
   desligado_em: Instante | null;
+  senha_erros: Generated<number>;
+  senha_bloqueada_ate: Instante | null;
+  codigo_hash: string | null;
+  codigo_erros: Generated<number>;
+  codigo_bloqueado_em: Instante | null;
+  totp_segredo: string | null; // cifrado
+  totp_pendente: string | null; // cifrado, enquanto a pessoa configura
+  totp_ultimo_passo: ColumnType<string | null, number | string | null | undefined, number | string | null>;
 }
 
 export interface UsuarioPerfilTabela {
+  id: Generated<number>;
   usuario_id: number;
   perfil_codigo: string;
   unidade_id: number;
-  criado_em: Generated<Instante>;
+  criado_em: Instante;
+  criado_por: number | null;
+  removido_em: Instante | null;
+  removido_por: number | null;
 }
 
 export interface SessaoTabela {
   id: string; // hash do token; o token em si nunca é gravado
   usuario_id: number;
-  criada_em: Generated<Instante>;
+  criada_em: Instante;
   expira_em: Instante;
   revogada_em: Instante | null;
   ip: string | null;
   agente: string | null;
+  cargo_ativo: string | null;
+  segundo_fator_ok: Generated<boolean>;
+  segundo_fator_erros: Generated<number>;
+}
+
+export interface EstacaoTabela {
+  id: Generated<number>;
+  unidade_id: number;
+  nome: string;
+  tipo: Generated<"cozinha">;
+  token_hash: string;
+  criada_em: Instante;
+  criada_por: number;
+  revogada_em: Instante | null;
+  revogada_por: number | null;
+}
+
+export interface EstacaoPresencaTabela {
+  id: Generated<string>;
+  estacao_id: number;
+  usuario_id: number;
+  cargo: string;
+  entrou_em: Instante;
+  expira_em: Instante;
+  ativa_desde: Instante | null;
+  saiu_em: Instante | null;
+  motivo_saida: "saiu" | "outra_estacao" | "desligado" | "estacao_revogada" | "expirou" | null;
+}
+
+export interface AvisoTabela {
+  id: Generated<string>;
+  criado_em: Instante;
+  unidade_id: number;
+  para_cargos: string[];
+  tipo: string;
+  texto: string;
+  dados: ColumnType<Record<string, unknown>, string | undefined, never>;
 }
 
 export interface AuditoriaTabela {
   id: Generated<string>;
-  ocorrido_em: Generated<Instante>;
+  ocorrido_em: Instante;
   usuario_id: number | null;
   acao: string;
   resultado: "permitido" | "recusado" | "falhou";
@@ -79,4 +129,7 @@ export interface BancoTabelas {
   usuario_perfil: UsuarioPerfilTabela;
   sessao: SessaoTabela;
   auditoria: AuditoriaTabela;
+  estacao: EstacaoTabela;
+  estacao_presenca: EstacaoPresencaTabela;
+  aviso: AvisoTabela;
 }

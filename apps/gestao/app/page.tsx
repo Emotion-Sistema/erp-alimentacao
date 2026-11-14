@@ -22,7 +22,7 @@ export default async function Inicio() {
           Os aplicativos de cada função chegam nas próximas etapas. O que você pode fazer
           depende do seu cargo e é conferido pelo servidor em cada ação.
         </p>
-        {pode(ator.cargos, "usuarios.ver") && <p>Você pode ver a lista de funcionários.</p>}
+        {pode(ator.cargoAtivo, "usuarios.ver") && <p>Você pode ver a lista de funcionários.</p>}
         <BotaoSair />
       </Cartao>
     </main>
