@@ -17,6 +17,7 @@ export interface UnidadeTabela {
   nome: string;
   fuso_horario: Generated<string>;
   fim_turno: Generated<string>; // "HH:MM:SS", hora local da unidade
+  margem_troca_turno: Generated<string>; // intervalo, ex. "00:30:00"
   criado_em: Instante;
 }
 

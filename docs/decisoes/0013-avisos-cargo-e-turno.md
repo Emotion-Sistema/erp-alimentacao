@@ -15,17 +15,26 @@ existe escala de turnos por pessoa no sistema.
    Turno 2, 15h30 às 23h30** (tabela `turno`, migração 0005, hora local da unidade; turnos
    não podem se sobrepor). É o horário de quem trabalha; a loja abre 9h ou 10h e fecha
    23h30. **Cada pessoa tem o próprio login, mesmo no celular dividido: no fim do turno ela
-   sai e a próxima entra** (responsável). Por isso a pessoa fica **no turno em que entrou**;
-   quem entra até 30 min antes de um turno começar já é desse turno. Quando o turno dela
-   acaba, para de receber avisos do turno e a tela pede para sair. **Imprevisto:** o botão
-   "Continuo no <turno>" (pedido do responsável) faz a sessão valer até o fim do turno em
-   andamento; cada toque fica na auditoria. Depois das 23h30 ninguém está no turno. Sem
-   sessão, não recebe nada. A tela para mudar os turnos vem com os horários (E07/E12).
-   O fim do turno da equipe (23h30) é diferente da saída do tablet da cozinha (00h30, 0003).
+   sai e a próxima entra** (responsável).
+   - A pessoa é do **turno em andamento quando ela entrou** (15h10 é Turno 1; ninguém é
+     contado como "chegou mais cedo"). Quem entra antes do primeiro turno do dia, até 1 h
+     antes (ex.: 07h40), é desse turno.
+   - **Margem de troca de turno: 30 min** (sugestão, por unidade, `margem_troca_turno`).
+     Depois do fim do turno, quem sai ainda recebe avisos por 30 min (15h30-16h,
+     23h30-0h) e os avisos do turno valem até o fim da margem, então quem chega também
+     recebe. Nenhum aviso cai no vão da troca.
+   - Passada a margem, a pessoa para de receber e o sino pede para ela sair.
+   - **Imprevisto:** "Continuo no <turno>" (pedido do responsável) pede a **senha da própria
+     pessoa** (é uma nova entrada, com as travas do login; a sessão antiga é encerrada),
+     para quem pegou o celular com a sessão de outra pessoa não continuar no nome dela.
+     Vale até o fim do turno em andamento mais a margem. Fica na auditoria.
+   - Sem sessão, não recebe nada. A tela para mudar turnos e margem vem com os horários
+     (E07/E12); aí trocar o gatilho de sobreposição por restrição de exclusão.
+   - O fim do turno da equipe (23h30) é diferente da saída do tablet da cozinha (00h30, 0003).
 2. **Dois tipos de aviso** (`aviso.natureza`):
    - **operacional**: nasce de um fato do sistema (ex.: código bloqueado). Vale **até o fim
-     do turno em que nasceu** (15h30 ou 23h30). Quem só está no turno seguinte não recebe.
-     Nascido fora de turno (ex.: 07h20 ou 23h35), vale 30 min e fica só registrado;
+     do turno em que nasceu mais a margem** (16h ou 0h): quem está chegando também recebe.
+     Nascido fora de turno, vale só a margem (30 min);
    - **comunicado**: recado da gerência para um ou mais cargos, com **confirmação de
      leitura** ("Li e entendi"). Fica até cada um confirmar, ou só no turno de hoje, se
      quem mandou escolheu "só neste turno". O "até confirmar" vale para quem já tinha o cargo

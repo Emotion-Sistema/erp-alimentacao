@@ -212,7 +212,10 @@ export const resolverUmAviso = seguroComId(async (req, p) => {
 
 export const verMeuTurno = seguro(async (req) => json(await situacaoDoTurno(obterBanco(), await ator(req))));
 
-export const continuarMeuTurno = seguro(async (req) => json(await continuarNoTurno(obterBanco(), await ator(req))));
+export const continuarMeuTurno = seguro(async (req) => {
+  const r = await continuarNoTurno(obterBanco(), await ator(req), await corpoJson(req), { ip: ipDaRequisicao(req), agente: req.headers.get("user-agent") });
+  return json(await situacaoDoTurno(obterBanco(), r.ator), 200, { "set-cookie": cookieSessao(r.token, r.expiraEm) });
+});
 
 export const verComunicados = seguro(async (req) => json(await listarComunicados(obterBanco(), await ator(req))));
 

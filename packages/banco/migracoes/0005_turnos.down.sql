@@ -6,4 +6,5 @@ DROP FUNCTION IF EXISTS fim_do_turno_da_entrada(integer, timestamptz);
 DROP FUNCTION IF EXISTS fim_do_aviso(integer, timestamptz);
 DROP FUNCTION IF EXISTS turno_em(integer, timestamptz);
 DROP TABLE IF EXISTS turno;
+ALTER TABLE unidade DROP COLUMN IF EXISTS margem_troca_turno;
 DROP FUNCTION IF EXISTS turno_sem_sobrepor();

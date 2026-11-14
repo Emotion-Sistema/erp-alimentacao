@@ -7,7 +7,8 @@
 import { sql, type Banco } from "@erp/banco";
 import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
-import type { Ator } from "./sessao";
+import { z } from "zod";
+import { atorDaSessao, entrar, hashToken, type Ator } from "./sessao";
 
 export type SituacaoDoTurno = {
   /** Está no turno agora (recebe avisos do turno). */
@@ -16,6 +17,8 @@ export type SituacaoDoTurno = {
   turnoAtual: { nome: string; fim: Date } | null;
   /** O turno em que a pessoa entrou já acabou: a tela pede para ela sair. */
   turnoAcabou: boolean;
+  /** Até quando ainda recebe avisos (fim do turno + margem de troca), se estiver em turno. */
+  recebeAte: Date | null;
   /** Fora do turno com turno em andamento: pode tocar em "Continuo no turno". */
   podeContinuar: boolean;
 };
@@ -27,31 +30,60 @@ function exigirSessao(ator: Ator | null): asserts ator is Ator & { sessaoId: str
 
 export async function situacaoDoTurno(db: Banco, ator: Ator | null): Promise<SituacaoDoTurno> {
   exigirSessao(ator);
-  if (!ator.unidadeId) return { noTurno: false, turnoAtual: null, turnoAcabou: false, podeContinuar: false };
-  const r = await sql<{ noTurno: boolean; acabou: boolean; nome: string | null; fim: Date | null }>`
+  if (!ator.unidadeId) return { noTurno: false, turnoAtual: null, turnoAcabou: false, recebeAte: null, podeContinuar: false };
+  const r = await sql<{ noTurno: boolean; fimDele: Date | null; margem: string; recebeAte: Date | null; nome: string | null; fim: Date | null }>`
     SELECT pessoa_no_turno(${ator.unidadeId}, s.criada_em, s.turno_ate, now()) AS "noTurno",
-           now() >= greatest(fim_do_turno_da_entrada(${ator.unidadeId}, s.criada_em), coalesce(s.turno_ate, '-infinity')) AS acabou,
+           greatest(fim_do_turno_da_entrada(${ator.unidadeId}, s.criada_em), s.turno_ate) AS "fimDele",
+           greatest(fim_do_turno_da_entrada(${ator.unidadeId}, s.criada_em), s.turno_ate) + u.margem_troca_turno AS "recebeAte",
+           u.margem_troca_turno::text AS margem,
            t.nome, t.fim
     FROM sessao s
+    JOIN unidade u ON u.id = ${ator.unidadeId}
     LEFT JOIN LATERAL turno_em(${ator.unidadeId}, now()) t ON true
     WHERE s.id = ${ator.sessaoId}`.execute(db);
   const l = r.rows[0];
   const noTurno = !!l?.noTurno;
   const turnoAtual = l?.nome && l.fim ? { nome: l.nome, fim: l.fim } : null;
-  return { noTurno, turnoAtual, turnoAcabou: !!l?.acabou, podeContinuar: !noTurno && !!turnoAtual };
+  const turnoAcabou = !l?.fimDele || l.fimDele.getTime() <= Date.now();
+  // "Continuo" só quando o turno dele acabou e há outro turno em andamento que ainda não é o dele.
+  const podeContinuar = turnoAcabou && !!turnoAtual && (!l?.fimDele || turnoAtual.fim.getTime() > l.fimDele.getTime());
+  return { noTurno, turnoAtual, turnoAcabou, recebeAte: noTurno ? (l?.recebeAte ?? null) : null, podeContinuar };
 }
 
-/** "Continuo no turno" (imprevisto): a sessão passa a valer até o fim do turno em andamento. */
-export async function continuarNoTurno(db: Banco, ator: Ator | null): Promise<SituacaoDoTurno> {
+/**
+ * "Continuo no turno" (imprevisto). Pede a SENHA da própria pessoa: no celular dividido, quem
+ * pegou o aparelho com a sessão de outra pessoa não continua no nome dela. Na prática é uma
+ * nova entrada (mesmas travas de tentativas erradas do login): a sessão antiga é encerrada e
+ * a nova vale até o fim do turno em andamento (mais a margem). Tudo na auditoria.
+ */
+export async function continuarNoTurno(
+  db: Banco,
+  ator: Ator | null,
+  dados: unknown,
+  origem: { ip: string | null; agente: string | null },
+): Promise<{ token: string; expiraEm: Date; ator: Ator }> {
   exigirSessao(ator);
   if (!ator.unidadeId) throw new ErroDeRegra("dados_invalidos", "Seu cargo ativo não tem unidade.");
-  const r = await sql<{ fim: Date; nome: string }>`
-    UPDATE sessao s SET turno_ate = t.fim
-    FROM turno_em(${ator.unidadeId}, now()) t
-    WHERE s.id = ${ator.sessaoId}
-    RETURNING t.fim, t.nome`.execute(db);
-  const t = r.rows[0];
-  if (!t) throw new ErroDeRegra("dados_invalidos", "Agora não há turno em andamento.");
-  await auditar(db, { usuarioId: ator.usuarioId, acao: "turno.continuar", resultado: "permitido", detalhes: { turno: t.nome, ate: t.fim.toISOString() }, ip: ator.ip });
-  return situacaoDoTurno(db, ator);
+  const unidadeId = ator.unidadeId;
+  const p = z.object({ senha: z.string().min(1).max(200) }).safeParse(dados);
+  if (!p.success) throw new ErroDeRegra("dados_invalidos", "Digite sua senha para continuar no turno.");
+  const agora = await sql<{ nome: string; fim: Date }>`SELECT nome, fim FROM turno_em(${unidadeId}, now())`.execute(db);
+  if (!agora.rows[0]) throw new ErroDeRegra("dados_invalidos", "Agora não há turno em andamento.");
+  // Confere a senha como no login (bloqueio por tentativas, registro de erro).
+  const novo = await entrar(db, { login: ator.login, senha: p.data.senha }, origem);
+  const sessaoNova = hashToken(novo.token);
+  await db.transaction().execute(async (trx) => {
+    const r = await sql<{ fim: Date; nome: string }>`
+      UPDATE sessao s SET turno_ate = t.fim, cargo_ativo = antiga.cargo_ativo, segundo_fator_ok = antiga.segundo_fator_ok
+      FROM turno_em(${unidadeId}, now()) t, sessao antiga
+      WHERE s.id = ${sessaoNova} AND antiga.id = ${ator.sessaoId}
+      RETURNING t.fim, t.nome`.execute(trx);
+    await trx.updateTable("sessao").set({ revogada_em: new Date() }).where("id", "=", ator.sessaoId).where("revogada_em", "is", null).execute();
+    const linha = r.rows[0];
+    if (!linha) throw new ErroDeRegra("dados_invalidos", "Agora não há turno em andamento.");
+    await auditar(trx, { usuarioId: ator.usuarioId, acao: "turno.continuar", resultado: "permitido", detalhes: { turno: linha.nome, ate: linha.fim.toISOString() }, ip: ator.ip });
+  });
+  const atorNovo = await atorDaSessao(db, novo.token, ator.ip);
+  if (!atorNovo) throw new ErroDeRegra("nao_autenticado", "Entre com seu usuário para continuar.");
+  return { token: novo.token, expiraEm: novo.expiraEm, ator: atorNovo };
 }

@@ -394,31 +394,33 @@ describe("turnos da equipe (horas fixas, São Paulo): Turno 1 08h-15h30, Turno 2
     expect(await turno("2026-11-11T02:00:00")).toBeUndefined();
   });
 
-  it("aviso vale até o fim do turno em que nasceu; fora de turno, 30 min", async () => {
-    expect(await fimDoAviso("2026-11-10T09:00:00")).toBe("2026-11-10T18:30:00.000Z"); // 15h30
-    expect(await fimDoAviso("2026-11-10T15:30:00")).toBe("2026-11-11T02:30:00.000Z"); // 23h30
-    expect(await fimDoAviso("2026-11-10T23:40:00")).toBe("2026-11-11T03:10:00.000Z"); // +30 min
+  it("aviso vale até o fim do turno em que nasceu mais a margem de troca (30 min); fora de turno, só a margem", async () => {
+    expect(await fimDoAviso("2026-11-10T09:00:00")).toBe("2026-11-10T19:00:00.000Z"); // 15h30 + 30 = 16h
+    expect(await fimDoAviso("2026-11-10T15:25:00")).toBe("2026-11-10T19:00:00.000Z"); // perto do fim: quem chega recebe
+    expect(await fimDoAviso("2026-11-10T15:30:00")).toBe("2026-11-11T03:00:00.000Z"); // 23h30 + 30 = 0h
+    expect(await fimDoAviso("2026-11-10T23:40:00")).toBe("2026-11-11T03:10:00.000Z"); // fora de turno: +30 min
   });
 
-  it("cada um fica no turno em que entrou; quem chega até 30 min antes já é do próximo", async () => {
-    expect(await noTurno("2026-11-10T07:35:00", "2026-11-10T09:00:00")).toBe(true); // chegou antes do Turno 1
-    expect(await noTurno("2026-11-10T07:35:00", "2026-11-10T07:50:00")).toBe(false); // turno ainda não começou
+  it("cada um fica no turno em que entrou (15h10 é Turno 1), mais a margem de troca de 30 min", async () => {
     expect(await noTurno("2026-11-10T09:00:00", "2026-11-10T15:29:00")).toBe(true);
-    expect(await noTurno("2026-11-10T09:00:00", "2026-11-10T15:30:00")).toBe(false); // Turno 1 acabou: não recebe do Turno 2
+    expect(await noTurno("2026-11-10T09:00:00", "2026-11-10T15:45:00")).toBe(true); // passando o turno
+    expect(await noTurno("2026-11-10T09:00:00", "2026-11-10T16:00:00")).toBe(false); // acabou a margem
+    expect(await noTurno("2026-11-10T15:10:00", "2026-11-10T15:50:00")).toBe(true); // 15h10 = Turno 1
+    expect(await noTurno("2026-11-10T15:10:00", "2026-11-10T17:00:00")).toBe(false); // não é contado como Turno 2
+    expect(await noTurno("2026-11-10T15:30:00", "2026-11-10T22:00:00")).toBe(true); // entrou no Turno 2
+    expect(await noTurno("2026-11-10T16:00:00", "2026-11-10T23:45:00")).toBe(true); // fechando, na margem
+    expect(await noTurno("2026-11-10T16:00:00", "2026-11-11T00:05:00")).toBe(false);
     expect(await noTurno("2026-11-10T08:00:00", "2026-11-10T19:00:00")).toBe(false); // esqueceu de sair
-    expect(await noTurno("2026-11-10T15:10:00", "2026-11-10T22:00:00")).toBe(true); // chegou cedo para o Turno 2
-    expect(await noTurno("2026-11-10T14:50:00", "2026-11-10T15:40:00")).toBe(false); // entrou no Turno 1
-    expect(await noTurno("2026-11-10T07:00:00", "2026-11-10T09:00:00")).toBe(false); // cedo demais
+    expect(await noTurno("2026-11-10T07:40:00", "2026-11-10T09:00:00")).toBe(true); // antes do primeiro turno: Turno 1
+    expect(await noTurno("2026-11-10T06:30:00", "2026-11-10T09:00:00")).toBe(false); // cedo demais: sem turno
     expect(await noTurno("2026-11-09T22:00:00", "2026-11-10T09:00:00")).toBe(false); // sessão de ontem
-    expect(await noTurno("2026-11-10T16:00:00", "2026-11-10T23:45:00")).toBe(false); // depois do Turno 2
   });
 
-  it("'Continuo no turno' vale até o fim do turno em que foi tocado", async () => {
-    // Entrou no Turno 1, ficou por imprevisto e tocou às 15h40: vale o Turno 2 inteiro.
+  it("'Continuo no turno' vale até o fim do turno em que foi tocado, mais a margem", async () => {
     expect(await noTurno("2026-11-10T09:00:00", "2026-11-10T20:00:00", "2026-11-10T23:30:00")).toBe(true);
-    expect(await noTurno("2026-11-10T09:00:00", "2026-11-10T23:30:00", "2026-11-10T23:30:00")).toBe(false);
-    // Entrou cedo demais (07h) e tocou às 08h05: vale o Turno 1.
-    expect(await noTurno("2026-11-10T07:00:00", "2026-11-10T10:00:00", "2026-11-10T15:30:00")).toBe(true);
+    expect(await noTurno("2026-11-10T09:00:00", "2026-11-10T23:50:00", "2026-11-10T23:30:00")).toBe(true);
+    expect(await noTurno("2026-11-10T09:00:00", "2026-11-11T00:00:00", "2026-11-10T23:30:00")).toBe(false);
+    expect(await noTurno("2026-11-10T06:30:00", "2026-11-10T10:00:00", "2026-11-10T15:30:00")).toBe(true);
   });
 
   it("turnos que se sobrepõem são recusados", async () => {
@@ -463,7 +465,7 @@ describe("entrega de verdade fora do turno (o caminho da caixa de avisos)", () =
       const s = await situacaoDoTurno(db, sup);
       expect(s.noTurno).toBe(false);
       expect(s.turnoAtual).toBeNull();
-      expect((await erroDe(continuarNoTurno(db, sup))).codigo).toBe("dados_invalidos");
+      expect((await erroDe(continuarNoTurno(db, sup, { senha: SENHA }, origem))).codigo).toBe("dados_invalidos");
     });
   });
 
@@ -476,18 +478,27 @@ describe("entrega de verdade fora do turno (o caminho da caixa de avisos)", () =
     expect(await temAviso(sup, m)).toBe(false);
     const antes = await situacaoDoTurno(db, sup);
     expect(antes).toMatchObject({ noTurno: false, turnoAcabou: true, podeContinuar: true });
-    const depois = await continuarNoTurno(db, sup);
+    // Senha errada (ex.: a próxima pessoa pegou o celular): não continua e fica registrado.
+    expect((await erroDe(continuarNoTurno(db, sup, { senha: "nao-e-a-senha" }, origem))).codigo).toBe("nao_autenticado");
+    expect((await erroDe(continuarNoTurno(db, sup, {}, origem))).codigo).toBe("dados_invalidos");
+    expect((await situacaoDoTurno(db, sup)).noTurno).toBe(false);
+    const novo = await continuarNoTurno(db, sup, { senha: SENHA }, origem);
+    const depois = await situacaoDoTurno(db, novo.ator);
     expect(depois).toMatchObject({ noTurno: true, turnoAcabou: false, podeContinuar: false });
-    expect(await temAviso(sup, m)).toBe(true);
+    expect(novo.ator.cargoAtivo).toBe("supervisor");
+    expect(await temAviso(novo.ator, m)).toBe(true);
+    // A sessão antiga (a esquecida) foi encerrada.
+    const antiga = await db.selectFrom("sessao").select("revogada_em").where("id", "=", sup.sessaoId!).executeTakeFirstOrThrow();
+    expect(antiga.revogada_em).not.toBeNull();
     const reg = await db.selectFrom("auditoria").select("detalhes").where("usuario_id", "=", sup.usuarioId).where("acao", "=", "turno.continuar").executeTakeFirst();
     expect(reg?.detalhes.turno).toBe(depois.turnoAtual?.nome);
     expect((await erroDe(situacaoDoTurno(db, null))).codigo).toBe("nao_autenticado");
   });
 
-  it("comunicado 'só neste turno' vale até o fim do turno em andamento", async () => {
+  it("comunicado 'só neste turno' vale até o fim do turno em andamento mais a margem", async () => {
     const gerente = await atorDoCargo(db, "gerente_geral", "gerente.geral");
     const { id } = await enviarComunicado(db, gerente, { texto: `Neste turno ${marca()}`, cargos: ["caixa"], validade: "turno" });
-    const r = await sql<{ ok: boolean }>`SELECT expira_em = (SELECT fim FROM turno_em(unidade_id, criado_em)) AS ok FROM aviso WHERE id = ${id}`.execute(db);
+    const r = await sql<{ ok: boolean }>`SELECT a.expira_em = (SELECT fim FROM turno_em(a.unidade_id, a.criado_em)) + u.margem_troca_turno AS ok FROM aviso a JOIN unidade u ON u.id = a.unidade_id WHERE a.id = ${id}`.execute(db);
     expect(r.rows[0]?.ok).toBe(true);
   });
 

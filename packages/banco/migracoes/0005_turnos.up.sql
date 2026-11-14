@@ -11,6 +11,12 @@ CREATE TABLE turno (
 );
 CREATE UNIQUE INDEX turno_nome ON turno (unidade_id, lower(nome));
 
+-- Margem de troca de turno: depois do fim de cada turno, quem sai ainda recebe avisos por
+-- este tempo (passa o serviço) e os avisos do turno ainda valem para quem chega. Nenhum
+-- aviso cai no vão da troca. Padrão 30 min (sugestão aceita a confirmar, 14/11/2026).
+ALTER TABLE unidade ADD COLUMN margem_troca_turno interval NOT NULL DEFAULT '30 minutes'
+  CHECK (margem_troca_turno >= interval '0' AND margem_troca_turno <= interval '2 hours');
+
 INSERT INTO turno (unidade_id, nome, inicio, fim)
   SELECT id, 'Turno 1', time '08:00', time '15:30' FROM unidade
   UNION ALL
@@ -31,11 +37,12 @@ LANGUAGE sql STABLE AS $$
   LIMIT 1
 $$;
 
--- Até quando vale um aviso que nasce em `agora`: o fim do turno em andamento. Fora de
--- turno, 30 minutos (ninguém está no turno para receber; fica só registrado).
+-- Até quando vale um aviso que nasce em `agora`: o fim do turno em andamento mais a margem
+-- de troca (o próximo turno também recebe). Fora de turno, só a margem.
 CREATE FUNCTION fim_do_aviso(p_unidade integer, agora timestamptz) RETURNS timestamptz
 LANGUAGE sql STABLE AS $$
-  SELECT coalesce((SELECT fim FROM turno_em(p_unidade, agora)), agora + interval '30 minutes')
+  SELECT coalesce((SELECT fim FROM turno_em(p_unidade, agora)), agora) + u.margem_troca_turno
+  FROM unidade u WHERE u.id = p_unidade
 $$;
 
 -- Turnos não podem se sobrepor na mesma unidade.
@@ -51,27 +58,27 @@ CREATE TRIGGER turno_nao_sobrepoe
   BEFORE INSERT OR UPDATE ON turno
   FOR EACH ROW EXECUTE FUNCTION turno_sem_sobrepor();
 
--- Até quando vai o turno de quem entrou em `entrou_em`. Quem entra até 30 min antes de um
--- turno começar já é desse turno (chega um pouco antes); senão, o turno em andamento na
--- entrada. Fora disso, a própria entrada (não está em turno nenhum; pode tocar "Continuo").
+-- Até quando vai o turno de quem entrou em `entrou_em`: o turno em andamento na entrada
+-- (quem entra às 15h10 é do Turno 1; ninguém é contado como "chegou mais cedo"). Quem entra
+-- fora de turno, até 1 h antes de um turno começar (ex.: 07h40), é desse turno. Senão, nulo
+-- (não está em turno nenhum).
 CREATE FUNCTION fim_do_turno_da_entrada(p_unidade integer, entrou_em timestamptz) RETURNS timestamptz
 LANGUAGE sql STABLE AS $$
   SELECT coalesce(
-    (SELECT fim FROM turno_em(p_unidade, entrou_em + interval '30 minutes')),
     (SELECT fim FROM turno_em(p_unidade, entrou_em)),
-    entrou_em)
+    (SELECT fim FROM turno_em(p_unidade, entrou_em + interval '1 hour')))
 $$;
 
 -- Imprevisto: quem precisa ficar toca em "Continuo no turno"; a sessão passa a valer até o
 -- fim do turno em andamento. Cada toque fica na auditoria.
 ALTER TABLE sessao ADD COLUMN turno_ate timestamptz;
 
--- A pessoa está no turno em `agora` se há turno em andamento e ainda não passou o fim do
--- turno em que ela entrou (ou do turno em que tocou "Continuo"). Cada um tem o próprio
--- login, mesmo no celular dividido: no fim do turno a pessoa sai e a próxima entra
--- (responsável, 14/11/2026). Quem esquece de sair para de receber.
+-- A pessoa está no turno em `agora` até o fim do turno em que entrou (ou do turno em que
+-- tocou "Continuo") mais a margem de troca. Cada um tem o próprio login, mesmo no celular
+-- dividido: no fim do turno a pessoa sai e a próxima entra (responsável, 14/11/2026).
+-- Quem esquece de sair para de receber ao fim da margem.
 CREATE FUNCTION pessoa_no_turno(p_unidade integer, entrou_em timestamptz, turno_ate timestamptz, agora timestamptz) RETURNS boolean
 LANGUAGE sql STABLE AS $$
-  SELECT EXISTS (SELECT 1 FROM turno_em(p_unidade, agora))
-     AND agora < greatest(fim_do_turno_da_entrada(p_unidade, entrou_em), coalesce(turno_ate, '-infinity'))
+  SELECT coalesce(agora < greatest(fim_do_turno_da_entrada(p_unidade, entrou_em), turno_ate) + u.margem_troca_turno, false)
+  FROM unidade u WHERE u.id = p_unidade
 $$;

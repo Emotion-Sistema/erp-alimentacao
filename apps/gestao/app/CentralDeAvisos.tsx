@@ -52,7 +52,8 @@ async function avisarNoAparelho(novos: AvisoDaCaixa[], audio: { current: AudioCo
   }
 }
 
-type Turno = { noTurno: boolean; turnoAcabou: boolean; podeContinuar: boolean; turnoAtual: { nome: string; fim: string } | null };
+type Turno = { noTurno: boolean; turnoAcabou: boolean; podeContinuar: boolean; recebeAte: string | null; turnoAtual: { nome: string; fim: string } | null };
+const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 const CHAVE_CONHECIDOS = "erp-avisos-conhecidos";
 function lerConhecidos(): Set<string> | null {
@@ -77,6 +78,7 @@ export function CentralDeAvisos() {
   const [erro, setErro] = useState("");
   const [permissao, setPermissao] = useState<string | null>(null);
   const [turno, setTurno] = useState<Turno | null>(null);
+  const [senha, setSenha] = useState("");
   const conhecidos = useRef<Set<string> | null>(null);
   const parou = useRef(false);
   const audio = useRef<AudioContext | null>(null);
@@ -170,7 +172,8 @@ export function CentralDeAvisos() {
   }
 
   async function continuar() {
-    const r = await chamar<Turno>("/api/eu/turno", "POST");
+    const r = await chamar<Turno>("/api/eu/turno", "POST", { senha });
+    setSenha("");
     if (r.ok && r.dados) setTurno(r.dados);
     else setErro(r.mensagem);
   }
@@ -190,11 +193,26 @@ export function CentralDeAvisos() {
     <div className="avisos">
       {turno?.turnoAcabou && (
         <Aviso tipo="atencao" data-testid="turno-acabou">
-          Seu turno acabou: os avisos do turno não chegam mais para você. Saia para a próxima pessoa entrar.
+          {turno.noTurno && turno.recebeAte
+            ? `Seu turno acabou. Você ainda recebe avisos até ${hora(turno.recebeAte)} para passar o turno; depois, saia para a próxima pessoa entrar.`
+            : "Você está fora do seu turno: os avisos do turno não chegam mais para você. Saia para a próxima pessoa entrar."}
           {turno.podeContinuar && turno.turnoAtual && (
-            <button type="button" className="avisos__ativar" onClick={() => void continuar()}>
-              Continuo no {turno.turnoAtual.nome}
-            </button>
+            <form
+              className="avisos__continuar"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void continuar();
+              }}
+            >
+              <label>
+                Precisa ficar? Digite <strong>sua</strong> senha:
+                <input type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
+              </label>
+              <button type="submit" className="avisos__ativar">
+                Continuo no {turno.turnoAtual.nome}
+              </button>
+              {erro && !aberto && <span role="alert">{erro}</span>}
+            </form>
           )}
         </Aviso>
       )}
