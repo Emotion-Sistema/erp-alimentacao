@@ -7,6 +7,7 @@
 import { sql, type Banco } from "@erp/banco";
 import { z } from "zod";
 import { auditar } from "./auditoria";
+import { criarAviso } from "./avisos";
 import { ErroDeRegra } from "./erros";
 import { CARGOS_DA_ESTACAO, podeAtribuir } from "./permissoes";
 import { conferirSenha, hashParaTempoConstante, hashSenha } from "./senha";
@@ -115,16 +116,14 @@ async function conferirCodigo(db: Banco, usuarioId: number, codigo: string, cont
     await auditar(trx, { usuarioId, acao: contexto.acao, resultado: "falhou", detalhes: { motivo: "codigo_errado", estacaoId: contexto.estacaoId, bloqueou } });
     if (bloqueou) {
       await auditar(trx, { usuarioId, acao: "codigo.bloqueado", resultado: "permitido", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { estacaoId: contexto.estacaoId } });
-      await trx
-        .insertInto("aviso")
-        .values({
-          unidade_id: contexto.unidadeId,
-          para_cargos: sql<string[]>`ARRAY['supervisor','gerente_geral']::text[]`,
-          tipo: "codigo_bloqueado",
-          texto: `O código de ${u.nome} foi bloqueado depois de ${CODIGO_MAX_ERROS} erros. Desbloqueie em Funcionários.`,
-          dados: JSON.stringify({ usuarioId, estacaoId: contexto.estacaoId }),
-        })
-        .execute();
+      await criarAviso(trx, {
+        unidadeId: contexto.unidadeId,
+        paraCargos: ["supervisor", "gerente_geral"],
+        tipo: "codigo_bloqueado",
+        prioridade: "urgente",
+        texto: `O código de ${u.nome} foi bloqueado depois de ${CODIGO_MAX_ERROS} erros. Desbloqueie em Funcionários.`,
+        dados: { usuarioId, estacaoId: contexto.estacaoId },
+      });
     }
     return r;
   });

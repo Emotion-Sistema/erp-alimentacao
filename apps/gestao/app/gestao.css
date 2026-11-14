@@ -113,3 +113,31 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 @keyframes faixa-pisca { 50% { background: var(--cor-atencao); color: var(--cor-fundo); } }
 .faixa-turno--pisca { animation: faixa-pisca 1s steps(1) infinite; }
 @media (prefers-reduced-motion: reduce) { .faixa-turno--pisca { animation: none; } }
+
+/* ---------- Central de avisos ---------- */
+.avisos { position: relative; }
+.avisos__sino, .avisos__fechar, .avisos__ativar {
+  display: inline-flex; align-items: center; gap: var(--espaco-2); min-height: var(--alvo-toque);
+  padding: 0 var(--espaco-4); border: 2px solid var(--cor-borda); border-radius: var(--raio);
+  background: var(--cor-fundo); color: var(--cor-texto); font: inherit; font-weight: 600; cursor: pointer;
+}
+.avisos__sino[aria-expanded="true"] { border-color: var(--cor-primaria); }
+.avisos__contador {
+  min-width: 1.6rem; padding: 0 var(--espaco-2); text-align: center; border-radius: var(--raio);
+  background: var(--cor-perigo); color: var(--cor-fundo); font-weight: 800; font-size: var(--texto-pequeno);
+}
+.avisos__painel {
+  position: fixed; inset: 0; z-index: 20; overflow-y: auto; padding: var(--espaco-4);
+  background: var(--cor-fundo); color: var(--cor-texto);
+}
+.avisos__cabeca { display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-3); }
+.avisos__ativar { margin-bottom: var(--espaco-3); border-color: var(--cor-primaria); }
+@media (min-width: 40rem) {
+  .avisos__painel {
+    inset: auto; top: var(--espaco-4); right: var(--espaco-4); width: min(28rem, calc(100vw - 2 * var(--espaco-4)));
+    max-height: calc(100dvh - 2 * var(--espaco-4)); border: 2px solid var(--cor-borda); border-radius: var(--raio); box-shadow: var(--sombra);
+  }
+}
+.comunicados__grupo { border: 2px solid var(--cor-borda); border-radius: var(--raio); padding: var(--espaco-3); display: grid; gap: var(--espaco-2); min-width: 0; }
+.comunicados__opcao { display: flex; align-items: center; gap: var(--espaco-3); min-height: var(--alvo-toque); }
+.comunicados__opcao input { width: 1.5rem; height: 1.5rem; flex: 0 0 auto; }

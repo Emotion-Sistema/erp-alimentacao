@@ -39,3 +39,8 @@ esperando pagamento, autorização pedida.
 Aviso chega ao cargo e ao turno certos; urgente não visto sobe; comunicado mostra quem
 leu; mensagem do pedido aparece na linha do tempo; quem está fora do turno não recebe
 aviso operacional.
+
+## Situação (14/11/2026)
+E05 fez a base (decisão 0013): caixa de avisos com novo/visto/resolvido, comunicados com
+confirmação de leitura, entrega por cargo ativo, unidade e turno, e aviso no aparelho com o
+aplicativo aberto. O resto deste requisito tem etapa marcada na decisão 0013.

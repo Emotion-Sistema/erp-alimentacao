@@ -49,6 +49,9 @@ describe("aplicativos por cargo", () => {
     expect(itens("estoque", "cozinheira")).toEqual(["/estoque"]);
     expect(itens("estoque", "supervisor")).toEqual(["/estoque/salao"]);
     expect(itens("financeiro", "contador")).toEqual(["/financeiro/contabil"]);
+    expect(itens("gestao", "dono")).toContain("/comunicados");
+    expect(itens("gestao", "gerente_geral")).toContain("/comunicados");
+    expect(itens("gestao", "supervisor")).not.toContain("/comunicados");
   });
 
   it("caixa e gerente geral não veem nenhum item do financeiro", () => {

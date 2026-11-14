@@ -13,9 +13,10 @@ Atualizado em: 14/11/2026
   categorias sempre à mão (com padrão); checklist de início do turno (RC-13, ideia nº 2).
 - Tablet da cozinha: sai às 00h30, a cozinha estende 30 min até 4x, com bipe (migração 0003).
 - Regra do responsável: nunca ignorar falha (CLAUDE.md); testes rodam em ordem embaralhada.
-- **E04 (base visual e cascas) construída** (decisão 0012): lançador, aplicativos por cargo, tema
-  neutro, loja e site, testes nos 3 tamanhos. Em revisão independente; depois PR e merge.
-- Próxima etapa: **E05** (avisos), depois do "ok" do responsável.
+- **E04 (base visual e cascas) feita** no PR #11 (merge 858ad9f; decisão 0012).
+- **E05 (avisos) em andamento** (decisão 0013): banco, domínio, rotas, telas, 155 testes +
+  63 de tela, na branch. Revisão 1 reprovou (turno contado da entrada; corrigido); revisão 2
+  aprovou. PR aberto para a `main`.
 - Pendente na E06: separar papéis do PostgreSQL (decisão 0010).
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
   gratuito; a trava do repositório é a única barreira automática.
@@ -66,6 +67,7 @@ Tudo sobre um núcleo único. Detalhes em `docs/01-visao-e-escopo.md`.
 |---|---|---|---|
 | 13/11/2026 | Preparação do projeto (F0) | Instruções, requisitos, cérebro, skills e travas criados | `diario/2026-11-13-preparacao-do-projeto.md` |
 | 14/11/2026 | T01 parte 1 (E01): conferência e teste das travas | Estrutura juntada na `main` (PR #1); trava de `producao` bloqueou; 2 brechas e 3 propostas | `diario/2026-11-14-t01-conferencia.md` |
+| 14/11/2026 | E05: avisos (em andamento) | Avisos por cargo e turno, comunicados com leitura; telas a seguir | `diario/2026-11-14-e05-avisos.md` |
 | 14/11/2026 | E04: base visual e cascas | Lançador e 7 aplicativos por cargo; 128 testes + 56 de tela | `diario/2026-11-14-e04-cascas.md` |
 | 14/11/2026 | E03: cargos, login e auditoria | PR #5 juntado; 99 testes + 24 de tela; revisão reprovou 1x (corrigido) e aprovou | `diario/2026-11-14-e03-acessos.md` |
 | 14/11/2026 | E02: fundação técnica | Monorepositório, banco, login/permissões, CI; revisão independente achou 1 defeito grave (corrigido) | `diario/2026-11-14-e02-fundacao.md` |

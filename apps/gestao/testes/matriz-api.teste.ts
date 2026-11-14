@@ -44,6 +44,10 @@ const ROTAS: Rota[] = [
   { metodo: "POST", caminho: "/api/eu/cargo", acao: "sessao" },
   { metodo: "POST", caminho: "/api/eu/codigo", acao: "sessao" },
   { metodo: "GET", caminho: "/api/avisos", acao: "sessao" },
+  { metodo: "POST", caminho: "/api/avisos/vistos", acao: "sessao" },
+  { metodo: "POST", caminho: "/api/avisos/[id]/resolver", acao: "sessao" },
+  { metodo: "GET", caminho: "/api/comunicados", acao: "comunicados.enviar", chamar: (c) => r.verComunicados(req("/api/comunicados", "GET", c)) },
+  { metodo: "POST", caminho: "/api/comunicados", acao: "comunicados.enviar", chamar: (c) => r.novoComunicado(req("/api/comunicados", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/usuarios", acao: "usuarios.ver", chamar: (c) => r.verUsuarios(req("/api/usuarios", "GET", c)) },
   { metodo: "POST", caminho: "/api/usuarios", acao: "usuarios.gerenciar", chamar: (c) => r.novoUsuario(req("/api/usuarios", "POST", c, {})) },
   { metodo: "POST", caminho: "/api/usuarios/[id]/cargos", acao: "usuarios.gerenciar", chamar: (c) => r.darCargoAoUsuario(req(`/api/usuarios/${INEXISTENTE}/cargos`, "POST", c, {}), { id: INEXISTENTE }) },
@@ -118,10 +122,20 @@ describe("matriz pela API: cada cargo x cada rota protegida", () => {
     }
   });
 
+  it("consulta de avisos vinda de outro site é recusada (ela grava a entrega)", async () => {
+    const cookie = await entrarComo("caixa");
+    const pedido = req("/api/avisos", "GET", cookie);
+    pedido.headers.set("sec-fetch-site", "cross-site");
+    expect((await r.verAvisos(pedido)).status).toBe(403);
+    expect((await r.verAvisos(req("/api/avisos", "GET", cookie))).status).toBe(200);
+  });
+
   it("sem sessão: toda rota protegida volta 401", async () => {
     for (const rota of protegidas) expect((await rota.chamar("")).status, rota.caminho).toBe(401);
     expect((await r.quemSouEu(req("/api/eu", "GET"))).status).toBe(401);
     expect((await r.verAvisos(req("/api/avisos", "GET"))).status).toBe(401);
+    expect((await r.marcarAvisosVistos(req("/api/avisos/vistos", "POST", undefined, { ids: [1] }))).status).toBe(401);
+    expect((await r.resolverUmAviso(req("/api/avisos/1/resolver", "POST", undefined, {}), { id: "1" })).status).toBe(401);
   });
 
   it("administrador que só digitou a senha (sem o segundo fator) é barrado em tudo", async () => {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Cartao } from "@erp/interface";
 import { aplicativoPorCodigo, aplicativosDoCargo, itensVisiveis, NOME_DO_CARGO, pode, type Acao, type Ator } from "@erp/dominio";
+import { CentralDeAvisos } from "./CentralDeAvisos";
 import { BotaoSair } from "./BotaoSair";
 import { entradaDoAplicativo } from "./aplicativos-ui";
 import { Menu } from "./Menu";
@@ -54,6 +55,7 @@ export function Casca({
           />
         )}
         <div className="casca__lado">
+          <CentralDeAvisos />
           <Link href="/minha-conta" className="casca__link">
             Minha conta
           </Link>
