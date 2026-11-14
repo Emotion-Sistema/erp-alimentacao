@@ -523,6 +523,8 @@ describe("margem de troca de turno: gerentes mudam quando quiserem", () => {
       const p = await pessoa(cargo);
       expect((await erroDe(verTurnos(db, p))).codigo, cargo).toBe("sem_permissao");
       expect((await erroDe(mudarMargemDeTroca(db, p, { minutos: 10 }))).codigo, cargo).toBe("sem_permissao");
+      const reg = await db.selectFrom("auditoria").select("resultado").where("usuario_id", "=", p.usuarioId).where("acao", "=", "horarios.gerenciar").execute();
+      expect(reg.map((r) => r.resultado), cargo).toEqual(["recusado", "recusado"]);
     }
   });
 

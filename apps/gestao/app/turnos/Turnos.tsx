@@ -54,7 +54,7 @@ export function Turnos() {
             <h2>Margem de troca de turno</h2>
             <p>
               Depois do fim de cada turno, quem está saindo ainda recebe os avisos por este tempo, e os avisos do turno
-              continuam valendo para quem está chegando. Assim nenhum aviso se perde na troca.
+              continuam valendo para quem está chegando. Assim nenhum aviso se perde na troca. A mudança vale para os avisos criados depois dela.
             </p>
             <form onSubmit={(e) => void salvar(e)}>
               <label>
@@ -75,6 +75,9 @@ export function Turnos() {
                 Salvar margem
               </Botao>
             </form>
+            {margem === "0" && (
+              <Aviso tipo="atencao">Com 0 minutos não há margem: um aviso que nasce perto do fim do turno pode não chegar a quem está entrando.</Aviso>
+            )}
             {ok && <Aviso tipo="sucesso">{ok}</Aviso>}
           </Cartao>
         </>

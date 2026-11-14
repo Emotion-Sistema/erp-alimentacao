@@ -34,6 +34,8 @@ existe escala de turnos por pessoa no sistema.
    - **Gerentes mudam a margem quando quiserem** (pedido do responsável): tela Gestão →
      Turnos, 0 a 120 min, ação nova `horarios.gerenciar` (dono, administrador, gerente
      geral; a mesma regra dos horários). Cada mudança fica na auditoria com o antes e o depois.
+     A margem nova vale na hora para quem está no turno e para os avisos criados depois dela
+     (a validade de cada aviso é gravada quando ele nasce).
    - Consequência aceita da regra "15h10 é Turno 1": quem do Turno 2 entra antes das 15h30
      para de receber às 16h, se não tocar em "Continuo"; o certo é entrar na hora do turno.
    - Sem sessão, não recebe nada. A tela para mudar turnos e margem vem com os horários
