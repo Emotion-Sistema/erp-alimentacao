@@ -61,7 +61,6 @@ export const APLICATIVOS: readonly Aplicativo[] = [
     aparelho: "tablet",
     itens: [
       { caminho: "/producao", texto: "Visão geral", acao: "producao.ver", etapa: "E14" },
-      { caminho: "/estacoes", texto: "Estações", acao: "estacoes.ver" },
     ],
   },
   {

@@ -38,6 +38,13 @@ funcionar com um tema neutro, trocando só valores quando a marca vier.
    atalho de instalação). Um teste falha se aparecer cor fixa em outro arquivo.
 6. **Atalho de instalação por aplicativo** (manifesto e ícone próprios). Funcionamento sem
    internet (service worker) fica para quando houver tela que precise dele.
+7. **Telas futuras** conferem a ação antes de buscar qualquer dado (sair cedo com a recusa),
+   não só dentro da casca.
+8. **Avisos:** hoje a lista de avisos fica no lançador; quem tem um aplicativo só vai direto
+   para ele e não a vê. Hoje nenhum aviso vai para esses cargos. **A E05 coloca os avisos
+   dentro da casca de todo aplicativo.**
+9. Manifesto e ícone são públicos (respostas fixas, em cache, sem dado interno); entram no
+   limite de requisições junto com o resto na E06.
 
 ## Alternativas descartadas
 - Um projeto Next por aplicativo: mais builds e publicações sem ganho agora; o núcleo e a

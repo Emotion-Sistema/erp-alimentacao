@@ -36,7 +36,7 @@ export function Casca({
   return (
     <div className="casca" data-aparelho={aplicativo?.aparelho ?? "computador"} data-app={aplicativo?.codigo}>
       <header className="casca__topo">
-        {aplicativo && (
+        {aplicativo && permitido && (
           <p className="casca__app" data-testid="nome-do-app">
             {aplicativo.nome}
           </p>

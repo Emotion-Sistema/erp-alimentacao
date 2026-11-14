@@ -17,7 +17,7 @@ function arquivos(pasta: string, saida: string[] = []): string[] {
     if (n === "node_modules" || n === ".next") continue;
     const caminho = join(pasta, n);
     if (statSync(caminho).isDirectory()) arquivos(caminho, saida);
-    else if (/\.(css|ts|tsx)$/.test(n)) saida.push(caminho);
+    else if (/\.(css|ts|tsx|js|mjs)$/.test(n)) saida.push(caminho);
   }
   return saida;
 }

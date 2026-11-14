@@ -25,6 +25,9 @@ funciona e só começa quando a anterior foi aceita. Modelos: ver `05-uso-dos-mo
 | **E05** Avisos | Central interna e aviso no aparelho, básico (RC-18) | Sonnet; Opus no tempo real | Aviso chega ao cargo e turno certos |
 | **E06** Homologação 🚪 | Preparar a VPS de testes já contratada (chave SSH, firewall, Docker, HTTPS) por script em `infra/` e publicação automática da `main` | Opus | 👉 Responsável abre o endereço de testes e entra com seu login |
 
+Critério da E05 vindo da E04 (decisão 0012): os avisos aparecem dentro da casca de **todo**
+aplicativo, inclusive para quem tem um só (hoje ficam no lançador).
+
 ## Bloco B: cadastros e estoque
 | Etapa | Entrega | Modelos | Pronto quando |
 |---|---|---|---|

@@ -83,7 +83,9 @@ test.describe("recusas pela tela", () => {
 
   const casos: [string, string[]][] = [
     ["caixa", ["/financeiro", "/gestao", "/estoque"]],
-    ["gerente_geral", ["/financeiro"]],
+    ["gerente_geral", ["/financeiro", "/caixa", "/caixa/receber"]],
+    ["supervisor", ["/caixa", "/caixa/receber", "/estoque"]],
+    ["contador", ["/financeiro", "/financeiro/faturamento", "/estoque/custos"]],
     ["atendente", ["/caixa"]],
   ];
   const tituloDe = (caminho: string) => APLICATIVOS.flatMap((a) => a.itens).find((i) => i.caminho === caminho)!.texto;

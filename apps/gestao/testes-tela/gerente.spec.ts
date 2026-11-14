@@ -60,6 +60,8 @@ test("quem tem dois cargos vê o cargo ativo e troca de cargo", async ({ page })
   const outro = primeiro === "Atendente" ? "Cozinheira" : "Atendente";
   await page.getByLabel("Trocar de cargo").selectOption({ label: outro });
   await expect(ativo).toHaveText(outro);
+  // Trocar de cargo volta ao lançador: atendente (1 aplicativo) cai no Atendimento; cozinheira (2) fica no lançador.
+  await expect(page).toHaveURL(outro === "Atendente" ? /\/atendimento$/ : /\/$/);
   await semEstouroDeLargura(page);
 });
 

@@ -39,6 +39,18 @@ describe("aplicativos por cargo", () => {
         for (const i of itensVisiveis(app, c)) expect(pode(c, i.acao), `${c} ${i.caminho}`).toBe(true);
   });
 
+  it("itens do Caixa e do Estoque por cargo (tabela escrita à mão)", () => {
+    const itens = (app: string, c: Cargo) => itensVisiveis(APLICATIVOS.find((a) => a.codigo === app)!, c).map((i) => i.caminho);
+    expect(itens("caixa", "caixa")).toEqual(["/caixa", "/caixa/mesas", "/caixa/receber", "/caixa/motoboys"]);
+    expect(itens("caixa", "dono")).toEqual(["/caixa/mesas", "/caixa/motoboys"]);
+    expect(itens("caixa", "gerente_geral")).toEqual(["/caixa/mesas", "/caixa/motoboys"]);
+    expect(itens("caixa", "supervisor")).toEqual(["/caixa/mesas"]);
+    expect(itens("estoque", "financeiro")).toEqual(["/estoque/materiais", "/estoque/custos"]);
+    expect(itens("estoque", "cozinheira")).toEqual(["/estoque"]);
+    expect(itens("estoque", "supervisor")).toEqual(["/estoque/salao"]);
+    expect(itens("financeiro", "contador")).toEqual(["/financeiro/contabil"]);
+  });
+
   it("caixa e gerente geral não veem nenhum item do financeiro", () => {
     for (const c of ["caixa", "gerente_geral"] as const)
       for (const app of aplicativosDoCargo(c))
