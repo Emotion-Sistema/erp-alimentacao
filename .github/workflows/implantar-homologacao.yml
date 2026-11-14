@@ -1,0 +1,29 @@
+# PREPARADO, NÃO ATIVADO. Implanta em homologacao.
+# Gatilho previsto: push na main. Será ativado na etapa E06, quando o servidor e os
+# segredos do GitHub existirem (decisão 0004). Até lá só roda à mão e para no
+# primeiro passo, sem tocar em servidor nenhum.
+name: Implantar (homologacao)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: implantar-homologacao
+  cancel-in-progress: false
+
+jobs:
+  implantar:
+    runs-on: ubuntu-latest
+    environment: homologacao
+    steps:
+      - name: Ainda não ativado
+        run: |
+          echo "Implantação em homologacao ainda não está ativada (etapa E06)."
+          exit 1
+      # Passos previstos para a ativação:
+      # 1. checkout; 2. build da imagem Docker; 3. enviar ao servidor por SSH com a chave
+      #    guardada nos segredos do GitHub; 4. aplicar migrações; 5. trocar a versão;
+      # 6. conferir /api/saude; 7. se falhar, voltar para a versão anterior.

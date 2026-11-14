@@ -1,0 +1,15 @@
+{
+  "name": "@erp/dominio",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "semente": "tsx src/semente.ts",
+    "tipos": "tsc -p ."
+  },
+  "dependencies": {
+    "@erp/banco": "workspace:*",
+    "@node-rs/argon2": "^2.2.2",
+    "zod": "^4.6.7"
+  }
+}

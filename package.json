@@ -1,0 +1,27 @@
+{
+  "name": "erp-alimentacao",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "dev": "bash scripts/dev.sh",
+    "banco:migrar": "pnpm --filter @erp/banco migrar",
+    "banco:reverter": "pnpm --filter @erp/banco reverter",
+    "banco:semente": "pnpm --filter @erp/dominio semente",
+    "lint": "eslint .",
+    "tipos": "pnpm -r --parallel tipos",
+    "teste": "vitest run",
+    "build": "pnpm -r --filter './apps/*' build",
+    "verificar": "pnpm lint && pnpm tipos && pnpm teste"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.19.0",
+    "eslint": "^10.15.0",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
+  }
+}
