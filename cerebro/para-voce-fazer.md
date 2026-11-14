@@ -30,6 +30,10 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Escolher com o cliente o provedor de pagamento (Pix e cartão online) e abrir conta de testes.
 - [ ] 👉 Escolher com o contador o provedor fiscal e abrir conta de testes.
 
+## Agora (E06)
+- [ ] 👉 Preparar o servidor de testes: colar a linha no terminal da Hostinger, cadastrar a deploy key no GitHub e criar seu login (passo a passo em `infra/homologacao/LEIA-ME.md`; o Claude avisa quando colar).
+- [ ] 👉 Entrar em `https://gestao.187-53-114-38.sslip.io` com seu login e configurar o autenticador (critério de aceite da E06).
+
 ## Antes de mostrar ao cliente (homologação)
 - [ ] 👉 Confirmar com o dono o domínio antes de usar o "domínio grátis" da Hostinger (pergunta 56 do questionário).
 - [ ] 👉 Gerar o token da API da Hostinger e guardá-lo como segredo (o Claude dirá onde colar; nunca no chat).

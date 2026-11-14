@@ -16,7 +16,8 @@
     "teste": "vitest run",
     "teste:tela": "playwright test -c apps/gestao/testes-tela/playwright.config.ts",
     "build": "pnpm -r --filter './apps/*' build",
-    "verificar": "pnpm lint && pnpm tipos && pnpm teste"
+    "verificar": "pnpm lint && pnpm tipos && pnpm teste",
+    "primeiro-acesso": "tsx scripts/primeiro-acesso.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

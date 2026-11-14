@@ -1,14 +1,21 @@
-# PREPARADO, NÃO ATIVADO. Implanta em homologacao.
-# Gatilho previsto: push na main. Será ativado na etapa E06, quando o servidor e os
-# segredos do GitHub existirem (decisão 0004). Até lá só roda à mão e para no
-# primeiro passo, sem tocar em servidor nenhum.
+# Homologação (decisão 0014). Quando o CI de um push na main passa, este fluxo avança a
+# branch `homologacao` até aquele commit. O servidor confere essa branch a cada minuto com
+# uma chave SÓ DE LEITURA, monta, migra e troca a versão sozinho. Nenhuma senha ou chave do
+# servidor fica no GitHub. Depois este fluxo espera o servidor mostrar a versão nova em
+# /api/saude: se não mostrar, o fluxo falha (e o GitHub avisa).
+# Produção é outro fluxo (implantar-producao.yml), só depois de "Publique tudo".
 name: Implantar (homologacao)
 
 on:
-  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # Sem disparo manual: só um commit com o CI verde é marcado (o servidor confere também
+  # que ele está na main e vem depois da versão no ar).
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: implantar-homologacao
@@ -16,14 +23,53 @@ concurrency:
 
 jobs:
   implantar:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
-    environment: homologacao
+    timeout-minutes: 40
     steps:
-      - name: Ainda não ativado
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Marcar a versão para o servidor
+        id: marcar
+        env:
+          VERSAO: ${{ github.event.workflow_run.head_sha }}
         run: |
-          echo "Implantação em homologacao ainda não está ativada (etapa E06)."
+          set -euo pipefail
+          git merge-base --is-ancestor "$VERSAO" origin/main || { echo "::error::$VERSAO não está na main."; exit 1; }
+          if git ls-remote --exit-code origin refs/heads/homologacao >/dev/null; then
+            git fetch -q origin homologacao
+            if git merge-base --is-ancestor "$VERSAO" FETCH_HEAD; then
+              echo "homologacao já está nesta versão ou numa mais nova; nada a marcar."
+              echo "versao=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          # Sem forçar: só avança (nunca volta a uma versão mais antiga).
+          git push origin "$VERSAO:refs/heads/homologacao"
+          echo "versao=$VERSAO" >> "$GITHUB_OUTPUT"
+      - name: Esperar o servidor trocar de versão
+        env:
+          VERSAO: ${{ steps.marcar.outputs.versao }}
+        run: |
+          set -euo pipefail
+          # O endereço só existe depois de o servidor ser preparado (arquivo criado na E06).
+          if [ ! -f infra/homologacao/endereco ]; then
+            echo "::notice::Servidor de homologação ainda não preparado; só marquei a versão."
+            exit 0
+          fi
+          URL="$(tr -d '[:space:]' < infra/homologacao/endereco)"
+          for i in $(seq 1 90); do
+            no_ar="$(curl -fsS --max-time 10 "$URL/api/saude" | jq -r .versao 2>/dev/null || true)"
+            if [ "$no_ar" = "$VERSAO" ]; then echo "No ar na homologação: $VERSAO"; exit 0; fi
+            # Se chegou uma versão mais nova antes, o servidor pula direto para ela: vale também.
+            [ -n "$no_ar" ] && git fetch -q origin main || true
+            if [ -n "$no_ar" ] && git cat-file -e "$no_ar^{commit}" 2>/dev/null \
+               && git merge-base --is-ancestor "$VERSAO" "$no_ar"; then
+              echo "No ar uma versão mais nova que já inclui esta: $no_ar"; exit 0
+            fi
+            echo "esperando ($i/90): no ar agora ${no_ar:-sem resposta}"
+            sleep 20
+          done
+          echo "::error::A homologação não mostrou a versão $VERSAO em 30 minutos. No servidor: erp registros"
           exit 1
-      # Passos previstos para a ativação:
-      # 1. checkout; 2. build da imagem Docker; 3. enviar ao servidor por SSH com a chave
-      #    guardada nos segredos do GitHub; 4. aplicar migrações; 5. trocar a versão;
-      # 6. conferir /api/saude; 7. se falhar, voltar para a versão anterior.

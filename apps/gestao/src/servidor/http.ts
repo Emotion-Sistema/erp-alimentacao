@@ -1,8 +1,14 @@
 import { ErroDeRegra } from "@erp/dominio";
 
-export const COOKIE_SESSAO = "erp_sessao";
+/**
+ * Em produção e homologação os cookies têm o prefixo __Host-: o navegador só aceita esse
+ * nome com Secure, Path=/ e sem Domain. Assim um outro endereço do mesmo domínio-pai (ex.:
+ * outro *.sslip.io) não consegue gravar um cookie com esse nome para atrapalhar a sessão.
+ */
+const PREFIXO = process.env.NODE_ENV === "production" ? "__Host-" : "";
+export const COOKIE_SESSAO = `${PREFIXO}erp_sessao`;
 /** Cookie do aparelho cadastrado como estação da cozinha (dura até a estação ser desligada). */
-export const COOKIE_ESTACAO = "erp_estacao";
+export const COOKIE_ESTACAO = `${PREFIXO}erp_estacao`;
 
 const STATUS: Record<ErroDeRegra["codigo"], number> = {
   nao_autenticado: 401,
@@ -58,13 +64,19 @@ export function ipDaRequisicao(req: Request): string | null {
   return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
 }
 
-/** Recusa POST/DELETE vindos de outro site (o navegador sempre manda Origin nesses casos). */
+/**
+ * Recusa POST/DELETE vindos de outro site (o navegador sempre manda Origin nesses casos).
+ * Compara com o Host que o navegador pediu: atrás do Caddy (homologação e produção) o
+ * endereço que o Next enxerga é o interno (gestao:3000), e o Caddy repassa o Host original.
+ * Quem forja o Host não é um navegador de vítima, então não há CSRF por aí.
+ */
 export function conferirOrigem(req: Request): void {
   const origem = req.headers.get("origin");
   if (!origem) return;
   // "null" ou valor inválido: tratado como outra origem.
   const host = URL.canParse(origem) ? new URL(origem).host : null;
-  if (host !== new URL(req.url).host) {
+  const pedido = req.headers.get("host") || new URL(req.url).host;
+  if (!host || host.toLowerCase() !== pedido.toLowerCase()) {
     throw new ErroDeRegra("sem_permissao", "Requisição de outra origem recusada.");
   }
 }
@@ -80,7 +92,8 @@ export function cookieEstacao(token: string): string {
 }
 
 export function cookieApagado(): string {
-  return `${COOKIE_SESSAO}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+  const seguro = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${COOKIE_SESSAO}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${seguro}`;
 }
 
 export async function corpoJson(req: Request): Promise<unknown> {

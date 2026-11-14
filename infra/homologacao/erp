@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Comando do servidor de homologação (decisão 0014). Uso: erp <comando>
+set -euo pipefail
+RAIZ=/opt/erp
+CODIGO="$RAIZ/codigo"
+versao="$(cat "$RAIZ/estado/atual" 2>/dev/null || echo nenhuma)"
+compose() { ERP_VERSAO="$versao" docker compose -p erp --env-file "$RAIZ/segredos/erp.env" -f "$CODIGO/infra/homologacao/compose.yml" "$@"; }
+case "${1:-ajuda}" in
+  situacao) echo "Versão no ar: $versao"; compose ps; systemctl --no-pager status erp-atualizar.timer | head -5 ;;
+  registros) journalctl -u erp-atualizar --no-pager -n "${2:-50}"; compose logs --tail 30 gestao worker ;;
+  atualizar)
+    [ "${2:-}" = "--de-novo" ] && rm -f "$RAIZ/estado/recusadas" "$RAIZ"/estado/tentativas-*
+    systemctl start erp-atualizar.service; journalctl -u erp-atualizar --no-pager -n 20 ;;
+  primeiro-acesso) compose run --rm -it ferramentas pnpm -s primeiro-acesso </dev/tty ;;
+  *) echo "uso: erp situacao | registros [linhas] | atualizar [--de-novo] | primeiro-acesso" ;;
+esac

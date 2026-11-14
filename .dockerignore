@@ -1,0 +1,10 @@
+# Nada de segredo, dependência local ou resultado de build entra na imagem.
+.env
+.env.*
+**/node_modules
+**/.next
+**/test-results
+**/playwright-report
+.git
+.claude
+cerebro

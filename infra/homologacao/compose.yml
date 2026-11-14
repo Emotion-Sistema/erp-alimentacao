@@ -1,0 +1,104 @@
+# Homologação (decisão 0014). Usado pelo atualizar.sh; não suba à mão sem as variáveis:
+#   ERP_VERSAO (commit) e o arquivo /opt/erp/segredos/erp.env (gerado no servidor).
+# Só o Caddy abre portas (80 e 443). Banco e aplicativos ficam na rede interna.
+name: erp
+
+x-registro: &registro
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+x-app: &app
+  image: erp-app:${ERP_VERSAO:?informe ERP_VERSAO}
+  init: true
+  restart: unless-stopped
+  logging: *registro
+  depends_on:
+    banco: { condition: service_healthy }
+
+services:
+  banco:
+    image: postgres:16
+    restart: unless-stopped
+    logging: *registro
+    environment:
+      POSTGRES_PASSWORD: ${ERP_SENHA_POSTGRES:?}
+      POSTGRES_DB: erp
+    volumes:
+      - banco-dados:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d erp"]
+      interval: 3s
+      retries: 40
+
+  # Papéis do banco, migrações e permissões. Roda a cada implantação, antes de trocar a versão.
+  migrar:
+    <<: *app
+    restart: "no"
+    profiles: [ferramentas]
+    command: ["bash", "infra/homologacao/migrar.sh"]
+    environment:
+      URL_ADMIN: postgres://postgres:${ERP_SENHA_POSTGRES}@banco:5432/erp
+      URL_DONO: postgres://erp_dono:${ERP_SENHA_DONO:?}@banco:5432/erp
+      ERP_SENHA_DONO: ${ERP_SENHA_DONO}
+      ERP_SENHA_APP: ${ERP_SENHA_APP:?}
+      ERP_SENHA_WORKER: ${ERP_SENHA_WORKER:?}
+
+  # Primeiro acesso (cria o dono) e outras tarefas de terminal. Papel do aplicativo, sem DDL.
+  ferramentas:
+    <<: *app
+    restart: "no"
+    profiles: [ferramentas]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://erp_app:${ERP_SENHA_APP}@banco:5432/erp
+
+  gestao:
+    <<: *app
+    working_dir: /app/apps/gestao
+    command: ["node_modules/.bin/next", "start", "-p", "3000"]
+    environment:
+      NODE_ENV: production
+      ERP_VERSAO: ${ERP_VERSAO}
+      DATABASE_URL: postgres://erp_app:${ERP_SENHA_APP}@banco:5432/erp
+      ERP_CHAVE_SEGREDOS: ${ERP_CHAVE_SEGREDOS:?}
+      # O Caddy sobrescreve o X-Forwarded-For; só por isso o IP dele é confiável.
+      CONFIAR_PROXY: "1"
+
+  loja:
+    <<: *app
+    working_dir: /app/apps/loja
+    command: ["node_modules/.bin/next", "start", "-p", "3001"]
+    environment: { NODE_ENV: production }
+
+  site:
+    <<: *app
+    working_dir: /app/apps/site
+    command: ["node_modules/.bin/next", "start", "-p", "3002"]
+    environment: { NODE_ENV: production }
+
+  worker:
+    <<: *app
+    working_dir: /app/apps/worker
+    command: ["node_modules/.bin/tsx", "src/index.ts"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://erp_worker:${ERP_SENHA_WORKER}@banco:5432/erp
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    logging: *registro
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      ERP_DOMINIO: ${ERP_DOMINIO:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${ERP_CADDY_EXTRA:-/opt/erp/caddy}:/etc/caddy/extra:ro
+      - caddy-dados:/data
+      - caddy-config:/config
+    depends_on: [gestao, loja, site]
+
+volumes:
+  banco-dados:
+  caddy-dados:
+  caddy-config:
