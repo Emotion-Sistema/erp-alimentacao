@@ -9,6 +9,10 @@ não tem acesso ao financeiro: vê só a movimentação do próprio dia.
 - **Fundo de troco** contado por cédula e moeda; o sistema soma. Diferença em relação ao
   que ficou do fechamento anterior é apontada e precisa de justificativa.
 - Abertura registra operador, horário e terminal.
+- **Checklist de início do turno** (pedido em 14/11/2026, ideia nº 2): ao entrar, caixa e
+  supervisor veem uma lista de conferência e dão ok item por item antes de iniciar o turno.
+  Inclui conferir e ajustar os **horários do dia** (loja, delivery, categorias), que já vêm
+  preenchidos com o padrão. Itens da lista configuráveis pelo gerente; tudo registrado (RC-17).
 
 ## 2. Tela principal (caixa e pedidos juntos)
 - **Painel de contas:** mesas e comandas abertas, com situação de cada uma: em

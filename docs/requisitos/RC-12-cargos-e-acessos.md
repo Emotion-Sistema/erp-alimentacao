@@ -46,7 +46,11 @@ Problema: o tablet é da estação, não da pessoa, e as mãos estão ocupadas e
    foto** (um toque, sem código) e os próximos toques passam a ser dela.
 5. Trocar de estação ou sair para o intervalo: um toque no nome e "Sair". A tela Geral
    mostra quem está em cada estação.
-6. Fim do turno: saída automática no horário configurado, para ninguém ficar "logado" de véspera.
+6. Fim do turno: saída automática no horário configurado (**00h30**, definido em 14/11/2026), para
+   ninguém ficar "logado" de véspera. A própria cozinha pode **estender 30 minutos** no tablet (até 4
+   vezes, registrado), e um **sinal sonoro** avisa a partir de 15 minutos antes. Quem entra de madrugada, depois
+   do fim do turno, fica só 30 minutos (pode estender), para ninguém ficar logado até a noite seguinte. Quem entra numa tela já estendida sai junto com
+   os outros. Se todos saírem e entrarem de novo com o código, a contagem de prorrogações recomeça.
 7. Só as ações sensíveis (registrar perda, ajuste de estoque, "acabou") pedem o código de novo.
 
 Cozinheira e auxiliar usam a mesma tela; o cargo define os botões que aparecem.

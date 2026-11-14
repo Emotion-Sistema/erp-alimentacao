@@ -98,7 +98,8 @@ Cada gestor só mexe em gente da própria unidade (criar, dar cargo, desligar, d
 5. **Caixa vê todos os pedidos**: sim. Tela com **mapa visual das mesas**, mostrando quais estão
    livres e ocupadas; um toque na mesa abre as funções dela. Tela: E13 e E17 (RC-13).
 6. Senha: 5 erros e 15 minutos: ok. **Cozinha fecha às 23h e a loja às 23h30** (14/11/2026). A saída
-   automática do tablet fica às 23h30 (fim do turno da unidade, depois da limpeza). Horários de venda
+   automática do tablet fica às **00h30**, com opção de a cozinha estender 30 min (até 4 vezes) e
+   aviso sonoro 15 min antes (migração 0003). Horários de venda
    por categoria e canal: RC-09, seção 2a.
 
 ## Limites conhecidos

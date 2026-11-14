@@ -5,10 +5,10 @@
  * tirar cargo.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Banco } from "@erp/banco";
+import { sql, type Banco } from "@erp/banco";
 import {
   atorDaEstacao, atorDaSessao, cadastrarEstacao, confirmarSegundoFator, criarUsuario, darCargo, definirCodigo, desbloquearCodigo, desligarUsuario,
-  entrar, entrarNaEstacao, ErroDeRegra, iniciarSegundoFator, listarUsuarios, tirarCargo,
+  entrar, entrarNaEstacao, ErroDeRegra, estenderTurno, telaDaEstacao, iniciarSegundoFator, listarUsuarios, tirarCargo,
 } from "../src/index";
 import { atorDoCargo, bancoDeTeste, codigoAgora, prepararDados } from "./apoio";
 
@@ -190,5 +190,76 @@ describe("código e estação", () => {
     await Promise.allSettled([tirarCargo(db, adm, p.id, { cargo: "atendente" }), tirarCargo(db, adm, p.id, { cargo: "caixa" })]);
     const vigentes = await db.selectFrom("usuario_perfil").select("perfil_codigo").where("usuario_id", "=", p.id).where("removido_em", "is", null).execute();
     expect(vigentes).toHaveLength(1);
+  });
+});
+
+describe("turno do tablet: desliga às 00h30 e a cozinha pode estender", () => {
+  it("padrão da unidade é 00h30", async () => {
+    const u = await db.selectFrom("unidade").select("fim_turno").where("id", "=", unidadeId).executeTakeFirstOrThrow();
+    expect(u.fim_turno).toBe("00:30:00");
+  });
+
+  it("quem está ativa estende 30 min para todos na tela, até 4 vezes; tudo registrado; sem ninguém na tela é recusado", async () => {
+    const e = await cadastrarEstacao(db, await atorDoCargo(db, "gerente_geral"), { nome: "Prorroga" });
+    expect((await erroDe(estenderTurno(db, e.token))).codigo).toBe("nao_autenticado");
+    const a = await pessoa("cozinheira", "8352");
+    const b = await pessoa("auxiliar_cozinha", "8352");
+    await entrarNaEstacao(db, e.token, { usuarioId: a.id, codigo: "8352" });
+    await entrarNaEstacao(db, e.token, { usuarioId: b.id, codigo: "8352" });
+    const antes = await db.selectFrom("estacao_presenca").select(["usuario_id", "expira_em"]).where("estacao_id", "=", (await telaDaEstacao(db, e.token)).estacao.id).where("saiu_em", "is", null).execute();
+    await estenderTurno(db, e.token);
+    const depois = await db.selectFrom("estacao_presenca").select(["usuario_id", "expira_em"]).where("saiu_em", "is", null).where("usuario_id", "in", [a.id, b.id]).execute();
+    for (const d of depois) {
+      const x = antes.find((y) => y.usuario_id === d.usuario_id)!;
+      expect(new Date(d.expira_em).getTime() - new Date(x.expira_em).getTime()).toBe(30 * 60_000);
+    }
+    for (let i = 0; i < 3; i++) await estenderTurno(db, e.token);
+    expect((await telaDaEstacao(db, e.token)).turno.prorrogacoesRestantes).toBe(0);
+    expect((await erroDe(estenderTurno(db, e.token))).codigo).toBe("conflito");
+    const regs = await db.selectFrom("auditoria").select("resultado").orderBy("id").where("acao", "=", "estacao.estender").where("alvo_id", "=", String((await telaDaEstacao(db, e.token)).estacao.id)).execute();
+    expect(regs.map((r) => r.resultado)).toEqual(["recusado", "permitido", "permitido", "permitido", "permitido", "recusado"]);
+  });
+
+  it("a tela informa quando o tablet desliga e quando começar a avisar", async () => {
+    const e = await cadastrarEstacao(db, await atorDoCargo(db, "gerente_geral"), { nome: "Aviso" });
+    expect((await telaDaEstacao(db, e.token)).turno.fimEm).toBeNull();
+    const p = await pessoa("cozinheira", "8352");
+    await entrarNaEstacao(db, e.token, { usuarioId: p.id, codigo: "8352" });
+    const t = (await telaDaEstacao(db, e.token)).turno;
+    expect(t.fimEm).not.toBeNull();
+    expect([t.prorrogacoesRestantes, t.prorrogacaoMin, t.avisoMin]).toEqual([4, 30, 15]);
+  });
+});
+
+describe("horário de saída do tablet (função fim_do_turno, horas fixas, fuso de São Paulo, 00h30)", () => {
+  const fim = async (agora: string) =>
+    (await sql<{ fim: Date }>`SELECT fim_do_turno(${unidadeId}, ${agora}::timestamptz) AS fim`.execute(db)).rows[0]!.fim.toISOString();
+  it.each([
+    ["entrar às 18h: sai às 00h30 do dia seguinte", "2026-11-14T18:00:00-03:00", "2026-11-15T03:30:00.000Z"],
+    ["entrar às 00h10: sai às 00h30 do mesmo dia", "2026-11-15T00:10:00-03:00", "2026-11-15T03:30:00.000Z"],
+    ["entrar às 7h: sai às 00h30 (17h30 depois)", "2026-11-15T07:00:00-03:00", "2026-11-16T03:30:00.000Z"],
+    ["entrar de madrugada (00h40): só 30 min, nada de ficar até a noite", "2026-11-15T00:40:00-03:00", "2026-11-15T04:10:00.000Z"],
+    ["entrar às 3h: só 30 min", "2026-11-15T03:00:00-03:00", "2026-11-15T06:30:00.000Z"],
+  ])("%s", async (_nome, agora, esperado) => {
+    expect(await fim(agora)).toBe(esperado);
+  });
+});
+
+describe("prorrogação do turno sob concorrência", () => {
+  it("6 pedidos de estender ao mesmo tempo: 4 passam, 2 são recusados; quem entra depois herda a contagem", async () => {
+    const e = await cadastrarEstacao(db, await atorDoCargo(db, "gerente_geral"), { nome: "Corrida" });
+    const p = await pessoa("cozinheira", "4718");
+    await entrarNaEstacao(db, e.token, { usuarioId: p.id, codigo: "4718" });
+    const r = await Promise.allSettled(Array.from({ length: 6 }, () => estenderTurno(db, e.token)));
+    expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(4);
+    const pres = await db.selectFrom("estacao_presenca").select("prorrogacoes").where("usuario_id", "=", p.id).where("saiu_em", "is", null).executeTakeFirstOrThrow();
+    expect(pres.prorrogacoes).toBe(4);
+    const q = await pessoa("auxiliar_cozinha", "4718");
+    await entrarNaEstacao(db, e.token, { usuarioId: q.id, codigo: "4718" });
+    expect((await telaDaEstacao(db, e.token)).turno.prorrogacoesRestantes).toBe(0);
+    expect((await erroDe(estenderTurno(db, e.token))).codigo).toBe("conflito");
+    // e sai junto com quem já estava (não às 00h30)
+    const ambos = await db.selectFrom("estacao_presenca").select("expira_em").where("usuario_id", "in", [p.id, q.id]).where("saiu_em", "is", null).execute();
+    expect(new Set(ambos.map((x) => new Date(x.expira_em).getTime())).size).toBe(1);
   });
 });

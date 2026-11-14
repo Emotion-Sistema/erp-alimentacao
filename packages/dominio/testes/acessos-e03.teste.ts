@@ -230,7 +230,9 @@ describe("estação da cozinha e código pessoal", () => {
     const coz = await id("cozinheira");
     const aux = await id("auxiliar.cozinha");
     let tela = await telaDaEstacao(db, e.token);
-    expect(tela.pessoas.map((p) => p.cargo).sort()).toEqual(["auxiliar_cozinha", "cozinheira"]);
+    // Outros testes também criam gente da cozinha: confere as duas da semente e que só a cozinha aparece.
+    expect(tela.pessoas.map((p) => p.id)).toEqual(expect.arrayContaining([coz, aux]));
+    expect(new Set(tela.pessoas.map((p) => p.cargo))).toEqual(new Set(["auxiliar_cozinha", "cozinheira"]));
     expect(tela.pessoas.some((p) => p.cargo === "caixa")).toBe(false); // só quem é da cozinha aparece
 
     await entrarNaEstacao(db, e.token, { usuarioId: coz, codigo: CODIGO_DE_TESTE });
@@ -340,7 +342,7 @@ describe("estação da cozinha e código pessoal", () => {
     const pres = await db.selectFrom("estacao_presenca").select(["expira_em", "entrou_em"]).where("usuario_id", "=", p.id).where("saiu_em", "is", null).executeTakeFirstOrThrow();
     const horas = (new Date(pres.expira_em).getTime() - new Date(pres.entrou_em).getTime()) / 3_600_000;
     expect(horas).toBeGreaterThan(0);
-    expect(horas).toBeLessThanOrEqual(16);
+    expect(horas).toBeLessThanOrEqual(18);
     await sql`UPDATE estacao_presenca SET entrou_em = now() - interval '2 hours', expira_em = now() - interval '1 second' WHERE usuario_id = ${p.id} AND saiu_em IS NULL`.execute(db);
     expect(await atorDaEstacao(db, e.token)).toBeNull();
     await telaDaEstacao(db, e.token);

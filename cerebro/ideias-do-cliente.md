@@ -6,6 +6,7 @@ Classificação: **núcleo** | **evolução** | **adiar**.
 | # | Data | Ideia (na linguagem do cliente) | Problema que resolve | Classificação | Impacto técnico | Dependências | O que desloca | Decisão |
 |---|---|---|---|---|---|---|---|---|
 | 1 | 14/11/2026 | Cada categoria tem seu horário, inserido à mão no sistema, de quando está disponível no delivery e na loja | Delivery começa em hora diferente da loja; nada é vendido fora de hora (cozinha fecha 23h) | **núcleo** | Horário da loja e da cozinha por dia da semana; grade por categoria x canal (loja, delivery) x dia; exceções (feriado) e pausa manual. Servidor combina com o estoque (RC-09) | Cadastro de categorias (E07) | Pouco: E12 cresce um pouco | Aprovado como proposta: RC-09 seção 2a; só gerente geral, dono e administrador mudam horários; aguarda dados (segunda-feira, início do delivery) |
+| 2 | 14/11/2026 | Quando o caixa ou o supervisor entra, aparece um checklist de coisas para conferir e dar ok antes de iniciar o turno, incluindo os horários do dia | Horários do delivery mudam por dia; nada começa sem conferência | **núcleo** | Lista configurável pelo gerente; respostas registradas por pessoa e turno; liga com a grade de horários (RC-09 2a) | Abertura do caixa (RC-13), horários (E07/E12) | Pouco: entra junto com a abertura do caixa | Proposto no RC-13, seção 1 |
 
 ## Já registradas como requisito (não repetir aqui)
 - Pedido chega sozinho na cozinha e baixa o estoque: RC-01.

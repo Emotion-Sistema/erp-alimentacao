@@ -13,8 +13,11 @@ import { conferirSenha, hashParaTempoConstante, hashSenha } from "./senha";
 import { cargosVigentes, exigir, hashToken, novoToken, type Ator } from "./sessao";
 
 export const CODIGO_MAX_ERROS = 3;
-/** Presença na estação nunca passa disto, mesmo entrando depois do fim do turno. */
-const PRESENCA_MAX_HORAS = 16;
+/** A cozinha pode estender o turno no próprio tablet: 30 minutos por vez, no máximo 4 vezes. */
+export const PRORROGACAO_MIN = 30;
+export const PRORROGACOES_MAX = 4;
+/** A tela começa a avisar (com som) quando faltam estes minutos para o tablet desligar. */
+export const AVISO_FIM_TURNO_MIN = 15;
 
 const ehDaEstacao = (c: string) => (CARGOS_DA_ESTACAO as readonly string[]).includes(c);
 
@@ -202,9 +205,10 @@ async function estacaoDoToken(db: Banco, token: string | null | undefined) {
   return (
     (await db
       .selectFrom("estacao")
-      .select(["id", "nome", "unidade_id"])
-      .where("token_hash", "=", hashToken(token))
-      .where("revogada_em", "is", null)
+      .innerJoin("unidade", "unidade.id", "estacao.unidade_id")
+      .select(["estacao.id", "estacao.nome", "estacao.unidade_id", "unidade.fuso_horario"])
+      .where("estacao.token_hash", "=", hashToken(token))
+      .where("estacao.revogada_em", "is", null)
       .executeTakeFirst()) ?? null
   );
 }
@@ -278,9 +282,23 @@ export async function telaDaEstacao(db: Banco, token: string | null | undefined)
     .where("usuario_perfil.perfil_codigo", "in", [...CARGOS_DA_ESTACAO])
     .orderBy("usuario.nome")
     .execute();
+  const turno = await db
+    .selectFrom("estacao_presenca")
+    .select((eb) => [eb.fn.min("expira_em").as("fim"), eb.fn.max("prorrogacoes").as("usadas")])
+    .where("estacao_id", "=", e.id)
+    .where("saiu_em", "is", null)
+    .executeTakeFirst();
   const vistos = new Set<number>();
   return {
     estacao: { id: e.id, nome: e.nome },
+    // Hora em que o tablet desliga sozinho (null: ninguém na tela) e quantas prorrogações sobram.
+    turno: {
+      fimEm: turno?.fim ?? null,
+      fuso: e.fuso_horario,
+      prorrogacoesRestantes: Math.max(0, PRORROGACOES_MAX - Number(turno?.usadas ?? 0)),
+      prorrogacaoMin: PRORROGACAO_MIN,
+      avisoMin: AVISO_FIM_TURNO_MIN,
+    },
     pessoas: pessoas
       .filter((p) => !vistos.has(p.id) && vistos.add(p.id))
       .map((p) => ({
@@ -293,6 +311,52 @@ export async function telaDaEstacao(db: Banco, token: string | null | undefined)
         ativa: p.estacao_id === e.id && !!p.ativa_desde,
       })),
   };
+}
+
+/**
+ * "Estender": a pessoa ativa na tela adia em 30 minutos a saída automática de todos que estão
+ * nela. No máximo 4 vezes por turno; cada vez fica registrada.
+ */
+export async function estenderTurno(db: Banco, token: string | null | undefined): Promise<Date> {
+  const e = await exigirEstacao(db, token);
+  const ator = await atorDaEstacao(db, token);
+  if (!ator) {
+    await auditar(db, { usuarioId: null, acao: "estacao.estender", resultado: "recusado", alvoTipo: "estacao", alvoId: e.id, detalhes: { motivo: "ninguem_na_tela" } });
+    throw new ErroDeRegra("nao_autenticado", "Entre com seu código primeiro.");
+  }
+  await exigir(db, ator, "producao.operar", { tipo: "estacao", id: e.id });
+  const fim = await db.transaction().execute(async (trx) => {
+    await travar(trx, e.id);
+    // O limite vale para a tela inteira (o mesmo número que ela mostra): quem entrou depois
+    // herda a contagem de quem já estava.
+    const usadas = await trx
+      .selectFrom("estacao_presenca")
+      .select((eb) => eb.fn.max("prorrogacoes").as("max"))
+      .where("estacao_id", "=", e.id)
+      .where("saiu_em", "is", null)
+      .where("expira_em", ">", new Date())
+      .executeTakeFirst();
+    const jaUsadas = Number(usadas?.max ?? 0);
+    if (jaUsadas >= PRORROGACOES_MAX) return null;
+    const r = await trx
+      .updateTable("estacao_presenca")
+      .set({ expira_em: sql`expira_em + make_interval(mins => ${PRORROGACAO_MIN})`, prorrogacoes: jaUsadas + 1 })
+      .where("estacao_id", "=", e.id)
+      .where("saiu_em", "is", null)
+      .where("expira_em", ">", new Date())
+      .returning("expira_em")
+      .execute();
+    if (r.length === 0) return null;
+    const fim = r.map((x) => new Date(x.expira_em)).sort((a, b) => a.getTime() - b.getTime())[0]!;
+    await auditar(trx, { usuarioId: ator.usuarioId, acao: "estacao.estender", resultado: "permitido", alvoTipo: "estacao", alvoId: e.id, detalhes: { minutos: PRORROGACAO_MIN, fimEm: fim.toISOString() } });
+    return fim;
+  });
+  if (!fim) {
+    // Registrado fora da transação, para a recusa não se perder.
+    await auditar(db, { usuarioId: ator.usuarioId, acao: "estacao.estender", resultado: "recusado", alvoTipo: "estacao", alvoId: e.id, detalhes: { motivo: "limite" } });
+    throw new ErroDeRegra("conflito", `O turno já foi estendido ${PRORROGACOES_MAX} vezes. Para continuar, entre de novo com o código.`);
+  }
+  return fim;
 }
 
 const dadosEntrar = z.object({ usuarioId: z.number().int().positive(), codigo: z.string().max(10) });
@@ -320,12 +384,16 @@ export async function entrarNaEstacao(db: Banco, token: string | null | undefine
     await trx.updateTable("estacao_presenca").set({ ativa_desde: null }).where("estacao_id", "=", e.id).where("saiu_em", "is", null).execute();
     await sql`
       INSERT INTO estacao_presenca (estacao_id, usuario_id, cargo, expira_em, ativa_desde)
-      SELECT ${e.id}, ${usuarioId}, ${cargo}, LEAST(
-        (CASE WHEN fim_local > agora_local THEN fim_local ELSE fim_local + interval '1 day' END) AT TIME ZONE fuso,
-        now() + make_interval(hours => ${PRESENCA_MAX_HORAS})), now()
-      FROM (SELECT date_trunc('day', now() AT TIME ZONE fuso_horario) + fim_turno AS fim_local,
-                   now() AT TIME ZONE fuso_horario AS agora_local, fuso_horario AS fuso
-            FROM unidade WHERE id = ${e.unidade_id}) t`.execute(trx);
+      SELECT ${e.id}, ${usuarioId}, ${cargo},
+        -- Quem entra numa tela já estendida sai junto com os outros e herda a contagem.
+        GREATEST(fim_do_turno(${e.unidade_id}, now()), max(p.expira_em)), now()
+      FROM (SELECT expira_em FROM estacao_presenca
+            WHERE estacao_id = ${e.id} AND saiu_em IS NULL AND expira_em > now()
+            UNION ALL SELECT NULL) p`.execute(trx);
+    await sql`
+      UPDATE estacao_presenca SET prorrogacoes = (SELECT coalesce(max(prorrogacoes), 0) FROM estacao_presenca
+                                                  WHERE estacao_id = ${e.id} AND saiu_em IS NULL)
+      WHERE estacao_id = ${e.id} AND usuario_id = ${usuarioId} AND saiu_em IS NULL`.execute(trx);
     // a estação de onde ela saiu pode ter ficado com uma pessoa só
     await ajustarAtivas(trx, anteriores.map((a) => a.estacao_id).filter((id) => id !== e.id));
     await auditar(trx, { usuarioId, acao: "estacao.entrar", resultado: "permitido", alvoTipo: "estacao", alvoId: e.id, detalhes: { cargo } });

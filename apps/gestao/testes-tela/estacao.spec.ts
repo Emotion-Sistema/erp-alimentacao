@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { entrar, semEstouroDeLargura } from "./ajudas";
+import { entrar, semEstouroDeLargura, sql } from "./ajudas";
 
 test.use({ viewport: { width: 1280, height: 800 } });
 test.describe.configure({ mode: "serial" });
@@ -136,5 +136,32 @@ test.describe("tablet da cozinha", () => {
     // O tablet desligado perde o acesso.
     await page.goto("/estacao");
     await expect(page.getByText("Este aparelho não está cadastrado como estação.")).toBeVisible();
+  });
+  test("faixa de aviso perto do fim do turno: estender 30 min", async ({ page }) => {
+    await entrar(page, "gerente.geral");
+    await page.goto("/estacoes");
+    await page.getByLabel("Nome da estação").fill("Cozinha 4");
+    await page.getByRole("button", { name: "Cadastrar ESTE aparelho como estação" }).click();
+    await page.waitForURL("**/estacao");
+    await tocarNaPessoa(page, "Teste cozinheira");
+    await digitar(page, "2580");
+    await expect(page.getByRole("button", { name: "Teste cozinheira, ativa agora" })).toBeVisible();
+    // Longe do fim: só a linha discreta.
+    await expect(page.getByText(/^Desliga às \d{2}:\d{2}$/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Estender 30 min" })).toHaveCount(0);
+
+    // Faltam 10 minutos: a faixa aparece.
+    sql("UPDATE estacao_presenca SET expira_em = now() + interval '10 minutes' WHERE saiu_em IS NULL");
+    await page.reload();
+    const faixa = page.getByRole("alert", { name: "Aviso de desligamento" });
+    await expect(faixa).toContainText(/O tablet desliga em (9|10) min/);
+    const botao = faixa.getByRole("button", { name: "Estender 30 min" });
+    expect((await botao.boundingBox())!.height).toBeGreaterThanOrEqual(64);
+    expect(await page.evaluate(() => window.__bipes ?? 0)).toBeGreaterThanOrEqual(1);
+    await page.screenshot({ path: process.env.CAPTURA_AVISO ?? "test-results/estacao-aviso.png" });
+
+    await botao.click();
+    await expect(faixa).toHaveCount(0);
+    await expect(page.getByText(/^Desliga às \d{2}:\d{2}$/)).toBeVisible();
   });
 });
