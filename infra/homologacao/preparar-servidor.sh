@@ -75,7 +75,8 @@ dominio="$(grep '^ERP_DOMINIO=' "$RAIZ/segredos/erp.env" | cut -d= -f2)"
 install -d -m 755 "$RAIZ/caddy"
 if [ ! -f "$RAIZ/caddy/email.caddy" ] && [ ! -f "$RAIZ/caddy/.sem-email" ]; then
   read -rp "E-mail para avisos do certificado HTTPS (Enter para pular): " email </dev/tty || email=""
-  if [[ "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; then
+  # Só letras, números e . _ % + -: outro caractere quebraria o arquivo do Caddy.
+  if [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
     echo "email $email" > "$RAIZ/caddy/email.caddy"
   else
     touch "$RAIZ/caddy/.sem-email"
