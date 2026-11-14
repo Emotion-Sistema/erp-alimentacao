@@ -22,7 +22,7 @@ const SITUACAO: Record<Pessoa["situacao"], string> = {
   resolvido: "Confirmou",
   visto: "Viu, não confirmou",
   novo: "Recebeu, não abriu",
-  nao_recebeu: "Ainda não entrou no turno",
+  nao_recebeu: "Ainda não recebeu (não entrou com esse cargo)",
 };
 
 export function Comunicados({ cargos }: { cargos: { valor: string; texto: string }[] }) {

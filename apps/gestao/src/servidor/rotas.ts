@@ -194,7 +194,12 @@ export const verAuditoria = seguro(async (req) => {
   return json(await consultarAuditoria(obterBanco(), await ator(req), filtros));
 });
 
-export const verAvisos = seguro(async (req) => json(await caixaDeAvisos(obterBanco(), await ator(req))));
+// A consulta também entrega os avisos novos (grava "recebeu"): só vale vinda do próprio aplicativo.
+export const verAvisos = seguro(async (req) => {
+  if (req.headers.get("sec-fetch-site") === "cross-site") throw new ErroDeRegra("sem_permissao", "Origem não permitida.");
+  const filtro = Object.fromEntries(new URL(req.url).searchParams);
+  return json(await caixaDeAvisos(obterBanco(), await ator(req), filtro));
+});
 
 export const marcarAvisosVistos = seguro(async (req) => json({ marcados: await marcarVistos(obterBanco(), await ator(req), await corpoJson(req)) }));
 

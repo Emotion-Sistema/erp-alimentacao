@@ -27,7 +27,9 @@ CREATE TABLE aviso_destino (
   visto_em     timestamptz,
   resolvido_em timestamptz,
   PRIMARY KEY (aviso_id, usuario_id),
-  CHECK (resolvido_em IS NULL OR visto_em IS NOT NULL)
+  CHECK (resolvido_em IS NULL OR visto_em IS NOT NULL),
+  CHECK (visto_em IS NULL OR visto_em >= entregue_em),
+  CHECK (resolvido_em IS NULL OR resolvido_em >= visto_em)
 );
 CREATE INDEX aviso_destino_pessoa ON aviso_destino (usuario_id, aviso_id DESC);
 

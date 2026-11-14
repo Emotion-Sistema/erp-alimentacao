@@ -298,3 +298,77 @@ describe("comunicados da gerência", () => {
     expect(await temAviso(await pessoa("caixa"), m)).toBe(false);
   });
 });
+
+describe("correções da revisão (turno contado da entrada)", () => {
+  it("sessão aberta que passou das 00h30: fora do turno, não recebe aviso operacional nem comunicado do turno", async () => {
+    const m = marca();
+    const sup = await pessoa("supervisor");
+    const agora = await pessoa("supervisor"); // entrou agora, já com o cargo
+    // Entrou há dois dias e a sessão ainda vale: o turno dele já acabou.
+    await db.updateTable("sessao").set({ criada_em: sql<Date>`now() - interval '2 days'` }).where("id", "=", sup.sessaoId!).execute();
+    const gerente = await atorDoCargo(db, "gerente_geral", "gerente.geral");
+    await criarAviso(db, { unidadeId, paraCargos: ["supervisor"], tipo: "teste", texto: `Operacional ${m}` });
+    await enviarComunicado(db, gerente, { texto: `Só hoje ${m}`, cargos: ["supervisor"], validade: "turno" });
+    await enviarComunicado(db, gerente, { texto: `Até ler ${m}`, cargos: ["supervisor"] });
+    const t = (await textos(sup)).filter((x) => x.includes(m));
+    expect(t).toEqual([`Até ler ${m}`]);
+    // Quem entrou agora, no mesmo cargo, recebe os três.
+    expect((await textos(agora)).filter((x) => x.includes(m))).toHaveLength(3);
+  });
+
+  it("entrou antes das 00h30 e o aviso nasceu depois: é do turno seguinte, não chega", async () => {
+    const m = marca();
+    const sup = await pessoa("supervisor");
+    // Entrou 13 h antes de agora; o fim do turno dele, contado dali, ficou para trás.
+    await db.updateTable("sessao").set({ criada_em: sql<Date>`now() - interval '13 hours'` }).where("id", "=", sup.sessaoId!).execute();
+    const r = await sql<{ fora: boolean }>`SELECT now() >= fim_do_turno(${unidadeId}, now() - interval '13 hours') AS fora`.execute(db);
+    await criarAviso(db, { unidadeId, paraCargos: ["supervisor"], tipo: "teste", texto: `Seguinte ${m}` });
+    expect(await temAviso(sup, m)).toBe(!r.rows[0]!.fora);
+  });
+
+  it("comunicado 'até confirmar' antigo não chega a quem ganhou o cargo depois, nem conta na lista", async () => {
+    const m = marca();
+    const gerente = await atorDoCargo(db, "gerente_geral", "gerente.geral");
+    const { id } = await enviarComunicado(db, gerente, { texto: `Antigo ${m}`, cargos: ["caixa"] });
+    const novato = await pessoa("caixa");
+    expect(await temAviso(novato, m)).toBe(false);
+    const c = (await listarComunicados(db, gerente)).find((x) => x.id === id)!;
+    expect(c.pessoas.some((p) => p.usuarioId === novato.usuarioId)).toBe(false);
+  });
+
+  it("só mexe no aviso do cargo ativo: agindo como caixa, não confirma o que recebeu como supervisor", async () => {
+    let p = await pessoa("caixa", "supervisor");
+    p = await trocarCargoAtivo(db, p, { cargo: "supervisor" });
+    const id = await criarAviso(db, { unidadeId, paraCargos: ["supervisor"], tipo: "teste", texto: `Cargo ${marca()}` });
+    await caixaDeAvisos(db, p);
+    p = await trocarCargoAtivo(db, p, { cargo: "caixa" });
+    expect(await marcarVistos(db, p, { ids: [Number(id)] })).toBe(0);
+    expect((await erroDe(resolverAviso(db, p, Number(id)))).codigo).toBe("nao_encontrado");
+    p = await trocarCargoAtivo(db, p, { cargo: "supervisor" });
+    expect(await marcarVistos(db, p, { ids: [Number(id)] })).toBe(1);
+  });
+
+  it("vistos sem sessão: recusado", async () => {
+    expect((await erroDe(marcarVistos(db, null, { ids: [1] }))).codigo).toBe("nao_autenticado");
+  });
+
+  it("histórico em páginas: 'antesDe' traz os mais antigos; valor inválido é recusado", async () => {
+    const sup = await pessoa("supervisor");
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) ids.push(await criarAviso(db, { unidadeId, paraCargos: ["supervisor"], tipo: "teste", texto: `Página ${i} ${marca()}` }));
+    await caixaDeAvisos(db, sup);
+    const antes = await caixaDeAvisos(db, sup, { antesDe: ids[2] });
+    expect(antes.map((a) => a.id)).not.toContain(ids[2]);
+    expect(antes.map((a) => a.id)).toEqual(expect.arrayContaining([ids[0], ids[1]]));
+    expect((await erroDe(caixaDeAvisos(db, sup, { antesDe: "abc" }))).codigo).toBe("dados_invalidos");
+  });
+
+  it("o banco recusa data de visto antes da entrega", async () => {
+    const a = await pessoa("supervisor");
+    const id = await criarAviso(db, { unidadeId, paraCargos: ["supervisor"], tipo: "teste", texto: `Data ${marca()}` });
+    await caixaDeAvisos(db, a);
+    await expect(
+      sql`UPDATE aviso_destino SET visto_em = entregue_em - interval '1 hour' WHERE aviso_id = ${id} AND usuario_id = ${a.usuarioId}`.execute(db),
+    ).rejects.toThrow();
+  });
+});

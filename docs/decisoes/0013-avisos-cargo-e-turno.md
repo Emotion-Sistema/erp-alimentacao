@@ -11,18 +11,24 @@ cargo e ao turno certos; quem está fora do turno não recebe aviso operacional.
 existe escala de turnos por pessoa no sistema.
 
 ## Decisão
-1. **Estar no turno = ter entrado.** A pessoa está no turno enquanto a sessão dela vale
-   (a sessão acaba sozinha; o tablet da cozinha sai às 00h30). Sem sessão, não recebe nada.
+1. **O turno conta da entrada.** O turno da pessoa vai da hora em que ela entrou até o
+   fim do turno da unidade (00h30) contado a partir dali. A sessão pode durar mais
+   (12 h), mas depois desse horário a pessoa está fora do turno: não recebe aviso
+   operacional nem comunicado "só no turno de hoje" (correção da revisão). Sem sessão,
+   não recebe nada. Quem entra de madrugada, depois das 00h30, tem um turno de 30 min
+   (mesma regra do tablet, migração 0003); um aviso que nasce de madrugada também vale 30 min.
 2. **Dois tipos de aviso** (`aviso.natureza`):
    - **operacional**: nasce de um fato do sistema (ex.: código bloqueado). Vale **até o fim
      do turno em que nasceu** (`fim_do_turno` da unidade, 00h30). Quem entra depois disso
      (no dia seguinte, por exemplo) não recebe;
    - **comunicado**: recado da gerência para um ou mais cargos, com **confirmação de
      leitura** ("Li e entendi"). Fica até cada um confirmar, ou só no turno de hoje, se
-     quem mandou escolheu assim.
+     quem mandou escolheu assim. O "até confirmar" vale para quem já tinha o cargo
+     quando ele foi enviado: funcionário novo não recebe os comunicados antigos.
 3. **Quem recebe:** o cargo **ativo** da pessoa precisa estar entre os cargos do aviso, na
    mesma unidade. Quem tem dois cargos só vê, em cada momento, os avisos do cargo com que
-   está agindo. O aviso pode ainda ser para **uma pessoa só** (`para_usuario_id`).
+   está agindo, e só marca como visto ou resolvido o que vê na caixa daquele cargo. O
+   aviso pode ainda ser para **uma pessoa só** (`para_usuario_id`).
 4. **Entrega quando a pessoa abre o aplicativo** e a cada consulta (a tela consulta a cada
    15 s). Cada pessoa recebe cada aviso uma vez (chave primária; testado com 12 consultas
    ao mesmo tempo).
@@ -36,8 +42,12 @@ existe escala de turnos por pessoa no sistema.
    tela em outro aplicativo, enquanto o navegador estiver rodando), bipe, vibração e
    notificação do sistema, se a pessoa permitiu. O service worker só abre o aplicativo ao
    tocar na notificação; não guarda nada.
+   A notificação mostra só "Abra o aplicativo para ver" (outros podem ver a tela
+   bloqueada); o texto fica dentro do aplicativo. A consulta que entrega avisos recusa
+   pedido vindo de outro site.
 8. **A central fica dentro da casca de todo aplicativo** (cumpre o item 8 da decisão 0012):
-   sino com o número de avisos novos, painel e a página `/avisos` com o histórico.
+   sino com o número de avisos novos, painel e a página `/avisos` com o histórico em
+   páginas de 50 ("Ver mais avisos").
 
 ## Fica para depois (com etapa)
 - **Aviso com o aplicativo fechado** (Web Push): precisa de chave guardada no cofre e do

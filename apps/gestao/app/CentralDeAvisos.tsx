@@ -40,13 +40,32 @@ async function avisarNoAparelho(novos: AvisoDaCaixa[], audio: { current: AudioCo
   try {
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       const titulo = novos.length > 1 ? `${novos.length} avisos novos` : "Aviso novo";
-      const corpo = novos[0]!.texto;
+      // Na tela bloqueada outros podem ver: o texto só aparece dentro do aplicativo.
+      const urgentes = novos.filter((a) => a.prioridade === "urgente").length;
+      const corpo = urgentes > 0 ? "Há aviso urgente. Abra o aplicativo para ver." : "Abra o aplicativo para ver.";
       const registro = await navigator.serviceWorker?.getRegistration();
       if (registro) await registro.showNotification(titulo, { body: corpo, tag: "avisos" });
       else new Notification(titulo, { body: corpo, tag: "avisos" });
     }
   } catch {
     /* sem notificação */
+  }
+}
+
+const CHAVE_CONHECIDOS = "erp-avisos-conhecidos";
+function lerConhecidos(): Set<string> | null {
+  try {
+    const v = sessionStorage.getItem(CHAVE_CONHECIDOS);
+    return v ? new Set(JSON.parse(v) as string[]) : null;
+  } catch {
+    return null;
+  }
+}
+function gravarConhecidos(ids: Set<string>) {
+  try {
+    sessionStorage.setItem(CHAVE_CONHECIDOS, JSON.stringify([...ids]));
+  } catch {
+    /* sem armazenamento: só perde o bipe ao trocar de página */
   }
 }
 
@@ -69,8 +88,10 @@ export function CentralDeAvisos() {
     }
     if (!r.ok || !r.dados) return;
     const lista = r.dados;
-    const antes = conhecidos.current;
+    // Guardado na aba: trocar de página monta a central de novo e não pode perder o bipe.
+    const antes = conhecidos.current ?? lerConhecidos();
     conhecidos.current = new Set(lista.map((a) => a.id));
+    gravarConhecidos(conhecidos.current);
     if (antes) {
       const novos = lista.filter((a) => a.situacao === "novo" && !antes.has(a.id) && a.prioridade !== "informativo");
       if (novos.length > 0) void avisarNoAparelho(novos, audio);

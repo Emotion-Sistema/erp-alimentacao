@@ -75,21 +75,38 @@ async function recusarSemEntrada(db: Banco, ator: Ator | null, acao: string) {
 }
 
 /**
- * Entrega à pessoa os avisos que valem para ela AGORA (cargo ativo, unidade, validade).
- * Pode rodar muitas vezes ao mesmo tempo: cada pessoa recebe cada aviso uma vez só.
+ * Entrega à pessoa os avisos que valem para ela AGORA. Pode rodar muitas vezes ao mesmo
+ * tempo: cada pessoa recebe cada aviso uma vez só.
+ *
+ * O turno da pessoa vai da entrada até o fim do turno da unidade contado a partir da hora
+ * em que ela entrou (`fim_do_turno(unidade, sessao.criada_em)`). A sessão pode durar mais
+ * (12 h), mas depois desse horário a pessoa está FORA do turno: não recebe aviso
+ * operacional nem comunicado "só no turno de hoje". Comunicado "até confirmar" chega a
+ * quem já tinha o cargo quando ele foi enviado.
  */
 async function entregar(db: Banco, ator: Ator & { cargoAtivo: string; unidadeId: number }) {
+  if (!ator.sessaoId) return; // estação da cozinha: avisos na tela de produção (E14)
   await sql`
+    WITH turno AS (
+      SELECT now() < fim_do_turno(${ator.unidadeId}, s.criada_em) AS dentro
+      FROM sessao s WHERE s.id = ${ator.sessaoId}
+    )
     INSERT INTO aviso_destino (aviso_id, usuario_id, cargo)
     SELECT a.id, ${ator.usuarioId}, ${ator.cargoAtivo}
-    FROM aviso a
+    FROM aviso a, turno t
     WHERE a.unidade_id = ${ator.unidadeId}
       AND ${ator.cargoAtivo} = ANY (a.para_cargos)
       AND (a.para_usuario_id IS NULL OR a.para_usuario_id = ${ator.usuarioId})
-      AND CASE a.natureza
-            WHEN 'operacional' THEN a.expira_em > now()
-            ELSE a.expira_em IS NULL OR a.expira_em > now()
-          END
+      AND (
+        -- Do turno (operacional ou comunicado "só hoje"): ainda vale e a pessoa está no turno.
+        (a.expira_em IS NOT NULL AND a.expira_em > now() AND t.dentro)
+        -- Comunicado "até confirmar": quem já tinha o cargo quando ele foi enviado.
+        OR (a.natureza = 'comunicado' AND a.expira_em IS NULL AND EXISTS (
+              SELECT 1 FROM usuario_perfil up
+              WHERE up.usuario_id = ${ator.usuarioId} AND up.perfil_codigo = ${ator.cargoAtivo}
+                AND up.unidade_id = a.unidade_id AND up.removido_em IS NULL AND up.criado_em <= a.criado_em))
+      )
+      AND NOT EXISTS (SELECT 1 FROM aviso_destino d WHERE d.aviso_id = a.id AND d.usuario_id = ${ator.usuarioId})
     ON CONFLICT (aviso_id, usuario_id) DO NOTHING`.execute(db);
 }
 
@@ -110,12 +127,16 @@ export type AvisoDaCaixa = {
  * Caixa de avisos da pessoa, para o cargo ativo dela (o histórico fica). Fora do turno
  * (sem sessão) não há caixa. Sem cargo ativo: vazia.
  */
-export async function caixaDeAvisos(db: Banco, ator: Ator | null, limite = 50): Promise<AvisoDaCaixa[]> {
+/** Caixa de avisos. `antesDe`: id do último aviso da página anterior (para ver mais). */
+export async function caixaDeAvisos(db: Banco, ator: Ator | null, filtro: { antesDe?: unknown } = {}): Promise<AvisoDaCaixa[]> {
   await recusarSemEntrada(db, ator, "avisos.ver");
   exigirEntrada(ator);
   if (!ator.cargoAtivo || !ator.unidadeId) return [];
+  const pagina = z.object({ antesDe: z.coerce.number().int().positive().optional() }).safeParse(filtro);
+  if (!pagina.success) throw new ErroDeRegra("dados_invalidos", "Página inválida.");
+  const antesDe = pagina.data.antesDe;
   const quem = { ...ator, cargoAtivo: ator.cargoAtivo, unidadeId: ator.unidadeId };
-  await entregar(db, quem);
+  if (antesDe === undefined) await entregar(db, quem);
   const linhas = await db
     .selectFrom("aviso_destino as d")
     .innerJoin("aviso as a", "a.id", "d.aviso_id")
@@ -134,8 +155,9 @@ export async function caixaDeAvisos(db: Banco, ator: Ator | null, limite = 50): 
     .where("d.usuario_id", "=", ator.usuarioId)
     .where("a.unidade_id", "=", quem.unidadeId)
     .where((eb) => eb(eb.val(quem.cargoAtivo), "=", eb.fn.any("a.para_cargos")))
+    .$if(antesDe !== undefined, (q) => q.where("a.id", "<", String(antesDe)))
     .orderBy("a.id", "desc")
-    .limit(Math.min(Math.max(limite, 1), 200))
+    .limit(50)
     .execute();
   return linhas.map((l) => ({
     ...l,
@@ -146,6 +168,14 @@ export async function caixaDeAvisos(db: Banco, ator: Ator | null, limite = 50): 
 /** Compatível com a E03 (lançador e testes antigos): a mesma caixa de avisos. */
 export const avisosDoCargo = (db: Banco, ator: Ator | null) => caixaDeAvisos(db, ator);
 
+/** Avisos do cargo ativo e da unidade: a pessoa só mexe no que vê na caixa daquele cargo. */
+const doCargoAtivo = (db: Banco, cargo: string, unidadeId: number) =>
+  db
+    .selectFrom("aviso")
+    .select("id")
+    .where("unidade_id", "=", unidadeId)
+    .where((eb) => eb(eb.val(cargo), "=", eb.fn.any("para_cargos")));
+
 const listaDeIds = z.object({ ids: z.array(z.coerce.number().int().positive()).min(1).max(100) });
 
 /** A pessoa viu estes avisos (só os dela; data gravada uma vez). */
@@ -154,12 +184,14 @@ export async function marcarVistos(db: Banco, ator: Ator | null, dados: unknown)
   exigirEntrada(ator);
   const p = listaDeIds.safeParse(dados);
   if (!p.success) throw new ErroDeRegra("dados_invalidos", "Informe os avisos.");
+  if (!ator.cargoAtivo || !ator.unidadeId) return 0;
   const r = await db
     .updateTable("aviso_destino")
     .set({ visto_em: sql<Date>`now()` })
     .where("usuario_id", "=", ator.usuarioId)
     .where("aviso_id", "in", p.data.ids.map(String))
     .where("visto_em", "is", null)
+    .where("aviso_id", "in", doCargoAtivo(db, ator.cargoAtivo, ator.unidadeId))
     .executeTakeFirst();
   return Number(r.numUpdatedRows);
 }
@@ -171,12 +203,16 @@ export async function marcarVistos(db: Banco, ator: Ator | null, dados: unknown)
 export async function resolverAviso(db: Banco, ator: Ator | null, avisoId: number): Promise<void> {
   await recusarSemEntrada(db, ator, "avisos.resolver");
   exigirEntrada(ator);
-  const linha = await db
-    .selectFrom("aviso_destino")
-    .select(["resolvido_em"])
-    .where("usuario_id", "=", ator.usuarioId)
-    .where("aviso_id", "=", String(avisoId))
-    .executeTakeFirst();
+  const linha =
+    ator.cargoAtivo && ator.unidadeId
+      ? await db
+          .selectFrom("aviso_destino")
+          .select(["resolvido_em"])
+          .where("usuario_id", "=", ator.usuarioId)
+          .where("aviso_id", "=", String(avisoId))
+          .where("aviso_id", "in", doCargoAtivo(db, ator.cargoAtivo, ator.unidadeId))
+          .executeTakeFirst()
+      : undefined;
   if (!linha) throw new ErroDeRegra("nao_encontrado", "Aviso não encontrado.");
   if (linha.resolvido_em) return;
   await db
@@ -259,8 +295,9 @@ export type ComunicadoEnviado = {
 };
 
 /**
- * Comunicados da unidade, com quem leu e quem ainda não leu. "Quem deve ler" é quem tem
- * (hoje) um dos cargos na unidade, mais quem recebeu e depois perdeu o cargo.
+ * Comunicados da unidade, com quem leu e quem ainda não leu. "Quem deve ler" é quem já
+ * tinha um dos cargos na unidade quando o comunicado foi enviado e ainda tem, mais quem
+ * recebeu e depois perdeu o cargo.
  */
 export async function listarComunicados(db: Banco, ator: Ator | null): Promise<ComunicadoEnviado[]> {
   const quem = await exigir(db, ator, "comunicados.enviar", { tipo: "comunicado" });
@@ -277,13 +314,13 @@ export async function listarComunicados(db: Banco, ator: Ator | null): Promise<C
   if (comunicados.length === 0) return [];
   const leituras = await sql<{ avisoId: string; usuarioId: number; nome: string; vistoEm: Date | null; resolvidoEm: Date | null; recebeu: boolean }>`
     WITH c AS (
-      SELECT id, para_cargos FROM aviso WHERE id IN (${sql.join(comunicados.map((c) => c.id))})
+      SELECT id, para_cargos, criado_em FROM aviso WHERE id IN (${sql.join(comunicados.map((c) => c.id))})
     ),
     deve AS (
       SELECT DISTINCT c.id AS aviso_id, up.usuario_id
       FROM c
       JOIN usuario_perfil up ON up.perfil_codigo = ANY (c.para_cargos)
-        AND up.unidade_id = ${quem.unidadeId} AND up.removido_em IS NULL
+        AND up.unidade_id = ${quem.unidadeId} AND up.removido_em IS NULL AND up.criado_em <= c.criado_em
       JOIN usuario u ON u.id = up.usuario_id AND u.ativo
       UNION
       SELECT d.aviso_id, d.usuario_id FROM aviso_destino d JOIN c ON c.id = d.aviso_id

@@ -1,4 +1,5 @@
--- Reversão da 0004 (só desenvolvimento): esquece quem recebeu e leu os avisos.
+-- Reversão da 0004 (SÓ desenvolvimento; nunca em produção): APAGA quem recebeu e quem
+-- confirmou a leitura, e a autoria dos comunicados. Reaplicar não traz isso de volta.
 DROP TABLE IF EXISTS aviso_destino;
 DROP FUNCTION IF EXISTS aviso_destino_so_avanca();
 DROP INDEX IF EXISTS aviso_entrega;

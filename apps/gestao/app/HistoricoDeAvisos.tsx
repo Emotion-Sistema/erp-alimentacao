@@ -1,18 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Aviso } from "@erp/interface";
+import { Aviso, Botao } from "@erp/interface";
 import { chamar } from "./chamar";
 import { ItemDeAviso, type AvisoDaCaixa } from "./ItemDeAviso";
 
 export function HistoricoDeAvisos() {
   const [avisos, setAvisos] = useState<AvisoDaCaixa[] | null>(null);
   const [erro, setErro] = useState("");
+  const [temMais, setTemMais] = useState(false);
+  const POR_PAGINA = 50;
+  async function carregar(antesDe?: string) {
+    const r = await chamar<AvisoDaCaixa[]>(antesDe ? `/api/avisos?antesDe=${encodeURIComponent(antesDe)}` : "/api/avisos");
+    if (!r.ok || !r.dados) return setErro(r.mensagem);
+    const pagina = r.dados;
+    setTemMais(pagina.length === POR_PAGINA);
+    setAvisos((l) => (antesDe && l ? [...l, ...pagina] : pagina));
+  }
   useEffect(() => {
-    void chamar<AvisoDaCaixa[]>("/api/avisos").then((r) => {
-      if (r.ok && r.dados) setAvisos(r.dados);
-      else setErro(r.mensagem);
-    });
+    void carregar();
   }, []);
 
   async function resolver(id: string) {
@@ -38,6 +44,11 @@ export function HistoricoDeAvisos() {
             </li>
           ))}
         </ul>
+      )}
+      {avisos && temMais && (
+        <Botao type="button" onClick={() => void carregar(avisos[avisos.length - 1]!.id)}>
+          Ver mais avisos
+        </Botao>
       )}
     </>
   );
