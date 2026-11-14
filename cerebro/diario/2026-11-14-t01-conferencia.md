@@ -28,6 +28,13 @@ Nada novo decidido. Propostas feitas ao responsável (aguardando resposta):
 3. "Só abre em aparelho cadastrado" é um controle fraco num aplicativo web; o forte é
    gestão de aparelhos (evolução).
 
+## Respostas do responsável (mesmo dia)
+1. Reforçar a trava: sim (feito; decisão 0009).
+2. Contexto: limite 1 milhão, aviso a cada 10%, compactar e seguir no mesmo chat (feito).
+3. Autenticação com bibliotecas mantidas: ok.
+4. Proteção de branch no GitHub: a tela avisou que rulesets não valem em repositório
+   privado no plano gratuito; não foi criada.
+
 ## O que ficou pendente
 - E02 (fundação) aguarda o "ok" do responsável (regra de etapa nova).
 

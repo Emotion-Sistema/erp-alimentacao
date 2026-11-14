@@ -1,6 +1,6 @@
 ---
 name: encerrar-sessao
-description: Gravar a síntese da conversa no cérebro do projeto e gerar o bloco para continuar em um novo chat. Use SEMPRE que um assunto terminar, quando aparecer o aviso automático de contexto em 50%, quando a conversa estiver longa, ou quando o responsável disser "encerrar", "resumir", "compactar", "passar o bastão", "novo chat" ou "salva isso".
+description: Gravar a síntese da conversa no cérebro do projeto e gerar o bloco para continuar em um novo chat. Use SEMPRE que um assunto terminar, quando aparecer o aviso automático de contexto (a cada 10%), quando a conversa estiver longa, ou quando o responsável disser "encerrar", "resumir", "compactar", "passar o bastão", "novo chat" ou "salva isso".
 ---
 
 # Encerrar sessão (síntese para o cérebro e passagem)
@@ -19,8 +19,11 @@ description: Gravar a síntese da conversa no cérebro do projeto e gerar o bloc
 6. Faça commit, abra PR só com `cerebro/` e `docs/` e junte na `main` (permitido sem
    perguntar). Sem isso o próximo chat não enxerga nada. Confirme que o merge aconteceu.
 
-## 2. Entregar o bloco de passagem
-Termine a resposta com exatamente este formato, dentro de um bloco de código, para o
+## 2. Modo compactar (aviso automático de contexto) ou novo chat
+**Modo compactar** (padrão no aviso de contexto, decisão 0009): depois do passo 1, termine
+com a linha `👉 Envie /compact para eu continuar neste mesmo chat.` e não gere o bloco abaixo.
+
+**Novo chat** (só quando o responsável pedir ou o assunto terminar): termine a resposta com exatamente este formato, dentro de um bloco de código, para o
 responsável copiar com um clique:
 
 ```

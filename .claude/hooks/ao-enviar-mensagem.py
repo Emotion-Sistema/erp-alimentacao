@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Roda a cada mensagem do responsável.
 1) Libera a publicação somente no turno em que a mensagem começa com "Publique tudo".
-2) Avisa quando o contexto da conversa passa de 50% (e de novo em 75%).
+2) Avisa a cada 10% de contexto usado (10%, 20%...), para atualizar o cérebro e compactar
+   a conversa, continuando no mesmo chat (decisão 0009).
 Nunca bloqueia a mensagem: em caso de erro, sai em silêncio."""
 import json, os, re, sys
 
@@ -31,7 +32,7 @@ def main():
 
     # 2) Contexto
     try:
-        limite = int(os.environ.get("ERP_CONTEXTO_MAX", "200000"))
+        limite = int(os.environ.get("ERP_CONTEXTO_MAX", "1000000"))
         caminho = dados.get("transcript_path") or ""
         usado = 0
         if caminho and os.path.exists(caminho):
@@ -57,16 +58,16 @@ def main():
                 ja = int(open(marca).read().strip() or 0)
             except Exception:
                 ja = 0
-        if pct < 40 and ja:
+        if ja and pct < ja - 5:  # caiu: a conversa foi compactada, recomeça a contagem
             os.remove(marca)
             ja = 0
-        nivel = 75 if pct >= 75 else 50 if pct >= 50 else 0
+        nivel = (pct // 10) * 10
         if nivel and nivel > ja:
             open(marca, "w").write(str(nivel))
             avisos.append(
                 f"AVISO AUTOMÁTICO: o contexto desta conversa está em cerca de {pct}%. "
-                "Responda normalmente e, ao final, use a skill `encerrar-sessao`: atualize o cérebro "
-                "e termine com o bloco '📋 COPIE E COLE EM UM NOVO CHAT' para o responsável continuar em outro chat.")
+                "Responda normalmente e, ao final, use a skill `encerrar-sessao` no modo compactar: "
+                "atualize o cérebro e peça ao responsável para enviar /compact e continuar neste mesmo chat.")
     except Exception:
         pass
 
