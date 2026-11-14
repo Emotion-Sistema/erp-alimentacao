@@ -39,13 +39,12 @@ funciona e só começa quando a anterior foi aceita. Modelos: ver `05-uso-dos-mo
 | **E11** Pedido e baixa | RC-01 no servidor: pedido, baixa única, em uso e depois guardado, outbox, idempotência | **Opus; revisor** | Todos os testes de concorrência e repetição do RC-01 passam |
 | **E12** Disponibilidade | O que pode ser vendido, calculado do estoque; botão "acabou" | Opus; revisor | Ingrediente zera e os produtos somem; entrada os devolve |
 | **E13** Aplicativo do atendente | Mesas, comanda virtual, lançar pedido, tudo junto ou por partes, alterar pedido | Sonnet; Opus revisa | Pedido lançado no aparelho chega ao servidor uma única vez |
-
-Critérios da E13 vindos da E03 (decisão 0011): atendente só altera **pedido próprio**, com **motivo obrigatório** (lançado errado ou cliente trocou); o **aviso aos supervisores** é gravado na mesma transação; o gerente vê as alterações numa aba própria; alteração de pedido já liberado para produção gera movimento compensatório, nunca uma segunda baixa. Tudo com teste por cargo direto no servidor.
-
 | **E14** Telas de produção | Telas por tipo, fila, iniciar, pronto, temporizador com cores, sons, elevador, cafeteria (RC-10) | Sonnet nas telas; Opus no tempo real | Critérios 1 a 3, 6 e 10 do RC-10 |
 | **E15** Aviso e entrega | Aviso ao atendente, "Peguei", "Entregue", linha do tempo e busca do pedido (RC-17) | Sonnet; Opus revisa | Critérios 4 e 5 do RC-10 e os do RC-17 |
 | **E16** Estimativa de tempo | Fila, capacidade, faixa e horário previstos | Opus | Valor bate com a conta manual |
 | **Portão 1** 🚪 | **Ensaio na loja, sem dinheiro:** uma noite com o sistema rodando em paralelo ao que existe hoje | — | 👉 Equipe usou, problemas anotados e corrigidos |
+
+Critérios da E13 vindos da E03 (decisão 0011): atendente só altera **pedido próprio**, com **motivo obrigatório** (lançado errado ou cliente trocou); o **aviso aos supervisores** é gravado na mesma transação; o gerente vê as alterações numa aba própria; alteração de pedido já liberado para produção gera movimento compensatório, nunca uma segunda baixa. Tudo com teste por cargo direto no servidor.
 
 ## Bloco D: caixa e dinheiro
 | Etapa | Entrega | Modelos | Pronto quando |
