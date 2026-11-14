@@ -4,8 +4,9 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 
 ## Agora (para começar)
 - [ ] 👉 No GitHub, proteger a branch `main`: exigir pull request e CI aprovado.
+- [ ] 👉 No GitHub, criar já a regra de proteção para `producao` (mesmo sem a branch existir): fecha a brecha da trava pelas ferramentas do GitHub.
+- [ ] 👉 Ler a conferência da T01 (resposta da sessão de 14/11/2026) e responder às perguntas; dar o "ok" para a E02.
 - [ ] 👉 Em claude.ai/code, conectar o GitHub e instalar o app do Claude neste repositório.
-- [ ] 👉 Abrir a primeira sessão e pedir a tarefa T01.
 
 ## Assim que possível (destrava o trabalho)
 - [ ] 👉 Enviar logo, cores e identidade visual da empresa (pode ser pelo Drive).
@@ -34,6 +35,7 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Enviar a mensagem: **Publique tudo**
 
 ## Feito
+- [x] Abrir a primeira sessão e pedir a tarefa T01 (14/11/2026)
 - [x] Criar repositório privado no GitHub (13/11/2026)
 - [x] Criar pasta do projeto no Drive (13/11/2026)
 - [x] Contratar a VPS de homologação na Hostinger (14/11/2026)

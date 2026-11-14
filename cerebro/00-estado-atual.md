@@ -1,11 +1,14 @@
 # Estado atual do projeto
 
-Atualizado em: 13/11/2026
+Atualizado em: 14/11/2026
 
 ## Em que pé estamos
-- Fase: **F0 concluída** (repositório preparado). Ainda não existe código de aplicação.
-- Próxima tarefa: **T01** (`docs/tarefas/T01-conferencia-e-fundacao.md`), etapas E01 e E02
-  da ordem de construção (`docs/03-roteiro-de-fases.md`).
+- Fase: **E01 (conferência) feita**, aguardando o responsável ler e responder. Ainda não
+  existe código de aplicação.
+- Próxima tarefa: **T01 parte 2 = E02 (fundação)**, em `feat/fundacao`, depois do "ok"
+  (`docs/tarefas/T01-conferencia-e-fundacao.md`).
+- Travas: push para `producao` sem a frase foi bloqueado (14/11/2026). Brechas achadas
+  pelas ferramentas do GitHub e por `refs/heads/main`: ver `diario/2026-11-14-t01-conferencia.md`.
 - Modelos: base Opus 5.5; Sonnet e Haiku por subagentes (`docs/05-uso-dos-modelos.md`).
 - Aguardando: respostas do dono da empresa ao questionário em PDF (previstas para 14/11/2026).
 - No ar (produção): **nada**. Homologação: **não existe ainda**.
@@ -45,3 +48,4 @@ Tudo sobre um núcleo único. Detalhes em `docs/01-visao-e-escopo.md`.
 | Data | Assunto | Resultado | Diário |
 |---|---|---|---|
 | 13/11/2026 | Preparação do projeto (F0) | Instruções, requisitos, cérebro, skills e travas criados | `diario/2026-11-13-preparacao-do-projeto.md` |
+| 14/11/2026 | T01 parte 1 (E01): conferência e teste das travas | Estrutura juntada na `main` (PR #1); trava de `producao` bloqueou; 2 brechas e 3 propostas | `diario/2026-11-14-t01-conferencia.md` |
