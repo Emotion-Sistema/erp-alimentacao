@@ -56,6 +56,26 @@ todos os ingredientes da receita, tamanhos e adicionais.
 - A verificação que vale é sempre a feita dentro da transação do pedido (RC-01). O número
   mostrado na tela é informação, não garantia.
 
+## 2a. Horários de venda (definido em 14/11/2026)
+Dados do responsável: **cozinha fecha às 23h** (último pedido, em qualquer canal, loja ou
+delivery) e a **loja fecha às 23h30**. Abertura: **9h** de sexta a domingo; **10h** de terça a
+quinta. O delivery começa em horário diferente.
+
+Como funciona:
+- **Horário da unidade** por dia da semana: abertura, último pedido da cozinha e fechamento.
+- **Horário de cada categoria por canal** (loja e delivery), por dia da semana, **preenchido à
+  mão pelo gerente** numa grade simples (ex.: Almoço, loja, ter a dom, 11h às 15h). Categoria
+  sem horário segue o horário da unidade.
+- **Exceções por data** (feriado, evento, fechado) e **pausa manual** de um canal ou categoria.
+- **Regra no servidor:** um produto só aparece e só é aceito num canal se, naquele momento,
+  a unidade está aberta e antes do último pedido da cozinha, a categoria está no horário daquele
+  canal, não há pausa e o estoque permite (seção 2). Fora do horário, o produto aparece como
+  "disponível a partir das 11h" e o pedido é recusado pelo servidor, mesmo que a tela tente.
+- **Quem muda horários: só o gerente geral e o dono** (definido em 14/11/2026). Nem o
+  administrador muda. Na E07 isso vira a ação `horarios.gerenciar` na matriz (decisão 0011), com teste por cargo.
+- Toda mudança de horário fica registrada com autor (RC-17).
+- Entra no cadastro de categorias (E07) e na disponibilidade (E12).
+
 ## 3. Linhas de reposição
 Cada ingrediente tem duas linhas sobre o total (em uso + guardado):
 
