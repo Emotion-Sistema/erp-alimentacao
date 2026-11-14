@@ -5,10 +5,10 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { sql, type Banco } from "@erp/banco";
+import { criarBanco, sql, type Banco } from "@erp/banco";
 import {
-  caixaDeAvisos, criarAviso, criarUsuario, darCargo, enviarComunicado, entrar, ErroDeRegra, listarComunicados, marcarVistos,
-  resolverAviso, tirarCargo, trocarCargoAtivo, type Ator,
+  caixaDeAvisos, continuarNoTurno, criarAviso, criarUsuario, darCargo, enviarComunicado, entrar, ErroDeRegra, listarComunicados, marcarVistos,
+  resolverAviso, situacaoDoTurno, tirarCargo, trocarCargoAtivo, type Ator,
 } from "../src/index";
 import { atorDoCargo, bancoDeTeste, prepararDados } from "./apoio";
 
@@ -380,8 +380,9 @@ describe("turnos da equipe (horas fixas, São Paulo): Turno 1 08h-15h30, Turno 2
     (await sql<{ nome: string; fim: Date }>`SELECT nome, fim FROM turno_em(${un}, ${local + "-03:00"}::timestamptz)`.execute(db)).rows[0];
   const fimDoAviso = async (local: string) =>
     (await sql<{ f: Date }>`SELECT fim_do_aviso(${un}, ${local + "-03:00"}::timestamptz) AS f`.execute(db)).rows[0]!.f.toISOString();
-  const noTurno = async (entrou: string, agora: string) =>
-    (await sql<{ ok: boolean }>`SELECT pessoa_no_turno(${un}, ${entrou + "-03:00"}::timestamptz, ${agora + "-03:00"}::timestamptz) AS ok`.execute(db)).rows[0]!.ok;
+  const ts = (local: string | null) => (local ? local + "-03:00" : null);
+  const noTurno = async (entrou: string, agora: string, continuou: string | null = null) =>
+    (await sql<{ ok: boolean }>`SELECT pessoa_no_turno(${un}, ${ts(entrou)}::timestamptz, ${ts(continuou)}::timestamptz, ${ts(agora)}::timestamptz) AS ok`.execute(db)).rows[0]!.ok;
 
   it("qual turno está em andamento", async () => {
     expect(await turno("2026-11-10T07:59:00")).toBeUndefined();
@@ -399,18 +400,108 @@ describe("turnos da equipe (horas fixas, São Paulo): Turno 1 08h-15h30, Turno 2
     expect(await fimDoAviso("2026-11-10T23:40:00")).toBe("2026-11-11T03:10:00.000Z"); // +30 min
   });
 
-  it("quem está no turno: entrou no mesmo dia de trabalho e há turno em andamento", async () => {
-    expect(await noTurno("2026-11-10T07:55:00", "2026-11-10T09:00:00")).toBe(true);
-    expect(await noTurno("2026-11-10T07:05:00", "2026-11-10T16:00:00")).toBe(true); // faz os dois turnos
-    expect(await noTurno("2026-11-10T15:20:00", "2026-11-10T22:00:00")).toBe(true);
-    expect(await noTurno("2026-11-10T06:59:00", "2026-11-10T09:00:00")).toBe(false); // mais de 1 h antes
+  it("cada um fica no turno em que entrou; quem chega até 30 min antes já é do próximo", async () => {
+    expect(await noTurno("2026-11-10T07:35:00", "2026-11-10T09:00:00")).toBe(true); // chegou antes do Turno 1
+    expect(await noTurno("2026-11-10T07:35:00", "2026-11-10T07:50:00")).toBe(false); // turno ainda não começou
+    expect(await noTurno("2026-11-10T09:00:00", "2026-11-10T15:29:00")).toBe(true);
+    expect(await noTurno("2026-11-10T09:00:00", "2026-11-10T15:30:00")).toBe(false); // Turno 1 acabou: não recebe do Turno 2
+    expect(await noTurno("2026-11-10T08:00:00", "2026-11-10T19:00:00")).toBe(false); // esqueceu de sair
+    expect(await noTurno("2026-11-10T15:10:00", "2026-11-10T22:00:00")).toBe(true); // chegou cedo para o Turno 2
+    expect(await noTurno("2026-11-10T14:50:00", "2026-11-10T15:40:00")).toBe(false); // entrou no Turno 1
+    expect(await noTurno("2026-11-10T07:00:00", "2026-11-10T09:00:00")).toBe(false); // cedo demais
     expect(await noTurno("2026-11-09T22:00:00", "2026-11-10T09:00:00")).toBe(false); // sessão de ontem
     expect(await noTurno("2026-11-10T16:00:00", "2026-11-10T23:45:00")).toBe(false); // depois do Turno 2
-    expect(await noTurno("2026-11-10T07:30:00", "2026-11-10T07:50:00")).toBe(false); // antes do Turno 1
+  });
+
+  it("'Continuo no turno' vale até o fim do turno em que foi tocado", async () => {
+    // Entrou no Turno 1, ficou por imprevisto e tocou às 15h40: vale o Turno 2 inteiro.
+    expect(await noTurno("2026-11-10T09:00:00", "2026-11-10T20:00:00", "2026-11-10T23:30:00")).toBe(true);
+    expect(await noTurno("2026-11-10T09:00:00", "2026-11-10T23:30:00", "2026-11-10T23:30:00")).toBe(false);
+    // Entrou cedo demais (07h) e tocou às 08h05: vale o Turno 1.
+    expect(await noTurno("2026-11-10T07:00:00", "2026-11-10T10:00:00", "2026-11-10T15:30:00")).toBe(true);
+  });
+
+  it("turnos que se sobrepõem são recusados", async () => {
+    await expect(db.insertInto("turno").values({ unidade_id: un, nome: "Extra", inicio: "09:00", fim: "20:00" }).execute()).rejects.toThrow(/sobrepõe/);
+    await expect(db.insertInto("turno").values({ unidade_id: un, nome: "Ao contrário", inicio: "20:00", fim: "09:00" }).execute()).rejects.toThrow();
   });
 
   it("unidade sem turno cadastrado: ninguém está no turno", async () => {
     const vazia = await outraUnidade();
-    expect((await sql<{ ok: boolean }>`SELECT pessoa_no_turno(${vazia}, now(), now()) AS ok`.execute(db)).rows[0]!.ok).toBe(false);
+    expect((await sql<{ ok: boolean }>`SELECT pessoa_no_turno(${vazia}, now(), NULL, now()) AS ok`.execute(db)).rows[0]!.ok).toBe(false);
+  });
+});
+
+describe("entrega de verdade fora do turno (o caminho da caixa de avisos)", () => {
+  // Põe a unidade de teste num turno que NÃO contém a hora atual e volta ao dia todo depois.
+  async function foraDeTurno<T>(fn: () => Promise<T>): Promise<T> {
+    const h = (await sql<{ h: number }>`SELECT extract(hour FROM now() AT TIME ZONE u.fuso_horario)::int AS h FROM unidade u WHERE u.id = ${unidadeId}`.execute(db)).rows[0]!.h;
+    const [inicio, fim] = h < 12 ? ["20:00", "21:00"] : ["02:00", "03:00"];
+    await db.deleteFrom("turno").where("unidade_id", "=", unidadeId).execute();
+    await db.insertInto("turno").values({ unidade_id: unidadeId, nome: "Longe", inicio, fim }).execute();
+    try {
+      return await fn();
+    } finally {
+      await db.deleteFrom("turno").where("unidade_id", "=", unidadeId).execute();
+      await db.insertInto("turno").values([
+        { unidade_id: unidadeId, nome: "Teste manhã", inicio: "00:00", fim: "12:00" },
+        { unidade_id: unidadeId, nome: "Teste tarde", inicio: "12:00", fim: "24:00" },
+      ]).execute();
+    }
+  }
+
+  it("sem turno em andamento: quem acabou de entrar não recebe o operacional, mas recebe o comunicado 'até confirmar'", async () => {
+    const m = marca();
+    const sup = await pessoa("supervisor");
+    const gerente = await atorDoCargo(db, "gerente_geral", "gerente.geral");
+    await foraDeTurno(async () => {
+      await criarAviso(db, { unidadeId, paraCargos: ["supervisor"], tipo: "teste", texto: `Fora operacional ${m}` });
+      await enviarComunicado(db, gerente, { texto: `Fora até ler ${m}`, cargos: ["supervisor"] });
+      expect((await textos(sup)).filter((x) => x.includes(m))).toEqual([`Fora até ler ${m}`]);
+      // Comunicado "só neste turno" fora de turno é recusado (não chegaria a ninguém).
+      expect((await erroDe(enviarComunicado(db, gerente, { texto: `Fora turno ${m}`, cargos: ["supervisor"], validade: "turno" }))).codigo).toBe("dados_invalidos");
+      const s = await situacaoDoTurno(db, sup);
+      expect(s.noTurno).toBe(false);
+      expect(s.turnoAtual).toBeNull();
+      expect((await erroDe(continuarNoTurno(db, sup))).codigo).toBe("dados_invalidos");
+    });
+  });
+
+  it("turno acabou: a tela pede para sair; 'Continuo no turno' volta a entregar e fica na auditoria", async () => {
+    const m = marca();
+    const sup = await pessoa("supervisor");
+    // Entrou há dois dias (esqueceu de sair): o turno dele acabou.
+    await db.updateTable("sessao").set({ criada_em: sql<Date>`now() - interval '2 days'` }).where("id", "=", sup.sessaoId!).execute();
+    await criarAviso(db, { unidadeId, paraCargos: ["supervisor"], tipo: "teste", texto: `Antes de continuar ${m}` });
+    expect(await temAviso(sup, m)).toBe(false);
+    const antes = await situacaoDoTurno(db, sup);
+    expect(antes).toMatchObject({ noTurno: false, turnoAcabou: true, podeContinuar: true });
+    const depois = await continuarNoTurno(db, sup);
+    expect(depois).toMatchObject({ noTurno: true, turnoAcabou: false, podeContinuar: false });
+    expect(await temAviso(sup, m)).toBe(true);
+    const reg = await db.selectFrom("auditoria").select("detalhes").where("usuario_id", "=", sup.usuarioId).where("acao", "=", "turno.continuar").executeTakeFirst();
+    expect(reg?.detalhes.turno).toBe(depois.turnoAtual?.nome);
+    expect((await erroDe(situacaoDoTurno(db, null))).codigo).toBe("nao_autenticado");
+  });
+
+  it("comunicado 'só neste turno' vale até o fim do turno em andamento", async () => {
+    const gerente = await atorDoCargo(db, "gerente_geral", "gerente.geral");
+    const { id } = await enviarComunicado(db, gerente, { texto: `Neste turno ${marca()}`, cargos: ["caixa"], validade: "turno" });
+    const r = await sql<{ ok: boolean }>`SELECT expira_em = (SELECT fim FROM turno_em(unidade_id, criado_em)) AS ok FROM aviso WHERE id = ${id}`.execute(db);
+    expect(r.rows[0]?.ok).toBe(true);
+  });
+
+  it("turnosDoDiaTodo se recusa a rodar em banco que não termina em _teste", async () => {
+    const { turnosDoDiaTodo } = await import("../src/semente");
+    const nome = `erp_guarda_${randomUUID().slice(0, 8)}`;
+    await sql.raw(`CREATE DATABASE ${nome}`).execute(db);
+    const url = (process.env.DATABASE_URL_TESTE ?? "postgres://erp:erp@localhost:5432/erp_teste").replace(/\/[a-z0-9_]+$/, `/${nome}`);
+    const outro = criarBanco(url, 1);
+    try {
+      await expect(turnosDoDiaTodo(outro, 1)).rejects.toThrow(/_teste/);
+    } finally {
+      await outro.destroy();
+      await sql.raw(`DROP DATABASE ${nome}`).execute(db);
+    }
   });
 });

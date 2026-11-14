@@ -12,17 +12,20 @@ existe escala de turnos por pessoa no sistema.
 
 ## Decisão
 1. **Turnos da equipe** (resposta do responsável, 14/11/2026): **Turno 1, 08h às 15h30;
-   Turno 2, 15h30 às 23h30** (tabela `turno`, migração 0005, hora local da unidade). É o
-   horário de quem trabalha; o horário de abertura da loja é outro (9h ou 10h, fecha
-   23h30). A pessoa está **no turno** quando há turno em andamento e ela entrou no mesmo
-   dia de trabalho (até 1 h antes do primeiro turno). Quem faz os dois turnos continua no
-   turno; uma sessão aberta ontem à noite não vale hoje de manhã; depois das 23h30 ninguém
-   está no turno. Sem sessão, não recebe nada. A tela para mudar os turnos vem com os
-   horários (E07/E12); até lá, só pelo banco.
+   Turno 2, 15h30 às 23h30** (tabela `turno`, migração 0005, hora local da unidade; turnos
+   não podem se sobrepor). É o horário de quem trabalha; a loja abre 9h ou 10h e fecha
+   23h30. **Cada pessoa tem o próprio login, mesmo no celular dividido: no fim do turno ela
+   sai e a próxima entra** (responsável). Por isso a pessoa fica **no turno em que entrou**;
+   quem entra até 30 min antes de um turno começar já é desse turno. Quando o turno dela
+   acaba, para de receber avisos do turno e a tela pede para sair. **Imprevisto:** o botão
+   "Continuo no <turno>" (pedido do responsável) faz a sessão valer até o fim do turno em
+   andamento; cada toque fica na auditoria. Depois das 23h30 ninguém está no turno. Sem
+   sessão, não recebe nada. A tela para mudar os turnos vem com os horários (E07/E12).
+   O fim do turno da equipe (23h30) é diferente da saída do tablet da cozinha (00h30, 0003).
 2. **Dois tipos de aviso** (`aviso.natureza`):
    - **operacional**: nasce de um fato do sistema (ex.: código bloqueado). Vale **até o fim
      do turno em que nasceu** (15h30 ou 23h30). Quem só está no turno seguinte não recebe.
-     Nascido fora de turno, vale 30 min e fica só registrado;
+     Nascido fora de turno (ex.: 07h20 ou 23h35), vale 30 min e fica só registrado;
    - **comunicado**: recado da gerência para um ou mais cargos, com **confirmação de
      leitura** ("Li e entendi"). Fica até cada um confirmar, ou só no turno de hoje, se
      quem mandou escolheu "só neste turno". O "até confirmar" vale para quem já tinha o cargo
@@ -78,5 +81,7 @@ São Paulo; nos bancos de teste os turnos cobrem o dia todo, para não depender 
 cargo ativo, outra unidade, validade até o fim do turno, quem entra depois do fim do turno
 não recebe, aviso para uma pessoa, recusas sem sessão ou com segundo fator pendente,
 entrega concorrente sem duplicar, situação só para a frente, banco recusa apagar,
-comunicado só pela gerência, quem leu e quem não leu. Testes de tela em `avisos.spec.ts`
+comunicado só pela gerência, quem leu e quem não leu, entrega de verdade fora de turno,
+"Continuo no turno", comunicado "só neste turno" recusado fora de turno. Conferido quebrando
+a regra de propósito: os testes falham. Testes de tela em `avisos.spec.ts`
 nos 3 tamanhos.

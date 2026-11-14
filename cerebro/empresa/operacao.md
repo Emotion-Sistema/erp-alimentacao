@@ -25,7 +25,8 @@ Tudo abaixo dito pelo responsável em 13/11/2026.
 
 ## Rotina
 Turnos da equipe (14/11/2026): Turno 1 08h às 15h30; Turno 2 15h30 às 23h30. A loja abre 9h
-(sex-dom) ou 10h (ter-qui), fecha 23h30; segunda fechado. Ninguém trabalha de madrugada.
+(sex-dom) ou 10h (ter-qui), fecha 23h30; segunda fechado. Ninguém trabalha de madrugada. Cada funcionário tem o próprio
+login, mesmo no celular dividido; no fim do turno sai e o próximo entra.
 Picos, troca de turno, fechamento: a levantar.
 
 ## Regras da casa

@@ -73,6 +73,7 @@ export interface SessaoTabela {
   agente: string | null;
   cargo_ativo: string | null;
   segundo_fator_ok: Generated<boolean>;
+  turno_ate: Instante | null; // "Continuo no turno": vale até o fim deste turno
 }
 
 export interface EstacaoTabela {

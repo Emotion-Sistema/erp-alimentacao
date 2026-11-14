@@ -78,15 +78,15 @@ async function recusarSemEntrada(db: Banco, ator: Ator | null, acao: string) {
  * tempo: cada pessoa recebe cada aviso uma vez só.
  *
  * Turnos da equipe (tabela `turno`; Turno 1 08h-15h30, Turno 2 15h30-23h30). A pessoa está
- * no turno se há turno em andamento e ela entrou no mesmo dia de trabalho
- * (`pessoa_no_turno`). Fora disso não recebe aviso operacional nem comunicado "só neste
- * turno". Comunicado "até confirmar" chega a quem já tinha o cargo quando ele foi enviado.
+ * no turno enquanto dura o turno em que ela entrou (ou o turno em que tocou "Continuo no turno";
+ * veja turnos.ts). Fora disso não recebe aviso operacional nem comunicado "só
+ * neste turno". Comunicado "até confirmar" chega a quem já tinha o cargo quando ele foi enviado.
  */
 async function entregar(db: Banco, ator: Ator & { cargoAtivo: string; unidadeId: number }) {
   if (!ator.sessaoId) return; // estação da cozinha: avisos na tela de produção (E14)
   await sql`
     WITH turno AS (
-      SELECT pessoa_no_turno(${ator.unidadeId}, s.criada_em, now()) AS dentro
+      SELECT pessoa_no_turno(${ator.unidadeId}, s.criada_em, s.turno_ate, now()) AS dentro
       FROM sessao s WHERE s.id = ${ator.sessaoId}
     )
     INSERT INTO aviso_destino (aviso_id, usuario_id, cargo)
@@ -243,6 +243,10 @@ export async function enviarComunicado(db: Banco, ator: Ator | null, dados: unkn
   if (!quem.unidadeId) throw new ErroDeRegra("dados_invalidos", "Seu cargo ativo não tem unidade.");
   const unidadeId = quem.unidadeId;
   const d = p.data;
+  if (d.validade === "turno") {
+    const r = await sql<{ ha: boolean }>`SELECT EXISTS (SELECT 1 FROM turno_em(${unidadeId}, now())) AS ha`.execute(db);
+    if (!r.rows[0]?.ha) throw new ErroDeRegra("dados_invalidos", "Agora não há turno em andamento. Escolha \"Até cada um confirmar a leitura\".");
+  }
   return db.transaction().execute(async (trx) => {
     const r = await trx
       .insertInto("aviso")

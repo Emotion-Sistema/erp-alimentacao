@@ -52,6 +52,8 @@ async function avisarNoAparelho(novos: AvisoDaCaixa[], audio: { current: AudioCo
   }
 }
 
+type Turno = { noTurno: boolean; turnoAcabou: boolean; podeContinuar: boolean; turnoAtual: { nome: string; fim: string } | null };
+
 const CHAVE_CONHECIDOS = "erp-avisos-conhecidos";
 function lerConhecidos(): Set<string> | null {
   try {
@@ -74,6 +76,7 @@ export function CentralDeAvisos() {
   const [aberto, setAberto] = useState(false);
   const [erro, setErro] = useState("");
   const [permissao, setPermissao] = useState<string | null>(null);
+  const [turno, setTurno] = useState<Turno | null>(null);
   const conhecidos = useRef<Set<string> | null>(null);
   const parou = useRef(false);
   const audio = useRef<AudioContext | null>(null);
@@ -97,6 +100,8 @@ export function CentralDeAvisos() {
       if (novos.length > 0) void avisarNoAparelho(novos, audio);
     }
     setAvisos(lista);
+    const t = await chamar<Turno>("/api/eu/turno");
+    if (t.ok && t.dados) setTurno(t.dados);
   }, []);
 
   // Consulta ao montar, a cada 15 s (30 s com a aba escondida) e quando a janela volta ao foco.
@@ -164,6 +169,12 @@ export function CentralDeAvisos() {
     setAvisos((l) => l.map((a) => (a.id === id ? { ...a, situacao: "resolvido", vistoEm: a.vistoEm ?? agora, resolvidoEm: agora } : a)));
   }
 
+  async function continuar() {
+    const r = await chamar<Turno>("/api/eu/turno", "POST");
+    if (r.ok && r.dados) setTurno(r.dados);
+    else setErro(r.mensagem);
+  }
+
   async function ativarNoAparelho() {
     try {
       setPermissao(await Notification.requestPermission());
@@ -177,6 +188,16 @@ export function CentralDeAvisos() {
   const rotulo = novos > 0 ? `Avisos: ${novos} ${novos === 1 ? "aviso novo" : "avisos novos"}` : "Avisos: nenhum aviso novo";
   return (
     <div className="avisos">
+      {turno?.turnoAcabou && (
+        <Aviso tipo="atencao" data-testid="turno-acabou">
+          Seu turno acabou: os avisos do turno não chegam mais para você. Saia para a próxima pessoa entrar.
+          {turno.podeContinuar && turno.turnoAtual && (
+            <button type="button" className="avisos__ativar" onClick={() => void continuar()}>
+              Continuo no {turno.turnoAtual.nome}
+            </button>
+          )}
+        </Aviso>
+      )}
       <button type="button" className="avisos__sino" aria-expanded={aberto} aria-controls="painel-avisos" aria-label={rotulo} onClick={() => setAberto((v) => !v)}>
         <span aria-hidden="true">Avisos</span>
         {novos > 0 && (

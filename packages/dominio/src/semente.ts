@@ -2,7 +2,7 @@
  * Dados FICTÍCIOS para desenvolvimento e testes. Nunca roda em produção.
  * Cria a empresa de exemplo, uma unidade, setores e um usuário por cargo.
  */
-import { banco, criarBanco, type Banco } from "@erp/banco";
+import { banco, criarBanco, sql, type Banco } from "@erp/banco";
 import { CARGOS, CARGOS_DA_ESTACAO } from "./permissoes";
 import { hashSenha } from "./senha";
 
@@ -53,11 +53,13 @@ export async function semear(db: Banco): Promise<{ unidadeId: number }> {
 }
 
 /**
- * SÓ PARA BANCOS DE TESTE: turnos cobrindo o dia todo, para os testes que entregam avisos
+ * SÓ PARA BANCOS DE TESTE (confere o nome do banco; não é exportada pelo pacote): turnos cobrindo o dia todo, para os testes que entregam avisos
  * não dependerem da hora em que rodam. As regras de horário são testadas com horas fixas.
  */
 export async function turnosDoDiaTodo(db: Banco, unidadeId: number): Promise<void> {
   if (process.env.NODE_ENV === "production") throw new Error("Só para testes.");
+  const banco = await sql<{ nome: string }>`SELECT current_database() AS nome`.execute(db);
+  if (!/_teste$/.test(banco.rows[0]?.nome ?? "")) throw new Error("turnosDoDiaTodo só roda em banco terminado em _teste.");
   await db.deleteFrom("turno").where("unidade_id", "=", unidadeId).execute();
   await db
     .insertInto("turno")

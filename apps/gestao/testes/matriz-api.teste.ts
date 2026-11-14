@@ -46,6 +46,8 @@ const ROTAS: Rota[] = [
   { metodo: "GET", caminho: "/api/avisos", acao: "sessao" },
   { metodo: "POST", caminho: "/api/avisos/vistos", acao: "sessao" },
   { metodo: "POST", caminho: "/api/avisos/[id]/resolver", acao: "sessao" },
+  { metodo: "GET", caminho: "/api/eu/turno", acao: "sessao" },
+  { metodo: "POST", caminho: "/api/eu/turno", acao: "sessao" },
   { metodo: "GET", caminho: "/api/comunicados", acao: "comunicados.enviar", chamar: (c) => r.verComunicados(req("/api/comunicados", "GET", c)) },
   { metodo: "POST", caminho: "/api/comunicados", acao: "comunicados.enviar", chamar: (c) => r.novoComunicado(req("/api/comunicados", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/usuarios", acao: "usuarios.ver", chamar: (c) => r.verUsuarios(req("/api/usuarios", "GET", c)) },
@@ -136,6 +138,8 @@ describe("matriz pela API: cada cargo x cada rota protegida", () => {
     expect((await r.verAvisos(req("/api/avisos", "GET"))).status).toBe(401);
     expect((await r.marcarAvisosVistos(req("/api/avisos/vistos", "POST", undefined, { ids: [1] }))).status).toBe(401);
     expect((await r.resolverUmAviso(req("/api/avisos/1/resolver", "POST", undefined, {}), { id: "1" })).status).toBe(401);
+    expect((await r.verMeuTurno(req("/api/eu/turno", "GET"))).status).toBe(401);
+    expect((await r.continuarMeuTurno(req("/api/eu/turno", "POST", undefined, {}))).status).toBe(401);
   });
 
   it("administrador que só digitou a senha (sem o segundo fator) é barrado em tudo", async () => {
