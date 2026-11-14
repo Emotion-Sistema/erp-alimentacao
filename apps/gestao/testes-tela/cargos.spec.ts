@@ -2,39 +2,54 @@ import { expect, test } from "@playwright/test";
 import { entrar, loginDoCargo, semEstouroDeLargura } from "./ajudas";
 
 // Resultado esperado escrito à mão (independente do código), conforme a decisão 0011.
-const TODOS = ["Avisos", "Funcionários", "Auditoria", "Estações"];
-const MENU: Record<string, { nome: string; itens: string[] }> = {
-  dono: { nome: "Dono", itens: TODOS },
-  administrador: { nome: "Administrador", itens: TODOS },
-  gerente_geral: { nome: "Gerente geral", itens: TODOS },
-  financeiro: { nome: "Financeiro", itens: ["Avisos"] },
-  supervisor: { nome: "Supervisor", itens: ["Avisos", "Funcionários", "Estações"] },
-  atendente: { nome: "Atendente", itens: ["Avisos"] },
-  caixa: { nome: "Caixa", itens: ["Avisos"] },
-  cozinheira: { nome: "Cozinheira", itens: ["Avisos"] },
-  auxiliar_cozinha: { nome: "Auxiliar de cozinha", itens: ["Avisos"] },
-  motoboy: { nome: "Motoboy próprio", itens: ["Avisos"] },
-  contador: { nome: "Contador externo", itens: ["Avisos"] },
+const TODOS = ["Caixa", "Atendimento", "Produção", "Estoque e compras", "Gestão", "Financeiro"];
+type Esperado = {
+  nome: string;
+  /** Aplicativos do lançador (cargo com mais de um). */
+  apps?: string[];
+  /** Cargo com um só aplicativo: cai direto nele (caminho e itens do menu). */
+  direto?: { caminho: string; itens: string[] };
+  funcionarios: boolean;
+  auditoria: boolean;
+};
+const MENU: Record<string, Esperado> = {
+  dono: { nome: "Dono", apps: TODOS, funcionarios: true, auditoria: true },
+  administrador: { nome: "Administrador", apps: TODOS, funcionarios: true, auditoria: true },
+  gerente_geral: { nome: "Gerente geral", apps: TODOS.filter((a) => a !== "Financeiro"), funcionarios: true, auditoria: true },
+  financeiro: { nome: "Financeiro", apps: ["Estoque e compras", "Financeiro"], funcionarios: false, auditoria: false },
+  supervisor: { nome: "Supervisor", apps: ["Caixa", "Atendimento", "Produção", "Estoque e compras", "Gestão"], funcionarios: true, auditoria: false },
+  atendente: { nome: "Atendente", direto: { caminho: "/atendimento", itens: ["Mesas", "Meus pedidos"] }, funcionarios: false, auditoria: false },
+  caixa: { nome: "Caixa", direto: { caminho: "/caixa", itens: ["Início do turno", "Mapa de mesas", "Receber", "Motoboys"] }, funcionarios: false, auditoria: false },
+  cozinheira: { nome: "Cozinheira", apps: ["Produção", "Estoque e compras"], funcionarios: false, auditoria: false },
+  auxiliar_cozinha: { nome: "Auxiliar de cozinha", direto: { caminho: "/producao", itens: ["Visão geral"] }, funcionarios: false, auditoria: false },
+  motoboy: { nome: "Motoboy próprio", direto: { caminho: "/entregas", itens: ["Minhas entregas"] }, funcionarios: false, auditoria: false },
+  contador: { nome: "Contador externo", direto: { caminho: "/financeiro/contabil", itens: ["Pacote contábil"] }, funcionarios: false, auditoria: false },
 };
 
 test.use({ viewport: { width: 390, height: 844 } });
 
 for (const [cargo, esperado] of Object.entries(MENU)) {
-  test(`menu e telas do cargo ${cargo}`, async ({ page }) => {
+  test(`início e telas do cargo ${cargo}`, async ({ page }) => {
     await entrar(page, loginDoCargo(cargo), cargo === "dono" || cargo === "administrador");
     await expect(page.getByTestId("cargo-ativo")).toHaveText(esperado.nome);
 
-    const itens = await page.getByRole("navigation", { name: "Menu" }).getByRole("link").allTextContents();
-    expect(itens).toEqual(esperado.itens);
+    const menu = page.getByRole("navigation", { name: "Menu" }).getByRole("link");
+    if (esperado.direto) {
+      expect(new URL(page.url()).pathname).toBe(esperado.direto.caminho);
+      expect(await menu.allTextContents()).toEqual(esperado.direto.itens);
+    } else {
+      expect(new URL(page.url()).pathname).toBe("/");
+      expect(await menu.allTextContents()).toEqual(esperado.apps);
+    }
     await semEstouroDeLargura(page);
 
-    const telas: [string, string, string][] = [
-      ["/funcionarios", "Funcionários", "Funcionários"],
-      ["/auditoria", "Auditoria", "Auditoria"],
+    const telas: [string, boolean, string][] = [
+      ["/funcionarios", esperado.funcionarios, "Funcionários"],
+      ["/auditoria", esperado.auditoria, "Auditoria"],
     ];
-    for (const [url, itemDoMenu, titulo] of telas) {
+    for (const [url, pode, titulo] of telas) {
       await page.goto(url);
-      if (esperado.itens.includes(itemDoMenu)) {
+      if (pode) {
         await expect(page.getByRole("heading", { level: 1, name: titulo })).toBeVisible();
       } else {
         await expect(page.getByRole("heading", { name: "Seu cargo não permite esta tela" })).toBeVisible();

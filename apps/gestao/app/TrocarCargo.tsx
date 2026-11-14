@@ -9,7 +9,7 @@ export function TrocarCargo({ ativo, cargos }: { ativo: string; cargos: { valor:
   async function trocar(cargo: string) {
     setErro("");
     const r = await chamar("/api/eu/cargo", "POST", { cargo });
-    if (r.ok) window.location.reload();
+    if (r.ok) window.location.assign("/"); // o lançador leva ao aplicativo do novo cargo
     else setErro(r.mensagem);
   }
   return (

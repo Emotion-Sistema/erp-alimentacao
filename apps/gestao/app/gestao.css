@@ -8,7 +8,7 @@
 form { display: grid; gap: var(--espaco-4, 1rem); }
 
 /* ---------- Casca da gestão ---------- */
-.casca { max-width: 1100px; margin: 0 auto; padding: var(--espaco-4); }
+.casca { max-width: var(--largura-conteudo, 1100px); margin: 0 auto; padding: var(--espaco-4); }
 .casca__topo {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-3) var(--espaco-5);
   padding-bottom: var(--espaco-3); border-bottom: 2px solid var(--cor-borda);
@@ -24,6 +24,18 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
   color: var(--cor-texto); font-weight: 600; text-decoration: none;
 }
 .casca__link:hover { border-color: var(--cor-primaria); }
+.casca__app { margin: 0; font-size: var(--texto-grande); font-weight: 800; flex-basis: 100%; }
+.casca__link--apps { border-color: var(--cor-primaria); }
+.casca__link[aria-current="page"] { background: var(--cor-primaria); border-color: var(--cor-primaria); color: var(--cor-primaria-texto); }
+.casca__link { white-space: nowrap; }
+/* Celular e tablet: alvos de toque maiores. */
+.casca[data-aparelho="celular"] .casca__link,
+.casca[data-aparelho="tablet"] .casca__link { min-height: var(--alvo-toque-grande); }
+/* Celular: o menu rola de lado dentro da própria faixa, nunca a página inteira. */
+@media (max-width: 40rem) {
+  .casca__menu { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+  .casca__menu .casca__link { flex: 0 0 auto; }
+}
 .casca__conteudo { padding-top: var(--espaco-3); min-width: 0; }
 .lista-simples { list-style: none; margin: 0; padding: 0; }
 .lista-simples > li { margin-bottom: var(--espaco-2); }

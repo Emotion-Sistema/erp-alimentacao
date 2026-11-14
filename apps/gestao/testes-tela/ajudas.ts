@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, type Page } from "@playwright/test";
 import { Secret, TOTP } from "otpauth";
+import { APLICATIVOS } from "../../../packages/dominio/src/aplicativos";
 import { BANCO } from "./playwright.config";
 
 export const SENHA = "senha-de-teste-123";
@@ -15,6 +16,15 @@ export const loginDoCargo = (cargo: string) => cargo.replace("_", ".");
 
 export function zerarSegundoFator(login: string) {
   sql(`UPDATE usuario SET totp_segredo = NULL, totp_pendente = NULL, totp_ultimo_passo = NULL WHERE login = '${login}'`);
+}
+
+/** Caminhos onde a pessoa pode cair ao entrar: o lançador ("/") ou a tela do seu único aplicativo. */
+const PAGINAS_INICIAIS = new Set(["/", ...APLICATIVOS.flatMap((a) => a.itens.map((i) => i.caminho))]);
+
+/** Espera a pessoa chegar ao início: o lançador, ou a tela do aplicativo se o cargo tem só um. */
+export async function aguardarInicio(page: Page) {
+  await page.waitForURL((u) => PAGINAS_INICIAIS.has(u.pathname));
+  await expect(page.getByTestId("cargo-ativo")).toBeVisible();
 }
 
 /** Entra pela tela. Dono e administrador também configuram o segundo fator, como uma pessoa faria. */
@@ -32,8 +42,7 @@ export async function entrar(page: Page, login: string, comSegundoFator = false)
     await page.getByLabel("Código do aplicativo autenticador").fill(codigo);
     await page.getByRole("button", { name: "Confirmar" }).click();
   }
-  await page.waitForURL((u) => u.pathname === "/");
-  await expect(page.getByTestId("cargo-ativo")).toBeVisible();
+  await aguardarInicio(page);
 }
 
 /** Garante que a página não ficou mais larga do que a tela. */
