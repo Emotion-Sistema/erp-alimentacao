@@ -3,7 +3,11 @@
 - push forçado: sempre bloqueado
 - push direto na main: sempre bloqueado (use PR)
 - push para producao, comando de publicação e alteração na hospedagem:
-  só no turno em que o responsável escreveu "Publique tudo"."""
+  só no turno em que o responsável escreveu "Publique tudo".
+- ferramentas do GitHub (MCP) com a branch producao em qualquer campo (gravar arquivo,
+  criar branch, criar ou mudar PR para a base producao): idem.
+  Limite: juntar um PR já existente cuja base é producao não é detectável aqui (a
+  ferramenta só recebe o número do PR). Por isso criar PR para producao é bloqueado."""
 import json, os, re, subprocess, sys
 
 def bloquear(msg):
@@ -28,6 +32,19 @@ if ferramenta.startswith("mcp__"):
             r"(create|update|delete|remove|set|start|stop|restart|reset|recreate|purchase|install|attach|restore|activate|deactivate)", acao)
         if not leitura and not autorizado:
             bloquear(SEM_FRASE)
+    if "github" in ferramenta.lower() and not autorizado:
+        def textos(v):
+            if isinstance(v, dict):
+                for x in v.values():
+                    yield from textos(x)
+            elif isinstance(v, list):
+                for x in v:
+                    yield from textos(x)
+            elif isinstance(v, str):
+                yield v
+        for t in textos(d.get("tool_input") or {}):
+            if re.fullmatch(r"\s*(refs/heads/)?producao\s*", t, re.I):
+                bloquear(SEM_FRASE)
     sys.exit(0)
 
 cmd = ((d.get("tool_input") or {}).get("command")) or ""
@@ -42,7 +59,7 @@ if re.search(r"gh\s+workflow\s+run", cmd) and re.search(r"(prod|publicar)", cmd,
 if re.search(r"git\s+push", cmd):
     if re.search(r"(--force|--force-with-lease|\s-f(\s|$)|\s\+\S+)", cmd):
         bloquear("push forçado não é permitido.")
-    if re.search(r"(\s|:)(main|master)(\s|$)", cmd):
+    if re.search(r"(\s|:|/)(main|master)(\s|$)", cmd):
         bloquear("push direto na main não é permitido. Use branch e PR.")
     try:
         atual = subprocess.run(["git", "-C", proj, "rev-parse", "--abbrev-ref", "HEAD"],
@@ -51,6 +68,6 @@ if re.search(r"git\s+push", cmd):
         atual = ""
     if atual in ("main", "master"):
         bloquear("você está na main. Use branch e PR.")
-    if (re.search(r"(\s|:)producao(\s|$)", cmd) or atual == "producao") and not autorizado:
+    if (re.search(r"(\s|:|/)producao(\s|$)", cmd) or atual == "producao") and not autorizado:
         bloquear(SEM_FRASE)
 sys.exit(0)

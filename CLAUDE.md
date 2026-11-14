@@ -34,9 +34,10 @@ Aparelhos internos: Android da empresa, um login por funcionário, permissões p
 3. **Cérebro.** `cerebro/` guarda a síntese de todas as sessões e tudo sobre a empresa.
    Ao encerrar um assunto use a skill `encerrar-sessao`. Uma sessão só sabe o que a outra
    fez pelo cérebro: se não foi escrito lá, não aconteceu.
-4. **Passagem de contexto.** Quando o aviso automático de 50% de contexto aparecer (ou a
-   conversa ficar longa, ou o responsável pedir), termine a resposta com o bloco
-   `📋 COPIE E COLE EM UM NOVO CHAT` gerado pela skill `encerrar-sessao`.
+4. **Contexto.** A cada 10% de contexto usado aparece um aviso automático: atualize o
+   cérebro (skill `encerrar-sessao`, modo compactar) e peça ao responsável para enviar
+   `/compact`; a conversa continua no mesmo chat (decisão 0009). Só quando ele pedir novo
+   chat, termine a resposta com o bloco `📋 COPIE E COLE EM UM NOVO CHAT` da mesma skill.
 5. **Skills.** No início de cada tarefa diga em uma linha: `🧩 Skills: usando X` e, se
    fizer sentido, `vale criar a skill Y porque...`. Tarefa repetida duas vezes vira
    proposta de skill. Catálogo em `cerebro/automacoes.md`.

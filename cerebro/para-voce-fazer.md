@@ -3,9 +3,7 @@
 Lista viva do que depende do responsável. O Claude acrescenta e marca como feito.
 
 ## Agora (para começar)
-- [ ] 👉 No GitHub, proteger a branch `main`: exigir pull request e CI aprovado.
-- [ ] 👉 No GitHub, criar já a regra de proteção para `producao` (mesmo sem a branch existir): fecha a brecha da trava pelas ferramentas do GitHub.
-- [ ] 👉 Ler a conferência da T01 (resposta da sessão de 14/11/2026) e responder às perguntas; dar o "ok" para a E02.
+- [ ] 👉 Dar o "ok" para a E02 (fundação).
 - [ ] 👉 Em claude.ai/code, conectar o GitHub e instalar o app do Claude neste repositório.
 
 ## Assim que possível (destrava o trabalho)
@@ -30,11 +28,13 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Autorizar o conector da Hostinger quando a sessão pedir.
 
 ## Antes de ir para o ar
+- [ ] 👉 Decidir se o repositório passa para um plano pago do GitHub (Team) para a proteção de `main` e `producao` valer; no plano gratuito ela não é aplicada em repositório privado (decisão 0009).
 - [ ] 👉 Criar a branch `producao` protegida (o Claude orienta) e os segredos de produção no GitHub.
 - [ ] 👉 Testar na homologação o roteiro que o Claude entregar.
 - [ ] 👉 Enviar a mensagem: **Publique tudo**
 
 ## Feito
+- [x] Responder às perguntas da conferência da T01 (14/11/2026)
 - [x] Abrir a primeira sessão e pedir a tarefa T01 (14/11/2026)
 - [x] Criar repositório privado no GitHub (13/11/2026)
 - [x] Criar pasta do projeto no Drive (13/11/2026)
