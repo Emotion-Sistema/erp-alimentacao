@@ -29,6 +29,8 @@ async function comoAdmin(fn: (c: pg.Client) => Promise<void>) {
 }
 
 await comoAdmin(async (c) => {
+  // Se um comando com senha der erro, o PostgreSQL não grava o comando no registro.
+  await c.query("SET log_min_error_statement = panic");
   for (const [papel, senha] of Object.entries(PAPEIS)) {
     const existe = await c.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [papel]);
     // format(%I, %L) no próprio banco: nome e senha nunca são colados no texto pelo script.

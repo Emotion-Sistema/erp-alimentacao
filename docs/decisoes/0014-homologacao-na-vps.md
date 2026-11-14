@@ -12,8 +12,11 @@ responsável não é programador: o preparo precisa ser um passo só, sem ferram
 computador dele.
 
 ## Decisão
-1. **Preparo em um passo.** O responsável cola um único bloco (`infra/homologacao/colar-no-terminal.txt`)
-   no terminal do navegador do painel da Hostinger. O bloco gera no servidor uma chave
+1. **Preparo em um passo.** O responsável cola uma única linha (`infra/homologacao/colar-no-terminal.txt`,
+   que é o `inicio.sh` em base64) no terminal do navegador do painel da Hostinger. É uma
+   linha só porque esse terminal acrescenta sinais ao texto colado (`^[[200~` no começo e
+   `~` no fim) e estragou o primeiro bloco de várias linhas, em 14/11/2026. O CI confere
+   que a linha é igual ao `inicio.sh`. O bloco gera no servidor uma chave
    **só de leitura** do repositório e mostra a parte pública. O responsável cola essa parte
    no GitHub (Settings → Deploy keys, sem permissão de escrita). Depois o servidor baixa o
    código e roda `preparar-servidor.sh`, que faz o resto:
@@ -35,9 +38,12 @@ computador dele.
    - troca a versão;
    - confere a saúde (a gestão responde com o commit novo; loja, site e worker de pé).
 
-   Se algo falhar, volta para a versão anterior e não tenta mais aquela versão. Uma falha
+   O servidor só implanta um commit que **está na `main` e vem depois da versão no ar**
+   (recusa voltar no tempo e commit de fora da `main`). Se algo falhar, volta para a versão
+   anterior e não tenta mais aquela versão. Uma falha
    de rede na montagem ganha até 3 tentativas. Depois o Actions espera `/api/saude` mostrar
-   o commit novo: se não mostrar em 30 min, o fluxo falha e o GitHub avisa.
+   o commit novo (ou uma versão mais nova que já o inclua): se não mostrar em 30 min, o
+   fluxo falha e o GitHub avisa. Não há disparo manual: só commit com CI verde é marcado.
 
    **Nenhuma senha ou chave do servidor fica no GitHub**, e o Claude não vê nenhuma.
    Migração não é desfeita na volta (as migrações são só de adicionar; skill
@@ -47,6 +53,13 @@ computador dele.
    o Caddy tira o certificado HTTPS sozinho (Let's Encrypt, com ZeroSSL de reserva). Quando
    houver domínio (pergunta 56 do questionário), troca-se `ERP_DOMINIO` no servidor. Todo
    o ambiente responde `X-Robots-Tag: noindex` para não aparecer em buscador.
+   O sslip.io **não está na lista de sufixos públicos**, então qualquer `*.sslip.io` conta
+   como "o mesmo site". Por isso os cookies de sessão e da estação usam o prefixo
+   `__Host-` em produção e homologação: o navegador não deixa outro endereço gravar um
+   cookie com esse nome. Pelo mesmo motivo o limite de certificados do Let's Encrypt é
+   dividido com todo o mundo que usa sslip.io. O preparo pede um e-mail opcional para o
+   certificado, que liga a reserva pela ZeroSSL. Se mesmo assim não sair certificado, o
+   plano B é o domínio (pergunta 56).
 4. **Papéis separados do PostgreSQL** (pendência da 0010), criados a cada implantação por
    `packages/banco/src/papeis.ts`:
    - `erp_dono` é o dono do esquema e só as migrações o usam;
@@ -90,6 +103,15 @@ computador dele.
 `erp situacao` (versão no ar e contêineres), `erp registros`, `erp atualizar [--de-novo]`,
 `erp primeiro-acesso`.
 
+## Limites conhecidos
+- Quem tem escrita no repositório pode pôr código na `main` e, portanto, no servidor (que
+  roda como root). No plano gratuito do GitHub não há proteção de branch em repositório
+  privado (decisão 0009): a barreira é a trava do repositório e o CI. Rever antes da E23.
+- O ensaio exercita o papel `erp_app` no login e no primeiro acesso; a suíte de testes roda
+  como superusuário. Um `DELETE` novo no domínio passaria no CI e só falharia na
+  homologação (a volta automática segura). Pendente: rodar a matriz da API com um papel
+  igual ao `erp_app`.
+
 ## Fica para depois (com etapa)
 - **SSH só por chave:** hoje a senha de root do painel continua valendo (com fail2ban),
   porque não se sabe se o terminal do navegador da Hostinger usa senha. Desligar depois de
@@ -107,6 +129,9 @@ computador dele.
   só de leitura é mais simples e mais seguro.
 - Imagem num registro (GHCR): exigiria um token de leitura no servidor. Fica para a produção.
 - Domínio grátis da Hostinger: depende da resposta do dono (pergunta 56).
+
+- **Conferência automática do servidor:** o arquivo `infra/homologacao/endereco` só entra
+  quando o servidor estiver pronto; até lá o fluxo marca a versão e não espera.
 
 ## Critério de aceite e evidência
 👉 O responsável abre `https://gestao.187-53-114-38.sslip.io` e entra com o próprio login

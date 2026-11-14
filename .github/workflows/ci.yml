@@ -63,6 +63,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Scripts do servidor sem erro
-        run: shellcheck -S warning infra/homologacao/*.sh infra/homologacao/erp
+        run: |
+          shellcheck -S warning infra/homologacao/*.sh infra/homologacao/erp
+          bash infra/homologacao/confere-colar.sh
       - name: Imagem, migrações com papéis separados, HTTPS, login pelo proxy
         run: bash infra/homologacao/ensaio-local.sh

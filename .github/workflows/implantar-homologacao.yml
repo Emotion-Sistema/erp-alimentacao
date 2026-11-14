@@ -11,7 +11,8 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [main]
-  workflow_dispatch:
+  # Sem disparo manual: só um commit com o CI verde é marcado (o servidor confere também
+  # que ele está na main e vem depois da versão no ar).
 
 permissions:
   contents: write
@@ -22,9 +23,7 @@ concurrency:
 
 jobs:
   implantar:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -34,7 +33,7 @@ jobs:
       - name: Marcar a versão para o servidor
         id: marcar
         env:
-          VERSAO: ${{ github.event.workflow_run.head_sha || github.sha }}
+          VERSAO: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
           git merge-base --is-ancestor "$VERSAO" origin/main || { echo "::error::$VERSAO não está na main."; exit 1; }
@@ -63,6 +62,12 @@ jobs:
           for i in $(seq 1 90); do
             no_ar="$(curl -fsS --max-time 10 "$URL/api/saude" | jq -r .versao 2>/dev/null || true)"
             if [ "$no_ar" = "$VERSAO" ]; then echo "No ar na homologação: $VERSAO"; exit 0; fi
+            # Se chegou uma versão mais nova antes, o servidor pula direto para ela: vale também.
+            [ -n "$no_ar" ] && git fetch -q origin main || true
+            if [ -n "$no_ar" ] && git cat-file -e "$no_ar^{commit}" 2>/dev/null \
+               && git merge-base --is-ancestor "$VERSAO" "$no_ar"; then
+              echo "No ar uma versão mais nova que já inclui esta: $no_ar"; exit 0
+            fi
             echo "esperando ($i/90): no ar agora ${no_ar:-sem resposta}"
             sleep 20
           done

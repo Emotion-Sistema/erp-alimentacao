@@ -10,7 +10,10 @@ RAIZ="${ERP_RAIZ:-/opt/erp}"
 CODIGO="$RAIZ/codigo"
 ESTADO="$RAIZ/estado"
 SEGREDOS="$RAIZ/segredos/erp.env"
-mkdir -p "$ESTADO" "$RAIZ/copias"
+# Cópias do banco têm hash de senha e sessões: só root lê.
+umask 077
+mkdir -p "$ESTADO"
+install -d -m 700 "$RAIZ/copias"
 
 log() { echo "[erp-atualizar] $*"; }
 
@@ -22,11 +25,20 @@ compose() { # compose <versao> <args...>
   ERP_VERSAO="$v" docker compose -p erp --env-file "$SEGREDOS" -f "$CODIGO/infra/homologacao/compose.yml" "$@"
 }
 
-git -C "$CODIGO" fetch --quiet origin homologacao
-novo="$(git -C "$CODIGO" rev-parse FETCH_HEAD)"
+git -C "$CODIGO" fetch --quiet origin \
+  +refs/heads/main:refs/remotes/origin/main +refs/heads/homologacao:refs/remotes/origin/homologacao
+novo="$(git -C "$CODIGO" rev-parse refs/remotes/origin/homologacao)"
 atual="$(cat "$ESTADO/atual" 2>/dev/null || true)"
 [ "$novo" = "$atual" ] && exit 0
 if grep -qx "$novo" "$ESTADO/recusadas" 2>/dev/null; then exit 0; fi
+# Só implanta o que está na main e só anda para a frente (nunca uma versão mais antiga
+# nem um commit empurrado de fora da main).
+if ! git -C "$CODIGO" merge-base --is-ancestor "$novo" refs/remotes/origin/main; then
+  log "RECUSADA: $novo não está na main"; echo "$novo" >> "$ESTADO/recusadas"; exit 1
+fi
+if [ -n "$atual" ] && ! git -C "$CODIGO" merge-base --is-ancestor "$atual" "$novo"; then
+  log "RECUSADA: $novo não vem depois da versão no ar ($atual)"; echo "$novo" >> "$ESTADO/recusadas"; exit 1
+fi
 
 tentativas="$(cat "$ESTADO/tentativas-$novo" 2>/dev/null || echo 0)"
 if [ "$tentativas" -ge 3 ]; then
@@ -63,7 +75,7 @@ if ! docker build --quiet "${extra[@]}" -t "erp-app:$novo" -f "$CODIGO/infra/hom
   exit 1
 fi
 
-compose "$novo" up -d --wait banco
+compose "$novo" up -d --wait banco || voltar "o banco não subiu"
 if [ -n "$atual" ]; then
   copia="$RAIZ/copias/antes-$(date +%Y%m%d-%H%M%S)-${novo:0:12}.dump"
   compose "$novo" exec -T banco pg_dump -U postgres -Fc erp > "$copia" || voltar "cópia do banco antes de migrar"
@@ -87,13 +99,24 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 [ "$ok" = 1 ] || voltar "saúde dos aplicativos"
+# Worker conferido duas vezes: um worker que reinicia em laço pode parecer de pé num instante.
 compose "$novo" ps --status running --services | grep -qx worker || voltar "worker não ficou de pé"
+sleep 10
+compose "$novo" ps --status running --services | grep -qx worker || voltar "worker não ficou de pé"
+reinicios="$(docker inspect -f '{{.RestartCount}}' "$(compose "$novo" ps -q worker)" 2>/dev/null || echo 0)"
+[ "$reinicios" = 0 ] || voltar "worker reiniciou $reinicios vezes"
 
 [ -n "$atual" ] && echo "$atual" > "$ESTADO/anterior"
 echo "$novo" > "$ESTADO/atual"
 rm -f "$ESTADO/tentativas-$novo"
 # O próprio atualizador vem do commit novo (troca atômica: a execução de agora não é afetada).
-install -m 755 "$CODIGO/infra/homologacao/atualizar.sh" "$RAIZ/bin/atualizar.sh.novo" && mv -f "$RAIZ/bin/atualizar.sh.novo" "$RAIZ/bin/atualizar.sh"
+# Só troca se o script novo for bash válido; o anterior fica guardado.
+if bash -n "$CODIGO/infra/homologacao/atualizar.sh"; then
+  cp -f "$RAIZ/bin/atualizar.sh" "$RAIZ/bin/atualizar.sh.anterior" 2>/dev/null || true
+  install -m 755 "$CODIGO/infra/homologacao/atualizar.sh" "$RAIZ/bin/atualizar.sh.novo" && mv -f "$RAIZ/bin/atualizar.sh.novo" "$RAIZ/bin/atualizar.sh"
+else
+  log "atualizar.sh novo com erro de sintaxe; mantive o anterior"
+fi
 install -m 755 "$CODIGO/infra/homologacao/erp" "${ERP_BIN:-/usr/local/bin}/erp.novo" && mv -f "${ERP_BIN:-/usr/local/bin}/erp.novo" "${ERP_BIN:-/usr/local/bin}/erp"
 # Guarda as 3 imagens mais recentes (para voltar rápido) e limpa o resto.
 docker image ls erp-app --format '{{.Tag}}' | grep -vx -e "$novo" -e "${atual:-x}" | tail -n +2 | sed 's/^/erp-app:/' | xargs -r docker image rm >/dev/null 2>&1 || true

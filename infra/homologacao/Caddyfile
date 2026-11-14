@@ -2,6 +2,8 @@
 # ERP_DOMINIO = IP com traços + .sslip.io (ex.: 187-53-114-38.sslip.io) até haver domínio.
 {
 	admin off
+	# E-mail opcional do certificado (/opt/erp/caddy/email.caddy, gerado no preparo).
+	import /etc/caddy/extra/*.caddy
 }
 
 (comum) {

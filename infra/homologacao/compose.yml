@@ -93,6 +93,7 @@ services:
       ERP_DOMINIO: ${ERP_DOMINIO:?}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${ERP_CADDY_EXTRA:-/opt/erp/caddy}:/etc/caddy/extra:ro
       - caddy-dados:/data
       - caddy-config:/config
     depends_on: [gestao, loja, site]

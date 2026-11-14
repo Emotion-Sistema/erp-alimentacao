@@ -36,10 +36,12 @@ fi
 systemctl enable --now docker
 docker compose version
 
-passo "Firewall: só SSH (22), HTTP (80) e HTTPS (443)"
+porta_ssh="$(sshd -T 2>/dev/null | awk '/^port /{print $2; exit}')"
+porta_ssh="${porta_ssh:-22}"
+passo "Firewall: só SSH (${porta_ssh}), HTTP (80) e HTTPS (443)"
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow 22/tcp
+ufw allow "${porta_ssh}/tcp"
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 443/udp
@@ -68,6 +70,18 @@ fi
 chmod 600 "$RAIZ/segredos/erp.env"
 dominio="$(grep '^ERP_DOMINIO=' "$RAIZ/segredos/erp.env" | cut -d= -f2)"
 
+# E-mail opcional para o certificado HTTPS (avisos de vencimento e reserva pela ZeroSSL).
+# Fica só no servidor; nunca no Git.
+install -d -m 755 "$RAIZ/caddy"
+if [ ! -f "$RAIZ/caddy/email.caddy" ] && [ ! -f "$RAIZ/caddy/.sem-email" ]; then
+  read -rp "E-mail para avisos do certificado HTTPS (Enter para pular): " email </dev/tty || email=""
+  if [[ "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; then
+    echo "email $email" > "$RAIZ/caddy/email.caddy"
+  else
+    touch "$RAIZ/caddy/.sem-email"
+  fi
+fi
+
 passo "Atualização automática da homologação"
 install -d "$RAIZ/bin" "$RAIZ/estado" "$RAIZ/copias"
 install -m 755 "$AQUI/atualizar.sh" "$RAIZ/bin/atualizar.sh"
@@ -75,10 +89,21 @@ install -m 755 "$AQUI/erp" /usr/local/bin/erp
 install -m 644 "$AQUI/erp-atualizar.service" "$AQUI/erp-atualizar.timer" /etc/systemd/system/
 systemctl daemon-reload
 
+# Liga a atualização automática antes: se a primeira montagem falhar, a correção que o
+# Claude juntar na main chega sozinha, sem colar nada de novo.
+systemctl enable erp-atualizar.timer
+
 passo "Primeira montagem (leva de 5 a 15 minutos)"
-systemctl start erp-atualizar.service || { journalctl -u erp-atualizar --no-pager -n 40; echo "A primeira montagem falhou. Copie as linhas acima e mande ao Claude."; exit 1; }
+if ! systemctl start erp-atualizar.service; then
+  journalctl -u erp-atualizar --no-pager -n 40
+  systemctl start erp-atualizar.timer
+  echo
+  echo "A primeira montagem falhou. Tire uma foto das linhas acima e mande ao Claude."
+  echo "Quando ele corrigir, o servidor tenta sozinho; depois rode: erp primeiro-acesso"
+  exit 1
+fi
 journalctl -u erp-atualizar --no-pager -n 5
-systemctl enable --now erp-atualizar.timer
+systemctl start erp-atualizar.timer
 
 versao="$(cat "$RAIZ/estado/atual")"
 pessoas="$(ERP_VERSAO="$versao" docker compose -p erp --env-file "$RAIZ/segredos/erp.env" -f "$AQUI/compose.yml" \

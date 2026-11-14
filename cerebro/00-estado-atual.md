@@ -21,8 +21,12 @@ Atualizado em: 14/11/2026
   30 min que os gerentes mudam na tela Gestão → Turnos (ação `horarios.gerenciar`); botão
   "Continuo no turno" com senha. 169 testes + 64 de tela; revisão aprovou na 4ª rodada.
   154 testes + 63 de tela; revisão reprovou 1x (corrigido) e aprovou.
-- Próxima etapa: **E06** (homologação na VPS). "ok" dado pelo responsável em 14/11/2026.
-- Pendente na E06: separar papéis do PostgreSQL (decisão 0010).
+- **E06 (homologação) pronta no código** (decisão 0014): o servidor puxa a branch `homologacao`
+  (avançada pelo GitHub quando o CI da main passa), monta, migra, confere e volta sozinho se
+  falhar; HTTPS em `gestao.187-53-114-38.sslip.io`; papéis separados do banco (app não apaga);
+  primeiro acesso do dono pelo terminal. Falta o responsável colar a linha no terminal da
+  Hostinger (`infra/homologacao/LEIA-ME.md`) e entrar: é o critério de aceite da E06.
+- Próxima etapa depois do aceite: **E07** (cadastros).
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
   gratuito; a trava do repositório é a única barreira automática.
 - Contexto: aviso a cada 10% (de 1 milhão); no aviso, atualizar o cérebro e pedir `/compact`.
@@ -30,7 +34,7 @@ Atualizado em: 14/11/2026
   repositório é a barreira. Rever antes da E23.
 - Modelos: base Opus 5.5; Sonnet e Haiku por subagentes (`docs/05-uso-dos-modelos.md`).
 - Aguardando: respostas do dono da empresa ao questionário em PDF (previstas para 14/11/2026).
-- No ar (produção): **nada**. Homologação: **não existe ainda**.
+- No ar (produção): **nada**. Homologação: **sendo preparada** (E06; servidor ainda sem configurar).
 - Infraestrutura: VPS de homologação contratada na Hostinger em 14/11/2026 (KVM 2, IP
   187.53.114.38, Ubuntu 26.04 LTS), ainda sem configuração; será preparada na etapa E06.
   Produção e domínio: não contratados. Integrações validadas: nenhuma.
@@ -72,6 +76,7 @@ Tudo sobre um núcleo único. Detalhes em `docs/01-visao-e-escopo.md`.
 |---|---|---|---|
 | 13/11/2026 | Preparação do projeto (F0) | Instruções, requisitos, cérebro, skills e travas criados | `diario/2026-11-13-preparacao-do-projeto.md` |
 | 14/11/2026 | T01 parte 1 (E01): conferência e teste das travas | Estrutura juntada na `main` (PR #1); trava de `producao` bloqueou; 2 brechas e 3 propostas | `diario/2026-11-14-t01-conferencia.md` |
+| 14/11/2026 | E06: homologação | Servidor por script, publicação automática, papéis do banco; revisão aprovou com ressalvas (corrigidas) | `diario/2026-11-14-e06-homologacao.md` |
 | 14/11/2026 | E05: avisos | PR #12 juntado; avisos por cargo e turno, comunicados com leitura; 154 testes + 63 de tela | `diario/2026-11-14-e05-avisos.md` |
 | 14/11/2026 | E04: base visual e cascas | Lançador e 7 aplicativos por cargo; 128 testes + 56 de tela | `diario/2026-11-14-e04-cascas.md` |
 | 14/11/2026 | E03: cargos, login e auditoria | PR #5 juntado; 99 testes + 24 de tela; revisão reprovou 1x (corrigido) e aprovou | `diario/2026-11-14-e03-acessos.md` |

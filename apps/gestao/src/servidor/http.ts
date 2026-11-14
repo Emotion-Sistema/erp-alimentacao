@@ -1,8 +1,14 @@
 import { ErroDeRegra } from "@erp/dominio";
 
-export const COOKIE_SESSAO = "erp_sessao";
+/**
+ * Em produção e homologação os cookies têm o prefixo __Host-: o navegador só aceita esse
+ * nome com Secure, Path=/ e sem Domain. Assim um outro endereço do mesmo domínio-pai (ex.:
+ * outro *.sslip.io) não consegue gravar um cookie com esse nome para atrapalhar a sessão.
+ */
+const PREFIXO = process.env.NODE_ENV === "production" ? "__Host-" : "";
+export const COOKIE_SESSAO = `${PREFIXO}erp_sessao`;
 /** Cookie do aparelho cadastrado como estação da cozinha (dura até a estação ser desligada). */
-export const COOKIE_ESTACAO = "erp_estacao";
+export const COOKIE_ESTACAO = `${PREFIXO}erp_estacao`;
 
 const STATUS: Record<ErroDeRegra["codigo"], number> = {
   nao_autenticado: 401,
@@ -86,7 +92,8 @@ export function cookieEstacao(token: string): string {
 }
 
 export function cookieApagado(): string {
-  return `${COOKIE_SESSAO}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+  const seguro = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${COOKIE_SESSAO}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${seguro}`;
 }
 
 export async function corpoJson(req: Request): Promise<unknown> {

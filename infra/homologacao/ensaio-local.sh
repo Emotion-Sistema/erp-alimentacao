@@ -16,7 +16,9 @@ ERP_SENHA_DONO=$(openssl rand -hex 24)
 ERP_SENHA_APP=$(openssl rand -hex 24)
 ERP_SENHA_WORKER=$(openssl rand -hex 24)
 ERP_CHAVE_SEGREDOS=$(openssl rand -base64 32)
+ERP_CADDY_EXTRA=$TEMP/caddy
 FIM
+mkdir -p "$TEMP/caddy"
 compose() { ERP_VERSAO="$VERSAO" docker compose -p erp-ensaio --env-file "$TEMP/erp.env" -f infra/homologacao/compose.yml "$@"; }
 falha() { echo "ENSAIO FALHOU: $*"; compose logs --tail 40 || true; exit 1; }
 ok() { echo "ok: $*"; }
@@ -72,7 +74,7 @@ ok "cabeçalhos de segurança, loja e site no ar, HTTP vai para HTTPS"
 corpo='{"login":"dono.ensaio","senha":"senha-do-ensaio-123"}'
 r="$(curlk gestao.localhost -D - -o "$TEMP/resp" -H 'content-type: application/json' -H 'origin: https://gestao.localhost' -d "$corpo" https://gestao.localhost/api/sessao)"
 echo "$r" | head -1 | grep -q ' 200' || { cat "$TEMP/resp"; falha "login pelo proxy"; }
-echo "$r" | grep -i '^set-cookie: erp_sessao=' | grep -q 'Secure' || falha "cookie de sessão sem Secure"
+echo "$r" | grep -i '^set-cookie: __Host-erp_sessao=' | grep -q 'Secure' || falha "cookie de sessão sem Secure ou sem o prefixo __Host-"
 grep -q '"segundoFator":"pendente"' "$TEMP/resp" || falha "dono entrou sem pedir o segundo fator"
 r="$(curlk gestao.localhost -o /dev/null -w '%{http_code}' -H 'content-type: application/json' -H 'origin: https://outro-site.exemplo' -d "$corpo" https://gestao.localhost/api/sessao)"
 [ "$r" = 403 ] || falha "login de outra origem não foi recusado ($r)"
