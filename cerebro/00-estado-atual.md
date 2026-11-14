@@ -22,6 +22,10 @@ Atualizado em: 14/11/2026
 - Infraestrutura: VPS de homologação contratada na Hostinger em 14/11/2026 (KVM 2, IP
   187.53.114.38, Ubuntu 26.04 LTS), ainda sem configuração; será preparada na etapa E06.
   Produção e domínio: não contratados. Integrações validadas: nenhuma.
+- **Diretriz do responsável (14/11/2026): a passagem para o sistema oficial tem que ser segura e
+  tranquila.** Já previsto: ensaio na loja em paralelo ao sistema atual (Portão 1), nada no ar sem
+  "Publique tudo", ensaio de backup e restauração. Falta: um plano de virada próprio (data, quem faz
+  o quê, como voltar atrás, cadastros e saldos iniciais conferidos) antes da E23. Tratar em sessão própria.
 - Identidade visual: será enviada depois; usar tema neutro configurável até lá.
 
 ## O que será construído (resumo)
