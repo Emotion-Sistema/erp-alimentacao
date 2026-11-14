@@ -5,9 +5,9 @@
  * tirar cargo.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { sql, type Banco } from "@erp/banco";
+import type { Banco } from "@erp/banco";
 import {
-  atorDaEstacao, cadastrarEstacao, confirmarSegundoFator, criarUsuario, darCargo, definirCodigo, desbloquearCodigo, desligarUsuario,
+  atorDaEstacao, atorDaSessao, cadastrarEstacao, confirmarSegundoFator, criarUsuario, darCargo, definirCodigo, desbloquearCodigo, desligarUsuario,
   entrar, entrarNaEstacao, ErroDeRegra, iniciarSegundoFator, listarUsuarios, tirarCargo,
 } from "../src/index";
 import { atorDoCargo, bancoDeTeste, codigoAgora, prepararDados } from "./apoio";
@@ -37,12 +37,11 @@ let n = 0;
 async function pessoa(cargo: string, codigo?: string, unidade = unidadeId) {
   const adm = await atorDoCargo(db, "administrador");
   const login = `rev.${cargo.replace("_", ".")}.${++n}`;
+  const u = await criarUsuario(db, adm, { nome: `Pessoa ${login}`, login, senha: SENHA, cargo, unidadeId });
   if (unidade !== unidadeId) {
-    // administrador da semente só tem cargo na unidade principal: dá a ele um cargo na outra
-    await sql`INSERT INTO usuario_perfil (usuario_id, perfil_codigo, unidade_id) SELECT ${adm.usuarioId}, 'administrador', ${unidade}
-              WHERE NOT EXISTS (SELECT 1 FROM usuario_perfil WHERE usuario_id = ${adm.usuarioId} AND unidade_id = ${unidade} AND removido_em IS NULL)`.execute(db);
+    // move a pessoa para a outra unidade direto no banco (só no teste)
+    await db.updateTable("usuario_perfil").set({ unidade_id: unidade }).where("usuario_id", "=", u.id).execute();
   }
-  const u = await criarUsuario(db, adm, { nome: `Pessoa ${login}`, login, senha: SENHA, cargo, unidadeId: unidade });
   if (codigo) await definirCodigo(db, adm, u.id, { codigo });
   return { ...u, login };
 }
@@ -60,11 +59,9 @@ const avaliacoes = (usuarioId: number, acao: string) =>
 describe("rajadas não furam os limites", () => {
   it("40 senhas ao mesmo tempo: no máximo 5 são conferidas, e depois do bloqueio nem a certa entra", async () => {
     const p = await pessoa("atendente");
-    const tentativas = Array.from({ length: 40 }, (_, i) => entrar(db, { login: p.login, senha: i === 39 ? SENHA : "errada-errada" }, origem));
-    await Promise.allSettled(tentativas);
-    expect(await avaliacoes(p.id, "sessao.entrar")).toBeLessThanOrEqual(5);
-    const u = await db.selectFrom("usuario").select("senha_bloqueada_ate").where("id", "=", p.id).executeTakeFirstOrThrow();
-    if (u.senha_bloqueada_ate) expect((await erroDe(entrar(db, { login: p.login, senha: SENHA }, origem))).codigo).toBe("bloqueado");
+    await Promise.allSettled(Array.from({ length: 40 }, () => entrar(db, { login: p.login, senha: "errada-errada" }, origem)));
+    expect(await avaliacoes(p.id, "sessao.entrar")).toBe(5);
+    expect((await erroDe(entrar(db, { login: p.login, senha: SENHA }, origem))).codigo).toBe("bloqueado");
   });
 
   it("30 códigos do autenticador ao mesmo tempo: no máximo 5 são conferidos", async () => {
@@ -76,6 +73,25 @@ describe("rajadas não furam os limites", () => {
     expect(await avaliacoes(a.usuarioId, "segundo_fator.confirmar")).toBeLessThanOrEqual(5);
     const u = await db.selectFrom("usuario").select("totp_bloqueado_ate").where("id", "=", a.usuarioId).executeTakeFirstOrThrow();
     expect(u.totp_bloqueado_ate).not.toBeNull();
+  });
+
+  it("contagem presa no limite sem bloqueio marcado (pedido que caiu no meio) vira bloqueio, não trava para sempre", async () => {
+    const p = await pessoa("atendente");
+    await db.updateTable("usuario").set({ senha_erros: 5, senha_bloqueada_ate: null }).where("id", "=", p.id).execute();
+    expect((await erroDe(entrar(db, { login: p.login, senha: SENHA }, origem))).codigo).toBe("bloqueado");
+    await db.updateTable("usuario").set({ senha_bloqueada_ate: new Date(Date.now() - 1000) }).where("id", "=", p.id).execute();
+    await entrar(db, { login: p.login, senha: SENHA }, origem); // passado o tempo, entra
+  });
+
+  it("bloqueio do segundo fator não derruba quem já confirmou", async () => {
+    const adm = await atorDoCargo(db, "administrador");
+    await criarUsuario(db, adm, { nome: "Dentro Adm", login: "rev.dentro.adm", senha: SENHA, cargo: "administrador", unidadeId });
+    const dentro = (await entrar(db, { login: "rev.dentro.adm", senha: SENHA }, origem));
+    const { segredo } = await iniciarSegundoFator(db, dentro.ator);
+    await confirmarSegundoFator(db, dentro.ator, { codigo: codigoAgora(segredo) });
+    const intruso = (await entrar(db, { login: "rev.dentro.adm", senha: SENHA }, origem)).ator;
+    for (let i = 0; i < 5; i++) await erroDe(confirmarSegundoFator(db, intruso, { codigo: "000000" }));
+    expect((await atorDaSessao(db, dentro.token))?.segundoFator).toBe("ok");
   });
 
   it("o mesmo código do autenticador em duas sessões ao mesmo tempo: só uma passa", async () => {

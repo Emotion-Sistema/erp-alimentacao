@@ -76,6 +76,11 @@ export async function entrar(
   // Reserva a tentativa ANTES de conferir a senha, de forma atômica: com rajada de pedidos
   // simultâneos, no máximo SENHA_MAX_ERROS conferências acontecem até o bloqueio.
   if (contavel) {
+    // Contagem presa no limite sem bloqueio marcado (pedido que caiu no meio): bloqueia agora.
+    await sql`
+      UPDATE usuario SET senha_erros = 0, senha_bloqueada_ate = now() + make_interval(mins => ${SENHA_BLOQUEIO_MIN})
+      WHERE id = ${usuario!.id} AND senha_erros >= ${SENHA_MAX_ERROS}
+        AND (senha_bloqueada_ate IS NULL OR senha_bloqueada_ate <= now())`.execute(db);
     const reserva = await sql<{ id: number }>`
       UPDATE usuario SET senha_erros = senha_erros + 1
       WHERE id = ${usuario!.id} AND senha_erros < ${SENHA_MAX_ERROS}

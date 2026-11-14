@@ -18,3 +18,4 @@ dados-reais/
 # Marcadores locais dos hooks
 .claude/.publicar-autorizado
 .claude/.contexto-*
+test-results/

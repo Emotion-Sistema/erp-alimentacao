@@ -61,8 +61,7 @@ export async function definirCodigo(db: Banco, ator: Ator | null, usuarioId: num
 
 export async function desbloquearCodigo(db: Banco, ator: Ator | null, usuarioId: number): Promise<void> {
   const quem = await exigir(db, ator, "codigos.desbloquear", { tipo: "usuario", id: usuarioId });
-  const unidadesDeQuem = new Set((await cargosVigentes(db, quem.usuarioId)).map((c) => c.unidadeId));
-  if (!(await cargosVigentes(db, usuarioId)).some((c) => unidadesDeQuem.has(c.unidadeId))) {
+  if (!(await cargosVigentes(db, usuarioId)).some((c) => c.unidadeId === quem.unidadeId)) {
     await auditar(db, { usuarioId: quem.usuarioId, acao: "codigos.desbloquear", resultado: "recusado", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { motivo: "fora_da_unidade" }, ip: quem.ip });
     throw new ErroDeRegra("nao_encontrado", "Pessoa não encontrada na sua unidade.");
   }
@@ -222,13 +221,16 @@ async function exigirEstacao(db: Banco, token: string | null | undefined) {
 
 /** Fim do turno saiu sozinho: fecha presenças vencidas. */
 async function fecharVencidas(db: Banco) {
-  await db
-    .updateTable("estacao_presenca")
-    .set({ saiu_em: sql`expira_em`, motivo_saida: "expirou" })
-    .where("saiu_em", "is", null)
-    .where("expira_em", "<=", new Date())
-    .execute();
-  await ajustarAtivas(db);
+  await db.transaction().execute(async (trx) => {
+    const fechadas = await trx
+      .updateTable("estacao_presenca")
+      .set({ saiu_em: sql`expira_em`, motivo_saida: "expirou" })
+      .where("saiu_em", "is", null)
+      .where("expira_em", "<=", new Date())
+      .returning("estacao_id")
+      .execute();
+    await ajustarAtivas(trx, fechadas.map((f) => f.estacao_id));
+  });
 }
 
 /** Trava a estação (e a pessoa) até o fim da transação: mudanças na mesma tela entram em fila. */
@@ -238,15 +240,20 @@ async function travar(db: Banco, estacaoId: number, usuarioId?: number) {
 }
 
 /**
- * Em qualquer estação onde só uma pessoa ficou na tela, ela passa a ser a ativa (todo toque
- * sai em nome dela). Chamar depois de qualquer saída: sair, trocar de estação, desligar,
- * tirar cargo, fim do turno.
+ * Nas estações indicadas, se só uma pessoa ficou na tela, ela passa a ser a ativa (todo
+ * toque sai em nome dela). Chamar, dentro da transação, depois de qualquer saída: sair,
+ * trocar de estação, desligar, tirar cargo, fim do turno. Trava as estações (em ordem, para
+ * não haver impasse) antes de mexer.
  */
-export async function ajustarAtivas(db: Banco) {
-  await sql`
-    UPDATE estacao_presenca p SET ativa_desde = now()
-    WHERE p.saiu_em IS NULL AND p.ativa_desde IS NULL
-      AND (SELECT count(*) FROM estacao_presenca q WHERE q.estacao_id = p.estacao_id AND q.saiu_em IS NULL) = 1`.execute(db);
+export async function ajustarAtivas(trx: Banco, estacaoIds: readonly number[]) {
+  const ids = [...new Set(estacaoIds)].sort((a, b) => a - b);
+  for (const id of ids) {
+    await sql`SELECT id FROM estacao WHERE id = ${id} FOR UPDATE`.execute(trx);
+    await sql`
+      UPDATE estacao_presenca p SET ativa_desde = now()
+      WHERE p.estacao_id = ${id} AND p.saiu_em IS NULL AND p.ativa_desde IS NULL
+        AND (SELECT count(*) FROM estacao_presenca q WHERE q.estacao_id = ${id} AND q.saiu_em IS NULL) = 1`.execute(trx);
+  }
 }
 
 /** O que o tablet mostra: a estação e as pessoas da cozinha (fotos), com quem está e quem é a ativa. */
@@ -303,11 +310,12 @@ export async function entrarNaEstacao(db: Banco, token: string | null | undefine
   await db.transaction().execute(async (trx) => {
     await travar(trx, e.id, usuarioId);
     const agora = new Date();
-    await trx
+    const anteriores = await trx
       .updateTable("estacao_presenca")
       .set({ saiu_em: agora, motivo_saida: "outra_estacao", ativa_desde: null })
       .where("usuario_id", "=", usuarioId)
       .where("saiu_em", "is", null)
+      .returning("estacao_id")
       .execute();
     await trx.updateTable("estacao_presenca").set({ ativa_desde: null }).where("estacao_id", "=", e.id).where("saiu_em", "is", null).execute();
     await sql`
@@ -318,7 +326,8 @@ export async function entrarNaEstacao(db: Banco, token: string | null | undefine
       FROM (SELECT date_trunc('day', now() AT TIME ZONE fuso_horario) + fim_turno AS fim_local,
                    now() AT TIME ZONE fuso_horario AS agora_local, fuso_horario AS fuso
             FROM unidade WHERE id = ${e.unidade_id}) t`.execute(trx);
-    await ajustarAtivas(trx); // a estação de onde ela saiu pode ter ficado com uma pessoa só
+    // a estação de onde ela saiu pode ter ficado com uma pessoa só
+    await ajustarAtivas(trx, anteriores.map((a) => a.estacao_id).filter((id) => id !== e.id));
     await auditar(trx, { usuarioId, acao: "estacao.entrar", resultado: "permitido", alvoTipo: "estacao", alvoId: e.id, detalhes: { cargo } });
   });
 }
@@ -370,7 +379,7 @@ export async function sairDaEstacao(db: Banco, token: string | null | undefined,
       .where("saiu_em", "is", null)
       .executeTakeFirst();
     if (r.numUpdatedRows === 0n) throw new ErroDeRegra("nao_encontrado", "Esta pessoa não está nesta estação.");
-    await ajustarAtivas(trx);
+    await ajustarAtivas(trx, [e.id]);
     await auditar(trx, { usuarioId: parse.data.usuarioId, acao: "estacao.sair", resultado: "permitido", alvoTipo: "estacao", alvoId: e.id });
   });
 }

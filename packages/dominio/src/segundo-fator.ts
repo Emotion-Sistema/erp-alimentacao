@@ -52,6 +52,11 @@ export async function confirmarSegundoFator(db: Banco, ator: Ator | null, dados:
   const sessaoId = ator.sessaoId;
   const mensagemBloqueio = `Muitos códigos errados. Espere ${SEGUNDO_FATOR_BLOQUEIO_MIN} minutos e entre de novo com sua senha.`;
 
+  // Contagem presa no limite sem bloqueio marcado (pedido que caiu no meio): bloqueia agora.
+  await sql`
+    UPDATE usuario SET totp_erros = 0, totp_bloqueado_ate = now() + make_interval(mins => ${SEGUNDO_FATOR_BLOQUEIO_MIN})
+    WHERE id = ${ator.usuarioId} AND totp_erros >= ${SEGUNDO_FATOR_MAX_ERROS}
+      AND (totp_bloqueado_ate IS NULL OR totp_bloqueado_ate <= now())`.execute(db);
   const reserva = await sql<{ totp_segredo: string | null; totp_pendente: string | null; totp_ultimo_passo: string | null }>`
     UPDATE usuario SET totp_erros = totp_erros + 1
     WHERE id = ${ator.usuarioId} AND totp_erros < ${SEGUNDO_FATOR_MAX_ERROS}
@@ -81,7 +86,9 @@ export async function confirmarSegundoFator(db: Banco, ator: Ator | null, dados:
       WHERE id = ${ator.usuarioId} AND totp_erros >= ${SEGUNDO_FATOR_MAX_ERROS}
       RETURNING id`.execute(db);
     const bloqueou = bloqueio.rows.length > 0;
-    if (bloqueou) await db.updateTable("sessao").set({ revogada_em: new Date() }).where("usuario_id", "=", ator.usuarioId).where("revogada_em", "is", null).execute();
+    // Encerra só as sessões que ainda não passaram pelo segundo fator: quem só tem a senha
+    // não consegue derrubar o administrador que já está dentro.
+    if (bloqueou) await db.updateTable("sessao").set({ revogada_em: new Date() }).where("usuario_id", "=", ator.usuarioId).where("revogada_em", "is", null).where("segundo_fator_ok", "=", false).execute();
     await auditar(db, {
       usuarioId: ator.usuarioId,
       acao: "segundo_fator.confirmar",

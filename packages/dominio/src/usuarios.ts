@@ -7,9 +7,9 @@ import { hashSenha, SENHA_MINIMO } from "./senha";
 import { ajustarAtivas } from "./estacao";
 import { cargosVigentes, exigir, type Ator } from "./sessao";
 
-/** Unidades onde quem age tem cargo vigente: só mexe em gente dessas unidades. */
-async function unidadesDe(db: Banco, usuarioId: number): Promise<Set<number>> {
-  return new Set((await cargosVigentes(db, usuarioId)).map((c) => c.unidadeId));
+/** Unidade do cargo ATIVO de quem age: só mexe em gente dessa unidade. */
+function unidadesDe(quem: Ator): Set<number> {
+  return new Set(quem.unidadeId === null ? [] : [quem.unidadeId]);
 }
 
 export interface UsuarioResumo {
@@ -25,7 +25,7 @@ export interface UsuarioResumo {
 
 export async function listarUsuarios(db: Banco, ator: Ator | null): Promise<UsuarioResumo[]> {
   const quem = await exigir(db, ator, "usuarios.ver", { tipo: "usuario" });
-  const unidades = [...(await unidadesDe(db, quem.usuarioId))];
+  const unidades = [...unidadesDe(quem)];
   if (unidades.length === 0) return [];
   // Só gente que tem ou teve cargo numa unidade de quem consulta.
   const usuarios = await db
@@ -78,7 +78,7 @@ export async function criarUsuario(db: Banco, ator: Ator | null, dados: unknown)
   if (!podeAtribuir(quem.cargoAtivo, [d.cargo])) await recusar(db, quem, "criar", undefined, `cargo_${d.cargo}`, "Seu cargo não pode criar um usuário com esse cargo.");
   const unidadeId = d.unidadeId ?? quem.unidadeId;
   if (!unidadeId) throw new ErroDeRegra("dados_invalidos", "Informe a unidade.");
-  if (!(await unidadesDe(db, quem.usuarioId)).has(unidadeId)) await recusar(db, quem, "criar", undefined, "outra_unidade", "Você só cadastra gente da sua unidade.");
+  if (!unidadesDe(quem).has(unidadeId)) await recusar(db, quem, "criar", undefined, "outra_unidade", "Você só cadastra gente da sua unidade.");
   const senhaHash = await hashSenha(d.senha);
   try {
     return await db.transaction().execute(async (trx) => {
@@ -120,7 +120,7 @@ async function conferirAlvo(db: Banco, quem: Ator, usuarioId: number, operacao: 
   if (!podeAtribuir(quem.cargoAtivo, [...cargosAlvo, ...(cargoMexido ? [cargoMexido] : [])])) {
     await recusar(db, quem, operacao, usuarioId, "cargo_acima", "Seu cargo não pode mexer nesse usuário ou nesse cargo.");
   }
-  const unidades = await unidadesDe(db, quem.usuarioId);
+  const unidades = unidadesDe(quem);
   if (!vigentes.every((c) => unidades.has(c.unidadeId))) await recusar(db, quem, operacao, usuarioId, "outra_unidade", "Essa pessoa não é da sua unidade.");
   return { ativo: alvo.ativo, cargosAlvo };
 }
@@ -152,7 +152,7 @@ export async function darCargo(db: Banco, ator: Ator | null, usuarioId: number, 
   if (!unidadeId) throw new ErroDeRegra("dados_invalidos", "Informe a unidade.");
   const alvo = await conferirAlvo(db, quem, usuarioId, "dar_cargo", cargo);
   if (!alvo.ativo) throw new ErroDeRegra("conflito", "Este usuário está desligado.");
-  if (!(await unidadesDe(db, quem.usuarioId)).has(unidadeId)) await recusar(db, quem, "dar_cargo", usuarioId, "outra_unidade", "Você só dá cargo na sua unidade.");
+  if (!unidadesDe(quem).has(unidadeId)) await recusar(db, quem, "dar_cargo", usuarioId, "outra_unidade", "Você só dá cargo na sua unidade.");
   try {
     await db.transaction().execute(async (trx) => {
       await travarEConferir(trx, quem, usuarioId, alvo.cargosAlvo, cargo);
@@ -188,14 +188,15 @@ export async function tirarCargo(db: Banco, ator: Ator | null, usuarioId: number
       .where("removido_em", "is", null)
       .execute();
     // Se ela estava na estação com esse cargo, sai na hora.
-    await trx
+    const saidas = await trx
       .updateTable("estacao_presenca")
       .set({ saiu_em: agora, motivo_saida: "saiu", ativa_desde: null })
       .where("usuario_id", "=", usuarioId)
       .where("cargo", "=", cargo)
       .where("saiu_em", "is", null)
+      .returning("estacao_id")
       .execute();
-    await ajustarAtivas(trx);
+    await ajustarAtivas(trx, saidas.map((x) => x.estacao_id));
     await auditar(trx, { usuarioId: quem.usuarioId, acao: "usuarios.gerenciar", resultado: "permitido", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { operacao: "tirar_cargo", cargo }, ip: quem.ip });
   });
 }
@@ -213,13 +214,14 @@ export async function desligarUsuario(db: Banco, ator: Ator | null, usuarioId: n
     const r = await trx.updateTable("usuario").set({ ativo: false, desligado_em: agora }).where("id", "=", usuarioId).where("ativo", "=", true).executeTakeFirst();
     if (r.numUpdatedRows === 0n) throw new ErroDeRegra("conflito", "Este usuário já está desligado.");
     await trx.updateTable("sessao").set({ revogada_em: agora }).where("usuario_id", "=", usuarioId).where("revogada_em", "is", null).execute();
-    await trx
+    const saidas = await trx
       .updateTable("estacao_presenca")
       .set({ saiu_em: agora, motivo_saida: "desligado", ativa_desde: null })
       .where("usuario_id", "=", usuarioId)
       .where("saiu_em", "is", null)
+      .returning("estacao_id")
       .execute();
-    await ajustarAtivas(trx);
+    await ajustarAtivas(trx, saidas.map((x) => x.estacao_id));
     await auditar(trx, { usuarioId: quem.usuarioId, acao: "usuarios.gerenciar", resultado: "permitido", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { operacao: "desligar" }, ip: quem.ip });
   });
 }
