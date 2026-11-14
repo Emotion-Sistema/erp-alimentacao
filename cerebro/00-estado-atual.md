@@ -5,11 +5,10 @@ Atualizado em: 14/11/2026
 ## Em que pé estamos
 - Fase: **E02 (fundação) feita** no PR #4: monorepositório, banco, login e permissões no
   servidor, CI. Comandos no `CLAUDE.md`; bibliotecas na decisão 0010.
-- **E03 em andamento** (branch `claude/montar-projeto-pr-main-66i5po`, ainda sem PR): servidor pronto
-  (matriz de cargos, cargo ativo, bloqueios, segundo fator, estação da cozinha com código);
-  revisão independente 1 reprovou (3 graves, corrigidos em a396981), rodada 2 em curso;
-  telas sendo feitas pelo `construtor`. Decisão 0011 com 6 hipóteses a confirmar.
-  Diário: `diario/2026-11-14-e03-acessos.md`.
+- **E03 (cargos, login e auditoria) feita** no PR #5 (merge a853254): matriz de cargos testada pela
+  tela e pela API, cargo ativo, bloqueios, segundo fator, estação da cozinha. Revisão independente
+  aprovada na 2ª rodada. Decisão 0011 com 6 hipóteses aguardando o responsável.
+- Próxima etapa: **E04** (base visual e cascas), depois do "ok" do responsável.
 - Pendente na E06: separar papéis do PostgreSQL (decisão 0010).
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
   gratuito; a trava do repositório é a única barreira automática.
@@ -60,5 +59,5 @@ Tudo sobre um núcleo único. Detalhes em `docs/01-visao-e-escopo.md`.
 |---|---|---|---|
 | 13/11/2026 | Preparação do projeto (F0) | Instruções, requisitos, cérebro, skills e travas criados | `diario/2026-11-13-preparacao-do-projeto.md` |
 | 14/11/2026 | T01 parte 1 (E01): conferência e teste das travas | Estrutura juntada na `main` (PR #1); trava de `producao` bloqueou; 2 brechas e 3 propostas | `diario/2026-11-14-t01-conferencia.md` |
-| 14/11/2026 | E03: cargos, login e auditoria (em andamento) | Servidor e testes prontos; revisão e telas em curso | `diario/2026-11-14-e03-acessos.md` |
+| 14/11/2026 | E03: cargos, login e auditoria | PR #5 juntado; 99 testes + 24 de tela; revisão reprovou 1x (corrigido) e aprovou | `diario/2026-11-14-e03-acessos.md` |
 | 14/11/2026 | E02: fundação técnica | Monorepositório, banco, login/permissões, CI; revisão independente achou 1 defeito grave (corrigido) | `diario/2026-11-14-e02-fundacao.md` |

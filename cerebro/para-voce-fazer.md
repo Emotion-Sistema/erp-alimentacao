@@ -4,6 +4,7 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 
 ## Agora (para começar)
 - [x] 👉 Conferir o PR #4 e dar o "ok" para a E03 (feito em 14/11/2026).
+- [ ] 👉 Dar o "ok" para a E04 (base visual e cascas).
 - [ ] 👉 Responder às 6 hipóteses de cargos da decisão 0011 (seção "Hipóteses a confirmar").
 - [ ] 👉 Em claude.ai/code, conectar o GitHub e instalar o app do Claude neste repositório.
 
