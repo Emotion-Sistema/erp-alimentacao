@@ -26,6 +26,7 @@ A sessão principal roda em Opus 5.5 e coordena. Regras em `docs/05-uso-dos-mode
 | `migracao-segura` | Mudança no banco |
 | `teste-idempotencia-estoque` | Pedido, estoque, tickets |
 | `ensaio-restauracao` | Backup e recuperação |
+| `matriz-de-permissoes` | Rota nova, ação nova, mudar o que um cargo pode (criada na E03) |
 
 ## Skills recomendadas (criar quando a fase chegar)
 | Skill | Para quê | Etapa |
@@ -33,7 +34,6 @@ A sessão principal roda em Opus 5.5 e coordena. Regras em `docs/05-uso-dos-mode
 | `novo-modulo` | Criar módulo já com estrutura, testes e permissões no padrão | E02 a E04 |
 | `tela-por-funcao` | Conferir tela contra a base visual, tamanhos reais e linguagem simples | E02 a E04 |
 | `importar-cardapio` | Transformar planilha do cliente em cadastros, apontando o que falta | E07 |
-| `matriz-de-permissoes` | Testar cada cargo contra a lista de ações, pela tela e direto no servidor, a cada mudança | E02 a E04 |
 | `pacote-contabil` | Gerar e conferir o pacote mensal da contabilidade | E31 |
 | `calibrar-tempos-de-preparo` | Comparar tempo prometido e realizado e propor ajuste de tempos e capacidades | Após algumas semanas de uso |
 | `calibrar-linhas-de-estoque` | Recalcular as linhas saudável e de emergência pelo consumo real e propor ajustes ao responsável | Após algumas semanas de uso |

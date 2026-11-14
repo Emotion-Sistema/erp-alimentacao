@@ -1,0 +1,109 @@
+# 0011: matriz de permissões, cargo ativo, bloqueios, segundo fator e estação da cozinha
+
+- Data: 14/11/2026
+- Status: aceita (E03). Itens marcados **hipótese** aguardam confirmação do responsável.
+- Assunto da sessão: E03, cargos, login e auditoria
+- Complementa: RC-12, decisões 0008 e 0010
+
+## Decisão
+
+### 1. Matriz (fonte: `packages/dominio/src/permissoes.ts`)
+A permissão vem **só do cargo ativo**. O que não está listado é recusado e registrado.
+
+| Ação | Dono / Adm. | Gerente geral | Financeiro | Supervisor | Atendente | Caixa | Cozinheira | Auxiliar | Motoboy | Contador |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Ver funcionários | ✓ | ✓ | | ✓ | | | | | | |
+| Gerenciar funcionários | ✓ | ✓ (cargos de operação) | | | | | | | | |
+| Desbloquear código | ✓ | ✓ | | ✓ | | | | | | |
+| Cadastrar estações / ver estações | ✓ / ✓ | ✓ / ✓ | | – / ✓ | | | | | | |
+| Ver auditoria | ✓ | ✓ | | | | | | | | |
+| Configuração do sistema | ✓ | | | | | | | | | |
+| Lançar pedido | ✓ | ✓ | | ✓ | ✓ | | | | | |
+| Ver os próprios pedidos / todos | ✓ | ✓ | | – / ✓ | ✓ / – | – / ✓ | | | | |
+| Alterar e cancelar pedido | ✓ | ✓ | | ✓ | | | | | | |
+| **Marcar Entregue** | | | | | ✓ | | | | ✓ | |
+| Ver a produção | ✓ | ✓ | | ✓ | | | ✓ | ✓ | | |
+| **Operar a produção** (fila, iniciar, pronto) | | | | | | | ✓ | ✓ | | |
+| **Ação sensível na cozinha** (perda, ajuste, "acabou") | | | | | | | ✓ | | | |
+| Estoque da cozinha / do salão | ✓ / ✓ | ✓ / ✓ | | – / ✓ | | | ✓ / – | | | |
+| Compras | ✓ | ✓ | | | | | | | | |
+| Custos da área | ✓ | ✓ | ✓ | | | | | | | |
+| **Operar o caixa** / **marcar Pago** | | | | | | ✓ / ✓ | | | | |
+| Autorizações do caixa e do atendimento | ✓ | ✓ | | ✓ | | | | | | |
+| Organizar motoboys | ✓ | ✓ | | | | ✓ | | | | |
+| **Entregas próprias** | | | | | | | | | ✓ | |
+| Financeiro, faturamento, fechamentos do caixa | ✓ | | ✓ | | | | | | | |
+| Pacote contábil | ✓ | | ✓ | | | | | | | ✓ |
+
+**Em negrito: ações exclusivas de quem faz o trabalho.** Nem o dono as tem pelo próprio
+cargo: quem quiser marcar Pago precisa ter o cargo de caixa **ativo**. Assim cada registro
+diz quem de fato recebeu, produziu ou entregou (regra "só o caixa marca Pago").
+
+### 2. Quem dá cada cargo (lista explícita, no lugar da comparação de ações da 0010)
+| Cargo | Quem pode dar, tirar ou desligar quem o tem |
+|---|---|
+| Dono | só o dono |
+| Administrador, financeiro, contador, gerente geral | dono e administrador |
+| Supervisor, atendente, caixa, cozinheira, auxiliar, motoboy | dono, administrador e gerente geral |
+
+Para mexer em alguém é preciso poder dar **todos** os cargos dele. Ninguém mexe nos
+próprios cargos nem se desliga. O teste confere que quem dá um cargo já tem todo o poder
+dele, exceto as ações exclusivas.
+
+### 3. Cargo ativo
+Quem tem mais de um cargo escolhe com qual está agindo (troca registrada). Cada sessão tem
+o seu. Cargo tirado enquanto a pessoa está dentro: o poder some na hora. Tirar cargo não
+apaga: a linha ganha data e autor.
+
+### 4. Bloqueios
+- **Senha:** 5 erros seguidos bloqueiam por 15 minutos (nem a senha certa entra). Contagem atômica.
+- **Código da cozinha:** 3 erros seguidos bloqueiam até o supervisor, gerente ou administrador
+  desbloquear; registra e gera um aviso para supervisor e gerente (uma vez só, mesmo com
+  tentativas simultâneas). A central de avisos e o aviso no aparelho são a E05.
+- Código: 4 números, sem repetição (1111) nem sequência (1234). Só para quem é da cozinha.
+  Guardado como hash (Argon2id), nunca vai para a auditoria.
+
+### 5. Segundo fator (dono e administrador)
+Código de 6 números de um aplicativo autenticador (padrão TOTP, biblioteca `otpauth`).
+Vale para quem **tem** cargo de dono ou administrador, mesmo agindo com outro cargo.
+Sem confirmar, o servidor recusa tudo. A semente fica cifrada (AES-256-GCM) com a chave
+`ERP_CHAVE_SEGREDOS`, que em produção vem do cofre. Código já usado não vale de novo;
+5 erros encerram a sessão. Celular perdido: **outro** administrador reinicia.
+Limite conhecido: no primeiro acesso, quem tem a senha configura o segundo fator. Por isso
+a senha inicial deve ser entregue em mãos e trocada no primeiro acesso.
+
+### 6. Estação da cozinha (RC-12, "quem está nesta tela")
+O gestor cadastra o tablet uma vez, pelo próprio tablet (o aparelho guarda um cookie; o banco
+guarda só o hash). A pessoa toca na foto e digita o código no início do turno; um toque na
+foto troca quem está ativa; sozinha na tela, tudo sai em nome dela. Entrar em outra estação
+tira da anterior. Saída automática no fim do turno da unidade (padrão 23:30, no máximo 16 h).
+Ação sensível pede o código de novo. Desligar a pessoa ou a estação tira todo mundo na hora.
+
+## Hipóteses a confirmar com o responsável
+1. Atendente **não** altera nem cancela pedido (só supervisor e acima).
+2. Financeiro **não** faz compras; vê custos.
+3. Segundo fator só para dono e administrador (não para financeiro e gerente geral).
+4. Supervisor vê funcionários e desbloqueia código, mas **não** cria nem desliga.
+5. Caixa vê todos os pedidos (precisa, para cobrar a mesa).
+6. Senha: 5 erros e 15 minutos de bloqueio. Fim do turno padrão: 23:30.
+
+## Fica para depois
+- Ajustes pontuais de permissão por pessoa, com autor e motivo (RC-12): quando aparecer o
+  primeiro caso real.
+- "Aplicativo interno só abre em aparelho cadastrado" para os outros aplicativos (hoje só a
+  estação da cozinha): com a casca dos aplicativos (E04) e a homologação (E06).
+- Foto real das pessoas na estação (hoje: iniciais).
+- Gerente geral vê toda a auditoria; quando houver ações do financeiro, filtrar o que ele vê.
+- Pendências da 0010 para a E06 continuam (papéis do PostgreSQL, limite de requisições, HTTPS).
+
+## Alternativas descartadas
+- Somar as permissões de todos os cargos da pessoa: perde-se quem agiu em qual papel e o
+  caixa-dono poderia marcar Pago sem estar no caixa.
+- Comparar ações para decidir quem dá cargo (0010): impedia o gerente de criar caixa assim
+  que o caixa ganhou "marcar Pago".
+- Código da cozinha a cada toque: inviável com as mãos ocupadas (RC-12).
+
+## Critério de aceite e evidência
+Teste da matriz por cargo no domínio e pela API (cada cargo x cada rota: 403 e registro),
+cobertura de rotas (rota nova sem teste quebra o CI), bloqueios com tentativas simultâneas,
+segundo fator e estação contra PostgreSQL real.

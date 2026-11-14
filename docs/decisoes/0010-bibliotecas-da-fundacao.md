@@ -47,7 +47,7 @@ POST e DELETE de outra origem são recusados.
 - **Pendente para a E06 (revisão de 14/11/2026):** separar os papéis no PostgreSQL. Um papel dono das tabelas roda só as migrações; a aplicação usa outro papel, com só `INSERT, SELECT` na auditoria e sem ser dona de nada. Hoje a conta da aplicação é dona da tabela e conseguiria desligar o gatilho que protege a auditoria.
 - Também na E06: limite de requisições antes de registrar recusas anônimas (sem ele, um
   script pode encher a auditoria, que não se apaga) e passar o IP para essas recusas.
-- **Para decidir na E03:** a regra "não dar cargo com mais poder que o seu" compara ações.
+- **Decidido na E03 (decisão 0011):** lista explícita `QUEM_ATRIBUI`. Texto original: a regra "não dar cargo com mais poder que o seu" compara ações.
   Se um cargo operacional ganhar uma ação que o gerente não tem (ex.: caixa marca Pago),
   o gerente deixa de poder criar esse cargo. Definir na E03 quem pode atribuir cada cargo.
 - O IP só é gravado atrás do nosso proxy (`CONFIAR_PROXY=1`, E06); até lá fica vazio, porque `x-forwarded-for` pode ser inventado.
