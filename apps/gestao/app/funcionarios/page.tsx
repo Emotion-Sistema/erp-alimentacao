@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function PaginaFuncionarios() {
   const ator = await carregarAtor();
   return (
-    <Casca ator={ator} exige="usuarios.ver">
+    <Casca ator={ator} app="gestao" exige="usuarios.ver">
       <Funcionarios
         cargos={CARGOS.map((c) => ({ valor: c, texto: NOME_DO_CARGO[c] }))}
         cargosComSegundoFator={[...CARGOS_COM_SEGUNDO_FATOR]}

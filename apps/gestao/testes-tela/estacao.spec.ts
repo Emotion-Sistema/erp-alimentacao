@@ -60,6 +60,12 @@ test.describe("tablet da cozinha", () => {
     await expect(aqui.getByRole("button", { name: "Teste cozinheira, ativa agora" })).toBeVisible();
     await expect(page.getByText("Registrar perda, ajuste ou item que acabou")).toBeVisible();
     await semEstouroDeLargura(page);
+    // Tablet em pé e deitado, sem a página ficar mais larga que a tela.
+    await page.setViewportSize({ width: 800, height: 1280 });
+    await semEstouroDeLargura(page);
+    await expect(page.getByRole("heading", { level: 1, name: "Cozinha 1" })).toBeVisible();
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await semEstouroDeLargura(page);
 
     // A tela do gestor mostra quem está na estação.
     await entrar(page, "gerente.geral");

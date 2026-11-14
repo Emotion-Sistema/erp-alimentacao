@@ -4,7 +4,8 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 
 ## Agora (para começar)
 - [x] 👉 Conferir o PR #4 e dar o "ok" para a E03 (feito em 14/11/2026).
-- [ ] 👉 Dar o "ok" para a E04 (base visual e cascas).
+- [x] 👉 Dar o "ok" para a E04 (dado em 14/11/2026).
+- [ ] 👉 Dar o "ok" para a E05 (avisos), quando a E04 estiver juntada.
 - [x] 👉 Responder às 6 hipóteses de cargos da decisão 0011 (respondido em 14/11/2026).
 - [x] 👉 Dizer a que horas a cozinha fecha (23h; loja 23h30; respondido em 14/11/2026).
 - [x] 👉 Horários: segunda fechado; delivery e categorias inseridos à mão (respondido em 14/11/2026).

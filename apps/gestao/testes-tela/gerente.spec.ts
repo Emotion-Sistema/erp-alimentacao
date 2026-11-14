@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { entrar, semEstouroDeLargura } from "./ajudas";
+import { aguardarInicio, entrar, semEstouroDeLargura } from "./ajudas";
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -54,12 +54,14 @@ test("quem tem dois cargos vê o cargo ativo e troca de cargo", async ({ page })
   await page.getByLabel("Usuário").fill("ana.atendente");
   await page.getByLabel("Senha").fill("uma-senha-longa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
-  await page.waitForURL((u) => u.pathname === "/");
+  await aguardarInicio(page);
   const ativo = page.getByTestId("cargo-ativo");
   const primeiro = (await ativo.textContent())!;
   const outro = primeiro === "Atendente" ? "Cozinheira" : "Atendente";
   await page.getByLabel("Trocar de cargo").selectOption({ label: outro });
   await expect(ativo).toHaveText(outro);
+  // Trocar de cargo volta ao lançador: atendente (1 aplicativo) cai no Atendimento; cozinheira (2) fica no lançador.
+  await expect(page).toHaveURL(outro === "Atendente" ? /\/atendimento$/ : /\/$/);
   await semEstouroDeLargura(page);
 });
 

@@ -8,3 +8,4 @@ export * from "./estacao";
 export * from "./usuarios";
 export * from "./consultas";
 export { semear, SENHA_DE_TESTE, CODIGO_DE_TESTE } from "./semente";
+export * from "./aplicativos";

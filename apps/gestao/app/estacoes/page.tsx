@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function PaginaEstacoes() {
   const ator = await carregarAtor();
   return (
-    <Casca ator={ator} exige="estacoes.ver">
+    <Casca ator={ator} app="gestao" exige="estacoes.ver">
       <Estacoes podeGerenciar={pode(ator.cargoAtivo, "estacoes.gerenciar")} />
     </Casca>
   );
