@@ -2,7 +2,7 @@
  * Dados FICTÍCIOS para desenvolvimento e testes. Nunca roda em produção.
  * Cria a empresa de exemplo, uma unidade, setores e um usuário por cargo.
  */
-import { banco, criarBanco, type Banco } from "@erp/banco";
+import { banco, criarBanco, sql, type Banco } from "@erp/banco";
 import { CARGOS, CARGOS_DA_ESTACAO } from "./permissoes";
 import { hashSenha } from "./senha";
 
@@ -27,6 +27,13 @@ export async function semear(db: Banco): Promise<{ unidadeId: number }> {
       .returning("id")
       .executeTakeFirstOrThrow();
     await trx
+      .insertInto("turno")
+      .values([
+        { unidade_id: unidade.id, nome: "Turno 1", inicio: "08:00", fim: "15:30" },
+        { unidade_id: unidade.id, nome: "Turno 2", inicio: "15:30", fim: "23:30" },
+      ])
+      .execute();
+    await trx
       .insertInto("setor")
       .values(["Cozinha", "Cafeteria", "Salão", "Caixa"].map((nome) => ({ unidade_id: unidade.id, nome })))
       .execute();
@@ -43,6 +50,24 @@ export async function semear(db: Banco): Promise<{ unidadeId: number }> {
     }
     return { unidadeId: unidade.id };
   });
+}
+
+/**
+ * SÓ PARA BANCOS DE TESTE (confere o nome do banco; não é exportada pelo pacote): turnos cobrindo o dia todo, para os testes que entregam avisos
+ * não dependerem da hora em que rodam. As regras de horário são testadas com horas fixas.
+ */
+export async function turnosDoDiaTodo(db: Banco, unidadeId: number): Promise<void> {
+  if (process.env.NODE_ENV === "production") throw new Error("Só para testes.");
+  const banco = await sql<{ nome: string }>`SELECT current_database() AS nome`.execute(db);
+  if (!/_teste$/.test(banco.rows[0]?.nome ?? "")) throw new Error("turnosDoDiaTodo só roda em banco terminado em _teste.");
+  await db.deleteFrom("turno").where("unidade_id", "=", unidadeId).execute();
+  await db
+    .insertInto("turno")
+    .values([
+      { unidade_id: unidadeId, nome: "Teste manhã", inicio: "00:00", fim: "12:00" },
+      { unidade_id: unidadeId, nome: "Teste tarde", inicio: "12:00", fim: "24:00" },
+    ])
+    .execute();
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

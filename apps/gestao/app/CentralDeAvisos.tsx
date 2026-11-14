@@ -52,6 +52,9 @@ async function avisarNoAparelho(novos: AvisoDaCaixa[], audio: { current: AudioCo
   }
 }
 
+type Turno = { noTurno: boolean; turnoAcabou: boolean; podeContinuar: boolean; recebeAte: string | null; turnoAtual: { nome: string; fim: string } | null };
+const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
 const CHAVE_CONHECIDOS = "erp-avisos-conhecidos";
 function lerConhecidos(): Set<string> | null {
   try {
@@ -74,6 +77,8 @@ export function CentralDeAvisos() {
   const [aberto, setAberto] = useState(false);
   const [erro, setErro] = useState("");
   const [permissao, setPermissao] = useState<string | null>(null);
+  const [turno, setTurno] = useState<Turno | null>(null);
+  const [senha, setSenha] = useState("");
   const conhecidos = useRef<Set<string> | null>(null);
   const parou = useRef(false);
   const audio = useRef<AudioContext | null>(null);
@@ -97,6 +102,8 @@ export function CentralDeAvisos() {
       if (novos.length > 0) void avisarNoAparelho(novos, audio);
     }
     setAvisos(lista);
+    const t = await chamar<Turno>("/api/eu/turno");
+    if (t.ok && t.dados) setTurno(t.dados);
   }, []);
 
   // Consulta ao montar, a cada 15 s (30 s com a aba escondida) e quando a janela volta ao foco.
@@ -164,6 +171,13 @@ export function CentralDeAvisos() {
     setAvisos((l) => l.map((a) => (a.id === id ? { ...a, situacao: "resolvido", vistoEm: a.vistoEm ?? agora, resolvidoEm: agora } : a)));
   }
 
+  async function continuar() {
+    const r = await chamar<Turno>("/api/eu/turno", "POST", { senha });
+    setSenha("");
+    if (r.ok && r.dados) setTurno(r.dados);
+    else setErro(r.mensagem);
+  }
+
   async function ativarNoAparelho() {
     try {
       setPermissao(await Notification.requestPermission());
@@ -177,6 +191,31 @@ export function CentralDeAvisos() {
   const rotulo = novos > 0 ? `Avisos: ${novos} ${novos === 1 ? "aviso novo" : "avisos novos"}` : "Avisos: nenhum aviso novo";
   return (
     <div className="avisos">
+      {turno?.turnoAcabou && (
+        <Aviso tipo="atencao" data-testid="turno-acabou">
+          {turno.noTurno && turno.recebeAte
+            ? `Seu turno acabou. Você ainda recebe avisos até ${hora(turno.recebeAte)} para passar o turno; depois, saia para a próxima pessoa entrar.`
+            : "Você está fora do seu turno: os avisos do turno não chegam mais para você. Saia para a próxima pessoa entrar."}
+          {turno.podeContinuar && turno.turnoAtual && (
+            <form
+              className="avisos__continuar"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void continuar();
+              }}
+            >
+              <label>
+                Precisa ficar? Digite <strong>sua</strong> senha:
+                <input type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
+              </label>
+              <button type="submit" className="avisos__ativar">
+                Continuo no {turno.turnoAtual.nome}
+              </button>
+              {erro && !aberto && <span role="alert">{erro}</span>}
+            </form>
+          )}
+        </Aviso>
+      )}
       <button type="button" className="avisos__sino" aria-expanded={aberto} aria-controls="painel-avisos" aria-label={rotulo} onClick={() => setAberto((v) => !v)}>
         <span aria-hidden="true">Avisos</span>
         {novos > 0 && (

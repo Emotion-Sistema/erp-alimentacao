@@ -10,6 +10,10 @@ import {
   atorDaSessao,
   ativarNaEstacao,
   caixaDeAvisos,
+  continuarNoTurno,
+  mudarMargemDeTroca,
+  verTurnos,
+  situacaoDoTurno,
   enviarComunicado,
   listarComunicados,
   marcarVistos,
@@ -207,6 +211,17 @@ export const resolverUmAviso = seguroComId(async (req, p) => {
   await resolverAviso(obterBanco(), await ator(req), idDe(p));
   return json({ ok: true });
 });
+
+export const verMeuTurno = seguro(async (req) => json(await situacaoDoTurno(obterBanco(), await ator(req))));
+
+export const continuarMeuTurno = seguro(async (req) => {
+  const r = await continuarNoTurno(obterBanco(), await ator(req), await corpoJson(req), { ip: ipDaRequisicao(req), agente: req.headers.get("user-agent") });
+  return json(await situacaoDoTurno(obterBanco(), r.ator), 200, { "set-cookie": cookieSessao(r.token, r.expiraEm) });
+});
+
+export const verTurnosDaUnidade = seguro(async (req) => json(await verTurnos(obterBanco(), await ator(req))));
+
+export const mudarMargem = seguro(async (req) => json(await mudarMargemDeTroca(obterBanco(), await ator(req), await corpoJson(req))));
 
 export const verComunicados = seguro(async (req) => json(await listarComunicados(obterBanco(), await ator(req))));
 

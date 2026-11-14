@@ -17,6 +17,7 @@ export interface UnidadeTabela {
   nome: string;
   fuso_horario: Generated<string>;
   fim_turno: Generated<string>; // "HH:MM:SS", hora local da unidade
+  margem_troca_turno: Generated<string>; // intervalo, ex. "00:30:00"
   criado_em: Instante;
 }
 
@@ -73,6 +74,7 @@ export interface SessaoTabela {
   agente: string | null;
   cargo_ativo: string | null;
   segundo_fator_ok: Generated<boolean>;
+  turno_ate: Instante | null; // "Continuo no turno": vale até o fim deste turno
 }
 
 export interface EstacaoTabela {
@@ -124,6 +126,14 @@ export interface AvisoDestinoTabela {
   resolvido_em: Instante | null;
 }
 
+export interface TurnoTabela {
+  id: Generated<number>;
+  unidade_id: number;
+  nome: string;
+  inicio: string; // "HH:MM:SS", hora local da unidade
+  fim: string; // "24:00:00" = meia-noite
+}
+
 export interface AuditoriaTabela {
   id: Generated<string>;
   ocorrido_em: Instante;
@@ -149,4 +159,5 @@ export interface BancoTabelas {
   estacao_presenca: EstacaoPresencaTabela;
   aviso: AvisoTabela;
   aviso_destino: AvisoDestinoTabela;
+  turno: TurnoTabela;
 }

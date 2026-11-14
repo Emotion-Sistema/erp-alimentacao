@@ -19,6 +19,7 @@ A permissão vem **só do cargo ativo**. O que não está listado é recusado e 
 | Ver auditoria | ✓ | ✓ | | | | | | | | |
 | Configuração do sistema | ✓ | | | | | | | | | |
 | Enviar comunicados e ver quem leu (E05, decisão 0013) | ✓ | ✓ | | | | | | | | |
+| Horários: turnos e margem de troca (E05, decisão 0013) | ✓ | ✓ | | | | | | | | |
 | Lançar pedido | ✓ | ✓ | | ✓ | ✓ | | | | | |
 | Ver os próprios pedidos / todos | ✓ | ✓ | | – / ✓ | ✓ / – | – / ✓ | | | | |
 | Alterar pedido | ✓ | ✓ | | ✓ | ✓ (avisa os supervisores) | | | | | |

@@ -141,3 +141,6 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 .comunicados__grupo { border: 2px solid var(--cor-borda); border-radius: var(--raio); padding: var(--espaco-3); display: grid; gap: var(--espaco-2); min-width: 0; }
 .comunicados__opcao { display: flex; align-items: center; gap: var(--espaco-3); min-height: var(--alvo-toque); }
 .comunicados__opcao input { width: 1.5rem; height: 1.5rem; flex: 0 0 auto; }
+
+.avisos__continuar { display: flex; flex-direction: column; gap: var(--espaco-2); margin-top: var(--espaco-2); }
+.avisos__continuar input { width: 100%; max-width: 100%; }

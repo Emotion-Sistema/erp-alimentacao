@@ -15,9 +15,13 @@ Atualizado em: 14/11/2026
 - Regra do responsável: nunca ignorar falha (CLAUDE.md); testes rodam em ordem embaralhada.
 - **E04 (base visual e cascas) feita** no PR #11 (merge 858ad9f; decisão 0012).
 - **E05 (avisos) feita** no PR #12 (merge 5a3ceac; decisão 0013): avisos por cargo ativo, unidade e
-  turno (conta da entrada até 00h30), comunicados com confirmação de leitura, sino em todo app.
+  turno, comunicados com confirmação de leitura, sino em todo app.
+- **Ajuste da E05: turnos da equipe** (migração 0005): Turno 1 08h-15h30, Turno 2 15h30-23h30;
+  cada um tem o próprio login e é do turno em que entrou (15h10 = Turno 1); margem de troca de
+  30 min que os gerentes mudam na tela Gestão → Turnos (ação `horarios.gerenciar`); botão
+  "Continuo no turno" com senha. 169 testes + 64 de tela; revisão aprovou na 4ª rodada.
   154 testes + 63 de tela; revisão reprovou 1x (corrigido) e aprovou.
-- Próxima etapa: **E06** (homologação na VPS), depois do "ok" do responsável.
+- Próxima etapa: **E06** (homologação na VPS). "ok" dado pelo responsável em 14/11/2026.
 - Pendente na E06: separar papéis do PostgreSQL (decisão 0010).
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
   gratuito; a trava do repositório é a única barreira automática.
