@@ -94,7 +94,8 @@ export async function desligarUsuario(db: Banco, ator: Ator | null, usuarioId: n
   if (!cabeNoPoderDe(quem.cargos, cargosAlvo)) await recusar("cargo_acima", "Seu cargo não pode desligar esse usuário.");
   await db.transaction().execute(async (trx) => {
     const agora = new Date();
-    await trx.updateTable("usuario").set({ ativo: false, desligado_em: agora }).where("id", "=", usuarioId).execute();
+    const r = await trx.updateTable("usuario").set({ ativo: false, desligado_em: agora }).where("id", "=", usuarioId).where("ativo", "=", true).executeTakeFirst();
+    if (r.numUpdatedRows === 0n) throw new ErroDeRegra("conflito", "Este usuário já está desligado.");
     await trx.updateTable("sessao").set({ revogada_em: agora }).where("usuario_id", "=", usuarioId).where("revogada_em", "is", null).execute();
     await auditar(trx, { usuarioId: quem.usuarioId, acao: "usuarios.gerenciar", resultado: "permitido", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { operacao: "desligar" }, ip: quem.ip });
   });

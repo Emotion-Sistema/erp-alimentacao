@@ -86,6 +86,10 @@ describe("entrar e sair", () => {
     expect(await atorDaSessao(db, r.token)).toBeNull();
     const abertas = await db.selectFrom("sessao").select("id").where("usuario_id", "=", u.id).where("revogada_em", "is", null).execute();
     expect(abertas).toHaveLength(0); // reativar depois não ressuscita sessão antiga
+    const data = (await db.selectFrom("usuario").select("desligado_em").where("id", "=", u.id).executeTakeFirstOrThrow()).desligado_em;
+    expect((await erroDe(desligarUsuario(db, adm, u.id))).codigo).toBe("conflito"); // não sobrescreve a data
+    const depois = (await db.selectFrom("usuario").select("desligado_em").where("id", "=", u.id).executeTakeFirstOrThrow()).desligado_em;
+    expect(depois).toEqual(data);
     const a = await ultimaAuditoria("usuarios.gerenciar");
     expect([a.resultado, a.alvo_id, a.detalhes.operacao]).toEqual(["permitido", String(u.id), "desligar"]);
     expect((await erroDe(entrar(db, { login: "desligada", senha: "uma-senha-longa" }, origem))).codigo).toBe("nao_autenticado");
@@ -138,6 +142,8 @@ describe("permissão conferida no servidor", () => {
     const gerente = await atorDoCargo(db, "gerente_geral");
     const adm = await atorDoCargo(db, "administrador");
     expect((await erroDe(desligarUsuario(db, gerente, adm.usuarioId))).codigo).toBe("sem_permissao");
+    const recusa = await ultimaAuditoria("usuarios.gerenciar");
+    expect([recusa.resultado, recusa.usuario_id, recusa.detalhes.motivo]).toEqual(["recusado", gerente.usuarioId, "cargo_acima"]);
     expect((await erroDe(desligarUsuario(db, adm, adm.usuarioId))).codigo).toBe("sem_permissao");
     expect(await atorDaSessao(db, null)).toBeNull();
     const ainda = await db.selectFrom("usuario").select("ativo").where("id", "=", adm.usuarioId).executeTakeFirstOrThrow();
