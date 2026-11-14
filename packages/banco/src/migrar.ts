@@ -99,8 +99,25 @@ export async function reverterUltima(url: string, log = console.log): Promise<st
 }
 
 /** Apaga TUDO e recria o esquema. Só aceita banco cujo nome termina em _teste. */
+/** Cria o banco de teste se ele ainda não existe (ex.: no CI). Só para nomes terminados em _teste. */
+async function criarBancoSeFaltar(url: string): Promise<void> {
+  const endereco = new URL(url);
+  const nome = decodeURIComponent(endereco.pathname.slice(1));
+  if (!/^[a-z0-9_]+_teste$/.test(nome)) throw new Error("Nome de banco de teste inválido.");
+  endereco.pathname = "/postgres";
+  const c = new pg.Client({ connectionString: endereco.toString() });
+  await c.connect();
+  try {
+    const existe = await c.query("SELECT 1 FROM pg_database WHERE datname = $1", [nome]);
+    if (existe.rowCount === 0) await c.query(`CREATE DATABASE "${nome}"`);
+  } finally {
+    await c.end();
+  }
+}
+
 export async function recriarBancoDeTeste(url: string): Promise<void> {
   if (!/_teste(\?|$)/.test(url)) throw new Error("Por segurança, o banco de teste precisa terminar em _teste.");
+  await criarBancoSeFaltar(url);
   const c = new pg.Client({ connectionString: url });
   await c.connect();
   try {

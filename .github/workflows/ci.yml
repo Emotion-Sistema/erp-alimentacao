@@ -51,3 +51,7 @@ jobs:
         run: pnpm teste
       - name: Build
         run: pnpm build
+      - name: Navegador dos testes de tela
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Testes de tela (cada cargo pela tela)
+        run: pnpm teste:tela

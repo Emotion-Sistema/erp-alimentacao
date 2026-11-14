@@ -5,3 +5,7 @@ export type { CampoProps } from "./Campo";
 export { Cartao } from "./Cartao";
 export { Aviso } from "./Aviso";
 export type { AvisoProps } from "./Aviso";
+export { Tabela, Celula, Etiqueta } from "./Tabela";
+export type { CelulaProps } from "./Tabela";
+export { Selecao } from "./Selecao";
+export type { SelecaoProps } from "./Selecao";

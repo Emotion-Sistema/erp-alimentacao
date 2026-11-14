@@ -126,7 +126,7 @@ Sem PostgreSQL local, `pnpm dev` sobe o do `docker-compose.yml`. Os testes usam 
 
 ## Skills (em `.claude/skills/`)
 `encerrar-sessao`, `publicar`, `nova-ideia-cliente`, `checklist-pr`, `migracao-segura`,
-`teste-idempotencia-estoque`, `ensaio-restauracao`.
+`teste-idempotencia-estoque`, `ensaio-restauracao`, `matriz-de-permissoes`.
 
 ## Subagentes (em `.claude/agents/`)
 `construtor` (Sonnet 5.5), `ajudante` (Haiku 5.5), `revisor` (Opus 5.5).

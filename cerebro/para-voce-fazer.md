@@ -3,7 +3,8 @@
 Lista viva do que depende do responsável. O Claude acrescenta e marca como feito.
 
 ## Agora (para começar)
-- [ ] 👉 Conferir o PR #4 (aba Checks verde) e dar o "ok" para a E03.
+- [x] 👉 Conferir o PR #4 e dar o "ok" para a E03 (feito em 14/11/2026).
+- [ ] 👉 Responder às 6 hipóteses de cargos da decisão 0011 (seção "Hipóteses a confirmar").
 - [ ] 👉 Em claude.ai/code, conectar o GitHub e instalar o app do Claude neste repositório.
 
 ## Assim que possível (destrava o trabalho)

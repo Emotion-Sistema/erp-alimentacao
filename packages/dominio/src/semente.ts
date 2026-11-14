@@ -3,10 +3,12 @@
  * Cria a empresa de exemplo, uma unidade, setores e um usuário por cargo.
  */
 import { banco, criarBanco, type Banco } from "@erp/banco";
-import { CARGOS } from "./permissoes";
+import { CARGOS, CARGOS_DA_ESTACAO } from "./permissoes";
 import { hashSenha } from "./senha";
 
 export const SENHA_DE_TESTE = "senha-de-teste-123";
+/** Código pessoal fictício de quem trabalha na cozinha (tablet da estação). */
+export const CODIGO_DE_TESTE = "2580";
 
 export async function semear(db: Banco): Promise<{ unidadeId: number }> {
   if (process.env.NODE_ENV === "production") throw new Error("Semente de dados fictícios não roda em produção.");
@@ -29,10 +31,12 @@ export async function semear(db: Banco): Promise<{ unidadeId: number }> {
       .values(["Cozinha", "Cafeteria", "Salão", "Caixa"].map((nome) => ({ unidade_id: unidade.id, nome })))
       .execute();
     const senhaHash = await hashSenha(SENHA_DE_TESTE);
+    const codigoHash = await hashSenha(CODIGO_DE_TESTE);
     for (const cargo of CARGOS) {
+      const daCozinha = (CARGOS_DA_ESTACAO as readonly string[]).includes(cargo);
       const u = await trx
         .insertInto("usuario")
-        .values({ nome: `Teste ${cargo.replace("_", " ")}`, login: cargo.replace("_", "."), senha_hash: senhaHash })
+        .values({ nome: `Teste ${cargo.replace("_", " ")}`, login: cargo.replace("_", "."), senha_hash: senhaHash, codigo_hash: daCozinha ? codigoHash : null })
         .returning("id")
         .executeTakeFirstOrThrow();
       await trx.insertInto("usuario_perfil").values({ usuario_id: u.id, perfil_codigo: cargo, unidade_id: unidade.id }).execute();
@@ -45,5 +49,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const db = process.env.DATABASE_URL ? criarBanco() : banco();
   await semear(db);
   console.log(`dados fictícios prontos. Logins: um por cargo (ex.: administrador, gerente.geral, caixa). Senha: ${SENHA_DE_TESTE}`);
+  console.log(`Cozinha: código pessoal ${CODIGO_DE_TESTE}. Dono e administrador configuram o segundo fator no primeiro acesso.`);
   await db.destroy();
 }
