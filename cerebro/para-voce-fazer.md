@@ -6,7 +6,8 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [x] 👉 Conferir o PR #4 e dar o "ok" para a E03 (feito em 14/11/2026).
 - [x] 👉 Dar o "ok" para a E04 (dado em 14/11/2026).
 - [x] 👉 Dar o "ok" para a E05 (dado em 14/11/2026).
-- [ ] 👉 Confirmar as hipóteses da decisão 0013: (a) turno = tempo em que a pessoa está com o aplicativo aberto, sem turnos com nome; (b) só dono, administrador e gerente geral mandam comunicados.
+- [ ] 👉 Confirmar as hipóteses da decisão 0013: (a) o turno vai da entrada até 00h30, sem turnos com nome; (b) ninguém começa a trabalhar entre 00h30 e 04h30; (c) só dono, administrador e gerente geral mandam comunicados.
+- [ ] 👉 Dar o "ok" para a E06 (homologação).
 - [x] 👉 Responder às 6 hipóteses de cargos da decisão 0011 (respondido em 14/11/2026).
 - [x] 👉 Dizer a que horas a cozinha fecha (23h; loja 23h30; respondido em 14/11/2026).
 - [x] 👉 Horários: segunda fechado; delivery e categorias inseridos à mão (respondido em 14/11/2026).
