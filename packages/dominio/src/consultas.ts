@@ -1,7 +1,6 @@
 /** Consultas de leitura: auditoria (RC-17, base). Avisos ficam em avisos.ts. */
 import type { Banco } from "@erp/banco";
 import { z } from "zod";
-import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
 import { exigir, type Ator } from "./sessao";
 

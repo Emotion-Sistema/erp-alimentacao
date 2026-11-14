@@ -1,4 +1,5 @@
 // Service worker mínimo: só cuida do toque na notificação. Sem cache, sem fetch, sem push.
+/* global self */
 self.addEventListener("notificationclick", (evento) => {
   evento.notification.close();
   evento.waitUntil(
