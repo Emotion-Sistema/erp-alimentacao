@@ -14,8 +14,9 @@ Atualizado em: 14/11/2026
 - Tablet da cozinha: sai às 00h30, a cozinha estende 30 min até 4x, com bipe (migração 0003).
 - Regra do responsável: nunca ignorar falha (CLAUDE.md); testes rodam em ordem embaralhada.
 - **E04 (base visual e cascas) feita** no PR #11 (merge 858ad9f; decisão 0012).
-- **E05 (avisos) em andamento** (decisão 0013): banco, domínio, rotas e 18 testes prontos
-  (commit 297345d na branch). Faltam as telas (construtor), a revisão, o PR e o merge.
+- **E05 (avisos) em andamento** (decisão 0013): banco, domínio, rotas, telas, 155 testes +
+  63 de tela, na branch. Revisão 1 reprovou (turno contado da entrada; corrigido); falta a
+  revisão 2, o PR e o merge.
 - Pendente na E06: separar papéis do PostgreSQL (decisão 0010).
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
   gratuito; a trava do repositório é a única barreira automática.
