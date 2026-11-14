@@ -16,7 +16,10 @@ ALTER TABLE usuario
   -- Segundo fator (TOTP): o segredo fica cifrado com a chave do cofre (ERP_CHAVE_SEGREDOS).
   ADD COLUMN totp_segredo        text,
   ADD COLUMN totp_pendente       text,
-  ADD COLUMN totp_ultimo_passo   bigint;
+  ADD COLUMN totp_ultimo_passo   bigint,
+  -- Erros do segundo fator contam por pessoa (todas as sessões); 5 bloqueiam por 15 min.
+  ADD COLUMN totp_erros          integer NOT NULL DEFAULT 0 CHECK (totp_erros >= 0),
+  ADD COLUMN totp_bloqueado_ate  timestamptz;
 
 -- Cargo removido não some: ganha data e autor (RC-17, nada é apagado).
 ALTER TABLE usuario_perfil DROP CONSTRAINT usuario_perfil_pkey;
@@ -31,8 +34,7 @@ CREATE UNIQUE INDEX usuario_perfil_vigente ON usuario_perfil (usuario_id, perfil
 
 ALTER TABLE sessao
   ADD COLUMN cargo_ativo         text REFERENCES perfil(codigo),
-  ADD COLUMN segundo_fator_ok    boolean NOT NULL DEFAULT false,
-  ADD COLUMN segundo_fator_erros integer NOT NULL DEFAULT 0 CHECK (segundo_fator_erros >= 0);
+  ADD COLUMN segundo_fator_ok    boolean NOT NULL DEFAULT false;
 
 -- Estação = aparelho cadastrado (tablet da cozinha). O aparelho guarda um token;
 -- aqui fica só o hash dele.

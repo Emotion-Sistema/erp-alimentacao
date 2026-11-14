@@ -1,10 +1,16 @@
-import type { Banco } from "@erp/banco";
+import { sql, type Banco } from "@erp/banco";
 import { z } from "zod";
 import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
 import { CARGOS, podeAtribuir } from "./permissoes";
 import { hashSenha, SENHA_MINIMO } from "./senha";
+import { ajustarAtivas } from "./estacao";
 import { cargosVigentes, exigir, type Ator } from "./sessao";
+
+/** Unidades onde quem age tem cargo vigente: só mexe em gente dessas unidades. */
+async function unidadesDe(db: Banco, usuarioId: number): Promise<Set<number>> {
+  return new Set((await cargosVigentes(db, usuarioId)).map((c) => c.unidadeId));
+}
 
 export interface UsuarioResumo {
   id: number;
@@ -18,13 +24,17 @@ export interface UsuarioResumo {
 }
 
 export async function listarUsuarios(db: Banco, ator: Ator | null): Promise<UsuarioResumo[]> {
-  await exigir(db, ator, "usuarios.ver", { tipo: "usuario" });
+  const quem = await exigir(db, ator, "usuarios.ver", { tipo: "usuario" });
+  const unidades = [...(await unidadesDe(db, quem.usuarioId))];
+  if (unidades.length === 0) return [];
+  // Só gente que tem ou teve cargo numa unidade de quem consulta.
   const usuarios = await db
     .selectFrom("usuario")
     .select(["id", "nome", "login", "ativo", "codigo_hash", "codigo_bloqueado_em", "totp_segredo"])
+    .where("id", "in", db.selectFrom("usuario_perfil").select("usuario_id").where("unidade_id", "in", unidades))
     .orderBy("nome")
     .execute();
-  const perfis = await db.selectFrom("usuario_perfil").select(["usuario_id", "perfil_codigo"]).where("removido_em", "is", null).execute();
+  const perfis = await db.selectFrom("usuario_perfil").select(["usuario_id", "perfil_codigo"]).where("removido_em", "is", null).where("unidade_id", "in", unidades).execute();
   // Nenhum hash ou segredo sai daqui: só se existe ou não.
   return usuarios.map((u) => ({
     id: u.id,
@@ -68,6 +78,7 @@ export async function criarUsuario(db: Banco, ator: Ator | null, dados: unknown)
   if (!podeAtribuir(quem.cargoAtivo, [d.cargo])) await recusar(db, quem, "criar", undefined, `cargo_${d.cargo}`, "Seu cargo não pode criar um usuário com esse cargo.");
   const unidadeId = d.unidadeId ?? quem.unidadeId;
   if (!unidadeId) throw new ErroDeRegra("dados_invalidos", "Informe a unidade.");
+  if (!(await unidadesDe(db, quem.usuarioId)).has(unidadeId)) await recusar(db, quem, "criar", undefined, "outra_unidade", "Você só cadastra gente da sua unidade.");
   const senhaHash = await hashSenha(d.senha);
   try {
     return await db.transaction().execute(async (trx) => {
@@ -104,11 +115,29 @@ async function conferirAlvo(db: Banco, quem: Ator, usuarioId: number, operacao: 
   if (usuarioId === quem.usuarioId) await recusar(db, quem, operacao, usuarioId, "proprio_usuario", "Você não pode mexer nos seus próprios cargos nem se desligar.");
   const alvo = await db.selectFrom("usuario").select(["id", "ativo"]).where("id", "=", usuarioId).executeTakeFirst();
   if (!alvo) throw new ErroDeRegra("nao_encontrado", "Usuário não encontrado.");
-  const cargosAlvo = (await cargosVigentes(db, usuarioId)).map((c) => c.cargo);
+  const vigentes = await cargosVigentes(db, usuarioId);
+  const cargosAlvo = vigentes.map((c) => c.cargo);
   if (!podeAtribuir(quem.cargoAtivo, [...cargosAlvo, ...(cargoMexido ? [cargoMexido] : [])])) {
     await recusar(db, quem, operacao, usuarioId, "cargo_acima", "Seu cargo não pode mexer nesse usuário ou nesse cargo.");
   }
+  const unidades = await unidadesDe(db, quem.usuarioId);
+  if (!vigentes.every((c) => unidades.has(c.unidadeId))) await recusar(db, quem, operacao, usuarioId, "outra_unidade", "Essa pessoa não é da sua unidade.");
   return { ativo: alvo.ativo, cargosAlvo };
+}
+
+/**
+ * Dentro da transação da escrita: trava a pessoa e confere de novo os cargos, para duas
+ * mudanças ao mesmo tempo não furarem a regra (ex.: alguém promovido no mesmo instante,
+ * ou duas retiradas deixando a pessoa sem cargo).
+ */
+async function travarEConferir(trx: Banco, quem: Ator, usuarioId: number, cargosVistos: string[], cargoMexido?: string) {
+  await sql`SELECT id FROM usuario WHERE id = ${usuarioId} FOR UPDATE`.execute(trx);
+  const agora = (await cargosVigentes(trx, usuarioId)).map((c) => c.cargo);
+  const mudou = agora.length !== cargosVistos.length || agora.some((c) => !cargosVistos.includes(c));
+  if (mudou || !podeAtribuir(quem.cargoAtivo, [...agora, ...(cargoMexido ? [cargoMexido] : [])])) {
+    throw new ErroDeRegra("conflito", "Os cargos dessa pessoa mudaram agora há pouco. Atualize a tela e tente de novo.");
+  }
+  return agora;
 }
 
 const dadosCargo = z.object({ cargo: z.enum(CARGOS), unidadeId: z.number().int().positive().optional() });
@@ -123,8 +152,10 @@ export async function darCargo(db: Banco, ator: Ator | null, usuarioId: number, 
   if (!unidadeId) throw new ErroDeRegra("dados_invalidos", "Informe a unidade.");
   const alvo = await conferirAlvo(db, quem, usuarioId, "dar_cargo", cargo);
   if (!alvo.ativo) throw new ErroDeRegra("conflito", "Este usuário está desligado.");
+  if (!(await unidadesDe(db, quem.usuarioId)).has(unidadeId)) await recusar(db, quem, "dar_cargo", usuarioId, "outra_unidade", "Você só dá cargo na sua unidade.");
   try {
     await db.transaction().execute(async (trx) => {
+      await travarEConferir(trx, quem, usuarioId, alvo.cargosAlvo, cargo);
       await trx.insertInto("usuario_perfil").values({ usuario_id: usuarioId, perfil_codigo: cargo, unidade_id: unidadeId, criado_por: quem.usuarioId }).execute();
       await auditar(trx, { usuarioId: quem.usuarioId, acao: "usuarios.gerenciar", resultado: "permitido", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { operacao: "dar_cargo", cargo }, ip: quem.ip });
     });
@@ -146,6 +177,8 @@ export async function tirarCargo(db: Banco, ator: Ator | null, usuarioId: number
   if (!alvo.cargosAlvo.includes(cargo)) throw new ErroDeRegra("conflito", "Essa pessoa não tem esse cargo.");
   if (alvo.cargosAlvo.length === 1) throw new ErroDeRegra("conflito", "Este é o único cargo da pessoa. Para tirar o acesso, desligue o usuário.");
   await db.transaction().execute(async (trx) => {
+    const atuais = await travarEConferir(trx, quem, usuarioId, alvo.cargosAlvo, cargo);
+    if (atuais.length <= 1) throw new ErroDeRegra("conflito", "Este é o único cargo da pessoa. Para tirar o acesso, desligue o usuário.");
     const agora = new Date();
     await trx
       .updateTable("usuario_perfil")
@@ -162,6 +195,7 @@ export async function tirarCargo(db: Banco, ator: Ator | null, usuarioId: number
       .where("cargo", "=", cargo)
       .where("saiu_em", "is", null)
       .execute();
+    await ajustarAtivas(trx);
     await auditar(trx, { usuarioId: quem.usuarioId, acao: "usuarios.gerenciar", resultado: "permitido", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { operacao: "tirar_cargo", cargo }, ip: quem.ip });
   });
 }
@@ -172,8 +206,9 @@ export async function tirarCargo(db: Banco, ator: Ator | null, usuarioId: number
  */
 export async function desligarUsuario(db: Banco, ator: Ator | null, usuarioId: number): Promise<void> {
   const quem = await exigir(db, ator, "usuarios.gerenciar", { tipo: "usuario", id: usuarioId });
-  await conferirAlvo(db, quem, usuarioId, "desligar");
+  const alvo = await conferirAlvo(db, quem, usuarioId, "desligar");
   await db.transaction().execute(async (trx) => {
+    await travarEConferir(trx, quem, usuarioId, alvo.cargosAlvo);
     const agora = new Date();
     const r = await trx.updateTable("usuario").set({ ativo: false, desligado_em: agora }).where("id", "=", usuarioId).where("ativo", "=", true).executeTakeFirst();
     if (r.numUpdatedRows === 0n) throw new ErroDeRegra("conflito", "Este usuário já está desligado.");
@@ -184,6 +219,7 @@ export async function desligarUsuario(db: Banco, ator: Ator | null, usuarioId: n
       .where("usuario_id", "=", usuarioId)
       .where("saiu_em", "is", null)
       .execute();
+    await ajustarAtivas(trx);
     await auditar(trx, { usuarioId: quem.usuarioId, acao: "usuarios.gerenciar", resultado: "permitido", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { operacao: "desligar" }, ip: quem.ip });
   });
 }

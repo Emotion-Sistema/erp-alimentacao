@@ -159,6 +159,9 @@ describe("estação pela API (cookie do tablet)", () => {
     expect(setCookie).toMatch(/^erp_estacao=.+HttpOnly/);
     expect(JSON.stringify(await cad.json())).not.toMatch(/token/);
     const tablet = setCookie.split(";")[0]!;
+    // A sessão do gestor no tablet foi encerrada na mesma resposta.
+    expect(cad.headers.getSetCookie().some((c) => /^erp_sessao=;.*Max-Age=0/.test(c))).toBe(true);
+    expect((await r.quemSouEu(req("/api/eu", "GET", gerente))).status).toBe(401);
 
     const tela = (await (await r.telaEstacao(req("/api/estacao", "GET", tablet))).json()) as { pessoas: { id: number; nome: string; cargo: string }[]; acoes: string[] };
     expect(tela.acoes).toEqual([]);
@@ -168,7 +171,7 @@ describe("estação pela API (cookie do tablet)", () => {
     expect(depois.acoes).toContain("producao.operar");
     expect(depois.acoes).not.toContain("usuarios.ver");
 
-    expect((await r.telaEstacao(req("/api/estacao", "GET", gerente))).status).toBe(401);
+    expect((await r.telaEstacao(req("/api/estacao", "GET", await entrarComo("gerente.geral")))).status).toBe(401);
     expect((await r.entrarEstacao(req("/api/estacao/entrar", "POST", "erp_estacao=inventado", { usuarioId: coz.id, codigo: CODIGO_DE_TESTE }))).status).toBe(401);
     // O cookie do tablet não abre as rotas da gestão.
     expect((await r.verUsuarios(req("/api/usuarios", "GET", tablet))).status).toBe(401);

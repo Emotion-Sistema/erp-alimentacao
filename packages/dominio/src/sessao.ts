@@ -70,26 +70,35 @@ export async function entrar(
     .where((eb) => eb(eb.fn("lower", ["login"]), "=", login.toLowerCase()))
     .executeTakeFirst();
 
+  const mensagemBloqueio = `Muitas tentativas erradas. Tente de novo em ${SENHA_BLOQUEIO_MIN} minutos ou peça ajuda ao gerente.`;
+  const contavel = !!(usuario?.ativo && usuario.senha_hash);
+
+  // Reserva a tentativa ANTES de conferir a senha, de forma atômica: com rajada de pedidos
+  // simultâneos, no máximo SENHA_MAX_ERROS conferências acontecem até o bloqueio.
+  if (contavel) {
+    const reserva = await sql<{ id: number }>`
+      UPDATE usuario SET senha_erros = senha_erros + 1
+      WHERE id = ${usuario!.id} AND senha_erros < ${SENHA_MAX_ERROS}
+        AND (senha_bloqueada_ate IS NULL OR senha_bloqueada_ate <= now())
+      RETURNING id`.execute(db);
+    if (reserva.rows.length === 0) {
+      await auditar(db, { usuarioId: usuario!.id, acao: "sessao.entrar", resultado: "recusado", detalhes: { login: usuario!.login, motivo: "bloqueado" }, ip: origem.ip });
+      throw new ErroDeRegra("bloqueado", mensagemBloqueio);
+    }
+  }
+
   const hashGravado = usuario?.senha_hash ?? (await hashParaTempoConstante());
   const senhaCerta = await conferirSenha(hashGravado, senha);
 
-  if (usuario?.senha_bloqueada_ate && new Date(usuario.senha_bloqueada_ate) > new Date()) {
-    await auditar(db, { usuarioId: usuario.id, acao: "sessao.entrar", resultado: "recusado", detalhes: { login: usuario.login, motivo: "bloqueado" }, ip: origem.ip });
-    throw new ErroDeRegra("bloqueado", `Muitas tentativas erradas. Tente de novo em ${SENHA_BLOQUEIO_MIN} minutos ou peça ajuda ao gerente.`);
-  }
-
   if (!usuario || !usuario.senha_hash || !usuario.ativo || !senhaCerta) {
     let bloqueou = false;
-    if (usuario?.ativo && usuario.senha_hash) {
-      // Conta o erro de forma atômica; no 5º seguido bloqueia por 15 minutos.
-      const r = await sql<{ bloqueou: boolean }>`
-        UPDATE usuario SET
-          senha_erros = CASE WHEN senha_erros + 1 >= ${SENHA_MAX_ERROS} THEN 0 ELSE senha_erros + 1 END,
-          senha_bloqueada_ate = CASE WHEN senha_erros + 1 >= ${SENHA_MAX_ERROS}
-            THEN now() + make_interval(mins => ${SENHA_BLOQUEIO_MIN}) ELSE senha_bloqueada_ate END
-        WHERE id = ${usuario.id}
-        RETURNING (senha_bloqueada_ate > now()) AS bloqueou`.execute(db);
-      bloqueou = !!r.rows[0]?.bloqueou;
+    if (contavel) {
+      // Chegou ao limite: bloqueia por 15 minutos (uma vez só, mesmo com rajada).
+      const r = await sql<{ id: number }>`
+        UPDATE usuario SET senha_erros = 0, senha_bloqueada_ate = now() + make_interval(mins => ${SENHA_BLOQUEIO_MIN})
+        WHERE id = ${usuario!.id} AND senha_erros >= ${SENHA_MAX_ERROS}
+        RETURNING id`.execute(db);
+      bloqueou = r.rows.length > 0;
     }
     await auditar(db, {
       usuarioId: usuario?.id ?? null,
@@ -101,16 +110,25 @@ export async function entrar(
         : { motivo: "login_inexistente", tamanho: login.length },
       ip: origem.ip,
     });
-    if (bloqueou) throw new ErroDeRegra("bloqueado", `Muitas tentativas erradas. Tente de novo em ${SENHA_BLOQUEIO_MIN} minutos ou peça ajuda ao gerente.`);
+    if (bloqueou) throw new ErroDeRegra("bloqueado", mensagemBloqueio);
     // Mesma mensagem nos outros casos: não revela se o usuário existe.
     throw new ErroDeRegra("nao_autenticado", "Usuário ou senha incorretos.");
+  }
+
+  // Senha certa: zera a contagem, mas só se ninguém bloqueou no meio do caminho.
+  const liberado = await sql<{ id: number }>`
+    UPDATE usuario SET senha_erros = 0
+    WHERE id = ${usuario.id} AND (senha_bloqueada_ate IS NULL OR senha_bloqueada_ate <= now())
+    RETURNING id`.execute(db);
+  if (liberado.rows.length === 0) {
+    await auditar(db, { usuarioId: usuario.id, acao: "sessao.entrar", resultado: "recusado", detalhes: { login: usuario.login, motivo: "bloqueado" }, ip: origem.ip });
+    throw new ErroDeRegra("bloqueado", mensagemBloqueio);
   }
 
   const cargos = await cargosVigentes(db, usuario.id);
   const token = novoToken();
   const expiraEm = new Date(Date.now() + DURACAO_SESSAO_MS);
   await db.transaction().execute(async (trx) => {
-    await trx.updateTable("usuario").set({ senha_erros: 0, senha_bloqueada_ate: null }).where("id", "=", usuario.id).execute();
     await trx
       .insertInto("sessao")
       .values({

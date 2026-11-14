@@ -48,6 +48,8 @@ export interface UsuarioTabela {
   totp_segredo: string | null; // cifrado
   totp_pendente: string | null; // cifrado, enquanto a pessoa configura
   totp_ultimo_passo: ColumnType<string | null, number | string | null | undefined, number | string | null>;
+  totp_erros: Generated<number>;
+  totp_bloqueado_ate: Instante | null;
 }
 
 export interface UsuarioPerfilTabela {
@@ -71,7 +73,6 @@ export interface SessaoTabela {
   agente: string | null;
   cargo_ativo: string | null;
   segundo_fator_ok: Generated<boolean>;
-  segundo_fator_erros: Generated<number>;
 }
 
 export interface EstacaoTabela {

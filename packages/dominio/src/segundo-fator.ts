@@ -13,6 +13,7 @@ import { cifrar, decifrar } from "./segredos";
 import { cargosVigentes, exigir, type Ator } from "./sessao";
 
 export const SEGUNDO_FATOR_MAX_ERROS = 5;
+export const SEGUNDO_FATOR_BLOQUEIO_MIN = 15;
 const EMISSOR = "ERP Alimentação";
 
 function totp(segredoBase32: string, login: string) {
@@ -21,7 +22,10 @@ function totp(segredoBase32: string, login: string) {
 
 /** Começa a configuração: gera o segredo (pendente até a pessoa confirmar um código). */
 export async function iniciarSegundoFator(db: Banco, ator: Ator | null): Promise<{ uri: string; segredo: string }> {
-  if (!ator?.sessaoId) throw new ErroDeRegra("nao_autenticado", "Entre com seu usuário para continuar.");
+  if (!ator?.sessaoId) {
+    await auditar(db, { usuarioId: null, acao: "segundo_fator.iniciar", resultado: "recusado", detalhes: { motivo: "sem_sessao" } });
+    throw new ErroDeRegra("nao_autenticado", "Entre com seu usuário para continuar.");
+  }
   if (ator.segundoFatorConfigurado) {
     throw new ErroDeRegra("conflito", "O segundo fator já está configurado. Para trocar de celular, peça a outro administrador para reiniciá-lo.");
   }
@@ -33,21 +37,37 @@ export async function iniciarSegundoFator(db: Banco, ator: Ator | null): Promise
 
 /**
  * Confere o código. Se a pessoa estava configurando, o segredo pendente passa a valer.
- * Um código já usado não vale de novo. 5 erros na mesma sessão encerram a sessão.
+ * Um código já usado não vale de novo. Os erros contam por PESSOA (todas as sessões): a
+ * tentativa é reservada antes da conferência e 5 erros bloqueiam por 15 minutos e
+ * encerram a sessão. Assim nem rajada nem entrar de novo com a senha dão mais chances.
  */
 export async function confirmarSegundoFator(db: Banco, ator: Ator | null, dados: unknown): Promise<Ator> {
-  if (!ator?.sessaoId) throw new ErroDeRegra("nao_autenticado", "Entre com seu usuário para continuar.");
+  if (!ator?.sessaoId) {
+    await auditar(db, { usuarioId: null, acao: "segundo_fator.confirmar", resultado: "recusado", detalhes: { motivo: "sem_sessao" } });
+    throw new ErroDeRegra("nao_autenticado", "Entre com seu usuário para continuar.");
+  }
   const parse = z.object({ codigo: z.string().trim().regex(/^[0-9]{6}$/) }).safeParse(dados);
   if (!parse.success) throw new ErroDeRegra("dados_invalidos", "Digite os 6 números do aplicativo autenticador.");
   if (ator.segundoFator === "ok") return ator;
+  const sessaoId = ator.sessaoId;
+  const mensagemBloqueio = `Muitos códigos errados. Espere ${SEGUNDO_FATOR_BLOQUEIO_MIN} minutos e entre de novo com sua senha.`;
 
-  const u = await db
-    .selectFrom("usuario")
-    .select(["totp_segredo", "totp_pendente", "totp_ultimo_passo"])
-    .where("id", "=", ator.usuarioId)
-    .executeTakeFirstOrThrow();
+  const reserva = await sql<{ totp_segredo: string | null; totp_pendente: string | null; totp_ultimo_passo: string | null }>`
+    UPDATE usuario SET totp_erros = totp_erros + 1
+    WHERE id = ${ator.usuarioId} AND totp_erros < ${SEGUNDO_FATOR_MAX_ERROS}
+      AND (totp_bloqueado_ate IS NULL OR totp_bloqueado_ate <= now())
+    RETURNING totp_segredo, totp_pendente, totp_ultimo_passo`.execute(db);
+  const u = reserva.rows[0];
+  if (!u) {
+    await db.updateTable("sessao").set({ revogada_em: new Date() }).where("id", "=", sessaoId).where("revogada_em", "is", null).execute();
+    await auditar(db, { usuarioId: ator.usuarioId, acao: "segundo_fator.confirmar", resultado: "recusado", detalhes: { motivo: "bloqueado" }, ip: ator.ip });
+    throw new ErroDeRegra("bloqueado", mensagemBloqueio);
+  }
   const guardado = u.totp_segredo ?? u.totp_pendente;
-  if (!guardado) throw new ErroDeRegra("dados_invalidos", "Configure o segundo fator primeiro.");
+  if (!guardado) {
+    await db.updateTable("usuario").set((eb) => ({ totp_erros: eb("totp_erros", "-", 1) })).where("id", "=", ator.usuarioId).where("totp_erros", ">", 0).execute();
+    throw new ErroDeRegra("dados_invalidos", "Configure o segundo fator primeiro.");
+  }
   const configurando = !u.totp_segredo;
 
   const t = totp(decifrar(guardado), ator.login);
@@ -56,35 +76,40 @@ export async function confirmarSegundoFator(db: Banco, ator: Ator | null, dados:
   const repetido = passo !== null && u.totp_ultimo_passo !== null && passo <= Number(u.totp_ultimo_passo);
 
   if (passo === null || repetido) {
-    const r = await sql<{ erros: number }>`
-      UPDATE sessao SET segundo_fator_erros = segundo_fator_erros + 1,
-        revogada_em = CASE WHEN segundo_fator_erros + 1 >= ${SEGUNDO_FATOR_MAX_ERROS} THEN now() ELSE revogada_em END
-      WHERE id = ${ator.sessaoId} RETURNING segundo_fator_erros AS erros`.execute(db);
-    const encerrou = (r.rows[0]?.erros ?? 0) >= SEGUNDO_FATOR_MAX_ERROS;
+    const bloqueio = await sql<{ id: number }>`
+      UPDATE usuario SET totp_erros = 0, totp_bloqueado_ate = now() + make_interval(mins => ${SEGUNDO_FATOR_BLOQUEIO_MIN})
+      WHERE id = ${ator.usuarioId} AND totp_erros >= ${SEGUNDO_FATOR_MAX_ERROS}
+      RETURNING id`.execute(db);
+    const bloqueou = bloqueio.rows.length > 0;
+    if (bloqueou) await db.updateTable("sessao").set({ revogada_em: new Date() }).where("usuario_id", "=", ator.usuarioId).where("revogada_em", "is", null).execute();
     await auditar(db, {
       usuarioId: ator.usuarioId,
       acao: "segundo_fator.confirmar",
       resultado: "falhou",
-      detalhes: { motivo: repetido ? "codigo_repetido" : "codigo_errado", encerrouSessao: encerrou },
+      detalhes: { motivo: repetido ? "codigo_repetido" : "codigo_errado", bloqueou },
       ip: ator.ip,
     });
-    if (encerrou) throw new ErroDeRegra("nao_autenticado", "Muitos códigos errados. Entre de novo com sua senha.");
+    if (bloqueou) throw new ErroDeRegra("bloqueado", mensagemBloqueio);
     throw new ErroDeRegra("dados_invalidos", "Código errado ou já usado. Espere o próximo código e tente de novo.");
   }
 
   await db.transaction().execute(async (trx) => {
-    // O "passo" só avança: dois pedidos simultâneos com o mesmo código não passam os dois.
+    // O "passo" só avança (dois pedidos com o mesmo código não passam os dois) e nada vale
+    // se a pessoa foi bloqueada no meio do caminho.
     const r = await trx
       .updateTable("usuario")
       .set({
         totp_ultimo_passo: passo,
+        totp_erros: 0,
         ...(configurando ? { totp_segredo: guardado, totp_pendente: null } : {}),
       })
       .where("id", "=", ator.usuarioId)
       .where((eb) => eb.or([eb("totp_ultimo_passo", "is", null), eb("totp_ultimo_passo", "<", String(passo))]))
+      .where((eb) => eb.or([eb("totp_bloqueado_ate", "is", null), eb("totp_bloqueado_ate", "<=", new Date())]))
       .executeTakeFirst();
     if (r.numUpdatedRows === 0n) throw new ErroDeRegra("dados_invalidos", "Código já usado. Espere o próximo código.");
-    await trx.updateTable("sessao").set({ segundo_fator_ok: true }).where("id", "=", ator.sessaoId!).execute();
+    const s = await trx.updateTable("sessao").set({ segundo_fator_ok: true }).where("id", "=", sessaoId).where("revogada_em", "is", null).executeTakeFirst();
+    if (s.numUpdatedRows === 0n) throw new ErroDeRegra("nao_autenticado", "Sua sessão foi encerrada. Entre de novo com sua senha.");
     await auditar(trx, {
       usuarioId: ator.usuarioId,
       acao: configurando ? "segundo_fator.configurar" : "segundo_fator.confirmar",
@@ -106,7 +131,7 @@ export async function reiniciarSegundoFator(db: Banco, ator: Ator | null, usuari
   await db.transaction().execute(async (trx) => {
     const r = await trx
       .updateTable("usuario")
-      .set({ totp_segredo: null, totp_pendente: null, totp_ultimo_passo: null })
+      .set({ totp_segredo: null, totp_pendente: null, totp_ultimo_passo: null, totp_erros: 0, totp_bloqueado_ate: null })
       .where("id", "=", usuarioId)
       .executeTakeFirst();
     if (r.numUpdatedRows === 0n) throw new ErroDeRegra("nao_encontrado", "Usuário não encontrado.");

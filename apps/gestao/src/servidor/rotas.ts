@@ -197,8 +197,15 @@ export const verEstacoes = seguro(async (req) => json(await listarEstacoes(obter
 
 /** Cadastra ESTE aparelho como estação: o token vai só no cookie dele. */
 export const cadastrarEsteAparelho = seguro(async (req) => {
-  const r = await cadastrarEstacao(obterBanco(), await ator(req), await corpoJson(req));
-  return json({ id: r.id, nome: r.nome }, 201, { "set-cookie": cookieEstacao(r.token) });
+  const db = obterBanco();
+  const gestor = await ator(req);
+  const r = await cadastrarEstacao(db, gestor, await corpoJson(req));
+  // O tablet fica na cozinha: a sessão do gestor nele é encerrada na mesma hora.
+  if (gestor) await sair(db, gestor);
+  const resposta = json({ id: r.id, nome: r.nome }, 201);
+  resposta.headers.append("set-cookie", cookieEstacao(r.token));
+  resposta.headers.append("set-cookie", cookieApagado());
+  return resposta;
 });
 
 export const revogar = seguroComId(async (req, p) => {

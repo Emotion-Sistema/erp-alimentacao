@@ -143,3 +143,29 @@ img { max-width: 100%; height: auto; }
 
 /* Páginas simples (loja e site) */
 .erp-pagina { max-width: 48rem; margin: 0 auto; padding: var(--espaco-5) var(--espaco-4); }
+
+/* Tabela: rola dentro da própria caixa; em tela estreita cada linha vira um bloco */
+.erp-tabela-rolagem { overflow-x: auto; max-width: 100%; }
+.erp-tabela { width: 100%; border-collapse: collapse; }
+.erp-tabela th, .erp-tabela td {
+  text-align: left; vertical-align: top;
+  padding: var(--espaco-3); border-bottom: 1px solid var(--cor-borda);
+}
+.erp-tabela th { background: var(--cor-superficie); font-weight: 700; }
+@media (max-width: 40rem) {
+  .erp-tabela thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .erp-tabela, .erp-tabela tbody, .erp-tabela tr, .erp-tabela td { display: block; width: 100%; }
+  .erp-tabela tr { border: 1px solid var(--cor-borda); border-radius: var(--raio); margin-bottom: var(--espaco-3); padding: var(--espaco-2); }
+  .erp-tabela td { border-bottom: 0; padding: var(--espaco-1) var(--espaco-2); overflow-wrap: anywhere; }
+  .erp-tabela td[data-rotulo]::before { content: attr(data-rotulo) ": "; font-weight: 700; }
+}
+
+/* Etiqueta de situação */
+.erp-etiqueta {
+  display: inline-block; padding: 0 var(--espaco-2);
+  border: 2px solid var(--cor-borda); border-radius: var(--raio);
+  font-weight: 700; font-size: 0.9em; white-space: nowrap;
+}
+.erp-etiqueta--sucesso { border-color: var(--cor-sucesso); color: var(--cor-sucesso); }
+.erp-etiqueta--atencao { border-color: var(--cor-atencao); color: var(--cor-atencao); }
+.erp-etiqueta--perigo { border-color: var(--cor-perigo); background: var(--cor-perigo); color: var(--cor-fundo); }

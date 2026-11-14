@@ -166,14 +166,17 @@ describe("segundo fator (dono e administrador)", () => {
     expect((await erroDe(iniciarSegundoFator(db, b))).codigo).toBe("conflito");
   });
 
-  it("5 códigos errados encerram a sessão", async () => {
+  it("5 códigos errados bloqueiam a pessoa por 15 minutos e encerram a sessão", async () => {
     const adm = await atorDoCargo(db, "administrador");
     await criarUsuario(db, adm, { nome: "Outra Administradora", login: "e03.outra.adm", senha: SENHA, cargo: "administrador", unidadeId });
     const { token, ator } = await entrar(db, { login: "e03.outra.adm", senha: SENHA }, origem);
     await iniciarSegundoFator(db, ator);
     for (let i = 0; i < 4; i++) expect((await erroDe(confirmarSegundoFator(db, ator, { codigo: "000000" }))).codigo).toBe("dados_invalidos");
-    expect((await erroDe(confirmarSegundoFator(db, ator, { codigo: "000000" }))).codigo).toBe("nao_autenticado");
+    expect((await erroDe(confirmarSegundoFator(db, ator, { codigo: "000000" }))).codigo).toBe("bloqueado");
     expect(await atorDaSessao(db, token)).toBeNull();
+    // Entrar de novo com a senha não dá mais chances: o bloqueio é da pessoa, não da sessão.
+    const outra = (await entrar(db, { login: "e03.outra.adm", senha: SENHA }, origem)).ator;
+    expect((await erroDe(confirmarSegundoFator(db, outra, { codigo: "000000" }))).codigo).toBe("bloqueado");
   });
 
   it("quem tem cargo de administrador precisa do segundo fator mesmo agindo como caixa", async () => {

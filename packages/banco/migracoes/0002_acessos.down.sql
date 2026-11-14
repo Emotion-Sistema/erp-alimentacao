@@ -4,7 +4,6 @@
 DROP TABLE IF EXISTS aviso, estacao_presenca, estacao;
 
 ALTER TABLE sessao
-  DROP COLUMN IF EXISTS segundo_fator_erros,
   DROP COLUMN IF EXISTS segundo_fator_ok,
   DROP COLUMN IF EXISTS cargo_ativo;
 
@@ -18,6 +17,8 @@ ALTER TABLE usuario_perfil
 ALTER TABLE usuario_perfil ADD PRIMARY KEY (usuario_id, perfil_codigo, unidade_id);
 
 ALTER TABLE usuario
+  DROP COLUMN IF EXISTS totp_bloqueado_ate,
+  DROP COLUMN IF EXISTS totp_erros,
   DROP COLUMN IF EXISTS totp_ultimo_passo,
   DROP COLUMN IF EXISTS totp_pendente,
   DROP COLUMN IF EXISTS totp_segredo,

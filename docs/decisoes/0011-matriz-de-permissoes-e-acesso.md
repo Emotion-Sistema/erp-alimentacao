@@ -56,7 +56,8 @@ o seu. Cargo tirado enquanto a pessoa está dentro: o poder some na hora. Tirar 
 apaga: a linha ganha data e autor.
 
 ### 4. Bloqueios
-- **Senha:** 5 erros seguidos bloqueiam por 15 minutos (nem a senha certa entra). Contagem atômica.
+- **Senha:** 5 erros seguidos bloqueiam por 15 minutos (nem a senha certa entra). A tentativa é
+  reservada no banco antes de conferir a senha: com rajada simultânea, no máximo 5 conferências.
 - **Código da cozinha:** 3 erros seguidos bloqueiam até o supervisor, gerente ou administrador
   desbloquear; registra e gera um aviso para supervisor e gerente (uma vez só, mesmo com
   tentativas simultâneas). A central de avisos e o aviso no aparelho são a E05.
@@ -67,8 +68,9 @@ apaga: a linha ganha data e autor.
 Código de 6 números de um aplicativo autenticador (padrão TOTP, biblioteca `otpauth`).
 Vale para quem **tem** cargo de dono ou administrador, mesmo agindo com outro cargo.
 Sem confirmar, o servidor recusa tudo. A semente fica cifrada (AES-256-GCM) com a chave
-`ERP_CHAVE_SEGREDOS`, que em produção vem do cofre. Código já usado não vale de novo;
-5 erros encerram a sessão. Celular perdido: **outro** administrador reinicia.
+`ERP_CHAVE_SEGREDOS`, que em produção vem do cofre. Código já usado não vale de novo.
+Os erros contam por pessoa (todas as sessões, reservados antes de conferir): 5 erros bloqueiam
+por 15 minutos e encerram as sessões. Entrar de novo com a senha não dá mais chances. Celular perdido: **outro** administrador reinicia.
 Limite conhecido: no primeiro acesso, quem tem a senha configura o segundo fator. Por isso
 a senha inicial deve ser entregue em mãos e trocada no primeiro acesso.
 
@@ -78,6 +80,9 @@ guarda só o hash). A pessoa toca na foto e digita o código no início do turno
 foto troca quem está ativa; sozinha na tela, tudo sai em nome dela. Entrar em outra estação
 tira da anterior. Saída automática no fim do turno da unidade (padrão 23:30, no máximo 16 h).
 Ação sensível pede o código de novo. Desligar a pessoa ou a estação tira todo mundo na hora.
+Quem sobra sozinha na tela vira a ativa. Cadastrar o tablet encerra, na mesma resposta, a
+sessão do gestor que fez o cadastro. A própria pessoa troca o código, mas não se desbloqueia.
+Cada gestor só mexe em gente da própria unidade (criar, dar cargo, desligar, desbloquear, listar).
 
 ## Hipóteses a confirmar com o responsável
 1. Atendente **não** altera nem cancela pedido (só supervisor e acima).
@@ -86,6 +91,15 @@ Ação sensível pede o código de novo. Desligar a pessoa ou a estação tira t
 4. Supervisor vê funcionários e desbloqueia código, mas **não** cria nem desliga.
 5. Caixa vê todos os pedidos (precisa, para cobrar a mesa).
 6. Senha: 5 erros e 15 minutos de bloqueio. Fim do turno padrão: 23:30.
+
+## Limites conhecidos
+- O aviso "bloqueado" só aparece para login que existe: com 5 tentativas dá para saber se um
+  login existe. Aceito para o sistema interno (logins seguem o nome das pessoas). Medir a
+  diferença de tempo de resposta continua pendente (0010).
+- O gerente geral não dá cargo a si mesmo, mas pode criar um login de caixa com senha que ele
+  conhece. A auditoria registra quem criou; a conferência é do dono.
+- Recusas anônimas (sem sessão, tablet não cadastrado) são registradas; sem o limite de
+  requisições (E06), um script poderia encher a auditoria.
 
 ## Fica para depois
 - Ajustes pontuais de permissão por pessoa, com autor e motivo (RC-12): quando aparecer o

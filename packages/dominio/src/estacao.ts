@@ -44,19 +44,28 @@ export async function definirCodigo(db: Banco, ator: Ator | null, usuarioId: num
   }
   if (!cargosAlvo.some(ehDaEstacao)) throw new ErroDeRegra("dados_invalidos", "Só quem trabalha na cozinha usa código pessoal.");
   const h = await hashSenha(parse.data.codigo);
-  const r = await db
-    .updateTable("usuario")
-    .set({ codigo_hash: h, codigo_erros: 0, codigo_bloqueado_em: null })
-    .where("id", "=", usuarioId)
-    .where("ativo", "=", true)
-    .executeTakeFirst();
-  if (r.numUpdatedRows === 0n) throw new ErroDeRegra("nao_encontrado", "Usuário não encontrado.");
+  // A própria pessoa troca o código, mas não se desbloqueia: isso é do supervisor (0011, item 4).
+  let q = db.updateTable("usuario").set(proprio ? { codigo_hash: h } : { codigo_hash: h, codigo_erros: 0, codigo_bloqueado_em: null }).where("id", "=", usuarioId).where("ativo", "=", true);
+  if (proprio) q = q.where("codigo_bloqueado_em", "is", null);
+  const r = await q.executeTakeFirst();
+  if (r.numUpdatedRows === 0n) {
+    if (proprio) {
+      await auditar(db, { usuarioId: quem.usuarioId, acao: "codigo.definir", resultado: "recusado", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { motivo: "codigo_bloqueado" }, ip: quem.ip });
+      throw new ErroDeRegra("bloqueado", "Seu código está bloqueado. Peça ao supervisor para desbloquear.");
+    }
+    throw new ErroDeRegra("nao_encontrado", "Usuário não encontrado.");
+  }
   // O código nunca vai para a auditoria.
   await auditar(db, { usuarioId: quem.usuarioId, acao: "codigo.definir", resultado: "permitido", alvoTipo: "usuario", alvoId: usuarioId, ip: quem.ip });
 }
 
 export async function desbloquearCodigo(db: Banco, ator: Ator | null, usuarioId: number): Promise<void> {
   const quem = await exigir(db, ator, "codigos.desbloquear", { tipo: "usuario", id: usuarioId });
+  const unidadesDeQuem = new Set((await cargosVigentes(db, quem.usuarioId)).map((c) => c.unidadeId));
+  if (!(await cargosVigentes(db, usuarioId)).some((c) => unidadesDeQuem.has(c.unidadeId))) {
+    await auditar(db, { usuarioId: quem.usuarioId, acao: "codigos.desbloquear", resultado: "recusado", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { motivo: "fora_da_unidade" }, ip: quem.ip });
+    throw new ErroDeRegra("nao_encontrado", "Pessoa não encontrada na sua unidade.");
+  }
   const r = await db
     .updateTable("usuario")
     .set({ codigo_erros: 0, codigo_bloqueado_em: null })
@@ -92,28 +101,32 @@ async function conferirCodigo(db: Banco, usuarioId: number, codigo: string, cont
     if (r.numUpdatedRows === 0n) throw new ErroDeRegra("bloqueado", "Seu código está bloqueado. Chame o supervisor.");
     return;
   }
-  const r = await sql<{ bloqueou: boolean; erros: number }>`
-    UPDATE usuario SET
-      codigo_erros = CASE WHEN codigo_erros + 1 >= ${CODIGO_MAX_ERROS} THEN 0 ELSE codigo_erros + 1 END,
-      codigo_bloqueado_em = CASE WHEN codigo_erros + 1 >= ${CODIGO_MAX_ERROS} THEN now() ELSE NULL END
-    WHERE id = ${usuarioId} AND codigo_bloqueado_em IS NULL
-    RETURNING (codigo_bloqueado_em IS NOT NULL) AS bloqueou, codigo_erros AS erros`.execute(db);
-  const bloqueou = !!r.rows[0]?.bloqueou;
-  await auditar(db, { usuarioId, acao: contexto.acao, resultado: "falhou", detalhes: { motivo: "codigo_errado", estacaoId: contexto.estacaoId, bloqueou } });
-  if (bloqueou) {
-    await auditar(db, { usuarioId, acao: "codigo.bloqueado", resultado: "permitido", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { estacaoId: contexto.estacaoId } });
-    await db
-      .insertInto("aviso")
-      .values({
-        unidade_id: contexto.unidadeId,
-        para_cargos: sql<string[]>`ARRAY['supervisor','gerente_geral']::text[]`,
-        tipo: "codigo_bloqueado",
-        texto: `O código de ${u.nome} foi bloqueado depois de ${CODIGO_MAX_ERROS} erros. Desbloqueie em Funcionários.`,
-        dados: JSON.stringify({ usuarioId, estacaoId: contexto.estacaoId }),
-      })
-      .execute();
-    throw new ErroDeRegra("bloqueado", "Código errado 3 vezes. Seu código foi bloqueado e o supervisor foi avisado.");
-  }
+  // Erro, bloqueio, registro e aviso juntos: ou tudo fica gravado, ou nada.
+  const r = await db.transaction().execute(async (trx) => {
+    const r = await sql<{ bloqueou: boolean; erros: number }>`
+      UPDATE usuario SET
+        codigo_erros = CASE WHEN codigo_erros + 1 >= ${CODIGO_MAX_ERROS} THEN 0 ELSE codigo_erros + 1 END,
+        codigo_bloqueado_em = CASE WHEN codigo_erros + 1 >= ${CODIGO_MAX_ERROS} THEN now() ELSE NULL END
+      WHERE id = ${usuarioId} AND codigo_bloqueado_em IS NULL
+      RETURNING (codigo_bloqueado_em IS NOT NULL) AS bloqueou, codigo_erros AS erros`.execute(trx);
+    const bloqueou = !!r.rows[0]?.bloqueou;
+    await auditar(trx, { usuarioId, acao: contexto.acao, resultado: "falhou", detalhes: { motivo: "codigo_errado", estacaoId: contexto.estacaoId, bloqueou } });
+    if (bloqueou) {
+      await auditar(trx, { usuarioId, acao: "codigo.bloqueado", resultado: "permitido", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { estacaoId: contexto.estacaoId } });
+      await trx
+        .insertInto("aviso")
+        .values({
+          unidade_id: contexto.unidadeId,
+          para_cargos: sql<string[]>`ARRAY['supervisor','gerente_geral']::text[]`,
+          tipo: "codigo_bloqueado",
+          texto: `O código de ${u.nome} foi bloqueado depois de ${CODIGO_MAX_ERROS} erros. Desbloqueie em Funcionários.`,
+          dados: JSON.stringify({ usuarioId, estacaoId: contexto.estacaoId }),
+        })
+        .execute();
+    }
+    return r;
+  });
+  if (r.rows[0]?.bloqueou) throw new ErroDeRegra("bloqueado", "Código errado 3 vezes. Seu código foi bloqueado e o supervisor foi avisado.");
   if (r.rows.length === 0) throw new ErroDeRegra("bloqueado", "Seu código está bloqueado. Chame o supervisor.");
   const restam = CODIGO_MAX_ERROS - (r.rows[0]?.erros ?? 0);
   throw new ErroDeRegra("nao_autenticado", `Código errado. Restam ${restam} tentativa${restam === 1 ? "" : "s"}.`);
@@ -199,7 +212,11 @@ async function estacaoDoToken(db: Banco, token: string | null | undefined) {
 
 async function exigirEstacao(db: Banco, token: string | null | undefined) {
   const e = await estacaoDoToken(db, token);
-  if (!e) throw new ErroDeRegra("nao_autenticado", "Este aparelho não está cadastrado como estação.");
+  if (!e) {
+    // Limite de requisições (E06) impede que isso vire enchente de registros.
+    await auditar(db, { usuarioId: null, acao: "estacao.acesso", resultado: "recusado", detalhes: { motivo: token ? "token_invalido" : "sem_token" } });
+    throw new ErroDeRegra("nao_autenticado", "Este aparelho não está cadastrado como estação.");
+  }
   return e;
 }
 
@@ -211,6 +228,7 @@ async function fecharVencidas(db: Banco) {
     .where("saiu_em", "is", null)
     .where("expira_em", "<=", new Date())
     .execute();
+  await ajustarAtivas(db);
 }
 
 /** Trava a estação (e a pessoa) até o fim da transação: mudanças na mesma tela entram em fila. */
@@ -219,12 +237,16 @@ async function travar(db: Banco, estacaoId: number, usuarioId?: number) {
   if (usuarioId !== undefined) await sql`SELECT id FROM usuario WHERE id = ${usuarioId} FOR UPDATE`.execute(db);
 }
 
-/** Se só uma pessoa ficou na tela, ela passa a ser a ativa (todo toque sai em nome dela). */
-async function ajustarAtiva(db: Banco, estacaoId: number) {
+/**
+ * Em qualquer estação onde só uma pessoa ficou na tela, ela passa a ser a ativa (todo toque
+ * sai em nome dela). Chamar depois de qualquer saída: sair, trocar de estação, desligar,
+ * tirar cargo, fim do turno.
+ */
+export async function ajustarAtivas(db: Banco) {
   await sql`
-    UPDATE estacao_presenca SET ativa_desde = now()
-    WHERE estacao_id = ${estacaoId} AND saiu_em IS NULL AND ativa_desde IS NULL
-      AND (SELECT count(*) FROM estacao_presenca p WHERE p.estacao_id = ${estacaoId} AND p.saiu_em IS NULL) = 1`.execute(db);
+    UPDATE estacao_presenca p SET ativa_desde = now()
+    WHERE p.saiu_em IS NULL AND p.ativa_desde IS NULL
+      AND (SELECT count(*) FROM estacao_presenca q WHERE q.estacao_id = p.estacao_id AND q.saiu_em IS NULL) = 1`.execute(db);
 }
 
 /** O que o tablet mostra: a estação e as pessoas da cozinha (fotos), com quem está e quem é a ativa. */
@@ -291,10 +313,12 @@ export async function entrarNaEstacao(db: Banco, token: string | null | undefine
     await sql`
       INSERT INTO estacao_presenca (estacao_id, usuario_id, cargo, expira_em, ativa_desde)
       SELECT ${e.id}, ${usuarioId}, ${cargo}, LEAST(
-        CASE WHEN fim > now() THEN fim ELSE fim + interval '1 day' END,
+        (CASE WHEN fim_local > agora_local THEN fim_local ELSE fim_local + interval '1 day' END) AT TIME ZONE fuso,
         now() + make_interval(hours => ${PRESENCA_MAX_HORAS})), now()
-      FROM (SELECT (date_trunc('day', now() AT TIME ZONE fuso_horario) + fim_turno) AT TIME ZONE fuso_horario AS fim
+      FROM (SELECT date_trunc('day', now() AT TIME ZONE fuso_horario) + fim_turno AS fim_local,
+                   now() AT TIME ZONE fuso_horario AS agora_local, fuso_horario AS fuso
             FROM unidade WHERE id = ${e.unidade_id}) t`.execute(trx);
+    await ajustarAtivas(trx); // a estação de onde ela saiu pode ter ficado com uma pessoa só
     await auditar(trx, { usuarioId, acao: "estacao.entrar", resultado: "permitido", alvoTipo: "estacao", alvoId: e.id, detalhes: { cargo } });
   });
 }
@@ -318,7 +342,10 @@ export async function ativarNaEstacao(db: Banco, token: string | null | undefine
   const parse = dadosPessoa.safeParse(dados);
   if (!parse.success) throw new ErroDeRegra("dados_invalidos", "Toque na sua foto.");
   const p = await presencaAqui(db, e.id, parse.data.usuarioId);
-  if (!p) throw new ErroDeRegra("nao_autenticado", "Entre com seu código primeiro.");
+  if (!p) {
+    await auditar(db, { usuarioId: parse.data.usuarioId, acao: "estacao.ativar", resultado: "recusado", alvoTipo: "estacao", alvoId: e.id, detalhes: { motivo: "nao_entrou" } });
+    throw new ErroDeRegra("nao_autenticado", "Entre com seu código primeiro.");
+  }
   await db.transaction().execute(async (trx) => {
     await travar(trx, e.id);
     await trx.updateTable("estacao_presenca").set({ ativa_desde: null }).where("estacao_id", "=", e.id).where("saiu_em", "is", null).execute();
@@ -343,7 +370,7 @@ export async function sairDaEstacao(db: Banco, token: string | null | undefined,
       .where("saiu_em", "is", null)
       .executeTakeFirst();
     if (r.numUpdatedRows === 0n) throw new ErroDeRegra("nao_encontrado", "Esta pessoa não está nesta estação.");
-    await ajustarAtiva(trx, e.id);
+    await ajustarAtivas(trx);
     await auditar(trx, { usuarioId: parse.data.usuarioId, acao: "estacao.sair", resultado: "permitido", alvoTipo: "estacao", alvoId: e.id });
   });
 }
@@ -355,6 +382,7 @@ export async function sairDaEstacao(db: Banco, token: string | null | undefined,
 export async function atorDaEstacao(db: Banco, token: string | null | undefined, opcoes: { codigo?: string; ip?: string | null } = {}): Promise<Ator | null> {
   const e = await estacaoDoToken(db, token);
   if (!e) return null;
+  await fecharVencidas(db);
   const p = await db
     .selectFrom("estacao_presenca")
     .innerJoin("usuario", "usuario.id", "estacao_presenca.usuario_id")

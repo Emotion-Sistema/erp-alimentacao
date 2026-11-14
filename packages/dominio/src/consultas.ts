@@ -1,6 +1,7 @@
 /** Consultas de leitura: auditoria (RC-17, base) e avisos do cargo. */
 import type { Banco } from "@erp/banco";
 import { z } from "zod";
+import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
 import { exigir, type Ator } from "./sessao";
 
@@ -44,8 +45,11 @@ export async function consultarAuditoria(db: Banco, ator: Ator | null, filtros: 
 
 /** Avisos para o cargo ativo, na unidade dele (central completa na E05). */
 export async function avisosDoCargo(db: Banco, ator: Ator | null) {
-  if (!ator) throw new ErroDeRegra("nao_autenticado", "Entre com seu usuário para continuar.");
-  if (ator.segundoFator === "pendente") throw new ErroDeRegra("segundo_fator", "Confirme o código do aplicativo autenticador.");
+  if (!ator || ator.segundoFator === "pendente") {
+    await auditar(db, { usuarioId: ator?.usuarioId ?? null, acao: "avisos.ver", resultado: "recusado", detalhes: { motivo: ator ? "segundo_fator_pendente" : "sem_sessao" }, ip: ator?.ip ?? null });
+    if (!ator) throw new ErroDeRegra("nao_autenticado", "Entre com seu usuário para continuar.");
+    throw new ErroDeRegra("segundo_fator", "Confirme o código do aplicativo autenticador.");
+  }
   if (!ator.cargoAtivo || !ator.unidadeId) return [];
   return db
     .selectFrom("aviso")
