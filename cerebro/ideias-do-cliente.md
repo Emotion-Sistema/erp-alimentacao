@@ -5,7 +5,7 @@ Classificação: **núcleo** | **evolução** | **adiar**.
 
 | # | Data | Ideia (na linguagem do cliente) | Problema que resolve | Classificação | Impacto técnico | Dependências | O que desloca | Decisão |
 |---|---|---|---|---|---|---|---|---|
-| 1 | | (a preencher) | | | | | | |
+| 1 | 14/11/2026 | Cada categoria tem seu horário, inserido à mão no sistema, de quando está disponível no delivery e na loja | Delivery começa em hora diferente da loja; nada é vendido fora de hora (cozinha fecha 23h) | **núcleo** | Horário da loja e da cozinha por dia da semana; grade por categoria x canal (loja, delivery) x dia; exceções (feriado) e pausa manual. Servidor combina com o estoque (RC-09) | Cadastro de categorias (E07) | Pouco: E12 cresce um pouco | Aprovado como proposta: RC-09 seção 2a; aguarda dados (segunda-feira, início do delivery) |
 
 ## Já registradas como requisito (não repetir aqui)
 - Pedido chega sozinho na cozinha e baixa o estoque: RC-01.

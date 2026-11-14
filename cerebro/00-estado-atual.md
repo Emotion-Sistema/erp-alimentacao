@@ -8,7 +8,8 @@ Atualizado em: 14/11/2026
 - **E03 (cargos, login e auditoria) feita** no PR #5 (merge a853254): matriz de cargos testada pela
   tela e pela API, cargo ativo, bloqueios, segundo fator, estação da cozinha. Revisão independente
   aprovada na 2ª rodada. Hipóteses da 0011 respondidas em 14/11/2026: atendente altera pedido (avisa supervisores),
-  financeiro compra materiais, caixa com mapa de mesas. Falta saber a hora em que a cozinha fecha.
+  financeiro compra materiais, caixa com mapa de mesas. Cozinha fecha 23h, loja 23h30;
+  horários de venda por categoria e canal propostos no RC-09 (seção 2a), aguardando dados.
 - Próxima etapa: **E04** (base visual e cascas), depois do "ok" do responsável.
 - Pendente na E06: separar papéis do PostgreSQL (decisão 0010).
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano

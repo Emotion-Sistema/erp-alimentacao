@@ -92,13 +92,14 @@ Cada gestor só mexe em gente da própria unidade (criar, dar cargo, desligar, d
    se o pedido foi lançado errado ou se o cliente trocou (motivo obrigatório). Tela e aviso: E13 e E15.
 2. **Financeiro compra**, mas fora do estoque de comida: material físico, utensílios,
    eletrodomésticos (ação `compras.materiais`). Compras do estoque continuam com o gerente geral.
-   **Hipótese:** o gerente geral também pode comprar materiais (tem tudo, exceto financeiro); confirmar.
+   O gerente geral também compra materiais (confirmado em 14/11/2026).
 3. Segundo fator só para dono e administrador: ok.
 4. Supervisor vê funcionários e desbloqueia código, sem criar nem desligar: ok.
 5. **Caixa vê todos os pedidos**: sim. Tela com **mapa visual das mesas**, mostrando quais estão
    livres e ocupadas; um toque na mesa abre as funções dela. Tela: E13 e E17 (RC-13).
-6. Senha: 5 erros e 15 minutos: ok. **Fim do turno da cozinha: a confirmar** (hora em que a
-   cozinha fecha); até lá fica 23:30, configurável por unidade.
+6. Senha: 5 erros e 15 minutos: ok. **Cozinha fecha às 23h e a loja às 23h30** (14/11/2026). A saída
+   automática do tablet fica às 23h30 (fim do turno da unidade, depois da limpeza). Horários de venda
+   por categoria e canal: RC-09, seção 2a.
 
 ## Limites conhecidos
 - O aviso "bloqueado" só aparece para login que existe: com 5 tentativas dá para saber se um
