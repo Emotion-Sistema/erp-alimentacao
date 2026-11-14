@@ -43,6 +43,11 @@ POST e DELETE de outra origem são recusados.
 ## Consequências
 - Os tipos das tabelas em `packages/banco/src/tabelas.ts` são escritos à mão e precisam acompanhar as migrações.
 - Limite conhecido da E02: ainda não há bloqueio por tentativas de senha nem segundo fator; entram na E03 (RC-12: código errado três vezes bloqueia).
+- Ninguém cria, promove ou desliga alguém com cargo de mais poder que o seu (`cabeNoPoderDe`): achado da revisão independente (gerente geral conseguia criar um usuário financeiro).
+- **Pendente para a E06 (revisão de 14/11/2026):** separar os papéis no PostgreSQL. Um papel dono das tabelas roda só as migrações; a aplicação usa outro papel, com só `INSERT, SELECT` na auditoria e sem ser dona de nada. Hoje a conta da aplicação é dona da tabela e conseguiria desligar o gatilho que protege a auditoria.
+- O IP só é gravado atrás do nosso proxy (`CONFIAR_PROXY=1`, E06); até lá fica vazio, porque `x-forwarded-for` pode ser inventado.
+- Reverter a 0001 com a auditoria preenchida exige `ERP_CONFIRMO_APAGAR_AUDITORIA=sim` (só desenvolvimento).
+- Ainda não medido: tempo de resposta igual para login inexistente e senha errada (o código já confere um hash falso).
 
 ## Critério de aceite e evidência
 CI verde (lint, tipos, migração aplica/reverte/aplica, testes com PostgreSQL real, build).

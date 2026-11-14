@@ -48,7 +48,10 @@ export async function entrar(
       usuarioId: usuario?.id ?? null,
       acao: "sessao.entrar",
       resultado: "falhou",
-      detalhes: { login, motivo: !usuario ? "login_inexistente" : !usuario.ativo ? "desligado" : "senha" },
+      // Login inexistente: não grava o texto digitado (pode ser uma senha no campo errado).
+      detalhes: usuario
+        ? { login: usuario.login, motivo: !usuario.ativo ? "desligado" : "senha" }
+        : { motivo: "login_inexistente", tamanho: login.length },
       ip: origem.ip,
     });
     // Mesma mensagem em todos os casos: não revela se o usuário existe.
@@ -101,7 +104,11 @@ export async function sair(db: Banco, ator: Ator): Promise<void> {
  * Toda ação protegida começa por aqui.
  */
 export async function exigir(db: Banco, ator: Ator | null, acao: Acao, alvo?: { tipo: string; id?: string | number }): Promise<Ator> {
-  if (!ator) throw new ErroDeRegra("nao_autenticado", "Entre com seu usuário para continuar.");
+  if (!ator) {
+    // Limite de requisições (E06) impede que isso vire enchente de registros.
+    await auditar(db, { usuarioId: null, acao, resultado: "recusado", alvoTipo: alvo?.tipo, alvoId: alvo?.id, detalhes: { motivo: "sem_sessao" } });
+    throw new ErroDeRegra("nao_autenticado", "Entre com seu usuário para continuar.");
+  }
   if (!pode(ator.cargos, acao)) {
     await auditar(db, {
       usuarioId: ator.usuarioId,

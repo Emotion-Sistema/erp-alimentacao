@@ -83,6 +83,9 @@ export async function reverterUltima(url: string, log = console.log): Promise<st
     if (!m?.descer) throw new Error(`Migração ${versao} não tem arquivo de reversão.`);
     await c.query("BEGIN");
     try {
+      if (process.env.ERP_CONFIRMO_APAGAR_AUDITORIA === "sim") {
+        await c.query("SET LOCAL erp.confirmo_apagar_auditoria = 'sim'");
+      }
       await c.query(m.descer);
       await c.query("DELETE FROM migracao_aplicada WHERE versao = $1", [versao]);
       await c.query("COMMIT");

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql, type Banco } from "@erp/banco";
 import {
-  atorDaSessao, criarUsuario, entrar, ErroDeRegra, listarUsuarios, pode, sair, SENHA_DE_TESTE, CARGOS, PERMISSOES,
+  atorDaSessao, cabeNoPoderDe, criarUsuario, desligarUsuario, entrar, ErroDeRegra, listarUsuarios, pode, sair, SENHA_DE_TESTE, CARGOS, PERMISSOES,
 } from "../src/index";
 import { atorDoCargo, bancoDeTeste, prepararDados } from "./apoio";
 
@@ -52,13 +52,18 @@ describe("entrar e sair", () => {
     expect(await atorDaSessao(db, r.token)).not.toBeNull();
   });
 
-  it("senha errada e login inexistente dão a mesma mensagem e ficam registrados", async () => {
+  it("senha errada e login inexistente: mesma mensagem, os dois registrados, sem gravar o texto digitado", async () => {
+    const antes = await db.selectFrom("auditoria").select((eb) => eb.fn.max("id").as("max")).executeTakeFirstOrThrow();
     const e1 = await erroDe(entrar(db, { login: "caixa", senha: "errada-errada" }, origem));
-    const e2 = await erroDe(entrar(db, { login: "ninguem", senha: "errada-errada" }, origem));
+    const e2 = await erroDe(entrar(db, { login: "talvez-uma-senha-digitada", senha: "errada-errada" }, origem));
     expect(e1.codigo).toBe("nao_autenticado");
     expect(e2.message).toBe(e1.message);
-    const a = await ultimaAuditoria("sessao.entrar");
-    expect(a.resultado).toBe("falhou");
+    const novos = await db.selectFrom("auditoria").selectAll().where("id", ">", antes.max ?? "0").orderBy("id").execute();
+    expect(novos.map((n) => [n.acao, n.resultado, n.detalhes.motivo])).toEqual([
+      ["sessao.entrar", "falhou", "senha"],
+      ["sessao.entrar", "falhou", "login_inexistente"],
+    ]);
+    expect(JSON.stringify(novos[1]!.detalhes)).not.toContain("talvez-uma-senha-digitada");
   });
 
   it("sair revoga a sessão", async () => {
@@ -73,19 +78,25 @@ describe("entrar e sair", () => {
     expect(await atorDaSessao(db, r.token)).toBeNull();
   });
 
-  it("funcionário desligado perde o acesso na hora, inclusive sessão já aberta", async () => {
+  it("funcionário desligado perde o acesso na hora: sessões revogadas no banco e registro na auditoria", async () => {
     const adm = await atorDoCargo(db, "administrador");
-    await criarUsuario(db, adm, { nome: "Pessoa Desligada", login: "desligada", senha: "uma-senha-longa", cargo: "atendente", unidadeId });
+    const u = await criarUsuario(db, adm, { nome: "Pessoa Desligada", login: "desligada", senha: "uma-senha-longa", cargo: "atendente", unidadeId });
     const r = await entrar(db, { login: "desligada", senha: "uma-senha-longa" }, origem);
-    await db.updateTable("usuario").set({ ativo: false, desligado_em: new Date() }).where("login", "=", "desligada").execute();
+    await desligarUsuario(db, adm, u.id);
     expect(await atorDaSessao(db, r.token)).toBeNull();
+    const abertas = await db.selectFrom("sessao").select("id").where("usuario_id", "=", u.id).where("revogada_em", "is", null).execute();
+    expect(abertas).toHaveLength(0); // reativar depois não ressuscita sessão antiga
+    const a = await ultimaAuditoria("usuarios.gerenciar");
+    expect([a.resultado, a.alvo_id, a.detalhes.operacao]).toEqual(["permitido", String(u.id), "desligar"]);
     expect((await erroDe(entrar(db, { login: "desligada", senha: "uma-senha-longa" }, origem))).codigo).toBe("nao_autenticado");
   });
 });
 
 describe("permissão conferida no servidor", () => {
-  it("sem sessão: recusado", async () => {
+  it("sem sessão: recusado e registrado", async () => {
     expect((await erroDe(listarUsuarios(db, null))).codigo).toBe("nao_autenticado");
+    const a = await ultimaAuditoria("usuarios.ver");
+    expect([a.resultado, a.usuario_id, a.detalhes.motivo]).toEqual(["recusado", null, "sem_sessao"]);
   });
 
   it("atendente não lista usuários, e a recusa fica na auditoria", async () => {
@@ -101,10 +112,36 @@ describe("permissão conferida no servidor", () => {
     expect(lista.length).toBeGreaterThanOrEqual(CARGOS.length);
   });
 
-  it("gerente geral não cria dono nem administrador", async () => {
+  it("gerente geral não cria financeiro, dono nem administrador: recusa registrada e nada criado", async () => {
     const gerente = await atorDoCargo(db, "gerente_geral");
-    const e = await erroDe(criarUsuario(db, gerente, { nome: "Outro Dono", login: "outro.dono", senha: "uma-senha-longa", cargo: "dono", unidadeId }));
-    expect(e.codigo).toBe("sem_permissao");
+    for (const cargo of ["financeiro", "dono", "administrador"]) {
+      const login = `gerente.cria.${cargo}`;
+      const e = await erroDe(criarUsuario(db, gerente, { nome: "Tentativa", login, senha: "uma-senha-longa", cargo, unidadeId }));
+      expect(e.codigo).toBe("sem_permissao");
+      const a = await ultimaAuditoria("usuarios.gerenciar");
+      expect([a.resultado, a.usuario_id, a.detalhes.cargo]).toEqual(["recusado", gerente.usuarioId, cargo]);
+      expect(await db.selectFrom("usuario").select("id").where("login", "=", login).executeTakeFirst()).toBeUndefined();
+    }
+  });
+
+  it("nenhum cargo pode dar um cargo com mais poder que o seu", () => {
+    for (const quem of CARGOS) {
+      for (const alvo of CARGOS) {
+        const esperado = PERMISSOES[alvo].every((a) => PERMISSOES[quem].includes(a));
+        expect(cabeNoPoderDe([quem], [alvo]), `${quem} -> ${alvo}`).toBe(esperado);
+      }
+    }
+    expect(cabeNoPoderDe(["dono"], ["cargo_inventado"])).toBe(false);
+  });
+
+  it("gerente geral não desliga administrador, e ninguém desliga a si mesmo", async () => {
+    const gerente = await atorDoCargo(db, "gerente_geral");
+    const adm = await atorDoCargo(db, "administrador");
+    expect((await erroDe(desligarUsuario(db, gerente, adm.usuarioId))).codigo).toBe("sem_permissao");
+    expect((await erroDe(desligarUsuario(db, adm, adm.usuarioId))).codigo).toBe("sem_permissao");
+    expect(await atorDaSessao(db, null)).toBeNull();
+    const ainda = await db.selectFrom("usuario").select("ativo").where("id", "=", adm.usuarioId).executeTakeFirstOrThrow();
+    expect(ainda.ativo).toBe(true);
   });
 
   it("login repetido é recusado e senha curta é recusada", async () => {

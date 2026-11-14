@@ -47,6 +47,15 @@ export function ehCargo(v: string): v is Cargo {
   return (CARGOS as readonly string[]).includes(v);
 }
 
+/**
+ * Verdadeiro se TODAS as ações dos cargos-alvo já são permitidas a quem age.
+ * Usado para impedir que alguém crie, promova ou desligue um cargo com mais poder que o seu.
+ * Cargo desconhecido no alvo nunca cabe.
+ */
+export function cabeNoPoderDe(cargosDeQuem: readonly string[], cargosAlvo: readonly string[]): boolean {
+  return cargosAlvo.every((c) => ehCargo(c) && PERMISSOES[c].every((a) => pode(cargosDeQuem, a)));
+}
+
 /** Verdadeiro se algum dos cargos da pessoa permite a ação. Cargo desconhecido não dá nada. */
 export function pode(cargos: readonly string[], acao: Acao): boolean {
   return cargos.some((c) => ehCargo(c) && PERMISSOES[c].includes(acao));

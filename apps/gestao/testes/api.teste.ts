@@ -47,8 +47,22 @@ describe("API da gestão", () => {
     expect((await novoUsuario(req("/api/usuarios", { method: "POST", body: "{}" }))).status).toBe(401);
   });
 
-  it("cookie inventado não vale", async () => {
+  it("cookie inventado ou malformado: 401, nunca 500", async () => {
     expect((await verUsuarios(req("/api/usuarios", { cookie: "erp_sessao=inventado" }))).status).toBe(401);
+    expect((await verUsuarios(req("/api/usuarios", { cookie: "erp_sessao=%E0%A4%A" }))).status).toBe(401);
+  });
+
+  it("Origin \"null\" ou inválido: 403, nunca 500", async () => {
+    for (const origin of ["null", "não é url"]) {
+      const r = await entrarNaSessao(req("/api/sessao", { method: "POST", headers: { origin }, body: JSON.stringify({ login: "caixa", senha: SENHA_DE_TESTE }) }));
+      expect(r.status).toBe(403);
+    }
+  });
+
+  it("IP enviado pelo cliente em x-forwarded-for não é aceito sem proxy confiável", async () => {
+    await entrarNaSessao(req("/api/sessao", { method: "POST", headers: { "x-forwarded-for": "1.2.3.4" }, body: JSON.stringify({ login: "caixa", senha: "nada-disso" }) }));
+    const a = await db.selectFrom("auditoria").select("ip").orderBy("id", "desc").executeTakeFirstOrThrow();
+    expect(a.ip).toBeNull();
   });
 
   it("senha errada: 401 com mensagem genérica", async () => {
@@ -70,7 +84,7 @@ describe("API da gestão", () => {
     expect(criado).toBeUndefined();
   });
 
-  it("gerente geral lista e cria atendente, mas não cria dono", async () => {
+  it("gerente geral lista e cria atendente, mas não cria dono nem financeiro", async () => {
     const cookie = await entrarComo("gerente.geral");
     const lista = await verUsuarios(req("/api/usuarios", { cookie }));
     expect(lista.status).toBe(200);
@@ -79,8 +93,12 @@ describe("API da gestão", () => {
 
     const ok = await novoUsuario(req("/api/usuarios", { method: "POST", cookie, body: JSON.stringify({ nome: "Nova Atendente", login: "nova.atendente", senha: "uma-senha-longa", cargo: "atendente", unidadeId }) }));
     expect(ok.status).toBe(201);
-    const dono = await novoUsuario(req("/api/usuarios", { method: "POST", cookie, body: JSON.stringify({ nome: "Dono 2", login: "dono2", senha: "uma-senha-longa", cargo: "dono", unidadeId }) }));
-    expect(dono.status).toBe(403);
+    for (const cargo of ["dono", "financeiro"]) {
+      const login = `api.${cargo}`;
+      const r = await novoUsuario(req("/api/usuarios", { method: "POST", cookie, body: JSON.stringify({ nome: "Tentativa", login, senha: "uma-senha-longa", cargo, unidadeId }) }));
+      expect(r.status).toBe(403);
+      expect(await db.selectFrom("usuario").select("id").where("login", "=", login).executeTakeFirst()).toBeUndefined();
+    }
   });
 
   it("requisição de outro site é recusada mesmo com sessão válida", async () => {

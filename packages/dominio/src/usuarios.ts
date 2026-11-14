@@ -2,7 +2,7 @@ import type { Banco } from "@erp/banco";
 import { z } from "zod";
 import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
-import { CARGOS } from "./permissoes";
+import { CARGOS, cabeNoPoderDe } from "./permissoes";
 import { hashSenha, SENHA_MINIMO } from "./senha";
 import { exigir, type Ator } from "./sessao";
 
@@ -43,10 +43,11 @@ export async function criarUsuario(db: Banco, ator: Ator | null, dados: unknown)
     throw new ErroDeRegra("dados_invalidos", parse.error.issues.map((i) => i.message).join(" "));
   }
   const d = parse.data;
-  // Ninguém cria um cargo com mais poder que os seus (ex.: gerente geral não cria dono).
-  if (["dono", "administrador"].includes(d.cargo) && !quem.cargos.some((c) => c === "dono" || c === "administrador")) {
-    await auditar(db, { usuarioId: quem.usuarioId, acao: "usuarios.gerenciar", resultado: "recusado", alvoTipo: "usuario", detalhes: { cargo: d.cargo }, ip: quem.ip });
-    throw new ErroDeRegra("sem_permissao", "Só o dono ou o administrador cria esse cargo.");
+  // Ninguém dá a outro um cargo com poder que não tem (ex.: gerente geral não cria
+  // financeiro, dono nem administrador).
+  if (!cabeNoPoderDe(quem.cargos, [d.cargo])) {
+    await auditar(db, { usuarioId: quem.usuarioId, acao: "usuarios.gerenciar", resultado: "recusado", alvoTipo: "usuario", detalhes: { operacao: "criar", cargo: d.cargo }, ip: quem.ip });
+    throw new ErroDeRegra("sem_permissao", "Seu cargo não pode criar um usuário com esse cargo.");
   }
   const senhaHash = await hashSenha(d.senha);
   try {
@@ -74,4 +75,27 @@ export async function criarUsuario(db: Banco, ator: Ator | null, dados: unknown)
     if (codigo === "23503") throw new ErroDeRegra("dados_invalidos", "Unidade não encontrada.");
     throw e;
   }
+}
+
+/**
+ * Desliga o funcionário: corta o acesso na hora (todas as sessões abertas são
+ * revogadas) e registra. Nada é apagado.
+ */
+export async function desligarUsuario(db: Banco, ator: Ator | null, usuarioId: number): Promise<void> {
+  const quem = await exigir(db, ator, "usuarios.gerenciar", { tipo: "usuario", id: usuarioId });
+  const recusar = async (motivo: string, mensagem: string) => {
+    await auditar(db, { usuarioId: quem.usuarioId, acao: "usuarios.gerenciar", resultado: "recusado", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { operacao: "desligar", motivo }, ip: quem.ip });
+    throw new ErroDeRegra("sem_permissao", mensagem);
+  };
+  if (usuarioId === quem.usuarioId) await recusar("proprio_usuario", "Você não pode desligar a si mesmo.");
+  const alvo = await db.selectFrom("usuario").select(["id", "ativo"]).where("id", "=", usuarioId).executeTakeFirst();
+  if (!alvo) throw new ErroDeRegra("nao_encontrado", "Usuário não encontrado.");
+  const cargosAlvo = (await db.selectFrom("usuario_perfil").select("perfil_codigo").where("usuario_id", "=", usuarioId).execute()).map((c) => c.perfil_codigo);
+  if (!cabeNoPoderDe(quem.cargos, cargosAlvo)) await recusar("cargo_acima", "Seu cargo não pode desligar esse usuário.");
+  await db.transaction().execute(async (trx) => {
+    const agora = new Date();
+    await trx.updateTable("usuario").set({ ativo: false, desligado_em: agora }).where("id", "=", usuarioId).execute();
+    await trx.updateTable("sessao").set({ revogada_em: agora }).where("usuario_id", "=", usuarioId).where("revogada_em", "is", null).execute();
+    await auditar(trx, { usuarioId: quem.usuarioId, acao: "usuarios.gerenciar", resultado: "permitido", alvoTipo: "usuario", alvoId: usuarioId, detalhes: { operacao: "desligar" }, ip: quem.ip });
+  });
 }

@@ -28,13 +28,20 @@ export function tokenDaRequisicao(req: Request): string | null {
   const cookie = req.headers.get("cookie") ?? "";
   for (const parte of cookie.split(";")) {
     const [nome, ...valor] = parte.trim().split("=");
-    if (nome === COOKIE_SESSAO) return decodeURIComponent(valor.join("="));
+    if (nome !== COOKIE_SESSAO) continue;
+    try {
+      return decodeURIComponent(valor.join("="));
+    } catch {
+      return null; // cookie malformado vale como sem sessão
+    }
   }
   return null;
 }
 
 export function ipDaRequisicao(req: Request): string | null {
-  // Atrás do proxy reverso (E06) o IP real vem no primeiro item de x-forwarded-for.
+  // x-forwarded-for pode ser inventado pelo cliente. Só vale atrás do proxy reverso
+  // nosso (E06), que sobrescreve o cabeçalho; aí ligamos CONFIAR_PROXY=1.
+  if (process.env.CONFIAR_PROXY !== "1") return null;
   return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
 }
 
@@ -42,7 +49,9 @@ export function ipDaRequisicao(req: Request): string | null {
 export function conferirOrigem(req: Request): void {
   const origem = req.headers.get("origin");
   if (!origem) return;
-  if (new URL(origem).host !== new URL(req.url).host) {
+  // "null" ou valor inválido: tratado como outra origem.
+  const host = URL.canParse(origem) ? new URL(origem).host : null;
+  if (host !== new URL(req.url).host) {
     throw new ErroDeRegra("sem_permissao", "Requisição de outra origem recusada.");
   }
 }
