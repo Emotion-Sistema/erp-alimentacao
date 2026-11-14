@@ -88,3 +88,16 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
   color: var(--cor-primaria-texto); background: var(--cor-primaria); border: 3px solid transparent; border-radius: var(--raio);
 }
 .tecla--suave { font-size: 1.1rem; color: var(--cor-texto); background: var(--cor-superficie); border-color: var(--cor-borda); }
+
+/* ---------- Aviso de desligamento do tablet ---------- */
+.turno-discreto { margin: 0 0 var(--espaco-2); text-align: right; font-size: 0.95rem; color: var(--cor-texto-suave, var(--cor-texto)); }
+.faixa-turno {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-4);
+  padding: var(--espaco-4) var(--espaco-5, var(--espaco-4)); margin-bottom: var(--espaco-4);
+  border: 4px solid var(--cor-atencao); border-radius: 12px; background: var(--cor-superficie); color: var(--cor-texto);
+}
+.faixa-turno__texto { display: grid; gap: var(--espaco-1, 4px); font-size: 1.25rem; }
+.faixa-turno__titulo { font-size: 2rem; line-height: 1.2; }
+@keyframes faixa-pisca { 50% { background: var(--cor-atencao); color: var(--cor-fundo); } }
+.faixa-turno--pisca { animation: faixa-pisca 1s steps(1) infinite; }
+@media (prefers-reduced-motion: reduce) { .faixa-turno--pisca { animation: none; } }

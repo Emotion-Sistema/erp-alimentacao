@@ -59,7 +59,9 @@ todos os ingredientes da receita, tamanhos e adicionais.
 ## 2a. Horários de venda (definido em 14/11/2026)
 Dados do responsável: **cozinha fecha às 23h** (último pedido, em qualquer canal, loja ou
 delivery) e a **loja fecha às 23h30**. Abertura: **9h** de sexta a domingo; **10h** de terça a
-quinta. O delivery começa em horário diferente.
+quinta. **Segunda-feira: fechado.** O delivery começa em horário diferente, que muda conforme o
+dia: por isso o horário do delivery e das categorias é **sempre inserido à mão**, podendo ser
+marcado como **padrão** (repete toda semana) e ajustado no dia.
 
 Como funciona:
 - **Horário da unidade** por dia da semana: abertura, último pedido da cozinha e fechamento.

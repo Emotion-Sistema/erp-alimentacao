@@ -101,6 +101,8 @@ Apagar dados reais; migração destrutiva; emissão ou cancelamento fiscal real;
 estorno real; mensagem a clientes; contratar ou alterar serviço pago; mudar o RC-01.
 
 ## Qualidade
+**Nunca ignorar uma falha** (teste, CI, build), nem a que "passou na segunda": achar a causa e
+corrigir (pedido do responsável, 14/11/2026).
 Toda regra de dinheiro, estoque, permissão, concorrência e idempotência exige teste
 contra PostgreSQL real. Não declarar integração concluída sem exercitá-la com casos de
 erro. Não afirmar push, merge ou publicação sem verificar o resultado.

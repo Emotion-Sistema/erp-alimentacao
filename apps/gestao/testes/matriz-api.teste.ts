@@ -60,6 +60,7 @@ const ROTAS: Rota[] = [
   { metodo: "POST", caminho: "/api/estacao/entrar", acao: "estacao" },
   { metodo: "POST", caminho: "/api/estacao/ativar", acao: "estacao" },
   { metodo: "POST", caminho: "/api/estacao/sair", acao: "estacao" },
+  { metodo: "POST", caminho: "/api/estacao/estender", acao: "estacao" },
 ];
 
 /** Entra pela API como a pessoa faria, passando o segundo fator quando o cargo exige. */

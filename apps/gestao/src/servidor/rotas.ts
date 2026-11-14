@@ -20,6 +20,7 @@ import {
   desligarUsuario,
   entrar,
   entrarNaEstacao,
+  estenderTurno,
   ErroDeRegra,
   iniciarSegundoFator,
   listarEstacoes,
@@ -230,6 +231,8 @@ export const ativarEstacao = seguro(async (req) => {
   await ativarNaEstacao(obterBanco(), tokenDaEstacao(req), await corpoJson(req));
   return json({ ok: true });
 });
+
+export const estenderTurnoEstacao = seguro(async (req) => json({ fimEm: await estenderTurno(obterBanco(), tokenDaEstacao(req)) }));
 
 export const sairEstacao = seguro(async (req) => {
   await sairDaEstacao(obterBanco(), tokenDaEstacao(req), await corpoJson(req));

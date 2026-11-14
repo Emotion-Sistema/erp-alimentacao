@@ -97,6 +97,7 @@ export interface EstacaoPresencaTabela {
   ativa_desde: Instante | null;
   saiu_em: Instante | null;
   motivo_saida: "saiu" | "outra_estacao" | "desligado" | "estacao_revogada" | "expirou" | null;
+  prorrogacoes: Generated<number>;
 }
 
 export interface AvisoTabela {

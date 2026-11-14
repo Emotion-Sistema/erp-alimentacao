@@ -7,7 +7,7 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Dar o "ok" para a E04 (base visual e cascas).
 - [x] 👉 Responder às 6 hipóteses de cargos da decisão 0011 (respondido em 14/11/2026).
 - [x] 👉 Dizer a que horas a cozinha fecha (23h; loja 23h30; respondido em 14/11/2026).
-- [ ] 👉 Horários: a loja abre na segunda-feira? Que horas começa o delivery? Quais categorias têm horário próprio (ex.: almoço) e em que horário, na loja e no delivery?
+- [x] 👉 Horários: segunda fechado; delivery e categorias inseridos à mão (respondido em 14/11/2026).
 - [ ] 👉 Em claude.ai/code, conectar o GitHub e instalar o app do Claude neste repositório.
 
 ## Assim que possível (destrava o trabalho)
