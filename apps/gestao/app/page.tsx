@@ -4,7 +4,6 @@ import { aplicativosDoCargo } from "@erp/dominio";
 import { Casca } from "./Casca";
 import { entradaDoAplicativo } from "./aplicativos-ui";
 import { carregarAtor } from "./sessao-servidor";
-import { ListaDeAvisos } from "./ListaDeAvisos";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +28,6 @@ export default async function Inicio() {
           ))}
         </ul>
       )}
-      <h2>Avisos recentes</h2>
-      <ListaDeAvisos />
     </Casca>
   );
 }
