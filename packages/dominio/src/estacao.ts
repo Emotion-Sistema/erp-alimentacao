@@ -384,7 +384,16 @@ export async function entrarNaEstacao(db: Banco, token: string | null | undefine
     await trx.updateTable("estacao_presenca").set({ ativa_desde: null }).where("estacao_id", "=", e.id).where("saiu_em", "is", null).execute();
     await sql`
       INSERT INTO estacao_presenca (estacao_id, usuario_id, cargo, expira_em, ativa_desde)
-      VALUES (${e.id}, ${usuarioId}, ${cargo}, fim_do_turno(${e.unidade_id}, now()), now())`.execute(trx);
+      SELECT ${e.id}, ${usuarioId}, ${cargo},
+        -- Quem entra numa tela já estendida sai junto com os outros e herda a contagem.
+        GREATEST(fim_do_turno(${e.unidade_id}, now()), max(p.expira_em)), now()
+      FROM (SELECT expira_em FROM estacao_presenca
+            WHERE estacao_id = ${e.id} AND saiu_em IS NULL AND expira_em > now()
+            UNION ALL SELECT NULL) p`.execute(trx);
+    await sql`
+      UPDATE estacao_presenca SET prorrogacoes = (SELECT coalesce(max(prorrogacoes), 0) FROM estacao_presenca
+                                                  WHERE estacao_id = ${e.id} AND saiu_em IS NULL)
+      WHERE estacao_id = ${e.id} AND usuario_id = ${usuarioId} AND saiu_em IS NULL`.execute(trx);
     // a estação de onde ela saiu pode ter ficado com uma pessoa só
     await ajustarAtivas(trx, anteriores.map((a) => a.estacao_id).filter((id) => id !== e.id));
     await auditar(trx, { usuarioId, acao: "estacao.entrar", resultado: "permitido", alvoTipo: "estacao", alvoId: e.id, detalhes: { cargo } });

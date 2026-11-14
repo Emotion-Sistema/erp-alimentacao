@@ -258,5 +258,8 @@ describe("prorrogação do turno sob concorrência", () => {
     await entrarNaEstacao(db, e.token, { usuarioId: q.id, codigo: "4718" });
     expect((await telaDaEstacao(db, e.token)).turno.prorrogacoesRestantes).toBe(0);
     expect((await erroDe(estenderTurno(db, e.token))).codigo).toBe("conflito");
+    // e sai junto com quem já estava (não às 00h30)
+    const ambos = await db.selectFrom("estacao_presenca").select("expira_em").where("usuario_id", "in", [p.id, q.id]).where("saiu_em", "is", null).execute();
+    expect(new Set(ambos.map((x) => new Date(x.expira_em).getTime())).size).toBe(1);
   });
 });

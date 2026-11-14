@@ -9,7 +9,10 @@ Atualizado em: 14/11/2026
   tela e pela API, cargo ativo, bloqueios, segundo fator, estação da cozinha. Revisão independente
   aprovada na 2ª rodada. Hipóteses da 0011 respondidas em 14/11/2026: atendente altera pedido (avisa supervisores),
   financeiro compra materiais, caixa com mapa de mesas. Cozinha fecha 23h, loja 23h30;
-  horários de venda por categoria e canal propostos no RC-09 (seção 2a), aguardando dados.
+  horários de venda por categoria e canal no RC-09 (seção 2a): segunda fechado; delivery e
+  categorias sempre à mão (com padrão); checklist de início do turno (RC-13, ideia nº 2).
+- Tablet da cozinha: sai às 00h30, a cozinha estende 30 min até 4x, com bipe (migração 0003).
+- Regra do responsável: nunca ignorar falha (CLAUDE.md); testes rodam em ordem embaralhada.
 - Próxima etapa: **E04** (base visual e cascas), depois do "ok" do responsável.
 - Pendente na E06: separar papéis do PostgreSQL (decisão 0010).
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
