@@ -38,7 +38,20 @@ describe("API da gestão", () => {
   it("saúde responde sem dado interno", async () => {
     const r = await saude(req("/api/saude"));
     expect(r.status).toBe(200);
-    expect(await r.json()).toEqual({ ok: true });
+    expect(await r.json()).toEqual({ ok: true, versao: "desenvolvimento" });
+  });
+
+  it("saúde mostra a versão só quando é um commit (nada inventado pelo ambiente)", async () => {
+    const antes = process.env.ERP_VERSAO;
+    try {
+      process.env.ERP_VERSAO = "a".repeat(40);
+      expect(await (await saude(req("/api/saude"))).json()).toEqual({ ok: true, versao: "a".repeat(40) });
+      process.env.ERP_VERSAO = "<script>";
+      expect(await (await saude(req("/api/saude"))).json()).toEqual({ ok: true, versao: "desenvolvimento" });
+    } finally {
+      if (antes === undefined) delete process.env.ERP_VERSAO;
+      else process.env.ERP_VERSAO = antes;
+    }
   });
 
   it("sem sessão: 401 em todas as rotas protegidas", async () => {
@@ -57,6 +70,22 @@ describe("API da gestão", () => {
       const r = await entrarNaSessao(req("/api/sessao", { method: "POST", headers: { origin }, body: JSON.stringify({ login: "caixa", senha: SENHA_DE_TESTE }) }));
       expect(r.status).toBe(403);
     }
+  });
+
+  it("atrás do proxy vale o Host pedido pelo navegador, não o endereço interno", async () => {
+    // O Next vê o endereço interno; o Caddy repassa o Host público.
+    const pedir = (origin: string) =>
+      entrarNaSessao(
+        new Request("http://localhost:3000/api/sessao", {
+          method: "POST",
+          headers: { host: "gestao.187-53-114-38.sslip.io", origin, "content-type": "application/json" },
+          body: JSON.stringify({ login: "caixa", senha: SENHA_DE_TESTE }),
+        }),
+      );
+    expect((await pedir("https://gestao.187-53-114-38.sslip.io")).status).toBe(200);
+    expect((await pedir("https://GESTAO.187-53-114-38.sslip.io")).status).toBe(200);
+    expect((await pedir("https://loja.187-53-114-38.sslip.io")).status).toBe(403);
+    expect((await pedir("http://localhost:3000")).status).toBe(403);
   });
 
   it("IP enviado pelo cliente em x-forwarded-for não é aceito sem proxy confiável", async () => {

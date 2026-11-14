@@ -274,8 +274,12 @@ export const sairEstacao = seguro(async (req) => {
   return json({ ok: true });
 });
 
-/** Saúde: sem dado interno. Usado pelo monitoramento e pela publicação. */
+/**
+ * Saúde: sem dado interno. Usado pelo monitoramento e pela publicação, que confere se a
+ * versão no ar é o commit que acabou de implantar (ERP_VERSAO, posto pela implantação).
+ */
 export const saude = seguro(async () => {
   await sql`SELECT 1`.execute(obterBanco());
-  return json({ ok: true });
+  const versao = process.env.ERP_VERSAO;
+  return json({ ok: true, versao: versao && /^[0-9a-f]{40}$/.test(versao) ? versao : "desenvolvimento" });
 });

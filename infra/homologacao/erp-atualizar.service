@@ -1,0 +1,9 @@
+[Unit]
+Description=ERP homologação: busca e implanta a versão nova (decisão 0014)
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/erp/bin/atualizar.sh
+TimeoutStartSec=45min

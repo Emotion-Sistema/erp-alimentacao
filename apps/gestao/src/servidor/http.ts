@@ -58,13 +58,19 @@ export function ipDaRequisicao(req: Request): string | null {
   return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
 }
 
-/** Recusa POST/DELETE vindos de outro site (o navegador sempre manda Origin nesses casos). */
+/**
+ * Recusa POST/DELETE vindos de outro site (o navegador sempre manda Origin nesses casos).
+ * Compara com o Host que o navegador pediu: atrás do Caddy (homologação e produção) o
+ * endereço que o Next enxerga é o interno (gestao:3000), e o Caddy repassa o Host original.
+ * Quem forja o Host não é um navegador de vítima, então não há CSRF por aí.
+ */
 export function conferirOrigem(req: Request): void {
   const origem = req.headers.get("origin");
   if (!origem) return;
   // "null" ou valor inválido: tratado como outra origem.
   const host = URL.canParse(origem) ? new URL(origem).host : null;
-  if (host !== new URL(req.url).host) {
+  const pedido = req.headers.get("host") || new URL(req.url).host;
+  if (!host || host.toLowerCase() !== pedido.toLowerCase()) {
     throw new ErroDeRegra("sem_permissao", "Requisição de outra origem recusada.");
   }
 }

@@ -11,3 +11,4 @@ export * from "./avisos";
 export { semear, SENHA_DE_TESTE, CODIGO_DE_TESTE } from "./semente";
 export * from "./turnos";
 export * from "./aplicativos";
+export { prepararPrimeiroAcesso, dadosPrimeiroAcesso, TURNOS_PADRAO, SETORES_PADRAO } from "./primeiro-acesso";

@@ -10,7 +10,9 @@ import { urlDoBanco } from "@erp/banco";
 const log = (nivel: string, mensagem: string, extra: Record<string, unknown> = {}) =>
   console.log(JSON.stringify({ quando: new Date().toISOString(), processo: "worker", nivel, mensagem, ...extra }));
 
-const boss = new PgBoss({ connectionString: urlDoBanco(), schema: "fila" });
+// No servidor o esquema "fila" já vem criado pela implantação (dono: erp_worker; decisão
+// 0014) e o worker não tem permissão de criar esquemas. No desenvolvimento ele cria.
+const boss = new PgBoss({ connectionString: urlDoBanco(), schema: "fila", createSchema: process.env.NODE_ENV !== "production" });
 boss.on("error", (e) => log("erro", e.message));
 
 await boss.start();

@@ -120,6 +120,7 @@ Não alcança equipamentos da loja. Só chega à sessão o que está neste repos
 | Build dos apps | `pnpm build` |
 | Migrações: aplicar / reverter a última | `pnpm banco:migrar` / `pnpm banco:reverter` |
 | Dados fictícios | `pnpm banco:semente` (login = cargo, ex. `gerente.geral`; senha `senha-de-teste-123`) |
+| Ensaio da homologação (Docker, sem servidor) | `bash infra/homologacao/ensaio-local.sh` (na sessão: `ERP_CA_EXTRA=/root/.ccr/ca-bundle.crt`) |
 
 Na sessão na nuvem: `service postgresql start` antes (banco `erp` e `erp_teste`, usuário `erp`/`erp`;
 crie com `CREATE ROLE erp LOGIN PASSWORD 'erp' CREATEDB` e os dois bancos se não existirem).

@@ -1,0 +1,16 @@
+bash <<'FIM'
+set -euo pipefail
+apt-get update -q && apt-get install -y -q git curl jq ca-certificates openssh-client
+install -d -m 700 /opt/erp/chave
+[ -f /opt/erp/chave/id_ed25519 ] || ssh-keygen -q -t ed25519 -N "" -C "erp-homologacao-somente-leitura" -f /opt/erp/chave/id_ed25519
+curl -fsS https://api.github.com/meta | jq -r '.ssh_keys[] | "github.com " + .' > /opt/erp/chave/known_hosts
+export GIT_SSH_COMMAND="ssh -i /opt/erp/chave/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=/opt/erp/chave/known_hosts -o StrictHostKeyChecking=yes"
+REPO=git@github.com:Emotion-Sistema/erp-alimentacao.git
+echo; echo "=== COPIE a linha abaixo (começa com ssh-ed25519) e cole no GitHub ==="; echo
+cat /opt/erp/chave/id_ed25519.pub
+echo; echo "GitHub > repositório > Settings > Deploy keys > Add deploy key. NÃO marque 'Allow write access'."
+until git ls-remote "$REPO" homologacao >/dev/null 2>&1; do read -rp "Depois de salvar a chave no GitHub, aperte Enter aqui... " _ </dev/tty; done
+[ -d /opt/erp/codigo/.git ] || git clone -q --branch homologacao "$REPO" /opt/erp/codigo
+git -C /opt/erp/codigo config core.sshCommand "$GIT_SSH_COMMAND"
+bash /opt/erp/codigo/infra/homologacao/preparar-servidor.sh
+FIM

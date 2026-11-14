@@ -1,0 +1,38 @@
+# Homologação: HTTPS automático (Let's Encrypt/ZeroSSL) para cada aplicativo.
+# ERP_DOMINIO = IP com traços + .sslip.io (ex.: 187-53-114-38.sslip.io) até haver domínio.
+{
+	admin off
+}
+
+(comum) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "same-origin"
+		# Ambiente de testes: buscadores não indexam.
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+}
+
+gestao.{$ERP_DOMINIO} {
+	import comum
+	reverse_proxy gestao:3000
+}
+
+loja.{$ERP_DOMINIO} {
+	import comum
+	reverse_proxy loja:3001
+}
+
+site.{$ERP_DOMINIO} {
+	import comum
+	reverse_proxy site:3002
+}
+
+{$ERP_DOMINIO} {
+	import comum
+	redir https://gestao.{$ERP_DOMINIO}{uri}
+}
