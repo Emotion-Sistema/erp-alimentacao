@@ -7,8 +7,8 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { criarBanco, sql, type Banco } from "@erp/banco";
 import {
-  caixaDeAvisos, continuarNoTurno, criarAviso, criarUsuario, darCargo, enviarComunicado, entrar, ErroDeRegra, listarComunicados, marcarVistos,
-  resolverAviso, situacaoDoTurno, tirarCargo, trocarCargoAtivo, type Ator,
+  caixaDeAvisos, continuarNoTurno, criarAviso, mudarMargemDeTroca, verTurnos, criarUsuario, darCargo, enviarComunicado, entrar, ErroDeRegra, listarComunicados, marcarVistos,
+  resolverAviso, SENHA_DE_TESTE, situacaoDoTurno, tirarCargo, trocarCargoAtivo, type Ator,
 } from "../src/index";
 import { atorDoCargo, bancoDeTeste, prepararDados } from "./apoio";
 
@@ -514,5 +514,71 @@ describe("entrega de verdade fora do turno (o caminho da caixa de avisos)", () =
       await outro.destroy();
       await sql.raw(`DROP DATABASE ${nome}`).execute(db);
     }
+  });
+});
+
+describe("margem de troca de turno: gerentes mudam quando quiserem", () => {
+  it("só gerente geral, dono e administrador veem e mudam; recusa registrada", async () => {
+    for (const cargo of ["supervisor", "caixa", "atendente", "financeiro", "cozinheira", "motoboy", "contador"]) {
+      const p = await pessoa(cargo);
+      expect((await erroDe(verTurnos(db, p))).codigo, cargo).toBe("sem_permissao");
+      expect((await erroDe(mudarMargemDeTroca(db, p, { minutos: 10 }))).codigo, cargo).toBe("sem_permissao");
+    }
+  });
+
+  it("muda a margem, vale na hora para a entrega e fica na auditoria com o antes e o depois", async () => {
+    const gerente = await atorDoCargo(db, "gerente_geral", "gerente.geral");
+    const antes = await verTurnos(db, gerente);
+    expect(antes.margemMinutos).toBe(30);
+    expect(antes.turnos.length).toBeGreaterThan(0);
+    try {
+      const depois = await mudarMargemDeTroca(db, gerente, { minutos: 45 });
+      expect(depois.margemMinutos).toBe(45);
+      const id = await criarAviso(db, { unidadeId, paraCargos: ["supervisor"], tipo: "teste", texto: `Margem ${marca()}` });
+      const r = await sql<{ ok: boolean }>`
+        SELECT a.expira_em = (SELECT fim FROM turno_em(a.unidade_id, a.criado_em)) + interval '45 minutes' AS ok FROM aviso a WHERE a.id = ${id}`.execute(db);
+      expect(r.rows[0]?.ok).toBe(true);
+      const reg = await db.selectFrom("auditoria").select("detalhes").where("usuario_id", "=", gerente.usuarioId).where("acao", "=", "horarios.gerenciar").orderBy("id", "desc").executeTakeFirstOrThrow();
+      expect(reg.detalhes).toMatchObject({ campo: "margem_troca_turno", de: 30, para: 45 });
+    } finally {
+      await mudarMargemDeTroca(db, gerente, { minutos: 30 });
+    }
+  });
+
+  it("valor fora de 0 a 120 minutos é recusado (pela regra e pelo banco)", async () => {
+    const gerente = await atorDoCargo(db, "gerente_geral", "gerente.geral");
+    for (const minutos of [-1, 121, 1.5, "30", null]) {
+      expect((await erroDe(mudarMargemDeTroca(db, gerente, { minutos }))).codigo, String(minutos)).toBe("dados_invalidos");
+    }
+    await expect(sql`UPDATE unidade SET margem_troca_turno = interval '3 hours' WHERE id = ${unidadeId}`.execute(db)).rejects.toThrow();
+  });
+});
+
+describe("'Continuo no turno' não renova a sessão nem o segundo fator", () => {
+  it("administrador: a sessão nova herda o vencimento e o segundo fator da antiga; não dá para repetir", async () => {
+    const adm = await atorDoCargo(db, "administrador");
+    expect(adm.segundoFator).toBe("ok");
+    // Esqueceu a sessão aberta: entrou há 2 dias e ela vence daqui a 1 h.
+    await db
+      .updateTable("sessao")
+      .set({ criada_em: sql<Date>`now() - interval '2 days'`, expira_em: sql<Date>`now() + interval '1 hour'` })
+      .where("id", "=", adm.sessaoId!)
+      .execute();
+    const antiga = await db.selectFrom("sessao").select("expira_em").where("id", "=", adm.sessaoId!).executeTakeFirstOrThrow();
+    const novo = await continuarNoTurno(db, adm, { senha: SENHA_DE_TESTE }, origem);
+    const nova = await db.selectFrom("sessao").select(["expira_em", "segundo_fator_ok"]).where("id", "=", novo.ator.sessaoId!).executeTakeFirstOrThrow();
+    expect(new Date(nova.expira_em).getTime()).toBeLessThanOrEqual(new Date(antiga.expira_em).getTime());
+    expect(novo.expiraEm.getTime()).toBe(new Date(nova.expira_em).getTime());
+    expect(nova.segundo_fator_ok).toBe(true);
+    expect(novo.ator.segundoFator).toBe("ok");
+    // Já no turno: o servidor recusa outro "Continuo" (sem cadeia de renovações).
+    expect((await erroDe(continuarNoTurno(db, novo.ator, { senha: SENHA_DE_TESTE }, origem))).codigo).toBe("dados_invalidos");
+  });
+
+  it("quem está no próprio turno não pode tocar 'Continuo'", async () => {
+    const sup = await pessoa("supervisor");
+    expect((await erroDe(continuarNoTurno(db, sup, { senha: SENHA }, origem))).codigo).toBe("dados_invalidos");
+    const reg = await db.selectFrom("auditoria").select("id").where("usuario_id", "=", sup.usuarioId).where("acao", "=", "sessao.entrar").execute();
+    expect(reg.length).toBe(1); // nem conferiu a senha: só a entrada inicial
   });
 });

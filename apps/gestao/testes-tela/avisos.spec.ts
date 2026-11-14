@@ -142,3 +142,32 @@ test("sino e painel cabem nos 3 tamanhos", async ({ browser }) => {
     await caixa.context.close();
   }
 });
+
+test("gerente geral muda a margem de troca de turno; supervisor não abre a tela", async ({ browser }) => {
+  const g = await pessoa(browser, "gerente.geral");
+  try {
+    await g.page.goto("/turnos");
+    await expect(g.page.getByTestId("lista-turnos")).toBeVisible();
+    const campo = g.page.getByTestId("margem-minutos");
+    await expect(campo).toHaveValue("30");
+    await campo.fill("40");
+    await g.page.getByRole("button", { name: "Salvar margem" }).click();
+    await expect(g.page.getByText("Margem salva.")).toBeVisible();
+    await g.page.reload();
+    await expect(g.page.getByTestId("margem-minutos")).toHaveValue("40");
+    await semEstouroDeLargura(g.page);
+    await g.page.getByTestId("margem-minutos").fill("30");
+    await g.page.getByRole("button", { name: "Salvar margem" }).click();
+    await expect(g.page.getByText("Margem salva.")).toBeVisible();
+  } finally {
+    await g.context.close();
+  }
+  const s = await pessoa(browser, "supervisor");
+  try {
+    await s.page.goto("/turnos");
+    await expect(s.page.getByRole("heading", { name: "Seu cargo não permite esta tela" })).toBeVisible();
+    await expect(s.page.getByTestId("margem-minutos")).toHaveCount(0);
+  } finally {
+    await s.context.close();
+  }
+});

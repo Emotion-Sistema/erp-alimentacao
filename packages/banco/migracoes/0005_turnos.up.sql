@@ -79,6 +79,6 @@ ALTER TABLE sessao ADD COLUMN turno_ate timestamptz;
 -- Quem esquece de sair para de receber ao fim da margem.
 CREATE FUNCTION pessoa_no_turno(p_unidade integer, entrou_em timestamptz, turno_ate timestamptz, agora timestamptz) RETURNS boolean
 LANGUAGE sql STABLE AS $$
-  SELECT coalesce(agora < greatest(fim_do_turno_da_entrada(p_unidade, entrou_em), turno_ate) + u.margem_troca_turno, false)
-  FROM unidade u WHERE u.id = p_unidade
+  SELECT coalesce((SELECT agora < greatest(fim_do_turno_da_entrada(p_unidade, entrou_em), turno_ate) + u.margem_troca_turno
+                    FROM unidade u WHERE u.id = p_unidade), false)
 $$;

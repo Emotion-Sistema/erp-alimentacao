@@ -48,6 +48,8 @@ export const ACOES = [
   "estacoes.ver", // tela Geral: quem está em cada estação
   "auditoria.ver",
   "configuracao.gerenciar",
+  // Horários (só gerente geral, dono e administrador, 14/11/2026): turnos e margem de troca
+  "horarios.gerenciar",
   // Comunicação (RC-18): recados da gerência com confirmação de leitura
   "comunicados.enviar",
   // Pedido e atendimento

@@ -88,6 +88,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
       { caminho: "/funcionarios", texto: "Funcionários", acao: "usuarios.ver" },
       { caminho: "/auditoria", texto: "Auditoria", acao: "auditoria.ver" },
       { caminho: "/comunicados", texto: "Comunicados", acao: "comunicados.enviar" },
+      { caminho: "/turnos", texto: "Turnos", acao: "horarios.gerenciar" },
       { caminho: "/estacoes", texto: "Estações", acao: "estacoes.ver" },
     ],
   },

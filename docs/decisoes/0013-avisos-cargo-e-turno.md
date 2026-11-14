@@ -27,7 +27,15 @@ existe escala de turnos por pessoa no sistema.
    - **Imprevisto:** "Continuo no <turno>" (pedido do responsável) pede a **senha da própria
      pessoa** (é uma nova entrada, com as travas do login; a sessão antiga é encerrada),
      para quem pegou o celular com a sessão de outra pessoa não continuar no nome dela.
-     Vale até o fim do turno em andamento mais a margem. Fica na auditoria.
+     Só é aceito (no servidor) quando o turno da pessoa acabou. A sessão nova **nunca vai
+     além da antiga** (herda o vencimento e o segundo fator): o código do autenticador do
+     dono e do administrador não se renova só com a senha. Vale até o fim do turno em
+     andamento mais a margem. Fica na auditoria.
+   - **Gerentes mudam a margem quando quiserem** (pedido do responsável): tela Gestão →
+     Turnos, 0 a 120 min, ação nova `horarios.gerenciar` (dono, administrador, gerente
+     geral; a mesma regra dos horários). Cada mudança fica na auditoria com o antes e o depois.
+   - Consequência aceita da regra "15h10 é Turno 1": quem do Turno 2 entra antes das 15h30
+     para de receber às 16h, se não tocar em "Continuo"; o certo é entrar na hora do turno.
    - Sem sessão, não recebe nada. A tela para mudar turnos e margem vem com os horários
      (E07/E12); aí trocar o gatilho de sobreposição por restrição de exclusão.
    - O fim do turno da equipe (23h30) é diferente da saída do tablet da cozinha (00h30, 0003).

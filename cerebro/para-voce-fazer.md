@@ -7,7 +7,7 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [x] 👉 Dar o "ok" para a E04 (dado em 14/11/2026).
 - [x] 👉 Dar o "ok" para a E05 (dado em 14/11/2026).
 - [x] 👉 Hipóteses da decisão 0013 (respondidas em 14/11/2026: dois turnos, 08h-15h30 e 15h30-23h30; ninguém de madrugada; só a gerência manda comunicados).
-- [ ] 👉 Confirmar a margem de troca de turno de 30 min (quem sai ainda recebe avisos até 16h e até 0h).
+- [x] 👉 Margem de troca de 30 min confirmada (14/11/2026); gerentes podem mudar na tela Turnos.
 - [ ] 👉 Dar o "ok" para a E06 (homologação).
 - [x] 👉 Responder às 6 hipóteses de cargos da decisão 0011 (respondido em 14/11/2026).
 - [x] 👉 Dizer a que horas a cozinha fecha (23h; loja 23h30; respondido em 14/11/2026).
