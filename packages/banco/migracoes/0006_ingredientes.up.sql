@@ -112,8 +112,10 @@ CREATE UNIQUE INDEX ingrediente_conversao_nome ON ingrediente_conversao (ingredi
 
 CREATE FUNCTION conversao_sem_equivalencia_errada() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
-  u     unidade_medida;
-  base  unidade_medida;
+  u        unidade_medida;
+  base     unidade_medida;
+  partes   text[];
+  esperado numeric;
 BEGIN
   IF TG_OP = 'UPDATE' AND NEW.ingrediente_id <> OLD.ingrediente_id THEN
     RAISE EXCEPTION 'A conversão não muda de ingrediente.' USING ERRCODE = 'check_violation';
@@ -124,6 +126,20 @@ BEGIN
     RAISE EXCEPTION '"%" já é convertido sozinho (1 % = % %). Não cadastre outra equivalência.',
       btrim(NEW.nome), u.codigo, trim(trailing '.' FROM trim(trailing '0' FROM u.fator::text)), base.codigo
       USING ERRCODE = 'check_violation';
+  END IF;
+  -- Nome que já diz o tamanho ("saco 25 kg", "2 kg", "fardo 12 un") tem de valer exatamente
+  -- isso: "saco 25 kg" = 2500 g é erro de digitação e é recusado.
+  partes := regexp_match(lower(btrim(NEW.nome)), '([0-9]+(?:[.,][0-9]+)?)\s*([^0-9\s.,]+)\.?\s*$');
+  IF partes IS NOT NULL THEN
+    SELECT * INTO u FROM unidade_padrao(partes[2]);
+    IF u.codigo IS NOT NULL AND u.grandeza = base.grandeza THEN
+      esperado := replace(partes[1], ',', '.')::numeric * u.fator;
+      IF NEW.quantidade_base <> esperado THEN
+        RAISE EXCEPTION '"%" deveria valer % % (o tamanho está no nome).',
+          btrim(NEW.nome), trim(trailing '.' FROM trim(trailing '0' FROM esperado::text)), base.codigo
+          USING ERRCODE = 'check_violation';
+      END IF;
+    END IF;
   END IF;
   RETURN NEW;
 END $$;

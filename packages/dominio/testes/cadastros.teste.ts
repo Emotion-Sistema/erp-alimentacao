@@ -267,6 +267,19 @@ describe("ressalvas da revisão (E07 parte 1)", () => {
     expect((await erroDe(salvarConversao(db, supervisor, sal, { nome: "pote", quantidadeBase: "1" }))).codigo).toBe("sem_permissao");
   });
 
+  it("nome que diz o tamanho tem de valer exatamente isso; nome só com pontuação é recusado com mensagem", async () => {
+    const farinha = await ingrediente("Farinha de rosca", "g");
+    expect((await erroDe(salvarConversao(db, gerente, farinha, { nome: "saco 25 kg", quantidadeBase: "2500" }))).message).toContain("deveria valer 25000 g");
+    expect((await erroDe(salvarConversao(db, gerente, farinha, { nome: "2 kg", quantidadeBase: "900" }))).message).toContain("deveria valer 2000 g");
+    await salvarConversao(db, gerente, farinha, { nome: "saco 25 kg", quantidadeBase: "25000" });
+    await salvarConversao(db, gerente, farinha, { nome: "pacote 0,5 kg", quantidadeBase: "500" });
+    const ovo = await ingrediente("Ovo branco", "un");
+    expect((await erroDe(salvarConversao(db, gerente, ovo, { nome: "bandeja 12 un", quantidadeBase: "10" }))).message).toContain("deveria valer 12 un");
+    // Unidade de outra grandeza no nome é explícita (densidade, peso por unidade): vale o que foi dito.
+    await salvarConversao(db, gerente, ovo, { nome: "caixa 2 kg", quantidadeBase: "36" });
+    expect((await erroDe(salvarConversao(db, gerente, ovo, { nome: "...", quantidadeBase: "1" }))).message).toContain("letras ou números");
+  });
+
   it("id fora do limite vira 'não encontrado', não erro do servidor", async () => {
     expect((await erroDe(salvarConversao(db, gerente, 99999999999, { nome: "pote", quantidadeBase: "1" }))).codigo).toBe("nao_encontrado");
   });

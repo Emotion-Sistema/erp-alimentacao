@@ -27,6 +27,7 @@ sistema impeça equivalência incorreta.
 4. **Equivalência errada é recusada no banco:** uma conversão com o nome de uma unidade padrão
    da mesma grandeza da base ("kg = 900 g", "dúzia = 10 un") é recusada, porque o sistema já
    sabe a conta certa. Sem caminho de conversão, a conta é recusada com a explicação; nunca chuta.
+   Nome que já diz o tamanho ("saco 25 kg", "bandeja 12 un") tem de valer exatamente isso.
 5. **Uma conta só:** a função `para_unidade_base` do banco. Compra, ficha técnica e importação
    usam ela (no código: `converterParaBase`). Quantidade é decimal exato, com até 4 casas
    (numeric(14,4)), aceita vírgula, nunca passa por float. Quantidade vazia, zero ou negativa é
@@ -43,7 +44,10 @@ sistema impeça equivalência incorreta.
      auxiliar, motoboy e contador não veem a lista de ingredientes.
    - Cada ingrediente fica em **uma** área de estoque (as 4 da decisão 0008).
    - Custo do ingrediente não está no cadastro: vem das compras (E09 e frente lista-de-compras).
-8. **Fica para as próximas partes da E07:** categorias com horários por canal, tipos de pedido
+8. **Para a parte 3 (importação):** procurar por nome só entre os ativos; grafias como "kgr" e
+   "k g" ainda passam como embalagem (lista de apelidos); se `nome_de_unidade` mudar, a mesma
+   migração refaz o índice (REINDEX).
+9. **Fica para as próximas partes da E07:** categorias com horários por canal, tipos de pedido
    e produtos (parte 2); importação de planilha .xlsx, .csv e .html (parte 3).
 
 ## Consequências

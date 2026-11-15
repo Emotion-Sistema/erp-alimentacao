@@ -86,7 +86,12 @@ export const dadosIngrediente = z.object({
 
 export const dadosConversao = z.object({
   id: z.number().int().positive().optional(),
-  nome: z.string({ error: "Informe a unidade de compra (ex.: caixa)." }).trim().min(1, "Informe a unidade de compra (ex.: caixa).").max(40),
+  nome: z
+    .string({ error: "Informe a unidade de compra (ex.: caixa)." })
+    .trim()
+    .min(1, "Informe a unidade de compra (ex.: caixa).")
+    .max(40)
+    .refine((v) => /[\p{L}\p{N}]/u.test(v), "O nome da unidade de compra precisa ter letras ou números."),
   quantidadeBase: decimalPositivo,
   ativo: z.boolean().default(true),
 });
