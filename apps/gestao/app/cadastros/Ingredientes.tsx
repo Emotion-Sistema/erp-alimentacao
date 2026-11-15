@@ -1,9 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Aviso, Botao, Cartao, Etiqueta } from "@erp/interface";
+import { chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
 import { BotaoExemplos, Campo, Marcador, Selecao } from "../Campo";
 import { chamar } from "../chamar";
+import type { UnidadeBase, UnidadePadrao } from "./auxiliares";
+import { CadastroRapido } from "./CadastroRapido";
+import { CampoNomeComSugestao } from "./CampoNomeComSugestao";
+import { ConstrutorDeEmbalagem, LinhasDeEmbalagem, embalagensDe, faltaNasEmbalagens, itemParaServidor, novaChave, type LinhaDeEmbalagem } from "./Embalagens";
 
 type Opcao = { valor: string; texto: string };
 type Conversao = { id: number; nome: string; quantidadeBase: string; ativo: boolean };
@@ -17,10 +22,12 @@ type Ingrediente = {
   ativo: boolean;
   conversoes: Conversao[];
 };
-type UnidadePadrao = { codigo: string; nome: string; grandeza: string; fator: string };
 type Lista = { ingredientes: Ingrediente[]; unidades: UnidadePadrao[] };
 type Fornecedor = { id: number; nome: string; ativo: boolean };
 type Mensagem = { tipo: "sucesso" | "perigo"; texto: string } | null;
+
+/** Valores com que o formulário de novo ingrediente abre (ao duplicar). */
+type Modelo = { nome: string; unidadeBase: string; area: string; fornecedorId: number | null; embalagens: (readonly [string, string])[] };
 
 type Props = { areas: Opcao[]; unidadesBase: Opcao[]; podeGerenciar: boolean };
 
@@ -36,6 +43,10 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
   const [mensagem, setMensagem] = useState<Mensagem>(null);
   /** "novo" = formulário de criação; número = id do ingrediente em edição. */
   const [editando, setEditando] = useState<"novo" | number | null>(null);
+  /** Painel do cadastro rápido (catálogo pronto e lista colada). */
+  const [rapido, setRapido] = useState(false);
+  /** Ingrediente copiado para o formulário de novo (botão Duplicar). */
+  const [modelo, setModelo] = useState<{ valores: Modelo; numero: number } | null>(null);
   const nomeDaArea = (a: string) => areas.find((x) => x.valor === a)?.texto ?? a;
 
   const carregar = useCallback(async () => {
@@ -60,6 +71,8 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
     .map((u) => `1 ${u.codigo} = ${aparecer(u.fator)} ${BASE_DA_GRANDEZA[u.grandeza] ?? ""}`)
     .join(", ");
 
+  const nomesExistentes = useMemo(() => new Set((dados?.ingredientes ?? []).filter((i) => i.ativo).map((i) => chaveDeBusca(i.nome))), [dados]);
+
   const emEdicao = typeof editando === "number" ? dados?.ingredientes.find((i) => i.id === editando) : undefined;
 
   return (
@@ -67,11 +80,21 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
       <h1>Ingredientes</h1>
       <BotaoExemplos />
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
-      {podeGerenciar && editando === null && (
-        <p>
+      {podeGerenciar && editando === null && !rapido && (
+        <p className="cadastros__botoes">
           <Botao
             onClick={() => {
               setMensagem(null);
+              setRapido(true);
+            }}
+          >
+            Cadastro rápido
+          </Botao>
+          <Botao
+            variante="secundario"
+            onClick={() => {
+              setMensagem(null);
+              setModelo(null);
               setEditando("novo");
             }}
           >
@@ -79,20 +102,39 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
           </Botao>
         </p>
       )}
-      {podeGerenciar && editando !== null && (editando === "novo" || emEdicao) && (
-        <FormularioIngrediente
-          key={editando === "novo" ? "novo" : emEdicao!.id}
-          ingrediente={emEdicao}
+      {podeGerenciar && rapido && editando === null && (
+        <CadastroRapido
           areas={areas}
           unidadesBase={unidadesBase}
+          unidades={dados?.unidades ?? []}
+          aoGravar={carregar}
+          aoFechar={() => setRapido(false)}
+        />
+      )}
+      {podeGerenciar && editando !== null && (editando === "novo" || emEdicao) && (
+        <FormularioIngrediente
+          key={editando === "novo" ? `novo-${modelo?.numero ?? 0}` : emEdicao!.id}
+          ingrediente={emEdicao}
+          modelo={editando === "novo" ? modelo?.valores : undefined}
+          areas={areas}
+          unidadesBase={unidadesBase}
+          unidades={dados?.unidades ?? []}
           fornecedores={fornecedores}
+          nomesExistentes={nomesExistentes}
           aoSalvar={async (id, texto) => {
             await carregar();
             setMensagem({ tipo: "sucesso", texto });
             setEditando(id);
           }}
+          aoSalvarEProximo={async (texto) => {
+            await carregar();
+            setMensagem({ tipo: "sucesso", texto });
+          }}
           aoMudarConversao={carregar}
-          aoFechar={() => setEditando(null)}
+          aoFechar={() => {
+            setModelo(null);
+            setEditando(null);
+          }}
           unidadeDoEstoque={emEdicao?.unidadeBase}
         />
       )}
@@ -145,16 +187,38 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
                   </ul>
                 )}
                 {podeGerenciar && (
-                  <p>
+                  <p className="cadastros__botoes">
                     <Botao
                       variante="secundario"
                       aria-label={`Editar ${i.nome}`}
                       onClick={() => {
                         setMensagem(null);
+                        setRapido(false);
                         setEditando(i.id);
                       }}
                     >
                       Editar
+                    </Botao>
+                    <Botao
+                      variante="secundario"
+                      aria-label={`Duplicar ${i.nome}`}
+                      onClick={() => {
+                        setMensagem(null);
+                        setRapido(false);
+                        setModelo({
+                          numero: (modelo?.numero ?? 0) + 1,
+                          valores: {
+                            nome: `${i.nome} (cópia)`,
+                            unidadeBase: i.unidadeBase,
+                            area: i.area,
+                            fornecedorId: i.fornecedorId,
+                            embalagens: i.conversoes.filter((c) => c.ativo).map((c) => [c.nome, c.quantidadeBase] as const),
+                          },
+                        });
+                        setEditando("novo");
+                      }}
+                    >
+                      Duplicar
                     </Botao>
                   </p>
                 )}
@@ -167,32 +231,56 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
   );
 }
 
+const ID_NOME = "ingrediente-nome";
+
 function FormularioIngrediente({
   ingrediente,
+  modelo,
   areas,
   unidadesBase,
+  unidades,
   fornecedores,
+  nomesExistentes,
   unidadeDoEstoque,
   aoSalvar,
+  aoSalvarEProximo,
   aoMudarConversao,
   aoFechar,
 }: {
   ingrediente?: Ingrediente;
+  modelo?: Modelo;
   areas: Opcao[];
   unidadesBase: Opcao[];
+  unidades: UnidadePadrao[];
   fornecedores: Fornecedor[];
+  nomesExistentes: ReadonlySet<string>;
   unidadeDoEstoque?: string;
   aoSalvar: (id: number, texto: string) => Promise<void>;
+  aoSalvarEProximo: (texto: string) => Promise<void>;
   aoMudarConversao: () => Promise<void>;
   aoFechar: () => void;
 }) {
-  const [nome, setNome] = useState(ingrediente?.nome ?? "");
-  const [unidadeBase, setUnidadeBase] = useState(ingrediente?.unidadeBase ?? unidadesBase[0]?.valor ?? "g");
-  const [area, setArea] = useState(ingrediente?.area ?? areas[0]?.valor ?? "cozinha");
-  const [fornecedorId, setFornecedorId] = useState(ingrediente?.fornecedorId ? String(ingrediente.fornecedorId) : "");
+  const [nome, setNome] = useState(ingrediente?.nome ?? modelo?.nome ?? "");
+  const [unidadeBase, setUnidadeBase] = useState(ingrediente?.unidadeBase ?? modelo?.unidadeBase ?? unidadesBase[0]?.valor ?? "g");
+  const [area, setArea] = useState(ingrediente?.area ?? modelo?.area ?? areas[0]?.valor ?? "cozinha");
+  const [fornecedorId, setFornecedorId] = useState(String(ingrediente?.fornecedorId ?? modelo?.fornecedorId ?? ""));
   const [ativo, setAtivo] = useState(ingrediente?.ativo ?? true);
+  /** Embalagens do ingrediente NOVO (no que já existe, as conversões são salvas uma a uma, abaixo). */
+  const [embalagens, setEmbalagens] = useState<LinhaDeEmbalagem[]>(() => embalagensDe(modelo?.embalagens ?? []));
+  const [sugerido, setSugerido] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const montado = useRef(false);
+
+  // Cópia de outro ingrediente: o nome já vem selecionado para a pessoa só digitar por cima.
+  useEffect(() => {
+    if (montado.current) return;
+    montado.current = true;
+    if (!modelo) return;
+    const campo = document.getElementById(ID_NOME) as HTMLInputElement | null;
+    campo?.focus();
+    campo?.select();
+  }, [modelo]);
 
   // Só fornecedores ativos; o do próprio ingrediente continua aparecendo se foi desativado depois.
   const opcoesFornecedor: Opcao[] = [
@@ -201,38 +289,80 @@ function FormularioIngrediente({
       .filter((f) => f.ativo || f.id === ingrediente?.fornecedorId)
       .map((f) => ({ valor: String(f.id), texto: f.ativo ? f.nome : `${f.nome} (inativo)` })),
   ];
+  const nomeDaArea = (a: string) => areas.find((x) => x.valor === a)?.texto ?? a;
 
-  async function enviar(e: React.FormEvent) {
-    e.preventDefault();
+  function aplicarSugestao(i: ItemDoCatalogo) {
+    setNome(i.nome);
+    setUnidadeBase(i.unidadeBase);
+    setArea(i.area);
+    setEmbalagens(embalagensDe(i.embalagens));
+    setSugerido(`Sugestão aplicada: ${i.nome}, estoque em ${i.unidadeBase}, ${nomeDaArea(i.area)}. Confira a unidade, a área e as embalagens antes de gravar.`);
+  }
+
+  async function enviar(proximo: boolean) {
     setErro("");
+    if (ingrediente) {
+      setEnviando(true);
+      const r = await chamar<{ id: number }>("/api/cadastros/ingredientes", "POST", {
+        id: ingrediente.id,
+        nome,
+        area,
+        fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+        ativo,
+      });
+      setEnviando(false);
+      if (!r.ok || !r.dados) return setErro(r.mensagem);
+      return aoSalvar(r.dados.id, "Ingrediente salvo.");
+    }
+    const faltas = faltaNasEmbalagens({ nome, unidadeBase: unidadeBase as UnidadeBase, area, embalagens });
+    if (faltas.length) return setErro(faltas[0]!);
     setEnviando(true);
-    const r = await chamar<{ id: number }>("/api/cadastros/ingredientes", "POST", {
-      id: ingrediente?.id,
-      nome,
-      unidadeBase: ingrediente ? undefined : unidadeBase,
-      area,
-      fornecedorId: fornecedorId ? Number(fornecedorId) : null,
-      ativo,
-    });
+    // Criação sempre pelo cadastro em lote (um item): grava o ingrediente e as embalagens de uma vez, tudo ou nada.
+    const r = await chamar<{ criados: number; ids: number[] }>("/api/cadastros/ingredientes/lote", "POST", [
+      itemParaServidor({ nome, unidadeBase: unidadeBase as UnidadeBase, area, embalagens }, fornecedorId ? Number(fornecedorId) : null),
+    ]);
     setEnviando(false);
-    if (!r.ok || !r.dados) return setErro(r.mensagem);
-    await aoSalvar(r.dados.id, ingrediente ? "Ingrediente salvo." : "Ingrediente criado. Agora você pode cadastrar as conversões de compra (caixa, saco...).");
+    const id = r.dados?.ids?.[0];
+    if (!r.ok || id === undefined) return setErro(r.mensagem);
+    if (!proximo) return aoSalvar(id, "Ingrediente criado. Agora você pode cadastrar as conversões de compra (caixa, saco...).");
+    // Salvar e cadastrar o próximo: limpa o que é de cada ingrediente, mantém unidade e área.
+    const gravado = nome.trim();
+    setNome("");
+    setEmbalagens([]);
+    setFornecedorId("");
+    setSugerido("");
+    await aoSalvarEProximo(`Ingrediente "${gravado}" criado. Pode cadastrar o próximo.`);
+    document.getElementById(ID_NOME)?.focus();
   }
 
   return (
     <Cartao>
       <h2>{ingrediente ? `Editar ${ingrediente.nome}` : "Novo ingrediente"}</h2>
       {erro && <Aviso tipo="perigo">{erro}</Aviso>}
-      <form onSubmit={enviar} noValidate>
+      {sugerido && !ingrediente && (
+        <div aria-live="polite">
+          <Aviso tipo="info">{sugerido}</Aviso>
+        </div>
+      )}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void enviar(false);
+        }}
+        noValidate
+      >
         <div className="cadastros__form-linha">
-          <Campo
-            rotulo="Nome"
-            explicacao="Nome do ingrediente como a equipe o conhece. Evite repetir um nome que já existe."
-            exemplo="Farinha de trigo, Ovo, Leite integral."
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            autoComplete="off"
-            required
+          <CampoNomeComSugestao
+            id={ID_NOME}
+            valor={nome}
+            aoMudar={(v) => {
+              setNome(v);
+              setSugerido("");
+            }}
+            aoEscolher={aplicarSugestao}
+            jaCadastrados={nomesExistentes}
+            nomeDaArea={nomeDaArea}
+            ativa={!ingrediente}
           />
           {ingrediente ? (
             <div>
@@ -258,6 +388,21 @@ function FormularioIngrediente({
             exemplo="Distribuidora Boa Safra (nome inventado). Cadastre antes em Fornecedores."
             value={fornecedorId} onChange={(e) => setFornecedorId(e.target.value)} opcoes={opcoesFornecedor} />
         </div>
+        {!ingrediente && (
+          <section aria-label="Embalagens de compra">
+            <h3>Embalagens de compra</h3>
+            <p className="cadastros__dica">
+              Opcional. Como o ingrediente vem do fornecedor (caixa, saco, pacote) e quanto vem em cada uma. O estoque sempre conta em {unidadeBase}.
+            </p>
+            <LinhasDeEmbalagem embalagens={embalagens} base={unidadeBase} aoMudar={setEmbalagens} />
+            <ConstrutorDeEmbalagem
+              key={unidadeBase}
+              base={unidadeBase as UnidadeBase}
+              unidades={unidades}
+              aoMontar={(e) => setEmbalagens((l) => [...l, { chave: novaChave(), nome: e.nome, quantidade: e.quantidadeBase }])}
+            />
+          </section>
+        )}
         {ingrediente && (
           <Marcador
             rotulo="Ativo (desmarque para tirar de uso; nada é apagado)"
@@ -271,17 +416,22 @@ function FormularioIngrediente({
           <Botao type="submit" disabled={enviando}>
             {ingrediente ? "Salvar ingrediente" : "Criar ingrediente"}
           </Botao>
+          {!ingrediente && (
+            <Botao variante="secundario" disabled={enviando} onClick={() => void enviar(true)}>
+              Salvar e cadastrar o próximo
+            </Botao>
+          )}
           <Botao variante="secundario" onClick={aoFechar}>
             {ingrediente ? "Fechar" : "Cancelar"}
           </Botao>
         </div>
       </form>
-      {ingrediente && <Conversoes ingrediente={ingrediente} aoMudar={aoMudarConversao} />}
+      {ingrediente && <Conversoes ingrediente={ingrediente} unidades={unidades} aoMudar={aoMudarConversao} />}
     </Cartao>
   );
 }
 
-function Conversoes({ ingrediente, aoMudar }: { ingrediente: Ingrediente; aoMudar: () => Promise<void> }) {
+function Conversoes({ ingrediente, unidades, aoMudar }: { ingrediente: Ingrediente; unidades: UnidadePadrao[]; aoMudar: () => Promise<void> }) {
   /** "nova" = adicionar; número = id da conversão em edição. */
   const [alvo, setAlvo] = useState<"nova" | number | null>(null);
   const [nome, setNome] = useState("");
@@ -382,6 +532,16 @@ function Conversoes({ ingrediente, aoMudar }: { ingrediente: Ingrediente; aoMuda
               required
             />
           </div>
+          <ConstrutorDeEmbalagem
+            key={ingrediente.unidadeBase}
+            base={ingrediente.unidadeBase as UnidadeBase}
+            unidades={unidades}
+            rotuloDoBotao="Usar esta embalagem nos campos acima"
+            aoMontar={(e) => {
+              setNome(e.nome);
+              setQuantidade(aparecer(e.quantidadeBase));
+            }}
+          />
           <p className="cadastros__dica" data-testid="ajuda-conversao">
             1 {nome.trim() || "[nome]"} = {quantidade.trim() || "[quantidade]"} {ingrediente.unidadeBase}
           </p>

@@ -77,10 +77,39 @@ test.describe("telas internas do administrador", () => {
     await semEstouroDeLargura(page);
   });
 
+  test("cadastros: cadastro rápido (catálogo, ajuste, lista colada) e embalagem de um toque", async ({ page }) => {
+    await page.goto("/cadastros");
+    await expect(page.getByTestId("ingrediente-Ovo")).toBeVisible();
+    await page.getByRole("button", { name: "Cadastro rápido" }).click();
+    await expect(page.getByRole("checkbox", { name: "Tomate", exact: true })).toBeVisible();
+    await conferirAjuda(page, "cadastro rápido: catálogo", 4);
+    await page.getByRole("checkbox", { name: "Tomate", exact: true }).check();
+    await page.getByRole("button", { name: "Ajustar Tomate" }).click();
+    await page.getByRole("button", { name: "caixa", exact: true }).click();
+    await conferirAjuda(page, "cadastro rápido: ajuste de um item", 10);
+    await page.getByRole("tab", { name: "Colar uma lista" }).click();
+    await conferirAjuda(page, "cadastro rápido: colar uma lista", 1);
+    await page.getByLabel("Cole sua lista de ingredientes").fill("Alface\nSal - pacote");
+    await page.getByRole("button", { name: "Ler a lista" }).click();
+    await expect(page.getByTestId("linhas-lidas")).toBeVisible();
+    await conferirAjuda(page, "cadastro rápido: prévia da lista", 8);
+    await semEstouroDeLargura(page);
+  });
+
+  test("cadastros: formulário com sugestão do catálogo e salvar e próximo", async ({ page }) => {
+    await page.goto("/cadastros");
+    await page.getByRole("button", { name: "Novo ingrediente" }).click();
+    await page.getByRole("combobox", { name: "Nome" }).pressSequentially("calabr");
+    await expect(page.getByRole("option", { name: /Calabresa/ })).toBeVisible();
+    await conferirAjuda(page, "novo ingrediente com sugestão aberta", 6);
+    await page.getByRole("option", { name: /Calabresa/ }).click();
+    await conferirAjuda(page, "novo ingrediente com embalagem sugerida", 8);
+  });
+
   test("cadastros: fornecedores", async ({ page }) => {
     await page.goto("/cadastros/fornecedores");
     await page.getByRole("button", { name: "Novo fornecedor" }).click();
-    await conferirAjuda(page, "novo fornecedor", 7);
+    await conferirAjuda(page, "novo fornecedor", 8);
     await page.getByRole("button", { name: "Cancelar" }).click();
     await page.getByRole("button", { name: /^Editar / }).first().click();
     await conferirAjuda(page, "editar fornecedor", 8);
