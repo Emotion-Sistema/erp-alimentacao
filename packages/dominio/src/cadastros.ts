@@ -80,7 +80,7 @@ export const dadosIngrediente = z.object({
   id: z.number().int().positive().optional(),
   nome: nome("do ingrediente"),
   /** Só na criação; depois não muda. */
-  unidadeBase: z.enum(UNIDADES_BASE, { error: "Escolha a unidade do estoque: g, ml ou un." }).optional(),
+  unidadeBase: z.enum(UNIDADES_BASE, { error: "Escolha a unidade do estoque: kg, g, L, ml, un ou dz." }).optional(),
   /** Como ver e informar as quantidades (ideia nº 5): kg ou g, L ou ml, un ou dz. */
   unidadeExibicao: z.enum(UNIDADES_PARA_MOSTRAR, { error: "Escolha a unidade: kg, g, L, ml, un ou dz." }).optional(),
   area: z.enum(AREAS_ESTOQUE, { error: "Escolha a área de estoque." }),
@@ -405,7 +405,7 @@ const dadosDoLote = z
   .array(
     z.object({
       nome: nome("do ingrediente"),
-      unidadeBase: z.enum(UNIDADES_BASE, { error: "Escolha a unidade do estoque: g, ml ou un." }),
+      unidadeBase: z.enum(UNIDADES_BASE, { error: "Escolha a unidade do estoque: kg, g, L, ml, un ou dz." }),
       unidadeExibicao: z.enum(UNIDADES_PARA_MOSTRAR, { error: "Escolha a unidade: kg, g, L, ml, un ou dz." }).optional(),
       area: z.enum(AREAS_ESTOQUE, { error: "Escolha a área de estoque." }),
       fornecedorId: z.number().int().positive().nullish().transform((v) => v ?? null),
@@ -432,7 +432,7 @@ export async function cadastrarEmLote(db: Banco, ator: Ator | null, dados: unkno
     try {
       conferirFamilia(it.unidadeBase, it.unidadeExibicao);
     } catch (e) {
-      if (e instanceof ErroDeRegra) throw new ErroDeRegra("dados_invalidos", `"${it.nome}": ${e.message}`);
+      if (e instanceof ErroDeRegra) throw new ErroDeRegra("dados_invalidos", `"${it.nome}": ${e.message} Nada foi gravado; corrija e tente de novo.`);
       throw e;
     }
     const embs = new Set<string>();

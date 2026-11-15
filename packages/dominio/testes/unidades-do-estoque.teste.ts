@@ -56,11 +56,14 @@ describe("mostrar a quantidade na unidade escolhida (conta exata)", () => {
     expect(mostrarQuantidade("8", "dz")).toBe("8 un");
     expect(mostrarQuantidade("0.5", "dz")).toBe("0,5 un");
     expect(mostrarQuantidade("30", "un")).toBe("30 un");
+    expect(mostrarQuantidade("-18", "dz")).toBe("-18 un");
+    expect(mostrarQuantidade("0", "dz")).toBe("0 un");
   });
   it("texto que não é número ou unidade fora da lista dá nulo", () => {
     expect(mostrarQuantidade("abc", "kg")).toBeNull();
     expect(mostrarQuantidade("1e3", "kg")).toBeNull();
     expect(mostrarQuantidade("10", "t")).toBeNull();
+    expect(mostrarQuantidade("5.", "kg")).toBeNull();
   });
 });
 
@@ -113,6 +116,6 @@ describe("unidade para mostrar no cadastro", () => {
     const r = await cadastrarEmLote(db, gerente, [{ nome: n("Arroz lote"), unidadeBase: "g", unidadeExibicao: "kg", area: "cozinha" }]);
     expect((await doBanco(r.ids[0]!)).unidadeExibicao).toBe("kg");
     const e = await erroDe(cadastrarEmLote(db, gerente, [{ nome: n("Suco lote"), unidadeBase: "ml", unidadeExibicao: "kg", area: "cafeteria" }]));
-    expect(e.message).toBe(`"${n("Suco lote")}": Este ingrediente conta em volume (mililitros): escolha L ou ml.`);
+    expect(e.message).toBe(`"${n("Suco lote")}": Este ingrediente conta em volume (mililitros): escolha L ou ml. Nada foi gravado; corrija e tente de novo.`);
   });
 });

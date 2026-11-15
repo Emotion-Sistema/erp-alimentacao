@@ -61,21 +61,21 @@ function formatar(n: bigint): string {
 /**
  * Quantidade guardada na base (texto do banco, ex.: "2500") escrita na unidade escolhida, no
  * formato brasileiro: "2,5 kg", "1,25 L", "2 dz". Dúzia só quando a conta é inteira; senão
- * "1 dz e 6 un" (ou "8 un"), para nunca mostrar dízima. Nulo se o texto não for número.
+ * "1 dz e 6 un" (ou "8 un"), para nunca mostrar dízima; dúzia negativa sai em unidades.
+ * Aceita o texto do banco (até 7 casas, ponto decimal); outro formato ("5.", ".5", "1e3") dá nulo.
  */
 export function mostrarQuantidade(quantidadeBase: string, unidade: string): string | null {
   const n = paraInteiro(quantidadeBase);
   const o = opcaoDeUnidade(unidade);
   if (n === null || !o) return null;
   if (o.codigo === "dz") {
-    if (n % ESCALA !== 0n) return `${formatar(n)} un`;
+    // Fração ou negativo (ajuste, falta) vai em unidades: "-1 dz e 6 un" seria ambíguo.
+    if (n % ESCALA !== 0n || n < 0n) return `${formatar(n)} un`;
     const inteiras = n / ESCALA;
-    const sinal = inteiras < 0n ? "-" : "";
-    const abs = inteiras < 0n ? -inteiras : inteiras;
-    const dz = abs / 12n;
-    const un = abs % 12n;
-    if (dz === 0n) return `${sinal}${un} un`;
-    return un === 0n ? `${sinal}${dz} dz` : `${sinal}${dz} dz e ${un} un`;
+    const dz = inteiras / 12n;
+    const un = inteiras % 12n;
+    if (dz === 0n) return `${un} un`;
+    return un === 0n ? `${dz} dz` : `${dz} dz e ${un} un`;
   }
   // Divisão por 1 ou 1000 é sempre exata com 7 casas.
   return `${formatar(n / o.fator)} ${o.sigla}`;
