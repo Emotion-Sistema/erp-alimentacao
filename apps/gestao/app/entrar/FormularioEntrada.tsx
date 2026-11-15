@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Aviso, Botao, Campo } from "@erp/interface";
+import { Aviso, Botao } from "@erp/interface";
+import { BotaoExemplos, Campo } from "../Campo";
 import { chamar } from "../chamar";
 import { ConfirmarCodigoDoAplicativo } from "../CampoCodigo6";
 
@@ -35,6 +36,7 @@ export function FormularioEntrada() {
     return (
       <>
         <p>Para sua segurança, digite o código que aparece no aplicativo autenticador do seu celular.</p>
+        <BotaoExemplos />
         <ConfirmarCodigoDoAplicativo aoConfirmar={() => window.location.assign("/")} />
       </>
     );
@@ -43,8 +45,25 @@ export function FormularioEntrada() {
   return (
     <form onSubmit={enviar} noValidate>
       {erro && <Aviso tipo="perigo">{erro}</Aviso>}
-      <Campo rotulo="Usuário" name="login" autoComplete="username" autoCapitalize="none" required />
-      <Campo rotulo="Senha" name="senha" type="password" autoComplete="current-password" required />
+      <BotaoExemplos />
+      <Campo
+        rotulo="Usuário"
+        explicacao="É o nome que o gestor criou para você entrar. Não precisa de letra maiúscula."
+        exemplo="maria.silva"
+        name="login"
+        autoComplete="username"
+        autoCapitalize="none"
+        required
+      />
+      <Campo
+        rotulo="Senha"
+        explicacao="A senha que o gestor deu a você. Ninguém mais deve saber."
+        exemplo="Escreva com cuidado, letra por letra. Se esqueceu, peça ao gerente para criar outra."
+        name="senha"
+        type="password"
+        autoComplete="current-password"
+        required
+      />
       <Botao type="submit" variante="primario" disabled={enviando}>
         {enviando ? "Entrando..." : "Entrar"}
       </Botao>

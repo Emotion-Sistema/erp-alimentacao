@@ -154,3 +154,23 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 .cadastros__opcao { display: flex; align-items: center; gap: var(--espaco-3); min-height: var(--alvo-toque); }
 .cadastros__opcao input { width: 1.5rem; height: 1.5rem; flex: 0 0 auto; }
 .cadastros__travado { margin: 0 0 var(--espaco-3); }
+
+/* Ajuda em cada campo (decisão 0012, 15/11/2026): explicação sempre visível + exemplo que abre e fecha. */
+.ajuda { display: grid; gap: var(--espaco-1); }
+.ajuda__explicacao { margin: 0; color: var(--cor-texto-suave); font-size: var(--texto-pequeno); }
+.ajuda__botao, .ajuda__botao-todos {
+  justify-self: start; min-height: 44px; padding: 0 var(--espaco-3);
+  background: transparent; color: var(--cor-primaria); font: inherit; font-size: var(--texto-pequeno); font-weight: 600;
+  border: 2px solid transparent; border-radius: var(--raio); text-decoration: underline; cursor: pointer;
+}
+.ajuda__botao:hover, .ajuda__botao-todos:hover { border-color: var(--cor-primaria); }
+.ajuda__botao-todos { border-color: var(--cor-borda); text-decoration: none; }
+.ajuda__exemplo {
+  margin: 0; padding: var(--espaco-2) var(--espaco-3); background: var(--cor-superficie);
+  border-left: 4px solid var(--cor-primaria); border-radius: var(--raio); font-size: var(--texto-pequeno);
+  overflow-wrap: anywhere;
+}
+.ajuda__exemplo[hidden] { display: none; }
+.ajuda__so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.ajuda__todos { margin: 0 0 var(--espaco-4); }
+.ajuda__marcador { margin-bottom: var(--espaco-3); }

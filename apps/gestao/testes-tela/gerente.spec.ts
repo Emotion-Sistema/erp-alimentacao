@@ -21,7 +21,7 @@ test("gerente cria um atendente, mas não consegue dar cargo de financeiro", asy
 
   await linha.getByText("Gerenciar Ana Atendente").click();
   await linha.getByLabel("Dar cargo a Ana Atendente").selectOption("financeiro");
-  await linha.getByRole("button", { name: "Dar cargo" }).click();
+  await linha.getByRole("button", { name: "Dar cargo", exact: true }).click();
   await expect(page.getByRole("alert")).toBeVisible().catch(() => undefined);
   await expect(page.getByText(/não pode/i)).toBeVisible();
   await expect(linha.locator('[data-rotulo="Cargos"]')).not.toContainText("Financeiro");
@@ -38,7 +38,7 @@ test("código pessoal só para a cozinha: recusa e depois certo, com segundo car
   await expect(page.getByText("Só quem trabalha na cozinha usa código pessoal.")).toBeVisible();
 
   await linha.getByLabel("Dar cargo a Ana Atendente").selectOption("cozinheira");
-  await linha.getByRole("button", { name: "Dar cargo" }).click();
+  await linha.getByRole("button", { name: "Dar cargo", exact: true }).click();
   await expect(page.getByText("Cargo dado.")).toBeVisible();
   await expect(page.getByTestId("linha-ana.atendente").locator('[data-rotulo="Cargos"]')).toHaveText("Atendente, Cozinheira");
 
