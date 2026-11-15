@@ -34,7 +34,9 @@ Atualizado em: 14/11/2026
   Cardápio inventado até chegar o real; o responsável pode mandar atualizações a qualquer momento.
   Hipóteses: `cadastros.gerenciar` para dono, administrador e gerente geral; custo só com `custos.ver`.
   **Parte 1 feita** (PR 26, merge 05a65b2, no ar na homologação; migração 0006, decisão 0015;
-  diário `diario/2026-11-15-e07-cadastros.md`). Próximo: parte 2 (categorias, tipos de pedido, produtos).
+  diário `diario/2026-11-15-e07-cadastros.md`). **Em andamento: ideia nº 4** (cadastro rápido e ajuda
+  em cada campo; branches `feat/ajuda-nos-campos` e `feat/cadastro-rapido`). Depois: parte 2 (categorias,
+  tipos de pedido, produtos). Conector do Google Drive ligado em 15/11/2026.
 - **Frentes paralelas** (15/11/2026): outro chat, com o modelo que o responsável escolher, pode cuidar
   de uma função só e falar com este pelo `cerebro/frentes/mural.md` (regras em `cerebro/frentes/README.md`).
   Aberta: **lista-de-compras** (Central de Compras, proposta aprovada; começa a LC1 depois da E07;
