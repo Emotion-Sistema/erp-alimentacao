@@ -119,8 +119,8 @@ roda `ssh-so-chave.sh` a cada minuto: se o root tem chave cadastrada, confere an
 só com chave) e confirma com `sshd -T -C user=root,...`. Se a chave sumir, a senha volta
 sozinha. Escreve no registro só quando a situação muda.
 Para voltar a aceitar senha: `erp ssh-senha ligar` (e `desligar` para refazer).
-Não sabemos se o terminal do navegador da Hostinger usa a senha do root: o responsável
-confere depois da mudança. Se parar de abrir, ele entra pela chave e roda `erp ssh-senha ligar`.
+Conferido pelo responsável em 15/11/2026, já no ar: a senha é recusada no SSH e o terminal do
+navegador da Hostinger continua abrindo (é o acesso de emergência se a chave se perder).
 
 ## Fica para depois (com etapa)
 - **Limite de requisições** no login e nas rotas públicas: o login já bloqueia por

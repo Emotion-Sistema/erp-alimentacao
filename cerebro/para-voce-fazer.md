@@ -35,7 +35,8 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [x] 👉 Entrar na homologação com o próprio login (feito em 15/11/2026; critério da E06).
 - [ ] 👉 Dar o "ok" para a E07 (cadastros).
 - [x] Chave SSH cadastrada e testada (15/11/2026).
-- [ ] 👉 Depois que o Claude avisar que o SSH ficou só com chave: conferir se o terminal do navegador da Hostinger ainda abre; guardar uma cópia da chave privada (o arquivo `id_ed25519` sem `.pub`, na pasta `.ssh` do seu usuário) num pendrive ou cofre de senhas.
+- [x] SSH só com chave conferido (15/11/2026): senha recusada, terminal do navegador abre.
+- [ ] 👉 Guardar uma cópia da chave privada (o arquivo `id_ed25519` sem `.pub`, na pasta `.ssh` do seu usuário) num pendrive ou cofre de senhas.
 
 ## Antes de mostrar ao cliente (homologação)
 - [ ] 👉 Confirmar com o dono o domínio antes de usar o "domínio grátis" da Hostinger (pergunta 56 do questionário).
