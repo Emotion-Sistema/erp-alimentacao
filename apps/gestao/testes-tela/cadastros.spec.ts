@@ -14,12 +14,15 @@ test("gerente geral cria um ingrediente com conversão e vê '1 caixa = 30 un'",
 
   await page.getByRole("button", { name: "Novo ingrediente" }).click();
   await page.getByLabel("Nome", { exact: true }).fill("Ovo caipira (tela)");
-  await page.getByLabel("Unidade do estoque").selectOption("un");
+  // Lista pronta com as 6 unidades, por extenso e nesta ordem.
+  const unidade = page.getByLabel("Unidade do estoque");
+  await expect(unidade.locator("option")).toHaveText(["Quilos (kg)", "Gramas (g)", "Litros (L)", "Mililitros (ml)", "Unidades (un)", "Dúzias (dz)"]);
+  await unidade.selectOption("un");
   await page.getByLabel("Área", { exact: true }).selectOption("cozinha");
   await page.getByRole("button", { name: "Criar ingrediente" }).click();
   await expect(page.getByText(/Ingrediente criado/)).toBeVisible();
-  // Depois de criado, a unidade do estoque fica travada.
-  await expect(page.getByText("não muda depois de criada")).toBeVisible();
+  // Depois de criado, só dá para trocar dentro da família (un ou dz): a unidade de dentro não muda.
+  await expect(page.getByLabel("Unidade do estoque").locator("option")).toHaveText(["Unidades (un)", "Dúzias (dz)"]);
 
   await page.getByRole("button", { name: "Adicionar conversão" }).click();
   await page.getByLabel("Unidade de compra (ex.: caixa)").fill("caixa");
@@ -48,6 +51,26 @@ test("gerente geral cria um ingrediente com conversão e vê '1 caixa = 30 un'",
   await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).not.toContainText("bandeja");
   await expect(page.getByTestId("conversoes-do-ingrediente")).toContainText("inativa");
   await semEstouroDeLargura(page);
+});
+
+test("Farinha em Quilos (kg): a lista mostra kg, a embalagem 'saco 25 kg' mostra 25 kg, e editar só oferece kg e g", async ({ page }) => {
+  await entrar(page, "gerente.geral");
+  await page.goto("/cadastros");
+  await page.getByRole("button", { name: "Novo ingrediente" }).click();
+  await page.getByLabel("Nome", { exact: true }).fill("Farinha (tela kg)");
+  await page.getByLabel("Unidade do estoque").selectOption("kg");
+  await page.getByLabel("Embalagem com um toque").getByRole("button", { name: "saco" }).click();
+  await page.getByLabel("Tamanho da embalagem").fill("25");
+  await expect(page.getByTestId("previa-embalagem")).toHaveText("1 saco 25 kg = 25 kg");
+  await page.getByRole("button", { name: "Adicionar esta embalagem" }).click();
+  await page.getByRole("button", { name: "Criar ingrediente" }).click();
+  await expect(page.getByText(/Ingrediente criado/)).toBeVisible();
+  await expect(page.getByLabel("Unidade do estoque").locator("option")).toHaveText(["Quilos (kg)", "Gramas (g)"]);
+  await page.getByRole("button", { name: "Fechar" }).first().click();
+  const item = page.getByTestId("ingrediente-Farinha (tela kg)");
+  await expect(item).toContainText("Quilos (kg)");
+  await expect(item).toContainText("saco 25 kg = 25 kg");
+  await expect(item).not.toContainText("25.000 g");
 });
 
 test("gerente geral busca, filtra e desativa um ingrediente", async ({ page }) => {

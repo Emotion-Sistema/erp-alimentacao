@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./catalogo": "./src/catalogo-ingredientes.ts"
+    "./catalogo": "./src/catalogo-ingredientes.ts",
+    "./unidades": "./src/unidades-do-estoque.ts"
   },
   "scripts": {
     "semente": "tsx src/semente.ts",

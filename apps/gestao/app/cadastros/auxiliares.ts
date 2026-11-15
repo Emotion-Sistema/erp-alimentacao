@@ -4,12 +4,26 @@
  * Quantidades são decimais exatos (texto), nunca float.
  */
 
+import { mostrarQuantidade, opcaoDeUnidade } from "@erp/dominio/unidades";
+
 export type UnidadePadrao = { codigo: string; nome: string; grandeza: string; fator: string };
 export type UnidadeBase = "g" | "ml" | "un";
 
-/** Unidade do estoque sempre por extenso, com a sigla: "Gramas (g)". */
-const UNIDADE_POR_EXTENSO: Record<string, string> = { g: "Gramas (g)", ml: "Mililitros (ml)", un: "Unidades (un)" };
-export const unidadePorExtenso = (u: string): string => UNIDADE_POR_EXTENSO[u] ?? u;
+/**
+ * Unidade do estoque sempre por extenso, com a sigla: "Quilos (kg)", "Gramas (g)". Serve para a
+ * unidade de exibição (kg, g, l, ml, un, dz) e também para a de dentro (g, ml, un).
+ */
+export const unidadePorExtenso = (u: string): string => opcaoDeUnidade(u)?.nome ?? u;
+
+/**
+ * Quantidade da base ("25000") escrita na unidade que a pessoa escolheu ("25 kg"). Aceita vírgula.
+ * Sem escolha (ou valor que não é número), cai na própria base ("25.000 g") ou em nulo.
+ */
+export function equivalenciaNaUnidade(quantidadeBase: string | null | undefined, base: string, exibicao?: string | null): string | null {
+  const q = (quantidadeBase ?? "").trim().replace(",", ".");
+  if (!q) return null;
+  return mostrarQuantidade(q, exibicao || base);
+}
 
 export const GRANDEZA_DA_BASE: Record<UnidadeBase, string> = { g: "massa", ml: "volume", un: "contagem" };
 

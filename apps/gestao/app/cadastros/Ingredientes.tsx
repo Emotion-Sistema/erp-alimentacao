@@ -6,10 +6,11 @@ import { ContaDaEmbalagem, ResumoDoItem } from "./ResumoDoItem";
 import { chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
 import { BotaoExemplos, Campo, Marcador, Selecao } from "../Campo";
 import { chamar } from "../chamar";
-import type { UnidadeBase, UnidadePadrao } from "./auxiliares";
+import { baseDaUnidade } from "@erp/dominio/unidades";
+import { equivalenciaNaUnidade, unidadePorExtenso, type UnidadeBase, type UnidadePadrao } from "./auxiliares";
 import { CadastroRapido } from "./CadastroRapido";
 import { CampoNomeComSugestao } from "./CampoNomeComSugestao";
-import { ConstrutorDeEmbalagem, LinhasDeEmbalagem, embalagensDe, faltaNasEmbalagens, itemParaServidor, novaChave, type LinhaDeEmbalagem } from "./Embalagens";
+import { OPCOES_DA_UNIDADE, EXEMPLO_DA_UNIDADE, EXPLICACAO_DA_UNIDADE, opcoesDaFamilia, ConstrutorDeEmbalagem, LinhasDeEmbalagem, embalagensDe, faltaNasEmbalagens, itemParaServidor, novaChave, type LinhaDeEmbalagem } from "./Embalagens";
 
 type Opcao = { valor: string; texto: string };
 type Conversao = { id: number; nome: string; quantidadeBase: string; ativo: boolean };
@@ -17,6 +18,7 @@ type Ingrediente = {
   id: number;
   nome: string;
   unidadeBase: string;
+  unidadeExibicao: string;
   area: string;
   fornecedorId: number | null;
   fornecedor: string | null;
@@ -28,15 +30,15 @@ type Fornecedor = { id: number; nome: string; ativo: boolean };
 type Mensagem = { tipo: "sucesso" | "perigo"; texto: string } | null;
 
 /** Valores com que o formulário de novo ingrediente abre (ao duplicar). */
-type Modelo = { nome: string; unidadeBase: string; area: string; fornecedorId: number | null; embalagens: (readonly [string, string])[] };
+type Modelo = { nome: string; unidadeExibicao: string; area: string; fornecedorId: number | null; embalagens: (readonly [string, string])[] };
 
-type Props = { areas: Opcao[]; unidadesBase: Opcao[]; podeGerenciar: boolean };
+type Props = { areas: Opcao[]; podeGerenciar: boolean };
 
 /** "12.5" vira "12,5" (como a pessoa escreve). */
 const aparecer = (v: string) => v.replace(".", ",");
 const BASE_DA_GRANDEZA: Record<string, string> = { massa: "g", volume: "ml", contagem: "un" };
 
-export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
+export function Ingredientes({ areas, podeGerenciar }: Props) {
   const [dados, setDados] = useState<Lista | null>(null);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [busca, setBusca] = useState("");
@@ -105,7 +107,6 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
       {podeGerenciar && rapido && editando === null && (
         <CadastroRapido
           areas={areas}
-          unidadesBase={unidadesBase}
           unidades={dados?.unidades ?? []}
           aoGravar={carregar}
           aoFechar={() => setRapido(false)}
@@ -117,7 +118,6 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
           ingrediente={emEdicao}
           modelo={editando === "novo" ? modelo?.valores : undefined}
           areas={areas}
-          unidadesBase={unidadesBase}
           unidades={dados?.unidades ?? []}
           fornecedores={fornecedores}
           nomesExistentes={nomesExistentes}
@@ -135,7 +135,7 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
             setModelo(null);
             setEditando(null);
           }}
-          unidadeDoEstoque={emEdicao?.unidadeBase}
+          unidadeDoEstoque={emEdicao ? { base: emEdicao.unidadeBase, exibicao: emEdicao.unidadeExibicao } : undefined}
         />
       )}
       <Cartao>
@@ -201,7 +201,7 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
                             numero: (modelo?.numero ?? 0) + 1,
                             valores: {
                               nome: `${i.nome} (cópia)`,
-                              unidadeBase: i.unidadeBase,
+                              unidadeExibicao: i.unidadeExibicao,
                               area: i.area,
                               fornecedorId: i.fornecedorId,
                               embalagens: i.conversoes.filter((c) => c.ativo).map((c) => [c.nome, c.quantidadeBase] as const),
@@ -218,6 +218,7 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
               >
                 <ResumoDoItem
                   unidadeBase={i.unidadeBase}
+                  unidadeExibicao={i.unidadeExibicao}
                   area={i.area}
                   nomeDaArea={nomeDaArea}
                   fornecedor={i.fornecedor}
@@ -256,7 +257,6 @@ function FormularioIngrediente({
   ingrediente,
   modelo,
   areas,
-  unidadesBase,
   unidades,
   fornecedores,
   nomesExistentes,
@@ -269,18 +269,19 @@ function FormularioIngrediente({
   ingrediente?: Ingrediente;
   modelo?: Modelo;
   areas: Opcao[];
-  unidadesBase: Opcao[];
   unidades: UnidadePadrao[];
   fornecedores: Fornecedor[];
   nomesExistentes: ReadonlySet<string>;
-  unidadeDoEstoque?: string;
+  unidadeDoEstoque?: { base: string; exibicao: string };
   aoSalvar: (id: number, texto: string) => Promise<void>;
   aoSalvarEProximo: (texto: string) => Promise<void>;
   aoMudarConversao: () => Promise<void>;
   aoFechar: () => void;
 }) {
   const [nome, setNome] = useState(ingrediente?.nome ?? modelo?.nome ?? "");
-  const [unidadeBase, setUnidadeBase] = useState(ingrediente?.unidadeBase ?? modelo?.unidadeBase ?? unidadesBase[0]?.valor ?? "g");
+  /** Como a pessoa vê a quantidade (kg, g, l, ml, un, dz); a unidade de dentro sai dela. */
+  const [unidadeExibicao, setUnidadeExibicao] = useState(ingrediente?.unidadeExibicao ?? modelo?.unidadeExibicao ?? "kg");
+  const unidadeBase = ingrediente?.unidadeBase ?? baseDaUnidade(unidadeExibicao) ?? "g";
   const [area, setArea] = useState(ingrediente?.area ?? modelo?.area ?? areas[0]?.valor ?? "cozinha");
   const [fornecedorId, setFornecedorId] = useState(String(ingrediente?.fornecedorId ?? modelo?.fornecedorId ?? ""));
   const [ativo, setAtivo] = useState(ingrediente?.ativo ?? true);
@@ -312,10 +313,11 @@ function FormularioIngrediente({
 
   function aplicarSugestao(i: ItemDoCatalogo) {
     setNome(i.nome);
-    setUnidadeBase(i.unidadeBase);
+    // Sugestão do catálogo não traz escolha: a exibição é a unidade de dentro (a pessoa pode trocar).
+    setUnidadeExibicao(i.unidadeBase);
     setArea(i.area);
     setEmbalagens(embalagensDe(i.embalagens));
-    setSugerido(`Sugestão aplicada: ${i.nome}, estoque em ${i.unidadeBase}, ${nomeDaArea(i.area)}. Confira a unidade, a área e as embalagens antes de gravar.`);
+    setSugerido(`Sugestão aplicada: ${i.nome}, estoque em ${unidadePorExtenso(i.unidadeBase)}, ${nomeDaArea(i.area)}. Confira a unidade, a área e as embalagens antes de gravar.`);
   }
 
   async function enviar(proximo: boolean) {
@@ -324,6 +326,7 @@ function FormularioIngrediente({
       setEnviando(true);
       const r = await chamar<{ id: number }>("/api/cadastros/ingredientes", "POST", {
         id: ingrediente.id,
+        unidadeExibicao,
         nome,
         area,
         fornecedorId: fornecedorId ? Number(fornecedorId) : null,
@@ -333,12 +336,12 @@ function FormularioIngrediente({
       if (!r.ok || !r.dados) return setErro(r.mensagem);
       return aoSalvar(r.dados.id, "Ingrediente salvo.");
     }
-    const faltas = faltaNasEmbalagens({ nome, unidadeBase: unidadeBase as UnidadeBase, area, embalagens });
+    const faltas = faltaNasEmbalagens({ nome, unidadeBase: unidadeBase as UnidadeBase, unidadeExibicao, area, embalagens });
     if (faltas.length) return setErro(faltas[0]!);
     setEnviando(true);
     // Criação sempre pelo cadastro em lote (um item): grava o ingrediente e as embalagens de uma vez, tudo ou nada.
     const r = await chamar<{ criados: number; ids: number[] }>("/api/cadastros/ingredientes/lote", "POST", [
-      itemParaServidor({ nome, unidadeBase: unidadeBase as UnidadeBase, area, embalagens }, fornecedorId ? Number(fornecedorId) : null),
+      itemParaServidor({ nome, unidadeBase: unidadeBase as UnidadeBase, unidadeExibicao, area, embalagens }, fornecedorId ? Number(fornecedorId) : null),
     ]);
     setEnviando(false);
     const id = r.dados?.ids?.[0];
@@ -383,19 +386,14 @@ function FormularioIngrediente({
             nomeDaArea={nomeDaArea}
             ativa={!ingrediente}
           />
-          {ingrediente ? (
-            <div>
-              <p className="cadastros__travado">
-                Unidade do estoque: <strong>{unidadeDoEstoque}</strong> (não muda depois de criada)
-              </p>
-            </div>
-          ) : (
-            <Selecao
-              rotulo="Unidade do estoque"
-              explicacao="A medida em que o estoque é contado. Depois de criada, não muda."
-              exemplo="Ovo: un. Farinha: g. Leite: ml."
-              value={unidadeBase} onChange={(e) => setUnidadeBase(e.target.value)} opcoes={unidadesBase} />
-          )}
+          <Selecao
+            rotulo="Unidade do estoque"
+            explicacao={EXPLICACAO_DA_UNIDADE}
+            exemplo={EXEMPLO_DA_UNIDADE}
+            value={unidadeExibicao}
+            onChange={(e) => setUnidadeExibicao(e.target.value)}
+            opcoes={unidadeDoEstoque ? opcoesDaFamilia(unidadeDoEstoque.base) : OPCOES_DA_UNIDADE}
+          />
           <Selecao
             rotulo="Área"
             explicacao="O setor onde o ingrediente é usado e guardado."
@@ -411,12 +409,13 @@ function FormularioIngrediente({
           <section aria-label="Embalagens de compra">
             <h3>Embalagens de compra</h3>
             <p className="cadastros__dica">
-              Opcional. Como o ingrediente vem do fornecedor (caixa, saco, pacote) e quanto vem em cada uma. O estoque sempre conta em {unidadeBase}.
+              Opcional. Como o ingrediente vem do fornecedor (caixa, saco, pacote) e quanto vem em cada uma. Por dentro o estoque conta em {unidadeBase}; a quantidade de cada embalagem é escrita em {unidadeBase}.
             </p>
-            <LinhasDeEmbalagem embalagens={embalagens} base={unidadeBase} aoMudar={setEmbalagens} />
+            <LinhasDeEmbalagem embalagens={embalagens} base={unidadeBase} exibicao={unidadeExibicao} aoMudar={setEmbalagens} />
             <ConstrutorDeEmbalagem
-              key={unidadeBase}
+              key={unidadeExibicao}
               base={unidadeBase as UnidadeBase}
+              exibicao={unidadeExibicao}
               unidades={unidades}
               aoMontar={(e) => setEmbalagens((l) => [...l, { chave: novaChave(), nome: e.nome, quantidade: e.quantidadeBase }])}
             />
@@ -505,7 +504,7 @@ function Conversoes({ ingrediente, unidades, aoMudar }: { ingrediente: Ingredien
           {ingrediente.conversoes.map((c) => (
             <li key={c.id} className="acoes__linha">
               <GrupoDeChips rotulo={`Conversão ${c.nome}`}>
-                <ChipDeEmbalagem nome={c.nome} quantidade={c.quantidadeBase} unidade={ingrediente.unidadeBase} inativa={!c.ativo} />
+                <ChipDeEmbalagem nome={c.nome} quantidade={c.quantidadeBase} unidade={ingrediente.unidadeBase} equivalencia={equivalenciaNaUnidade(c.quantidadeBase, ingrediente.unidadeBase, ingrediente.unidadeExibicao)} inativa={!c.ativo} />
               </GrupoDeChips>
               <span className="cadastros__botoes">
                 <Botao variante="secundario" aria-label={`Editar a conversão ${c.nome}`} onClick={() => abrir(c)}>
@@ -554,6 +553,7 @@ function Conversoes({ ingrediente, unidades, aoMudar }: { ingrediente: Ingredien
           <ConstrutorDeEmbalagem
             key={ingrediente.unidadeBase}
             base={ingrediente.unidadeBase as UnidadeBase}
+            exibicao={ingrediente.unidadeExibicao}
             unidades={unidades}
             rotuloDoBotao="Usar esta embalagem nos campos acima"
             aoMontar={(e) => {
@@ -561,7 +561,7 @@ function Conversoes({ ingrediente, unidades, aoMudar }: { ingrediente: Ingredien
               setQuantidade(aparecer(e.quantidadeBase));
             }}
           />
-          <ContaDaEmbalagem nome={nome} quantidade={quantidade} base={ingrediente.unidadeBase} data-testid="ajuda-conversao" />
+          <ContaDaEmbalagem nome={nome} quantidade={quantidade} base={ingrediente.unidadeBase} exibicao={ingrediente.unidadeExibicao} data-testid="ajuda-conversao" />
           <div className="cadastros__botoes">
             <Botao type="submit">{alvo === "nova" ? "Adicionar conversão" : "Salvar conversão"}</Botao>
             <Botao variante="secundario" onClick={() => setAlvo(null)}>
