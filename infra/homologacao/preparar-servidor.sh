@@ -7,6 +7,8 @@ RAIZ=/opt/erp
 CODIGO="$RAIZ/codigo"
 AQUI="$CODIGO/infra/homologacao"
 passo() { echo; echo "==> $*"; }
+# Nunca parar calado: qualquer falha diz onde parou.
+trap 'echo; echo "PAROU com erro na linha $LINENO de preparar-servidor.sh. Tire uma foto desta tela e mande ao Claude."' ERR
 
 [ "$(id -u)" = 0 ] || { echo "Rode como root."; exit 1; }
 . /etc/os-release
@@ -36,7 +38,8 @@ fi
 systemctl enable --now docker
 docker compose version
 
-porta_ssh="$(sshd -T 2>/dev/null | awk '/^port /{print $2; exit}')"
+# sshd -T falha quando o SSH está em espera (ativado por socket, Ubuntu 24.04+): aí vale 22.
+porta_ssh="$( (sshd -T 2>/dev/null || true) | awk '/^port /{print $2; exit}')"
 porta_ssh="${porta_ssh:-22}"
 passo "Firewall: só SSH (${porta_ssh}), HTTP (80) e HTTPS (443)"
 ufw default deny incoming
