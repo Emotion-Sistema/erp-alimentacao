@@ -327,7 +327,6 @@ function conferirFamilia(base: UnidadeBase, exibicao: UnidadeParaMostrar | undef
   throw new ErroDeRegra("dados_invalidos", `Este ingrediente conta em ${NOME_DA_FAMILIA[base]}: escolha ${certas}.`);
 }
 
-/** Cria (sem id) ou altera (com id) uma conversão de compra de um ingrediente. */
 const dadosDoModelo = z.object({
   modeloId: z.number({ error: "Escolha a embalagem do catálogo." }).int().positive(),
   /** Só quando o tamanho do modelo não é da mesma família do estoque (ou não tem tamanho). */
@@ -341,14 +340,18 @@ const dadosDoModelo = z.object({
  */
 export async function salvarConversao(db: Banco, ator: Ator | null, ingredienteId: number, dados: unknown): Promise<Conversao> {
   const quem = await exigir(db, ator, "cadastros.gerenciar", { tipo: "ingrediente", id: ingredienteId });
-  if (dados && typeof dados === "object" && "modeloId" in dados) return conversaoDoModelo(db, quem, ingredienteId, validar(dadosDoModelo, dados));
+  if (dados && typeof dados === "object" && "modeloId" in dados) {
+    if ("id" in dados && dados.id != null)
+      throw new ErroDeRegra("dados_invalidos", "Do catálogo só se acrescenta embalagem nova. Para mudar uma já colocada, edite-a ou tire-a.");
+    return conversaoDoModelo(db, quem, ingredienteId, validar(dadosDoModelo, dados));
+  }
   const d = validar(dadosConversao, dados);
   try {
     return await db.transaction().execute(async (trx) => {
       const ing = await trx.selectFrom("ingrediente").select(["id", "unidade_base", "ativo"]).where("id", "=", ingredienteId).forShare().executeTakeFirst();
       if (!ing) throw new ErroDeRegra("nao_encontrado", "Ingrediente não encontrado.");
       if (!ing.ativo) throw new ErroDeRegra("dados_invalidos", "Esse ingrediente está desativado. Reative antes de mexer nas conversões.");
-      const colunas = ["id", "nome", "quantidade_base", "ativo"] as const;
+      const colunas = ["id", "nome", "quantidade_base", "ativo", "modelo_id"] as const;
       const valores = { nome: d.nome, quantidade_base: d.quantidadeBase, ativo: d.ativo };
       let antes: Record<string, unknown> | undefined;
       let salvo;
@@ -383,7 +386,7 @@ export async function salvarConversao(db: Banco, ator: Ator | null, ingredienteI
         detalhes: { operacao: d.id ? "alterar_conversao" : "criar_conversao", unidadeBase: ing.unidade_base, antes: antes ?? null, depois: salvo },
         ip: quem.ip,
       });
-      return { id: salvo.id, nome: salvo.nome, quantidadeBase: decimalLimpo(salvo.quantidade_base), ativo: salvo.ativo };
+      return { id: salvo.id, nome: salvo.nome, quantidadeBase: decimalLimpo(salvo.quantidade_base), ativo: salvo.ativo, modeloId: salvo.modelo_id };
     });
   } catch (e) {
     if (e instanceof ErroDeRegra) throw e;
@@ -403,9 +406,10 @@ async function conversaoDoModelo(
       if (!ing) throw new ErroDeRegra("nao_encontrado", "Ingrediente não encontrado.");
       if (!ing.ativo) throw new ErroDeRegra("dados_invalidos", "Esse ingrediente está desativado. Reative antes de mexer nas embalagens.");
       // FOR SHARE: o modelo não muda de tamanho nem é desativado enquanto é ligado aqui.
-      const m = await sql<{ nome: string; ativo: boolean; q: string | null }>`
+      const m = await sql<{ nome: string; ativo: boolean; q: string | null; exato: boolean | null }>`
         SELECT m.nome, m.ativo,
-               CASE WHEN u.grandeza = b.grandeza THEN round(m.tamanho * u.fator, 4)::text END AS q
+               CASE WHEN u.grandeza = b.grandeza THEN round(m.tamanho * u.fator, 4)::text END AS q,
+               CASE WHEN u.grandeza = b.grandeza THEN round(m.tamanho * u.fator, 4) = m.tamanho * u.fator END AS exato
         FROM embalagem_modelo m
         LEFT JOIN unidade_medida u ON u.codigo = m.unidade
         CROSS JOIN unidade_medida b
@@ -414,6 +418,8 @@ async function conversaoDoModelo(
       const modelo = m.rows[0];
       if (!modelo) throw new ErroDeRegra("nao_encontrado", "Embalagem do catálogo não encontrada.");
       if (!modelo.ativo) throw new ErroDeRegra("dados_invalidos", "Essa embalagem está desativada no catálogo.");
+      if (modelo.exato === false)
+        throw new ErroDeRegra("dados_invalidos", `"${modelo.nome}" é pequena demais para a precisão do estoque (até 4 casas). Use outra unidade no catálogo.`);
       const quantidade = modelo.q ?? d.quantidadeBase;
       if (!quantidade)
         throw new ErroDeRegra(
@@ -438,6 +444,8 @@ async function conversaoDoModelo(
     });
   } catch (e) {
     if (e instanceof ErroDeRegra) throw e;
+    if ((e as { code?: string }).code === "22003")
+      throw new ErroDeRegra("dados_invalidos", "Essa embalagem é grande demais para a unidade deste ingrediente. Confira o tamanho no catálogo.");
     traduzir(e, "Esse ingrediente já tem essa embalagem.");
   }
 }

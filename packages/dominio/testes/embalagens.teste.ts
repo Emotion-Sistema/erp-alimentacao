@@ -141,3 +141,106 @@ describe("embalagem do ingrediente escolhida do catálogo", () => {
     expect(r.rows[1]!.depois.ativo).toBe(false);
   });
 });
+
+describe("ressalvas da revisão (ideia nº 6)", () => {
+  it("renomear a embalagem do ingrediente desfaz o vínculo; reativar depois de o modelo mudar também", async () => {
+    const t = tipo("Saco");
+    const m = await salvarModeloDeEmbalagem(db, gerente, { tipo: t, tamanho: "7", unidade: "kg" });
+    const milho = await ing("Milho", "kg");
+    const c = await salvarConversao(db, gerente, milho, { modeloId: m.id });
+    const renomeada = await salvarConversao(db, gerente, milho, { id: c.id, nome: "pacotinho", quantidadeBase: "300" });
+    expect(renomeada.modeloId).toBeNull();
+    const fuba = await ing("Fubá", "kg");
+    const c2 = await salvarConversao(db, gerente, fuba, { modeloId: m.id });
+    await salvarConversao(db, gerente, fuba, { id: c2.id, nome: c2.nome, quantidadeBase: c2.quantidadeBase, ativo: false });
+    await salvarModeloDeEmbalagem(db, gerente, { id: m.id, tipo: t, tamanho: "8", unidade: "kg", ativo: true });
+    const reativada = await salvarConversao(db, gerente, fuba, { id: c2.id, nome: c2.nome, quantidadeBase: c2.quantidadeBase, ativo: true });
+    expect(reativada.modeloId).toBeNull();
+    expect(reativada.quantidadeBase).toBe("7000");
+  });
+  it("nome de tamanho inteiro com zero no fim sai certo (saco 10 kg)", async () => {
+    const r = await sql<{ n: string }>`SELECT nome_do_modelo('saco', 10, 'kg') AS n`.execute(db);
+    expect(r.rows[0]!.n).toBe("saco 10 kg");
+    const m = await salvarModeloDeEmbalagem(db, gerente, { tipo: tipo("Saco"), tamanho: "10", unidade: "kg" });
+    expect(m.nome.endsWith(" 10 kg")).toBe(true);
+  });
+  it("embalagem grande demais ou pequena demais para o ingrediente: mensagem clara", async () => {
+    const enorme = await salvarModeloDeEmbalagem(db, gerente, { tipo: tipo("Silo"), tamanho: "1000000", unidade: "t" });
+    const sal = await ing("Sal grosso", "g");
+    expect((await erroDe(salvarConversao(db, gerente, sal, { modeloId: enorme.id }))).message).toContain("grande demais");
+    const mini = await salvarModeloDeEmbalagem(db, gerente, { tipo: tipo("Sachê"), tamanho: "0,1234", unidade: "mg" });
+    expect((await erroDe(salvarConversao(db, gerente, sal, { modeloId: mini.id }))).message).toContain("pequena demais");
+  });
+  it("alterar sem mandar 'ativo' não reativa; id junto de modeloId é recusado", async () => {
+    const t = tipo("Lata");
+    const m = await salvarModeloDeEmbalagem(db, gerente, { tipo: t, tamanho: "350", unidade: "ml", ativo: false });
+    const editado = await salvarModeloDeEmbalagem(db, gerente, { id: m.id, tipo: t, tamanho: "350", unidade: "ml" });
+    expect(editado.ativo).toBe(false);
+    const suco = await ing("Suco", "l");
+    expect((await erroDe(salvarConversao(db, gerente, suco, { id: 1, modeloId: m.id }))).message).toContain("só se acrescenta");
+  });
+  it("tipo que é unidade é recusado também direto no banco", async () => {
+    await expect(sql`INSERT INTO embalagem_modelo (tipo) VALUES ('litro')`.execute(db)).rejects.toThrow(/é uma unidade/);
+  });
+  it("'em uso' conta igual ao bloqueio: ingrediente desativado ainda segura o modelo", async () => {
+    const t = tipo("Pote");
+    const m = await salvarModeloDeEmbalagem(db, gerente, { tipo: t, tamanho: "300", unidade: "g" });
+    const geleia = await ing("Geleia", "g");
+    await salvarConversao(db, gerente, geleia, { modeloId: m.id });
+    await salvarIngrediente(db, gerente, { id: geleia, nome: n("Geleia"), area: "cozinha", ativo: false });
+    expect((await listarModelosDeEmbalagem(db, gerente)).find((x) => x.id === m.id)!.emUso).toBe(1);
+  });
+  it("criar do catálogo fica na auditoria do ingrediente com o modelo", async () => {
+    const m = await salvarModeloDeEmbalagem(db, gerente, { tipo: tipo("Fardo"), tamanho: "12", unidade: "un" });
+    const agua = await ing("Água copo", "un");
+    await salvarConversao(db, gerente, agua, { modeloId: m.id });
+    const r = await sql<{ d: { depois: { modelo_id: number; quantidade_base: string } } }>`
+      SELECT detalhes AS d FROM auditoria WHERE alvo_tipo = 'ingrediente' AND alvo_id = ${String(agua)}
+        AND detalhes->>'operacao' = 'criar_conversao_do_catalogo'`.execute(db);
+    expect(r.rows[0]!.d.depois.modelo_id).toBe(m.id);
+  });
+});
+
+describe("concorrência entre catálogo e ingrediente (PostgreSQL real)", () => {
+  const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  it("ligação primeiro: a mudança de tamanho espera e é recusada", async () => {
+    const t = tipo("Saco");
+    const m = await salvarModeloDeEmbalagem(db, gerente, { tipo: t, tamanho: "15", unidade: "kg" });
+    const aveia = await ing("Aveia", "kg");
+    const outro = bancoDeTeste();
+    try {
+      let mudanca: Promise<unknown> | undefined;
+      await db.transaction().execute(async (trx) => {
+        await sql`INSERT INTO ingrediente_conversao (ingrediente_id, nome, quantidade_base, modelo_id)
+                  VALUES (${aveia}, ${m.nome}, 15000, ${m.id})`.execute(trx);
+        mudanca = sql`UPDATE embalagem_modelo SET tamanho = 20 WHERE id = ${m.id}`.execute(outro).then(
+          () => "aceito",
+          (e: Error) => e.message,
+        );
+        await espera(300);
+      });
+      expect(await mudanca).toMatch(/já está em uso/);
+    } finally {
+      await outro.destroy();
+    }
+  });
+  it("mudança primeiro: a ligação espera e usa o tamanho novo, sem misturar", async () => {
+    const t = tipo("Saco");
+    const m = await salvarModeloDeEmbalagem(db, gerente, { tipo: t, tamanho: "26", unidade: "kg" });
+    const trigo = await ing("Trigo", "kg");
+    const outro = bancoDeTeste();
+    try {
+      let ligacao: Promise<{ nome: string; quantidadeBase: string }> | undefined;
+      await outro.transaction().execute(async (trx) => {
+        await sql`UPDATE embalagem_modelo SET tamanho = 31 WHERE id = ${m.id}`.execute(trx);
+        ligacao = salvarConversao(db, gerente, trigo, { modeloId: m.id });
+        await espera(300);
+      });
+      const c = await ligacao!;
+      expect(c.quantidadeBase).toBe("31000");
+      expect(c.nome.endsWith(" 31 kg")).toBe(true);
+    } finally {
+      await outro.destroy();
+    }
+  });
+});

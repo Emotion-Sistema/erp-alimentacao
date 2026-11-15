@@ -50,7 +50,8 @@ const dadosModelo = z
       .transform((v) => (v ? v : null)),
     unidade: z.string().trim().min(1).max(10).nullish().transform((v) => v ?? null),
     fornecedorId: z.number().int().positive().nullish().transform((v) => v ?? null),
-    ativo: z.boolean().default(true),
+    /** Na criação vale true; na alteração, sem ele, fica como está. */
+    ativo: z.boolean().optional(),
   })
   .refine((d) => (d.tamanho === null) === (d.unidade === null), "Tamanho e unidade andam juntos: informe os dois ou nenhum.");
 
@@ -75,7 +76,7 @@ export async function listarModelosDeEmbalagem(db: Banco, ator: Ator | null): Pr
       "f.nome as fornecedor",
       "m.ativo",
       sql<number>`(SELECT count(*)::int FROM ingrediente_conversao c JOIN ingrediente i ON i.id = c.ingrediente_id
-                   WHERE c.modelo_id = m.id AND c.ativo AND i.ativo)`.as("em_uso"),
+                   WHERE c.modelo_id = m.id AND c.ativo)`.as("em_uso"),
     ])
     .orderBy("m.ativo", "desc")
     .orderBy("m.tipo")
@@ -116,7 +117,7 @@ export async function salvarModeloDeEmbalagem(db: Banco, ator: Ator | null, dado
         if (!f) throw new ErroDeRegra("dados_invalidos", "Fornecedor não encontrado.");
         if (!f.ativo) throw new ErroDeRegra("dados_invalidos", "Esse fornecedor está desativado.");
       }
-      const valores = { tipo: d.tipo.toLowerCase(), tamanho: d.tamanho, unidade, fornecedor_id: d.fornecedorId, ativo: d.ativo };
+      const valores = { tipo: d.tipo.toLowerCase(), tamanho: d.tamanho, unidade, fornecedor_id: d.fornecedorId, ...(d.ativo === undefined ? {} : { ativo: d.ativo }) };
       let antes: Record<string, unknown> | undefined;
       let salvo;
       if (d.id) {

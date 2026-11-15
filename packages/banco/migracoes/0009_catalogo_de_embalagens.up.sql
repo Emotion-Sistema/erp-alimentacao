@@ -9,6 +9,7 @@ CREATE FUNCTION nome_do_modelo(p_tipo text, p_tamanho numeric, p_unidade text) R
 LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT lower(regexp_replace(btrim(p_tipo), '\s+', ' ', 'g')) ||
     CASE WHEN p_tamanho IS NULL THEN ''
+         WHEN position('.' IN p_tamanho::text) = 0 THEN ' ' || p_tamanho::text || ' ' || p_unidade
          ELSE ' ' || replace(rtrim(rtrim(p_tamanho::text, '0'), '.'), '.', ',') || ' ' || p_unidade END
 $$;
 
@@ -35,19 +36,45 @@ CREATE UNIQUE INDEX embalagem_modelo_unico ON embalagem_modelo (nome_de_unidade(
 -- ingrediente ficaria diferente do modelo). Fornecedor e ativo podem mudar.
 CREATE FUNCTION embalagem_modelo_fixo_se_usado() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  IF (NEW.tipo, NEW.tamanho, NEW.unidade) IS DISTINCT FROM (OLD.tipo, OLD.tamanho, OLD.unidade)
-     AND EXISTS (SELECT 1 FROM ingrediente_conversao c WHERE c.modelo_id = OLD.id AND c.ativo) THEN
-    RAISE EXCEPTION 'A embalagem "%" já está em uso em ingredientes: o tipo e o tamanho não mudam. Desative-a e crie outra.', OLD.nome
+  -- O tipo não pode ser uma unidade ("kg", "litro"): viraria equivalência errada no ingrediente.
+  IF (unidade_padrao(NEW.tipo)).codigo IS NOT NULL THEN
+    RAISE EXCEPTION '"%" é uma unidade, não um tipo de embalagem. Use saco, caixa, pacote...', btrim(NEW.tipo)
       USING ERRCODE = 'check_violation';
+  END IF;
+  IF TG_OP = 'UPDATE' THEN
+    IF (NEW.tipo, NEW.tamanho, NEW.unidade) IS DISTINCT FROM (OLD.tipo, OLD.tamanho, OLD.unidade)
+       AND EXISTS (SELECT 1 FROM ingrediente_conversao c WHERE c.modelo_id = OLD.id AND c.ativo) THEN
+      RAISE EXCEPTION 'A embalagem "%" já está em uso em ingredientes: o tipo e o tamanho não mudam. Desative-a e crie outra.', OLD.nome
+        USING ERRCODE = 'check_violation';
+    END IF;
   END IF;
   RETURN NEW;
 END $$;
 CREATE TRIGGER embalagem_modelo_fixo
-  BEFORE UPDATE ON embalagem_modelo
+  BEFORE INSERT OR UPDATE ON embalagem_modelo
   FOR EACH ROW EXECUTE FUNCTION embalagem_modelo_fixo_se_usado();
 
 ALTER TABLE ingrediente_conversao ADD COLUMN modelo_id integer REFERENCES embalagem_modelo (id);
 CREATE INDEX ingrediente_conversao_modelo ON ingrediente_conversao (modelo_id) WHERE modelo_id IS NOT NULL;
+
+-- A embalagem do ingrediente só fica ligada ao modelo enquanto tem o mesmo nome dele. Renomear,
+-- ou reativar depois de o modelo mudar, desfaz o vínculo (a conta usa a própria embalagem, então
+-- nada muda no estoque). FOR SHARE: o modelo não muda enquanto a ligação é gravada.
+CREATE FUNCTION conversao_ligada_ao_modelo() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+  nome_modelo text;
+BEGIN
+  IF NEW.modelo_id IS NOT NULL THEN
+    SELECT m.nome INTO nome_modelo FROM embalagem_modelo m WHERE m.id = NEW.modelo_id FOR SHARE;
+    IF nome_modelo IS NULL OR nome_de_unidade(nome_modelo) <> nome_de_unidade(NEW.nome) THEN
+      NEW.modelo_id := NULL;
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER ingrediente_conversao_modelo
+  BEFORE INSERT OR UPDATE ON ingrediente_conversao
+  FOR EACH ROW EXECUTE FUNCTION conversao_ligada_ao_modelo();
 
 -- Modelos comuns prontos (sem fornecedor). O responsável edita, desativa e cria os dele.
 INSERT INTO embalagem_modelo (tipo, tamanho, unidade) VALUES
