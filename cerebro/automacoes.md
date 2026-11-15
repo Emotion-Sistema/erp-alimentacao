@@ -45,6 +45,11 @@ A sessão principal roda em Opus 5.5 e coordena. Regras em `docs/05-uso-dos-mode
 
 O Claude deve propor uma skill sempre que repetir o mesmo procedimento pela segunda vez.
 
+## Mods do Claude (ferramenta de trabalho, fora do ERP)
+- **Salão** (`ferramentas/mod-salao/`, 15/11/2026): faixa + painel com sala isométrica; mostra
+  quem está trabalhando e o que está em segundo plano ("fogo baixo"). Para ligar numa sessão:
+  pedir "ligue o mod Salão de `ferramentas/mod-salao`" (skill `plugin-authoring`). `/salao` reabre.
+
 ## Conectores
 | Conector | Uso | Quando ligar | Cuidado |
 |---|---|---|---|

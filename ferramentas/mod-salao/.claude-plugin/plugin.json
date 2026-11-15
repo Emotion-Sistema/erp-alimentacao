@@ -1,0 +1,6 @@
+{
+  "name": "salao",
+  "version": "0.1.0",
+  "description": "Mostra as tarefas do Claude como o salão de um restaurante (visão isométrica) e avisa se há algo em segundo plano.",
+  "types": "./types/index.d.ts"
+}
