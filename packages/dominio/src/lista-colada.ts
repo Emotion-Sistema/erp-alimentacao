@@ -108,7 +108,7 @@ export type LinhaLida = {
   erros: string[];
 };
 
-type TamanhoLido = { tipo: string | null; numero: string; palavra: string } | { erro: string };
+type TamanhoLido = { tipo: string | null; numero: string; palavra: string; com: boolean } | { erro: string };
 
 /** "saco 25kg", "caixa com 30", "fardo 12 latas", "12 x 1 l", "25 kg" -> partes. Texto já curto. */
 function lerTamanho(t: string): TamanhoLido | null {
@@ -130,11 +130,11 @@ function lerTamanho(t: string): TamanhoLido | null {
   if (multi) {
     const total = multiplicar(numero(multi[2]!), numero(multi[3]!));
     if (!total) return { erro: `Quantidade inválida em "${t}".` };
-    return { tipo: multi[1] ? (EMBALAGENS[multi[1]] ?? multi[1]) : "fardo", numero: total, palavra: multi[4]! };
+    return { tipo: multi[1] ? (EMBALAGENS[multi[1]] ?? multi[1]) : "fardo", numero: total, palavra: multi[4]!, com: false };
   }
-  const m = new RegExp(`^(?:([a-z]+) )?(?:(?:com|c|de) )?${NUM}(?: ([a-z]+))?$`).exec(s);
+  const m = new RegExp(`^(?:(?!(?:com|c|de) )([a-z]+) )?(?:(com|c|de) )?${NUM}(?: ([a-z]+))?$`).exec(s);
   if (!m) return null;
-  return { tipo: m[1] ? (EMBALAGENS[m[1]] ?? m[1]) : null, numero: numero(m[2]!), palavra: m[3] ?? "" };
+  return { tipo: m[1] ? (EMBALAGENS[m[1]] ?? m[1]) : null, numero: numero(m[3]!), palavra: m[4] ?? "", com: !!m[2] };
 }
 
 function achaNoCatalogo(nome: string): ItemDoCatalogo | undefined {
@@ -216,7 +216,10 @@ export function lerListaColada(texto: string, jaCadastrados: readonly string[] =
         erros.push(t.erro);
       } else {
         const u = unidadePorJeito(t.palavra);
-        if (!u && !PALAVRAS_DE_CONTAGEM.has(t.palavra)) {
+        // Número sem unidade só é contagem com "com"/"c/" ("caixa com 30") ou se o item já é contado em un.
+        if (!u && t.palavra === "" && !t.com && unidadeBase !== "un") {
+          erros.push(`Diga a unidade de "${resto}" (ex.: ${resto} kg, ${resto} un ou "com ${t.numero.replace(".", ",")}").`);
+        } else if (!u && !PALAVRAS_DE_CONTAGEM.has(t.palavra)) {
           erros.push(`Não conheço a unidade "${t.palavra}". Use g, kg, ml, l, un ou dz (ex.: saco 25 kg).`);
         } else {
           const grandeza: Grandeza = u?.grandeza ?? "contagem";
@@ -226,6 +229,7 @@ export function lerListaColada(texto: string, jaCadastrados: readonly string[] =
           if (GRANDEZA_DA_BASE[unidadeBase] === grandeza) {
             const q = multiplicar(t.numero, u?.fator ?? "1");
             if (!q) erros.push(`Quantidade inválida em "${resto}".`);
+            else if (q.split(".")[0]!.length > 10) erros.push(`Quantidade grande demais em "${resto}".`);
             else if (t.tipo) embalagens.push({ nome: nomeEmb, quantidadeBase: q, doCatalogo: false });
             // Sem tipo de embalagem e na mesma grandeza ("Sal 1 kg", "Leite 1 l"): o sistema já
             // converte sozinho; só serviu para dizer a unidade do estoque.

@@ -329,3 +329,24 @@ describe("consulta do CNPJ: resposta de outro CNPJ", () => {
     expect((await erroDe(consultarCnpj(db, gerente, "11222333000181", async () => ({ status: 200, json: async () => outro })))).message).toContain("Preencha à mão");
   });
 });
+
+describe("lista colada: ressalvas da 2ª revisão", () => {
+  it("número sem unidade não vira 'un' por palpite; com 'com'/'c/' ou item em un vale", () => {
+    expect(lerListaColada("Molho X - pote 500")[0]!.erros.join()).toContain("Diga a unidade");
+    expect(lerListaColada("Molho X - pote 500 g")[0]!.embalagens[0]).toMatchObject({ nome: "pote 500 g", quantidadeBase: "500" });
+    const ovo = lerListaColada("Ovo - c/ 30")[0]!;
+    expect(ovo.situacao).not.toBe("erro");
+    expect(ovo.embalagens.some((e) => e.nome.startsWith("c "))).toBe(false);
+    expect(lerListaColada("Copo x - caixa com 50")[0]!.embalagens[0]).toMatchObject({ nome: "caixa 50 un", quantidadeBase: "50" });
+    expect(lerListaColada("Ovo - bandeja 20")[0]!.embalagens[0]).toMatchObject({ nome: "bandeja 20 un", quantidadeBase: "20" });
+  });
+
+  it("quantidade gigante é erro na prévia", () => {
+    expect(lerListaColada("Areia - fardo 99999 x 99999 kg")[0]!.erros.join()).toContain("grande demais");
+  });
+
+  it("'1 saco' e 'saco' no mesmo item dão mensagem de embalagem repetida", async () => {
+    const e = await erroDe(cadastrarEmLote(db, gerente, [{ nome: n("Saco duplo"), unidadeBase: "un", area: "cozinha", embalagens: [{ nome: "saco", quantidadeBase: "10" }, { nome: "1 saco", quantidadeBase: "10" }] }]));
+    expect(e.message).toContain("duas embalagens com o mesmo nome");
+  });
+});

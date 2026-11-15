@@ -459,7 +459,9 @@ export async function cadastrarEmLote(db: Banco, ator: Ator | null, dados: unkno
           e instanceof ErroDeRegra
             ? e.message
             : (e as { code?: string }).code === "23505"
-              ? "já existe um ingrediente ativo com esse nome."
+              ? (e as { constraint?: string }).constraint === "ingrediente_conversao_nome"
+                ? "duas embalagens com o mesmo nome (ex.: \"1 saco\" e \"saco\" são a mesma)."
+                : "já existe um ingrediente ativo com esse nome."
               : (e as { code?: string }).code === "23514"
                 ? (e as { constraint?: string }).constraint
                   ? "algum valor está fora do permitido."
