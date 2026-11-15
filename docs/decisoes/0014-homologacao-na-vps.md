@@ -114,9 +114,10 @@ computador dele.
 
 ## SSH só por chave (15/11/2026)
 O responsável cadastrou a chave dele no painel e entrou com ela. Desde então o atualizador
-roda `ssh-so-chave.sh` a cada minuto: se o root tem chave cadastrada, grava
-`/etc/ssh/sshd_config.d/00-erp-so-chave.conf` (sem senha, root só com chave), confere com
-`sshd -t` (se falhar, apaga e nada muda) e confirma com `sshd -T`. Sem chave, não mexe.
+roda `ssh-so-chave.sh` a cada minuto: se o root tem chave cadastrada, confere antes com
+`sshd -t` e só então grava `/etc/ssh/sshd_config.d/00-erp-so-chave.conf` (sem senha, root
+só com chave) e confirma com `sshd -T -C user=root,...`. Se a chave sumir, a senha volta
+sozinha. Escreve no registro só quando a situação muda.
 Para voltar a aceitar senha: `erp ssh-senha ligar` (e `desligar` para refazer).
 Não sabemos se o terminal do navegador da Hostinger usa a senha do root: o responsável
 confere depois da mudança. Se parar de abrir, ele entra pela chave e roda `erp ssh-senha ligar`.

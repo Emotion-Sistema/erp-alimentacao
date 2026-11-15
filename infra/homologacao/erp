@@ -17,7 +17,8 @@ case "${1:-ajuda}" in
       desligar) rm -f "$RAIZ/estado/ssh-com-senha" ;;
       *) echo "uso: erp ssh-senha ligar | desligar"; exit 1 ;;
     esac
-    bash "$CODIGO/infra/homologacao/ssh-so-chave.sh"; sshd -T 2>/dev/null | grep -E '^(passwordauthentication|permitrootlogin) ' || true ;;
+    bash "$CODIGO/infra/homologacao/ssh-so-chave.sh" || true
+    sshd -T -C user=root,host=localhost,addr=127.0.0.1 2>/dev/null | grep -E '^(passwordauthentication|permitrootlogin) ' || true ;;
   primeiro-acesso) compose run --rm -it ferramentas pnpm -s primeiro-acesso </dev/tty ;;
   *) echo "uso: erp situacao | registros [linhas] | atualizar [--de-novo] | ssh-senha ligar|desligar | primeiro-acesso" ;;
 esac
