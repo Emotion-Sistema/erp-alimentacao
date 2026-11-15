@@ -81,6 +81,9 @@ test.describe("telas internas do administrador", () => {
     await page.goto("/cadastros");
     await expect(page.getByTestId("ingrediente-Ovo")).toBeVisible();
     await page.getByRole("button", { name: "Cadastro rápido" }).click();
+    // Os corredores começam fechados: a busca abre o que tem resultado.
+    await expect(page.getByRole("button", { name: "Hortifrúti", exact: true })).toHaveAttribute("aria-expanded", "false");
+    await page.getByLabel("Procurar no catálogo").fill("tomate");
     await expect(page.getByRole("checkbox", { name: "Tomate", exact: true })).toBeVisible();
     await conferirAjuda(page, "cadastro rápido: catálogo", 4);
     await page.getByRole("checkbox", { name: "Tomate", exact: true }).check();
@@ -135,6 +138,8 @@ test.describe("telas internas do administrador", () => {
     ] as const) {
       await page.goto(url);
       await expect(page.getByRole("button", { name: /todos os exemplos/ })).toBeVisible();
+      // Os campos de algumas telas chegam depois da resposta da API: espera a rede ficar quieta.
+      await page.waitForLoadState("networkidle");
       await conferirAjuda(page, url, minimo);
     }
   });

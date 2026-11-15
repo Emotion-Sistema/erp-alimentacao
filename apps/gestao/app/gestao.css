@@ -229,13 +229,70 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 .sugestao__lista { order: 3; list-style: none; margin: 0; padding: 0; border: 2px solid var(--cor-primaria); border-radius: var(--raio); background: var(--cor-fundo); box-shadow: var(--sombra); }
 .sugestao__lista[hidden] { display: none; }
 .sugestao .ajuda { order: 4; }
-.sugestao__opcao { display: grid; gap: 2px; min-height: var(--alvo-toque); padding: var(--espaco-2) var(--espaco-3); cursor: pointer; overflow-wrap: anywhere; border-bottom: 1px solid var(--cor-borda); }
+.sugestao__opcao { display: grid; gap: 2px; align-content: center; min-height: var(--alvo-toque); padding: var(--espaco-2) var(--espaco-3); cursor: pointer; overflow-wrap: anywhere; border-bottom: 1px solid var(--cor-borda); }
 .sugestao__opcao:last-child { border-bottom: 0; }
-.sugestao__opcao span { color: var(--cor-texto-suave); font-size: var(--texto-pequeno); }
-.sugestao__opcao--ativa { background: var(--cor-primaria); color: var(--cor-primaria-texto); }
-.sugestao__opcao--ativa span { color: var(--cor-primaria-texto); }
-.sugestao__opcao[aria-disabled="true"] { cursor: not-allowed; opacity: 0.7; }
+.sugestao__nome { font-size: var(--tamanho-texto); }
+.sugestao__detalhes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-1) var(--espaco-2); margin-top: var(--espaco-1); }
+.sugestao__opcao--ativa { background: var(--cor-superficie-forte); box-shadow: inset 6px 0 0 var(--cor-primaria); }
+.sugestao__opcao[aria-disabled="true"] { cursor: not-allowed; opacity: 0.85; }
 
 .cnpj__dados { display: grid; grid-template-columns: minmax(7rem, max-content) 1fr; gap: var(--espaco-1) var(--espaco-3); margin: 0 0 var(--espaco-3); }
 .cnpj__dados dt { font-weight: 600; }
 .cnpj__dados dd { margin: 0; overflow-wrap: anywhere; }
+
+/* ---------- Resumos visuais do cadastro (mini-cartão, faixa de situação, contadores) ---------- */
+.rapido__mini { display: grid; gap: var(--espaco-3); width: 100%; padding: var(--espaco-3); border: 1px solid var(--cor-borda); border-radius: var(--raio); background: var(--cor-superficie); }
+.rapido__faixa { justify-self: stretch; }
+.rapido__nome { margin: 0; font-size: var(--texto-grande); font-weight: 800; }
+.rapido__contadores { display: flex; flex-wrap: wrap; gap: var(--espaco-2); }
+.rapido__linha .erp-ficha, .rapido__linha .erp-secao, .rapido__linha .erp-problemas, .rapido__linha .erp-citacao { justify-self: stretch; }
+.rapido__linha { background: var(--cor-fundo); }
+
+/* ---------- Avisos, comunicados e fornecedores ---------- */
+.aviso__meta { margin-bottom: var(--espaco-2); }
+.comunicado { display: grid; gap: var(--espaco-3); }
+.comunicado__texto { margin: 0; font-size: var(--tamanho-texto); }
+.cnpj__cabeca { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-2); }
+
+/* ---------- Catálogo pronto: corredores recolhíveis e cartões selecionáveis ---------- */
+.catalogo__busca .erp-campo__entrada { min-height: 56px; font-size: var(--texto-grande); }
+.catalogo { display: grid; gap: var(--espaco-3); }
+.catalogo__secao { border: 1px solid var(--cor-borda); border-radius: var(--raio); background: var(--cor-superficie); min-width: 0; }
+.catalogo__cabeca { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); padding: var(--espaco-2) var(--espaco-3); }
+.catalogo__alternar {
+  display: inline-flex; align-items: center; gap: var(--espaco-3); flex: 1 1 12rem; min-height: var(--alvo-toque); min-width: 0;
+  background: transparent; border: 0; padding: 0; font: inherit; color: var(--cor-texto); cursor: pointer; text-align: left;
+}
+.catalogo__nome { font-size: var(--texto-grande); font-weight: 800; overflow-wrap: anywhere; }
+.catalogo__seta { width: 0.6rem; height: 0.6rem; flex: none; border-right: 3px solid currentColor; border-bottom: 3px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s; }
+.catalogo__alternar[aria-expanded="true"] .catalogo__seta { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .catalogo__seta { transition: none; } }
+.catalogo__selos { display: inline-flex; flex-wrap: wrap; gap: var(--espaco-1) var(--espaco-2); }
+.catalogo__grade { display: grid; grid-template-columns: 1fr; gap: var(--espaco-3); padding: var(--espaco-3); border-top: 1px solid var(--cor-borda); margin: 0; }
+.catalogo__grade > li { margin: 0; min-width: 0; }
+@media (min-width: 40rem) { .catalogo__grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 64rem) { .catalogo__grade { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 80rem) { .catalogo__grade { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.cartao-sel {
+  display: grid; gap: var(--espaco-2); align-content: start; height: 100%; min-height: var(--alvo-toque); position: relative;
+  padding: var(--espaco-3) var(--espaco-3) var(--espaco-3) calc(var(--espaco-3) + 2rem);
+  background: var(--cor-fundo); border: 2px solid var(--cor-borda); border-radius: var(--raio); cursor: pointer; min-width: 0;
+}
+.cartao-sel > input { position: absolute; left: var(--espaco-3); top: var(--espaco-3); width: 1.5rem; height: 1.5rem; margin: 0; }
+.cartao-sel:hover { border-color: var(--cor-primaria); }
+.cartao-sel:focus-within { outline: 3px solid var(--cor-primaria); outline-offset: 2px; }
+.cartao-sel--marcado { border-color: var(--cor-primaria); background: var(--selo-info-fundo); color: var(--selo-info-texto); }
+.cartao-sel--marcado .erp-icone { color: var(--selo-sucesso-texto); }
+.cartao-sel--ja { opacity: 0.8; cursor: not-allowed; background: var(--cor-superficie); }
+.cartao-sel__topo { display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-2); }
+.cartao-sel__nome { font-weight: 800; overflow-wrap: anywhere; }
+.cartao-sel__selos { display: flex; flex-wrap: wrap; gap: var(--espaco-1) var(--espaco-2); }
+
+.catalogo__bandeja { display: grid; gap: var(--espaco-3); padding: var(--espaco-3); border: 2px solid var(--cor-primaria); border-radius: var(--raio); background: var(--cor-fundo); }
+.catalogo__bandeja-cabeca { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-2); }
+.catalogo__bandeja-cabeca h3 { margin: 0; }
+.catalogo__minis { display: grid; gap: var(--espaco-3); }
+.catalogo__minis > li { margin: 0; }
+@media (min-width: 64rem) { .catalogo__minis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 40rem) { .catalogo__alternar { flex-basis: 100%; } .catalogo__selos { flex: 1 1 auto; } .catalogo__cabeca .erp-botao { min-height: var(--alvo-toque); padding: var(--espaco-2) var(--espaco-4); } }

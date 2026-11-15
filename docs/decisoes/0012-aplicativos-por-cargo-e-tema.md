@@ -76,3 +76,14 @@ exemplo rápido, que dá para mostrar ou esconder. Vale para o sistema inteiro.
 - Evidência: `apps/gestao/testes-tela/ajuda-nos-campos.spec.ts` percorre as telas com formulário e
   FALHA se algum campo visível ficar sem explicação ligada ou sem botão de exemplo; também testa
   abrir/fechar, "todos", persistência ao recarregar e o funcionamento sem armazenamento.
+
+## Adendo de 15/11/2026: fundo sempre claro e resumos organizados
+- **Fundo sempre claro (pedido do responsável, 15/11/2026).** O tema não tem mais modo escuro,
+  nem automático (`prefers-color-scheme`) nem manual. `color-scheme: light` no `:root` e no `html`
+  deixa os controles nativos claros também. Vale para a gestão, a loja e o site (tema compartilhado).
+  Teste de tela emula o modo escuro do aparelho e confere o fundo claro.
+- **Resumos organizados.** Texto corrido separado por pontos (g · área · embalagem) saiu do sistema.
+  Padrão em `packages/interface`: `FichaDeDados`/`Dado`, `Selo` (inclui uma cor por área de estoque),
+  `Icone`, `ChipDeEmbalagem`, `ItemDeLista`, `Faixa`, `ListaComIcone`, `BlocoDeConfirmacao`, `Citacao`.
+  Números em formato brasileiro (texto/BigInt). Contraste AA dos pares de cores é testado.
+  Um teste (`apps/gestao/testes/sem-resumo-corrido.teste.ts`) falha se o ponto do meio voltar a uma tela.

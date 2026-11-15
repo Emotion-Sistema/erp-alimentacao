@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Aviso, Botao, Cartao, Etiqueta } from "@erp/interface";
+import { Aviso, Botao, Cartao, Dado, FichaDeDados, ItemDeLista, Selo } from "@erp/interface";
 import { BotaoExemplos, Campo, Marcador } from "../../Campo";
 import { chamar } from "../../chamar";
 import { cnpjValido, digitarComMascara, mascararDocumento, mascararTelefone, soDigitos } from "../auxiliares";
@@ -74,19 +74,11 @@ export function Fornecedores({ podeGerenciar }: { podeGerenciar: boolean }) {
         <ul className="lista-simples" data-testid="lista-fornecedores" aria-label="Fornecedores">
           {lista.map((f) => (
             <li key={f.id} data-testid={`fornecedor-${f.nome}`}>
-              <Cartao>
-                <h2>
-                  {f.nome} {!f.ativo && <Etiqueta>inativo</Etiqueta>}
-                </h2>
-                <p>
-                  {[f.contato, f.telefone, f.email].filter(Boolean).join(" · ") || "Sem contato cadastrado"}
-                  {f.prazoEntregaDias !== null && ` · Entrega em ${f.prazoEntregaDias} ${f.prazoEntregaDias === 1 ? "dia" : "dias"}`}
-                </p>
-                {f.documento && <p>CPF/CNPJ: {mascararDocumento(f.documento)}</p>}
-                {f.endereco && <p>Endereço: {f.endereco}</p>}
-                {f.observacao && <p className="cadastros__dica">{f.observacao}</p>}
-                {podeGerenciar && (
-                  <p>
+              <ItemDeLista
+                titulo={f.nome}
+                ativo={f.ativo}
+                acoes={
+                  podeGerenciar && (
                     <Botao
                       variante="secundario"
                       aria-label={`Editar ${f.nome}`}
@@ -97,9 +89,34 @@ export function Fornecedores({ podeGerenciar }: { podeGerenciar: boolean }) {
                     >
                       Editar
                     </Botao>
-                  </p>
-                )}
-              </Cartao>
+                  )
+                }
+              >
+                {/* Quem só consulta (ex.: cozinheira) recebe estes campos nulos do servidor: não mostramos o Dado. */}
+                <FichaDeDados>
+                  <Dado rotulo="CPF/CNPJ" icone="documento" ocultarSeVazio={!podeGerenciar}>
+                    {f.documento ? mascararDocumento(f.documento) : null}
+                  </Dado>
+                  <Dado rotulo="Contato" icone="pessoa" ocultarSeVazio={!podeGerenciar}>
+                    {f.contato}
+                  </Dado>
+                  <Dado rotulo="Telefone" icone="telefone" ocultarSeVazio={!podeGerenciar}>
+                    {f.telefone ? <a href={`tel:${soDigitos(f.telefone)}`}>{mascararTelefone(f.telefone)}</a> : null}
+                  </Dado>
+                  <Dado rotulo="E-mail" icone="email" ocultarSeVazio={!podeGerenciar}>
+                    {f.email ? <a href={`mailto:${f.email}`}>{f.email}</a> : null}
+                  </Dado>
+                  <Dado rotulo="Prazo de entrega" icone="relogio">
+                    {f.prazoEntregaDias !== null ? `${f.prazoEntregaDias} ${f.prazoEntregaDias === 1 ? "dia" : "dias"}` : null}
+                  </Dado>
+                  <Dado rotulo="Endereço" icone="local" largo ocultarSeVazio={!podeGerenciar}>
+                    {f.endereco}
+                  </Dado>
+                  <Dado rotulo="Observação" largo ocultarSeVazio>
+                    {f.observacao}
+                  </Dado>
+                </FichaDeDados>
+              </ItemDeLista>
             </li>
           ))}
         </ul>
@@ -286,20 +303,28 @@ function FormularioFornecedor({
                     Atenção: a situação deste CNPJ na Receita é <strong>{consulta.situacao ?? "desconhecida"}</strong> (não está ATIVA). Confira antes de comprar desta empresa.
                   </Aviso>
                 )}
-                <dl className="cnpj__dados">
-                  <dt>Razão social</dt>
-                  <dd>{consulta.razaoSocial}</dd>
-                  <dt>Nome fantasia</dt>
-                  <dd>{consulta.nomeFantasia ?? "não informado"}</dd>
-                  <dt>Situação</dt>
-                  <dd>{consulta.situacao ?? "não informada"}</dd>
-                  <dt>Endereço</dt>
-                  <dd>{consulta.endereco ?? "não informado"}</dd>
-                  <dt>Telefone</dt>
-                  <dd>{consulta.telefone ? mascararTelefone(consulta.telefone) : "não informado"}</dd>
-                  <dt>E-mail</dt>
-                  <dd>{consulta.email ?? "não informado"}</dd>
-                </dl>
+                <FichaDeDados>
+                  <Dado rotulo="Razão social" icone="documento" largo>
+                    {consulta.razaoSocial}
+                  </Dado>
+                  <Dado rotulo="Nome fantasia">{consulta.nomeFantasia}</Dado>
+                  <Dado rotulo="Situação">
+                    {consulta.situacao ? (
+                      <Selo variante={consulta.ativa ? "sucesso" : "perigo"} icone={consulta.ativa ? "ok" : "erro"}>
+                        {consulta.situacao}
+                      </Selo>
+                    ) : null}
+                  </Dado>
+                  <Dado rotulo="Endereço" icone="local" largo>
+                    {consulta.endereco}
+                  </Dado>
+                  <Dado rotulo="Telefone" icone="telefone">
+                    {consulta.telefone ? mascararTelefone(consulta.telefone) : null}
+                  </Dado>
+                  <Dado rotulo="E-mail" icone="email">
+                    {consulta.email}
+                  </Dado>
+                </FichaDeDados>
                 {conflitos ? (
                   <Aviso tipo="atencao">
                     <p>

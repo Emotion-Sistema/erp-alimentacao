@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Aviso, Botao, Cartao } from "@erp/interface";
+import { Aviso, Botao, Cartao, Dado, FichaDeDados } from "@erp/interface";
 import { BotaoExemplos, Campo } from "../Campo";
 import { chamar } from "../chamar";
 
@@ -43,13 +43,15 @@ export function Turnos() {
         <>
           <Cartao>
             <h2>Turnos da equipe</h2>
-            <ul className="lista-simples" data-testid="lista-turnos">
-              {dados.turnos.map((t) => (
-                <li key={t.id}>
-                  <strong>{t.nome}</strong>: {t.inicio} às {t.fim === "24:00" ? "00:00" : t.fim}
-                </li>
-              ))}
-            </ul>
+            <div data-testid="lista-turnos">
+              <FichaDeDados>
+                {dados.turnos.map((t) => (
+                  <Dado key={t.id} rotulo={t.nome} icone="relogio">
+                    {t.inicio} às {t.fim === "24:00" ? "00:00" : t.fim}
+                  </Dado>
+                ))}
+              </FichaDeDados>
+            </div>
             <p>Para mudar os horários dos turnos, peça ao suporte (a tela vem com os horários de venda).</p>
           </Cartao>
           <Cartao>

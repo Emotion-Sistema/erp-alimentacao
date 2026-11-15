@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Aviso, Botao, Cartao, Etiqueta } from "@erp/interface";
+import { Aviso, Botao, Cartao, ChipDeEmbalagem, GrupoDeChips, ItemDeLista } from "@erp/interface";
+import { ContaDaEmbalagem, ResumoDoItem } from "./ResumoDoItem";
 import { chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
 import { BotaoExemplos, Campo, Marcador, Selecao } from "../Campo";
 import { chamar } from "../chamar";
@@ -68,8 +69,7 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
 
   const dica = (dados?.unidades ?? [])
     .filter((u) => u.fator !== "1")
-    .map((u) => `1 ${u.codigo} = ${aparecer(u.fator)} ${BASE_DA_GRANDEZA[u.grandeza] ?? ""}`)
-    .join(", ");
+    .map((u) => ({ codigo: u.codigo, fator: u.fator, base: BASE_DA_GRANDEZA[u.grandeza] ?? "" }));
 
   const nomesExistentes = useMemo(() => new Set((dados?.ingredientes ?? []).filter((i) => i.ativo).map((i) => chaveDeBusca(i.nome))), [dados]);
 
@@ -154,10 +154,16 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
             opcoes={[{ valor: "", texto: "Todas as áreas" }, ...areas]}
           />
         </div>
-        {dica && (
-          <p className="cadastros__dica">
-            Estas unidades já convertem sozinhas, não precisa cadastrar: {dica}. Para caixa, saco, pacote e outras unidades de compra, cadastre a conversão do ingrediente.
-          </p>
+        {dica.length > 0 && (
+          <div className="cadastros__dica">
+            <p>Estas unidades já convertem sozinhas, não precisa cadastrar:</p>
+            <GrupoDeChips rotulo="Unidades que já convertem sozinhas">
+              {dica.map((u) => (
+                <ChipDeEmbalagem key={u.codigo} nome={`1 ${u.codigo}`} quantidade={u.fator} unidade={u.base} />
+              ))}
+            </GrupoDeChips>
+            <p>Para caixa, saco, pacote e outras unidades de compra, cadastre a conversão do ingrediente.</p>
+          </div>
         )}
       </Cartao>
       {!dados ? (
@@ -168,61 +174,74 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
         <ul className="lista-simples" data-testid="lista-ingredientes" aria-label="Ingredientes">
           {visiveis.map((i) => (
             <li key={i.id} data-testid={`ingrediente-${i.nome}`}>
-              <Cartao>
-                <h2>
-                  {i.nome} {!i.ativo && <Etiqueta>inativo</Etiqueta>}
-                </h2>
-                <p>
-                  Estoque em <strong>{i.unidadeBase}</strong> · {nomeDaArea(i.area)} · Fornecedor: {i.fornecedor ?? "sem fornecedor"}
-                </p>
-                {i.conversoes.filter((c) => c.ativo).length > 0 && (
-                  <ul className="cadastros__conversoes" aria-label={`Conversões de ${i.nome}`}>
-                    {i.conversoes
-                      .filter((c) => c.ativo)
-                      .map((c) => (
-                        <li key={c.id}>
-                          1 {c.nome} = {aparecer(c.quantidadeBase)} {i.unidadeBase}
-                        </li>
-                      ))}
-                  </ul>
-                )}
-                {podeGerenciar && (
-                  <p className="cadastros__botoes">
-                    <Botao
-                      variante="secundario"
-                      aria-label={`Editar ${i.nome}`}
-                      onClick={() => {
-                        setMensagem(null);
-                        setRapido(false);
-                        setEditando(i.id);
-                      }}
-                    >
-                      Editar
-                    </Botao>
-                    <Botao
-                      variante="secundario"
-                      aria-label={`Duplicar ${i.nome}`}
-                      onClick={() => {
-                        setMensagem(null);
-                        setRapido(false);
-                        setModelo({
-                          numero: (modelo?.numero ?? 0) + 1,
-                          valores: {
-                            nome: `${i.nome} (cópia)`,
-                            unidadeBase: i.unidadeBase,
-                            area: i.area,
-                            fornecedorId: i.fornecedorId,
-                            embalagens: i.conversoes.filter((c) => c.ativo).map((c) => [c.nome, c.quantidadeBase] as const),
-                          },
-                        });
-                        setEditando("novo");
-                      }}
-                    >
-                      Duplicar
-                    </Botao>
-                  </p>
-                )}
-              </Cartao>
+              <ItemDeLista
+                titulo={i.nome}
+                ativo={i.ativo}
+                acoes={
+                  podeGerenciar && (
+                    <>
+                      <Botao
+                        variante="secundario"
+                        aria-label={`Editar ${i.nome}`}
+                        onClick={() => {
+                          setMensagem(null);
+                          setRapido(false);
+                          setEditando(i.id);
+                        }}
+                      >
+                        Editar
+                      </Botao>
+                      <Botao
+                        variante="secundario"
+                        aria-label={`Duplicar ${i.nome}`}
+                        onClick={() => {
+                          setMensagem(null);
+                          setRapido(false);
+                          setModelo({
+                            numero: (modelo?.numero ?? 0) + 1,
+                            valores: {
+                              nome: `${i.nome} (cópia)`,
+                              unidadeBase: i.unidadeBase,
+                              area: i.area,
+                              fornecedorId: i.fornecedorId,
+                              embalagens: i.conversoes.filter((c) => c.ativo).map((c) => [c.nome, c.quantidadeBase] as const),
+                            },
+                          });
+                          setEditando("novo");
+                        }}
+                      >
+                        Duplicar
+                      </Botao>
+                    </>
+                  )
+                }
+              >
+                <ResumoDoItem
+                  unidadeBase={i.unidadeBase}
+                  area={i.area}
+                  nomeDaArea={nomeDaArea}
+                  fornecedor={i.fornecedor}
+                  mostrarFornecedor
+                  embalagens={i.conversoes.filter((c) => c.ativo).map((c) => ({ chave: c.id, nome: c.nome, quantidade: c.quantidadeBase }))}
+                  acaoDasEmbalagens={
+                    podeGerenciar && i.conversoes.filter((c) => c.ativo).length === 0 ? (
+                      <div>
+                        <Botao
+                          variante="secundario"
+                          aria-label={`Adicionar embalagem a ${i.nome}`}
+                          onClick={() => {
+                            setMensagem(null);
+                            setRapido(false);
+                            setEditando(i.id);
+                          }}
+                        >
+                          Adicionar embalagem
+                        </Botao>
+                      </div>
+                    ) : undefined
+                  }
+                />
+              </ItemDeLista>
             </li>
           ))}
         </ul>
@@ -485,9 +504,9 @@ function Conversoes({ ingrediente, unidades, aoMudar }: { ingrediente: Ingredien
         <ul className="lista-simples" data-testid="conversoes-do-ingrediente">
           {ingrediente.conversoes.map((c) => (
             <li key={c.id} className="acoes__linha">
-              <span>
-                1 {c.nome} = {aparecer(c.quantidadeBase)} {ingrediente.unidadeBase} {!c.ativo && <Etiqueta>inativa</Etiqueta>}
-              </span>
+              <GrupoDeChips rotulo={`Conversão ${c.nome}`}>
+                <ChipDeEmbalagem nome={c.nome} quantidade={c.quantidadeBase} unidade={ingrediente.unidadeBase} inativa={!c.ativo} />
+              </GrupoDeChips>
               <span className="cadastros__botoes">
                 <Botao variante="secundario" aria-label={`Editar a conversão ${c.nome}`} onClick={() => abrir(c)}>
                   Editar
@@ -542,9 +561,7 @@ function Conversoes({ ingrediente, unidades, aoMudar }: { ingrediente: Ingredien
               setQuantidade(aparecer(e.quantidadeBase));
             }}
           />
-          <p className="cadastros__dica" data-testid="ajuda-conversao">
-            1 {nome.trim() || "[nome]"} = {quantidade.trim() || "[quantidade]"} {ingrediente.unidadeBase}
-          </p>
+          <ContaDaEmbalagem nome={nome} quantidade={quantidade} base={ingrediente.unidadeBase} data-testid="ajuda-conversao" />
           <div className="cadastros__botoes">
             <Botao type="submit">{alvo === "nova" ? "Adicionar conversão" : "Salvar conversão"}</Botao>
             <Botao variante="secundario" onClick={() => setAlvo(null)}>

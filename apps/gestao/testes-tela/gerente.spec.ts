@@ -40,7 +40,7 @@ test("código pessoal só para a cozinha: recusa e depois certo, com segundo car
   await linha.getByLabel("Dar cargo a Ana Atendente").selectOption("cozinheira");
   await linha.getByRole("button", { name: "Dar cargo", exact: true }).click();
   await expect(page.getByText("Cargo dado.")).toBeVisible();
-  await expect(page.getByTestId("linha-ana.atendente").locator('[data-rotulo="Cargos"]')).toHaveText("Atendente, Cozinheira");
+  await expect(page.getByTestId("linha-ana.atendente").locator('[data-rotulo="Cargos"]')).toHaveText("Atendente Cozinheira");
 
   await page.getByTestId("linha-ana.atendente").getByLabel("Código de 4 números de Ana Atendente").fill("2580");
   await page.getByTestId("linha-ana.atendente").getByRole("button", { name: "Definir código" }).click();

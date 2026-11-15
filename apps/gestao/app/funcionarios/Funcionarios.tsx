@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Aviso, Botao, Cartao, Celula, Etiqueta, Tabela } from "@erp/interface";
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { Aviso, Botao, Cartao, Celula, Etiqueta, Selo, Tabela } from "@erp/interface";
 import { BotaoExemplos, Campo, Selecao } from "../Campo";
 import { chamar } from "../chamar";
 
@@ -76,7 +76,19 @@ export function Funcionarios(props: Props) {
               <tr key={u.id} data-testid={`linha-${u.login}`}>
                 <Celula rotulo="Nome">{u.nome}</Celula>
                 <Celula rotulo="Usuário">{u.login}</Celula>
-                <Celula rotulo="Cargos">{u.cargos.map(nomeDoCargo).join(", ") || "nenhum"}</Celula>
+                <Celula rotulo="Cargos">
+                  {u.cargos.length === 0 ? (
+                    <span className="erp-vazio">Nenhum cargo</span>
+                  ) : (
+                    <span className="erp-chips">
+                      {u.cargos.map((c) => (
+                        <Fragment key={c}>
+                          <Selo variante="info">{nomeDoCargo(c)}</Selo>{" "}
+                        </Fragment>
+                      ))}
+                    </span>
+                  )}
+                </Celula>
                 <Celula rotulo="Situação">
                   <Etiqueta tipo={u.ativo ? "sucesso" : "neutro"}>{u.ativo ? "Ativo" : "Desligado"}</Etiqueta>
                 </Celula>

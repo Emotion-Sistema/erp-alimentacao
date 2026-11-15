@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Aviso, Botao, Cartao } from "@erp/interface";
+import { Aviso, Botao, Cartao, Dado, FichaDeDados, Selo } from "@erp/interface";
 import { AreaDeTexto, BotaoExemplos, Grupo, OpcaoDoGrupo, Selecao } from "../Campo";
 import { chamar } from "../chamar";
 import { formatarDataHora } from "../formatar";
@@ -152,10 +152,24 @@ export function Comunicados({ cargos }: { cargos: { valor: string; texto: string
           {lista.map((c) => (
             <li key={c.id} data-testid="comunicado-enviado">
               <Cartao>
-                <small>
-                  {formatarDataHora(c.criadoEm)} · {c.autorNome ?? "sem autor"} · para {c.cargos.map((x) => x.nome).join(", ")}
-                </small>
-                <p>{c.texto}</p>
+                <FichaDeDados compacta>
+                  <Dado rotulo="Quando" icone="calendario">
+                    {formatarDataHora(c.criadoEm)}
+                  </Dado>
+                  <Dado rotulo="De" icone="pessoa">
+                    {c.autorNome}
+                  </Dado>
+                  <Dado rotulo="Para">
+                    <span className="erp-chips">
+                      {c.cargos.map((x) => (
+                        <Selo key={x.codigo} variante="info">
+                          {x.nome}
+                        </Selo>
+                      ))}
+                    </span>
+                  </Dado>
+                </FichaDeDados>
+                <p className="comunicado__texto">{c.texto}</p>
                 <p>
                   <strong>
                     {c.confirmaram} de {c.total} confirmaram
