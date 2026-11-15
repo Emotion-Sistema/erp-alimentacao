@@ -34,7 +34,7 @@ só para uma função nova, conversando com o chat principal **pelo cérebro**.
 ## Frentes abertas
 | Frente | Arquivo | Aberta em | Situação |
 |---|---|---|---|
-| lista-de-compras (Central de Compras) | `lista-de-compras.md` | 15/11/2026 | Proposta registrada (ideia nº 3); aguardando "ok"; sem código; espera a E07 |
+| lista-de-compras (Central de Compras) | `lista-de-compras.md` | 15/11/2026 | Proposta aprovada em 15/11/2026 (ideia nº 3); sem código; espera a E07 para começar a LC1 |
 
 ## Bloco para abrir uma frente (o responsável cola no chat novo)
 Antes de colar, escolha o modelo no chat novo (seletor de modelo, ou `/model`). Troque o que

@@ -1,7 +1,7 @@
 # Frente: lista-de-compras (Central de Compras)
 
-Aberta em 15/11/2026 pelo responsável. Situação: **proposta registrada, aguardando o "ok"**.
-Nenhum código escrito. Ideia nº 3 em `cerebro/ideias-do-cliente.md`.
+Aberta em 15/11/2026 pelo responsável. Situação: **proposta aprovada pelo responsável em 15/11/2026** ("ok"), com a leitura de
+nota por IA incluída. Nenhum código escrito: a frente espera a E07 na `main`. Ideia nº 3 em `cerebro/ideias-do-cliente.md`.
 
 ## O pedido, nas palavras do responsável
 Quando faltar no estoque, o item vai sozinho para uma lista de compras dos gerentes. A lista
@@ -100,7 +100,51 @@ Como a nota vira compra:
 | Marcar à mão | Seção 2 | Total | Sempre existe |
 | Arquivo XML da nota (NF-e) | Formato nacional padronizado; o fornecedor envia ou o contador baixa; já previsto no RC-06 | Alta | Primeiro a construir |
 | QR Code do cupom (NFC-e) | O QR leva à página de consulta da Secretaria da Fazenda do estado | **A validar** | Não é um serviço oficial para sistemas, muda de estado para estado e pode bloquear consultas automáticas. Só prometo depois de testar no estado da loja |
-| Foto do cupom lida por IA | Serve para qualquer papel | Média, sempre com conferência | **Adiar:** é serviço pago (exige confirmação específica do responsável) |
+| Foto ou PDF lido por IA | Serve para qualquer papel: cupom, nota grande, recibo de feira | Boa, com as travas da seção 4a | **Pedido do responsável (15/11/2026):** entra junto com o XML. É serviço pago por uso: contratar exige confirmação específica |
+
+### 4a. Leitura por IA (pedido do responsável, 15/11/2026)
+O gerente tira a foto da nota (ou envia o PDF) e a IA devolve: quem vendeu (nome e CNPJ),
+data, chave da nota, cada linha (descrição, quantidade, unidade, preço, total), descontos e
+o total.
+
+**O sistema não confia na IA: confere.** Antes de aceitar a leitura:
+- a soma das linhas tem que bater com o total da nota, no centavo;
+- quantidade x preço tem que bater com o total de cada linha;
+- a chave de 44 dígitos tem que ser válida (ela tem dígito verificador) e inédita;
+- preço muito fora do histórico daquele item é destacado para a pessoa olhar;
+- campo em que a IA teve dúvida aparece em amarelo.
+Se a nota tem XML disponível, o XML vale mais que a leitura da foto.
+A foto fica guardada junto da compra, como prova (RC-17).
+
+**O que a IA faz bem e o que não faz:** ler o que está escrito, ela faz bem em nota legível.
+Papel amassado, apagado ou cortado derruba a leitura, e o sistema pede outra foto. A parte
+difícil não é ler: é saber que "QJ MUS FAT 150G" é o Queijo muçarela do cadastro. Isso é o
+dicionário da seção 4, que a IA ajuda sugerindo e a pessoa confirma na primeira vez.
+
+**"Ajustar direto no sistema": três níveis, escolhidos pelo dono**
+| Nível | O que acontece sozinho | O que a pessoa faz |
+|---|---|---|
+| 1. Conferir tudo | Nada: a leitura vira um rascunho de compra | Revisa e confirma |
+| 2. Meio automático (recomendado para começar) | Abate a lista e grava os preços, quando todas as travas passam e todos os itens são conhecidos | Um toque para confirmar a entrada no estoque |
+| 3. Automático | Também a entrada no estoque | Só é chamada quando alguma trava falha |
+
+O nível 3 só deve ser ligado depois de medir, com notas reais da casa, quantas leituras
+saem certas. Entrada errada no estoque muda o que o cardápio mostra para vender (RC-09).
+Não prometo percentual de acerto antes de medir.
+
+**Cuidados:** a resposta da IA é tratada como dado de fora (validada no servidor, nunca
+executa nada); a chave do serviço fica em cofre; o fornecedor da IA é escolhido em registro
+de decisão quando a LC4 começar; CPF que apareça em cupom é ocultado antes de guardar.
+
+### 4b. Nota com CNPJ x cupom comum (resposta de 15/11/2026: a casa usa os dois)
+- **Nota com o CNPJ da empresa** (atacado, fornecedor): existe o arquivo XML. Leitura
+  exata, sem IA. É também a que serve de documento de compra para o RC-06 e o RC-15.
+- **Cupom comum** (mercado, sem CNPJ): não há XML entregue ao comprador. O caminho é a foto
+  lida por IA ou o QR Code. É aqui que a IA mais ajuda.
+- Para estoque, lista e preços, os dois valem igual. O que cada um vale para a
+  contabilidade é pergunta para o contador: não é decidido aqui.
+- Loja em **Juiz de Fora, MG**: o QR Code do cupom aponta para a consulta da Fazenda de
+  Minas Gerais. Viabilidade ainda não testada (LC6).
 
 ### 5. Mais adiante
 - Quantidade sugerida mais esperta: consumo previsto x dias até a próxima compra,
@@ -112,7 +156,7 @@ Como a nota vira compra:
 ## Quem pode o quê (proposta, a confirmar)
 | Ação | Quem |
 |---|---|
-| Pedir um item | Todo funcionário |
+| Pedir um item | Todo funcionário, inclusive supervisor, atendentes e cozinha (confirmado em 15/11/2026); o gerente aceita ou recusa |
 | Ver a lista, aceitar pedido, pôr e tirar item, registrar compra de estoque | Gerente geral, dono, administrador (`compras.estoque`, já existe) |
 | Itens de materiais | Os mesmos e o financeiro (`compras.materiais`, já existe) |
 | Ver preços e comparação | Quem compra. É custo da área, permitido ao gerente geral (RC-12) |
@@ -127,9 +171,9 @@ roteiro e leitura de nota são **evolução**: não podem atrasar o RC-01.
 | **LC1** Lista manual, pedidos da equipe, categorias, locais de compra | Seção 1 sem a parte automática | **E07** (ingredientes, unidades, conversões, fornecedores) | Permissão: `revisor` |
 | **LC2** Registrar compra e histórico de preço | Seções 2 e 3 (média, ficha do item) | LC1. A entrada no estoque depende da **E09** | Dinheiro e estoque: `revisor` |
 | **LC3** Itens automáticos | Liga as linhas do estoque à lista | **E09 e E10** | Estoque: `revisor` |
-| **LC4** Leitura de nota (XML) e dicionário | Seção 4 | LC2 | Idempotência: `revisor` |
+| **LC4** Leitura de nota (XML e foto por IA) e dicionário | Seções 4, 4a e 4b | LC2; contratação do serviço de IA (confirmação específica) | Idempotência, estoque e serviço externo: `revisor` |
 | **LC5** Roteiro, avisos de preço, relatórios | Resto da seção 3 | LC2; custo do prato depende da **E08** | Não |
-| **LC6** QR Code e foto | Seção 4, caminhos a validar | LC4 e validação externa | Superfície externa: `revisor` |
+| **LC6** QR Code do cupom (MG) | Seção 4, caminho a validar | LC4 e teste na consulta da Fazenda de MG | Superfície externa: `revisor` |
 
 **Hoje nada pode ser construído com segurança:** a E07 (cadastros) está em andamento no chat
 principal e tudo aqui se apoia nela. A frente começa pela LC1 assim que a E07 estiver na
@@ -156,14 +200,22 @@ de estoque por nota) e a E10 passa a ter um ponto de encaixe combinado.
   Daí a fila "a classificar" e a conferência obrigatória.
 
 ## Aguardando do responsável
-1. "Ok" para a proposta e para a ordem LC1 a LC6.
-2. Estado (UF) da loja, para validar o QR Code do cupom.
-3. As compras são feitas com o CNPJ da empresa na nota, ou cupom comum?
-4. A equipe pode pedir item (com aceite do gerente), ou só os gerentes põem?
-5. Locais onde compram hoje (mercados, atacados, feira, fornecedores).
-6. O PR 20 (regras de frente) precisa entrar na `main` antes do PR desta frente.
+1. Locais onde compram hoje (mercados, atacados, feira, fornecedores). Sem pressa: só é
+   preciso na LC1.
+2. Na LC4: confirmação específica para contratar o serviço de IA (pago por uso) e umas 30
+   notas reais da casa (fotos de cupons e notas) para medir o acerto.
+
+## Respondido em 15/11/2026
+"Ok" para a proposta e a ordem LC1 a LC6; leitura por IA incluída; loja em Juiz de Fora, MG;
+compras com CNPJ na nota e também com cupom comum; toda a equipe pode pedir item.
+
+## Próximo passo
+Esperar a E07 na `main` (recado no mural). Então: plano de modelos, pedir número de
+migração no mural e começar a LC1. Antes disso, se o responsável quiser, transformar esta
+proposta no requisito `docs/requisitos/RC-19-central-de-compras.md`.
 
 ## Histórico da frente
 | Data | O que foi feito |
 |---|---|
 | 15/11/2026 | Frente aberta; ideia nº 3 registrada; proposta escrita; nenhum código |
+| 15/11/2026 | Proposta aprovada; leitura por IA (seção 4a) e CNPJ x cupom (4b) incluídas; PR 20 e PR 21 na `main` |
