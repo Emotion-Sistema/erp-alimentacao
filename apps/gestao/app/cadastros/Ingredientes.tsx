@@ -409,7 +409,7 @@ function FormularioIngrediente({
           <section aria-label="Embalagens de compra">
             <h3>Embalagens de compra</h3>
             <p className="cadastros__dica">
-              Opcional. Como o ingrediente vem do fornecedor (caixa, saco, pacote) e quanto vem em cada uma. Por dentro o estoque conta em {unidadeBase}; a quantidade de cada embalagem é escrita em {unidadeBase}.
+              Opcional. Como o item vem do fornecedor (caixa, saco, pacote) e quanto vem em cada um. O sistema faz a conta sozinho.
             </p>
             <EmbalagensDeCompra key={unidadeExibicao} embalagens={embalagens} base={unidadeBase as UnidadeBase} exibicao={unidadeExibicao} unidades={unidades} aoMudar={setEmbalagens} />
           </section>

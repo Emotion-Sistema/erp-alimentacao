@@ -10,7 +10,7 @@ import { BlocoDeConfirmacao, Botao, Icone, Selo } from "@erp/interface";
 import { ContaDaEmbalagem, ResumoDoItem } from "./ResumoDoItem";
 import { Campo, Selecao } from "../Campo";
 import { OPCOES_DE_UNIDADE, baseDaUnidade, opcoesDaBase } from "@erp/dominio/unidades";
-import { GRANDEZA_DA_BASE, TIPOS_DE_EMBALAGEM, comVirgula, equivalenciaNaUnidade, montarEmbalagem, multiplicarDecimal, type UnidadeBase, type UnidadePadrao } from "./auxiliares";
+import { GRANDEZA_DA_BASE, TIPOS_DE_EMBALAGEM, comVirgula, equivalenciaNaUnidade, montarEmbalagem, multiplicarDecimal, unidadePorExtenso, type UnidadeBase, type UnidadePadrao } from "./auxiliares";
 
 export type Opcao = { valor: string; texto: string };
 
@@ -49,6 +49,9 @@ const chaveDoNome = (n: string) =>
   n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
 const OUTRO = "__outro";
+
+/** "Quantos gramas (g)", "Quantos mililitros (ml)", "Quantas unidades (un)": a medida do estoque por extenso. */
+const quantosPorExtenso = (base: UnidadeBase) => `${base === "un" ? "Quantas" : "Quantos"} ${unidadePorExtenso(base).toLowerCase()}`;
 
 /**
  * Desmonta o nome de uma embalagem já colocada ("saco 25 kg") em tipo, tamanho e unidade, para
@@ -115,7 +118,9 @@ export function ConstrutorDeEmbalagem({
   const [tipo, setTipo] = useState(lido?.tipo ?? "");
   const [outro, setOutro] = useState(lido?.outro ?? "");
   const [tamanho, setTamanho] = useState(lido?.tamanho ?? "");
-  const [codigo, setCodigo] = useState(lido?.codigo ?? UNIDADE_PADRAO_DO_TAMANHO[base]);
+  const padrao = exibicao && unidades.some((u) => u.codigo === exibicao) ? exibicao : UNIDADE_PADRAO_DO_TAMANHO[base];
+  const [codigo, setCodigo] = useState(lido?.codigo ?? padrao);
+  const [tentou, setTentou] = useState(false);
   const [quantidade, setQuantidade] = useState(inicial ? inicial.quantidade : "");
 
   const unidade = unidades.find((u) => u.codigo === codigo);
@@ -128,18 +133,21 @@ export function ConstrutorDeEmbalagem({
   if (!tipo) bloqueio = "Escolha o tipo da embalagem (caixa, saco, pacote...).";
   else if (!nomeDoTipo) bloqueio = "Escreva o nome da embalagem.";
   else if (!montada) bloqueio = "Confira o tamanho: use só números (ex.: 25 ou 2,5).";
-  else if (!quantidadeValida(quantidadeFinal)) bloqueio = `Diga quantas ${base} vêm em 1 ${montada.nome}.`;
+  else if (!quantidadeValida(quantidadeFinal)) bloqueio = `Diga ${quantosPorExtenso(base).toLowerCase()} vêm em 1 ${montada.nome}.`;
   else if (nomesUsados.some((n) => chaveDoNome(n) === chaveDoNome(montada.nome))) bloqueio = `Já existe uma embalagem chamada "${montada.nome}". Mude o tipo ou o tamanho.`;
   else bloqueio = conferirTamanhoNoNome(montada.nome, quantidadeFinal, base, unidades);
 
   function adicionar() {
+    setTentou(true);
     if (bloqueio || !montada) return;
     aoMontar({ nome: montada.nome, quantidadeBase: quantidadeFinal.trim().replace(",", ".") });
     if (!inicial) {
       setTipo("");
       setOutro("");
       setTamanho("");
+      setCodigo(padrao);
       setQuantidade("");
+      setTentou(false);
     }
   }
 
@@ -207,11 +215,11 @@ export function ConstrutorDeEmbalagem({
       </div>
       {montada?.precisaQuantidade && (
         <Campo
-          rotulo={`Quantas ${base} vêm em 1 ${montada.nome}?`}
+          rotulo={`${quantosPorExtenso(base)} vêm em 1 ${montada.nome}?`}
           explicacao={
             tamanho.trim()
               ? `Esse tamanho é de outra medida que o estoque (${base}): diga quanto dá em ${base}.`
-              : `Diga quantas ${base} cabem em 1 ${montada.nome}.`
+              : `Diga ${quantosPorExtenso(base).toLowerCase()} cabem em 1 ${montada.nome}.`
           }
           exemplo={base === "un" ? "Saco de 3 kg de limão: cerca de 40 un." : "Caixa: 12000 se vierem 12 litros e o estoque for em ml."}
           value={quantidade}
@@ -229,7 +237,7 @@ export function ConstrutorDeEmbalagem({
           <ContaDaEmbalagem nome={montada.nome} quantidade={quantidadeFinal} base={base} exibicao={exibicao} />
         )}
       </div>
-      {bloqueio && (
+      {bloqueio && (tipo || tentou) && (
         <p className="embalagem__bloqueio" role="status" data-testid="bloqueio-embalagem">
           <Icone nome="alerta" />
           <span>{bloqueio}</span>

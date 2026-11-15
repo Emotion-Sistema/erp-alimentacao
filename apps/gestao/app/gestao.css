@@ -208,7 +208,7 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 
 .editor-item { display: grid; gap: var(--espaco-3); min-width: 0; padding: var(--espaco-3); border: 1px dashed var(--cor-borda); border-radius: var(--raio); background: var(--cor-fundo); }
 .embalagem { display: grid; gap: var(--espaco-3); min-width: 0; padding: var(--espaco-3); border: 1px solid var(--cor-borda); border-radius: var(--raio); }
-.embalagem h3, .editor-item h4 { margin: 0; }
+.embalagem h3, .embalagem h4, .editor-item h4 { margin: 0; }
 .embalagem__tipos { display: flex; flex-wrap: wrap; gap: var(--espaco-2); border: 0; margin: 0; padding: 0; min-width: 0; }
 .embalagem__tipos legend { font-weight: 600; margin-bottom: var(--espaco-2); padding: 0; }
 .embalagem__tipo {
