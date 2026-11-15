@@ -21,12 +21,13 @@ Atualizado em: 14/11/2026
   30 min que os gerentes mudam na tela Gestão → Turnos (ação `horarios.gerenciar`); botão
   "Continuo no turno" com senha. 169 testes + 64 de tela; revisão aprovou na 4ª rodada.
   154 testes + 63 de tela; revisão reprovou 1x (corrigido) e aprovou.
-- **E06 (homologação) pronta no código** (decisão 0014): o servidor puxa a branch `homologacao`
-  (avançada pelo GitHub quando o CI da main passa), monta, migra, confere e volta sozinho se
-  falhar; HTTPS em `gestao.187-53-114-38.sslip.io`; papéis separados do banco (app não apaga);
-  primeiro acesso do dono pelo terminal. Falta o responsável colar a linha no terminal da
-  Hostinger (`infra/homologacao/LEIA-ME.md`) e entrar: é o critério de aceite da E06.
-- Próxima etapa depois do aceite: **E07** (cadastros).
+- **E06 (homologação) feita** (PRs #15 e #16; decisão 0014): servidor no ar em
+  `https://gestao.187-53-114-38.sslip.io` (certificado válido), preparado pelo responsável em
+  15/11/2026; cada merge na main com CI verde aparece lá sozinho (o servidor puxa a branch
+  `homologacao`, migra, confere e volta se falhar; o fluxo do GitHub espera a versão em
+  /api/saude). Papéis separados do banco (app não apaga). Login de dono do responsável
+  (nomes de empresa e loja de teste; ainda sem tela para mudar, vem na E20).
+- Próxima etapa: **E07** (cadastros). Esperar o "ok".
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
   gratuito; a trava do repositório é a única barreira automática.
 - Contexto: aviso a cada 10% (de 1 milhão); no aviso, atualizar o cérebro e pedir `/compact`.
@@ -34,9 +35,10 @@ Atualizado em: 14/11/2026
   repositório é a barreira. Rever antes da E23.
 - Modelos: base Opus 5.5; Sonnet e Haiku por subagentes (`docs/05-uso-dos-modelos.md`).
 - Aguardando: respostas do dono da empresa ao questionário em PDF (previstas para 14/11/2026).
-- No ar (produção): **nada**. Homologação: **sendo preparada** (E06; servidor ainda sem configurar).
+- No ar (produção): **nada**. Homologação: **no ar** em `https://gestao.187-53-114-38.sslip.io` (dados de teste).
 - Infraestrutura: VPS de homologação contratada na Hostinger em 14/11/2026 (KVM 2, IP
-  187.53.114.38, Ubuntu 26.04 LTS), ainda sem configuração; será preparada na etapa E06.
+  187.53.114.38, Ubuntu 26.04 LTS), configurada na E06 (comandos no servidor: `erp situacao`,
+  `erp registros`, `erp atualizar`).
   Produção e domínio: não contratados. Integrações validadas: nenhuma.
 - **Diretriz do responsável (14/11/2026): a passagem para o sistema oficial tem que ser segura e
   tranquila.** Já previsto: ensaio na loja em paralelo ao sistema atual (Portão 1), nada no ar sem

@@ -31,8 +31,10 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Escolher com o contador o provedor fiscal e abrir conta de testes.
 
 ## Agora (E06)
-- [ ] 👉 Preparar o servidor de testes: colar a linha no terminal da Hostinger, cadastrar a deploy key no GitHub e criar seu login (passo a passo em `infra/homologacao/LEIA-ME.md`; o Claude avisa quando colar).
-- [ ] 👉 Entrar em `https://gestao.187-53-114-38.sslip.io` com seu login e configurar o autenticador (critério de aceite da E06).
+- [x] 👉 Preparar o servidor de testes e criar o login (feito em 15/11/2026).
+- [x] 👉 Entrar na homologação com o próprio login (feito em 15/11/2026; critério da E06).
+- [ ] 👉 Dar o "ok" para a E07 (cadastros).
+- [ ] 👉 Quando puder: cadastrar uma chave SSH no painel da Hostinger, para o Claude desligar o acesso por senha ao servidor (decisão 0014).
 
 ## Antes de mostrar ao cliente (homologação)
 - [ ] 👉 Confirmar com o dono o domínio antes de usar o "domínio grátis" da Hostinger (pergunta 56 do questionário).

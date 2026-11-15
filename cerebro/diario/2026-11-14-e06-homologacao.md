@@ -43,9 +43,21 @@ com o próprio login.
   - o ensaio completo;
   - o do atualizador, com v1, sem mudança, v2, v3 quebrada e commit fora da `main`.
 
+## Fechamento (15/11/2026)
+- **Primeiro bloco colado não rodou.** O responsável colou o bloco de várias linhas antes da hora. Nada mudou no servidor; o início virou uma linha só (PR #15).
+- **A linha única parou depois de instalar o Docker, sem mensagem.** O `sshd -T` falha com o SSH em espera, e o `set -e` com `pipefail` encerrou o script calado.
+  - Corrigido no PR #16: a porta do SSH passa a ser 22 se não der para ler, e qualquer erro avisa a linha onde parou.
+  - Colada de novo, a linha usa a versão marcada mais nova.
+- **O responsável pediu para mudar os nomes depois.** Perguntou se o nome da empresa, da loja e o dele podem ser mudados, e se precisa ser o nome do CNPJ. Respondi:
+  - nomes de teste servem;
+  - ainda não há tela para mudar; eu altero se precisar, e a tela de dados da empresa e do CNPJ vem na E20;
+  - na produção tudo é criado de novo.
+- **"homologação pronta":** o responsável preparou o servidor e criou o login. Conferido daqui:
+  - `/api/saude` responde por HTTPS com certificado válido;
+  - a versão no ar é 76cf3d3.
+- **Conferência automática ligada:** criado `infra/homologacao/endereco`, e o fluxo do GitHub passa a esperar a versão no ar.
+
 ## Pendências
-- Critério de aceite: o responsável cola a linha, cadastra a deploy key, cria o login e entra.
-  Depois disso, criar `infra/homologacao/endereco` para o fluxo conferir o servidor.
 - Se o certificado não sair no sslip.io, usar o domínio (pergunta 56).
 - Rodar a matriz da API com um papel igual ao `erp_app`.
 - Mais adiante:

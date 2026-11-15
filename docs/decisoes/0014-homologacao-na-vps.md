@@ -1,7 +1,7 @@
 # 0014: homologação na VPS, publicação automática da main
 
 - Data: 14/11/2026
-- Status: aceita (E06)
+- Status: aceita (E06); servidor preparado e no ar em 15/11/2026
 - Assunto da sessão: E06, homologação
 - Complementa: decisões 0003 (arquitetura), 0004 (regras de operação) e 0010 (papéis do banco)
 
@@ -130,8 +130,6 @@ computador dele.
 - Imagem num registro (GHCR): exigiria um token de leitura no servidor. Fica para a produção.
 - Domínio grátis da Hostinger: depende da resposta do dono (pergunta 56).
 
-- **Conferência automática do servidor:** o arquivo `infra/homologacao/endereco` só entra
-  quando o servidor estiver pronto; até lá o fluxo marca a versão e não espera.
 
 ## Critério de aceite e evidência
 👉 O responsável abre `https://gestao.187-53-114-38.sslip.io` e entra com o próprio login
