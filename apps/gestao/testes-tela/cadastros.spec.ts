@@ -59,10 +59,11 @@ test("Farinha em Quilos (kg): a lista mostra kg, a embalagem 'saco 25 kg' mostra
   await page.getByRole("button", { name: "Novo ingrediente" }).click();
   await page.getByLabel("Nome", { exact: true }).fill("Farinha (tela kg)");
   await page.getByLabel("Unidade do estoque").selectOption("kg");
-  await page.getByLabel("Embalagem com um toque").getByRole("button", { name: "saco" }).click();
+  await page.getByLabel("Adicionar embalagem", { exact: true }).getByRole("button", { name: "saco" }).click();
   await page.getByLabel("Tamanho da embalagem").fill("25");
   await expect(page.getByTestId("previa-embalagem")).toHaveText("1 saco 25 kg = 25 kg");
-  await page.getByRole("button", { name: "Adicionar esta embalagem" }).click();
+  await page.getByRole("button", { name: "Adicionar embalagem", exact: true }).click();
+  await expect(page.getByRole("list", { name: "Embalagens colocadas" })).toContainText("= 25 kg");
   await page.getByRole("button", { name: "Criar ingrediente" }).click();
   await expect(page.getByText(/Ingrediente criado/)).toBeVisible();
   await expect(page.getByLabel("Unidade do estoque").locator("option")).toHaveText(["Quilos (kg)", "Gramas (g)"]);

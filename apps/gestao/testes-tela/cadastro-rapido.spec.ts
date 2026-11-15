@@ -52,8 +52,14 @@ test("catálogo pronto: busca sem acento, marca 3, ajusta uma embalagem e grava"
   await busca.fill("presunto");
   await page.getByRole("button", { name: "Ajustar Presunto" }).click();
   const item = page.getByTestId("catalogo-Presunto");
-  await item.getByLabel("Embalagem 1: nome").fill("peça grande");
-  await item.getByLabel(/^Embalagem 1: quantidade/).fill("4000");
+  await item.getByRole("button", { name: /^Editar embalagem/ }).first().click();
+  // "peça 4 kg" não é um dos tipos prontos: já abre em "Outro nome", com o nome e o tamanho separados.
+  await expect(item.getByRole("button", { name: "Outro nome" })).toHaveAttribute("aria-pressed", "true");
+  await expect(item.getByLabel("Nome da embalagem")).toHaveValue("peça");
+  await item.getByLabel("Nome da embalagem").fill("peça grande");
+  await item.getByLabel("Tamanho da embalagem").fill("");
+  await item.getByLabel(/^Quantas g vêm em 1 peça grande/).fill("4000");
+  await item.getByRole("button", { name: "Salvar alteração" }).click();
   await expect(item).toContainText("peça grande = 4.000 g");
   await busca.fill("");
 
@@ -157,7 +163,9 @@ test("colar uma lista: prévia verde, amarela e vermelha; corrige uma linha; gra
 
   // Corrige o Limão: quantidade que veio em branco.
   const limao = page.getByTestId("linha-2");
-  await limao.getByLabel(/^Embalagem 1: quantidade/).fill("40");
+  await limao.getByRole("button", { name: "Editar embalagem saco 3 kg" }).click();
+  await limao.getByLabel(/^Quantas un vêm em 1 saco 3 kg/).fill("40");
+  await limao.getByRole("button", { name: "Salvar alteração" }).click();
   await expect(limao).toHaveAttribute("data-situacao", "pronto");
   await expect(page.getByTestId("resumo-da-lista")).toContainText(/2 prontas.*1 para conferir.*1 com erro/);
   await semEstouroDeLargura(page);
@@ -202,8 +210,7 @@ test("ao digitar o nome, sugere do catálogo (teclado e leitor de tela) e preenc
   await expect(nome).toHaveValue("Calabresa");
   await expect(page.getByLabel("Unidade do estoque")).toHaveValue("g");
   await expect(page.getByLabel("Área", { exact: true })).toHaveValue("cozinha");
-  await expect(page.getByLabel("Embalagem 1: nome")).toHaveValue("pacote 2,5 kg");
-  await expect(page.getByLabel(/^Embalagem 1: quantidade/)).toHaveValue("2500");
+  await expect(page.getByRole("list", { name: "Embalagens colocadas" })).toContainText(/pacote 2,5 kg\s*= 2\.500 g|pacote 2,5 kg\s*= 2,5 kg/);
   await expect(page.getByText(/Sugestão aplicada: Calabresa/)).toBeVisible();
   await expect(lista).toBeHidden();
 
@@ -235,25 +242,41 @@ test("sugestão escolhida com o dedo preenche unidade em ml e área da cafeteria
   await page.getByRole("button", { name: "Cancelar" }).click();
 });
 
-test("embalagem com um toque calcula 'saco 25 kg = 25000 g' e pede a quantidade quando a medida é outra", async ({ page }) => {
+test("bloco Adicionar embalagem: calcula 'saco 25 kg', pede a quantidade em outra medida, edita, usa Outro nome e tira", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await page.goto("/cadastros");
   await page.getByRole("button", { name: "Novo ingrediente" }).click();
   await page.getByRole("combobox", { name: "Nome" }).fill("Granola (tela)");
   await page.getByLabel("Unidade do estoque").selectOption("g");
 
+  const lista = page.getByRole("list", { name: "Embalagens colocadas" });
+  await expect(page.getByText("Nenhuma embalagem ainda. É opcional.")).toBeVisible();
   const previa = page.getByTestId("previa-embalagem");
+  const bloqueio = page.getByTestId("bloqueio-embalagem");
+  const adicionar = page.getByRole("button", { name: "Adicionar embalagem", exact: true });
   await expect(previa).toContainText("Escolha um tipo");
+  await expect(bloqueio).toContainText("Escolha o tipo da embalagem");
+  await expect(adicionar).toBeDisabled();
   const saco = page.getByRole("button", { name: "saco", exact: true });
-  await altoDeToque(saco, page.getByRole("button", { name: "caixa", exact: true }));
+  await altoDeToque(saco, page.getByRole("button", { name: "caixa", exact: true }), page.getByRole("button", { name: "Outro nome" }));
   await saco.click();
   await expect(saco).toHaveAttribute("aria-pressed", "true");
   await page.getByLabel("Tamanho da embalagem").fill("25");
   await expect(page.getByLabel("Unidade do tamanho")).toHaveValue("kg");
   await expect(previa).toHaveText("1 saco 25 kg = 25.000 g");
-  await page.getByRole("button", { name: "Adicionar esta embalagem" }).click();
-  await expect(page.getByLabel("Embalagem 1: nome")).toHaveValue("saco 25 kg");
-  await expect(page.getByLabel(/^Embalagem 1: quantidade/)).toHaveValue("25000");
+  await expect(bloqueio).toHaveCount(0);
+  await adicionar.click();
+  await expect(lista).toContainText("saco 25 kg");
+  await expect(lista).toContainText("= 25.000 g");
+  // O bloco limpou.
+  await expect(saco).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByLabel("Tamanho da embalagem")).toHaveValue("");
+
+  // Nome repetido é barrado, com a razão perto do botão.
+  await saco.click();
+  await page.getByLabel("Tamanho da embalagem").fill("25");
+  await expect(bloqueio).toContainText("Já existe uma embalagem");
+  await expect(adicionar).toBeDisabled();
 
   // Vírgula no tamanho e outra unidade da mesma família (gramas).
   await page.getByRole("button", { name: "pacote", exact: true }).click();
@@ -263,26 +286,63 @@ test("embalagem com um toque calcula 'saco 25 kg = 25000 g' e pede a quantidade 
   await page.getByLabel("Tamanho da embalagem").fill("500");
   await expect(previa).toHaveText("1 pacote 500 g = 500 g");
 
+  // Editar: carrega a embalagem no mesmo bloco; o botão vira Salvar alteração.
+  await page.getByRole("button", { name: "Editar embalagem saco 25 kg" }).click();
+  await expect(page.getByRole("button", { name: "saco", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("Tamanho da embalagem")).toHaveValue("25");
+  await expect(page.getByLabel("Unidade do tamanho")).toHaveValue("kg");
+  await expect(page.getByRole("region", { name: "Editar embalagem" }).getByRole("button", { name: "Cancelar" })).toBeVisible();
+  await page.getByLabel("Tamanho da embalagem").fill("20");
+  await page.getByRole("button", { name: "Salvar alteração" }).click();
+  await expect(lista).toContainText("saco 20 kg");
+  await expect(lista).toContainText("= 20.000 g");
+  await expect(lista).not.toContainText("saco 25 kg");
+  await expect(page.getByRole("button", { name: "Salvar alteração" })).toHaveCount(0);
+
+  // Outro nome: abre um campo de texto; sem tamanho, pede a quantidade.
+  await page.getByRole("button", { name: "Outro nome" }).click();
+  await expect(page.getByRole("button", { name: "Outro nome" })).toHaveAttribute("aria-pressed", "true");
+  await expect(bloqueio).toContainText("Escreva o nome da embalagem");
+  await page.getByLabel("Nome da embalagem").fill("cartela");
+  await expect(bloqueio).toContainText("Diga quantas g vêm em 1 cartela");
+  await page.getByLabel(/^Quantas g vêm em 1 cartela/).fill("300");
+  await expect(previa).toHaveText("1 cartela = 300 g");
+  await adicionar.click();
+  await expect(lista).toContainText("cartela");
+  await expect(lista).toContainText("= 300 g");
+
+  // Nome com tamanho que não bate com a quantidade é barrado antes de ir ao servidor.
+  await page.getByRole("button", { name: "Outro nome" }).click();
+  await page.getByLabel("Nome da embalagem").fill("fardo 10 kg");
+  await page.getByLabel(/^Quantas g vêm em 1 fardo 10 kg/).fill("1000");
+  await expect(bloqueio).toContainText("O nome diz 10 kg");
+  await expect(adicionar).toBeDisabled();
+  await page.getByLabel(/^Quantas g vêm em 1 fardo 10 kg/).fill("10000");
+  await expect(adicionar).toBeEnabled();
+  await page.getByRole("button", { name: "Outro nome" }).click();
+
+  // Tirar.
+  await page.getByRole("button", { name: "Tirar embalagem cartela" }).click();
+  await page.getByRole("button", { name: "Tirar embalagem saco 20 kg" }).click();
+  await expect(page.getByText("Nenhuma embalagem ainda. É opcional.")).toBeVisible();
+
   // Outra medida (kg em estoque contado em unidades): pede a quantidade.
   await page.getByLabel("Unidade do estoque").selectOption("un");
   await page.getByRole("button", { name: "saco", exact: true }).click();
   await page.getByLabel("Tamanho da embalagem").fill("3");
   await expect(page.getByLabel("Unidade do tamanho")).toHaveValue("un");
   await page.getByLabel("Unidade do tamanho").selectOption("kg");
-  await expect(page.getByRole("button", { name: "Adicionar esta embalagem" })).toBeDisabled();
-  await page.getByLabel("Quantas un vêm em 1 saco 3 kg").fill("40");
+  await expect(adicionar).toBeDisabled();
+  await expect(bloqueio).toContainText("Diga quantas un vêm em 1 saco 3 kg");
+  await page.getByLabel("Quantas un vêm em 1 saco 3 kg?").fill("40");
   await expect(previa).toHaveText("1 saco 3 kg = 40 un");
-  await page.getByRole("button", { name: "Adicionar esta embalagem" }).click();
-  await expect(page.getByLabel("Embalagem 2: nome")).toHaveValue("saco 3 kg");
-  await expect(page.getByLabel(/^Embalagem 2: quantidade/)).toHaveValue("40");
-  // O campo de digitar livre continua: a pessoa corrige à mão.
-  await page.getByLabel(/^Embalagem 2: quantidade/).fill("42");
-  await page.getByRole("button", { name: "Tirar embalagem 1" }).click();
-  await expect(page.getByLabel("Embalagem 1: nome")).toHaveValue("saco 3 kg");
+  await adicionar.click();
+  await expect(lista).toContainText("saco 3 kg");
+  await expect(lista).toContainText("= 40 un");
   await semEstouroDeLargura(page);
   await page.getByRole("button", { name: "Criar ingrediente" }).click();
   await expect(page.getByText(/Ingrediente criado/)).toBeVisible();
-  await expect(page.getByTestId("ingrediente-Granola (tela)")).toContainText("saco 3 kg = 42 un");
+  await expect(page.getByTestId("ingrediente-Granola (tela)")).toContainText("saco 3 kg = 40 un");
 });
 
 test("na conversão de um ingrediente que já existe, a embalagem de um toque preenche os campos", async ({ page }) => {
@@ -313,8 +373,7 @@ test("duplicar copia tudo, deixa o nome '(cópia)' selecionado e grava um novo",
   await expect(page.getByLabel("Unidade do estoque")).toHaveValue("g");
   await expect(page.getByLabel("Área", { exact: true })).toHaveValue("cozinha");
   await expect(page.getByLabel("Fornecedor")).not.toHaveValue("");
-  await expect(page.getByLabel("Embalagem 1: nome")).toHaveValue("saco 25 kg");
-  await expect(page.getByLabel(/^Embalagem 1: quantidade/)).toHaveValue("25000");
+  await expect(page.getByRole("list", { name: "Embalagens colocadas" })).toContainText(/saco 25 kg\s*= (25\.000 g|25 kg)/);
 
   // Digitar por cima troca o nome inteiro; o original não é tocado.
   await page.keyboard.type("Farinha integral (tela)");

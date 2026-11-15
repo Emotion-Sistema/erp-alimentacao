@@ -216,11 +216,30 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
   background: transparent; color: var(--cor-texto); border: 2px solid var(--cor-borda); border-radius: var(--raio);
 }
 .embalagem__tipo[aria-pressed="true"] { background: var(--cor-primaria); color: var(--cor-primaria-texto); border-color: var(--cor-primaria); }
-.embalagem__linhas { display: grid; gap: var(--espaco-3); }
-.embalagem__linha { border: 1px solid var(--cor-borda); border-radius: var(--raio); padding: var(--espaco-3); display: grid; gap: var(--espaco-2); justify-items: start; min-width: 0; }
-.embalagem__linha > * { max-width: 100%; }
-.embalagem__linha .cadastros__form-linha { width: 100%; }
-.embalagem__linha p { margin: 0; overflow-wrap: anywhere; }
+.embalagem__fluxo { display: grid; gap: var(--espaco-3); min-width: 0; }
+.embalagem__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); }
+.embalagem__cartao {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); min-width: 0;
+  padding: var(--espaco-3); border: 1px solid var(--cor-borda); border-radius: var(--raio); background: var(--cor-superficie);
+}
+.embalagem__cartao--editando { border-color: var(--cor-primaria); }
+.embalagem__nome { font-weight: 800; font-size: var(--texto-grande); overflow-wrap: anywhere; min-width: 0; }
+.embalagem__nome::first-letter { text-transform: uppercase; }
+.embalagem__equivalencia { font-weight: 600; color: var(--cor-texto-suave); }
+.embalagem__acoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); margin-left: auto; }
+@media (max-width: 40rem) { .embalagem__acoes { margin-left: 0; width: 100%; } .embalagem__acoes > * { flex: 1 1 0; } }
+.embalagem--editando { border-color: var(--cor-primaria); border-width: 2px; }
+.embalagem__titulo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); }
+.embalagem__passo {
+  display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 999px; font-size: var(--texto-pequeno);
+  font-weight: 800; background: var(--cor-primaria); color: var(--cor-primaria-texto);
+}
+.embalagem__frase { margin: 0; font-weight: 600; grid-column: 1 / -1; }
+.embalagem__opcional { font-weight: 400; color: var(--cor-texto-suave); }
+.embalagem__medida { display: grid; gap: var(--espaco-2) var(--espaco-3); grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; }
+.embalagem__medida select { min-width: 0; max-width: 100%; }
+.embalagem__bloqueio { margin: 0; display: flex; align-items: flex-start; gap: var(--espaco-2); color: var(--selo-alerta-texto); background: var(--selo-alerta-fundo); padding: var(--espaco-2) var(--espaco-3); border-radius: var(--raio); font-weight: 600; overflow-wrap: anywhere; }
+.embalagem__bloqueio .erp-icone { margin-top: 0.15em; flex: none; }
 
 .sugestao { display: flex; flex-direction: column; gap: var(--espaco-2); margin-bottom: var(--espaco-4); min-width: 0; }
 .sugestao > .erp-campo { display: contents; }
