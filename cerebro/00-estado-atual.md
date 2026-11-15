@@ -33,7 +33,8 @@ Atualizado em: 14/11/2026
   do responsável), com relatório de erros por linha na tela, sem gravar até estar certo.
   Cardápio inventado até chegar o real; o responsável pode mandar atualizações a qualquer momento.
   Hipóteses: `cadastros.gerenciar` para dono, administrador e gerente geral; custo só com `custos.ver`.
-  **Parte 1 no PR 26** (migração 0006, decisão 0015; diário `diario/2026-11-15-e07-cadastros.md`).
+  **Parte 1 feita** (PR 26, merge 05a65b2, no ar na homologação; migração 0006, decisão 0015;
+  diário `diario/2026-11-15-e07-cadastros.md`). Próximo: parte 2 (categorias, tipos de pedido, produtos).
 - **Frentes paralelas** (15/11/2026): outro chat, com o modelo que o responsável escolher, pode cuidar
   de uma função só e falar com este pelo `cerebro/frentes/mural.md` (regras em `cerebro/frentes/README.md`).
   Aberta: **lista-de-compras** (Central de Compras, proposta aprovada; começa a LC1 depois da E07;
@@ -87,7 +88,7 @@ Tudo sobre um núcleo único. Detalhes em `docs/01-visao-e-escopo.md`.
 ## Histórico de sessões
 | Data | Assunto | Resultado | Diário |
 |---|---|---|---|
-| 15/11/2026 | E07: cadastros (parte 1) | Ingredientes, fornecedores, conversões; PR 26 em revisão | `diario/2026-11-15-e07-cadastros.md` |
+| 15/11/2026 | E07: cadastros (parte 1) | Ingredientes, fornecedores, conversões; PR 26 juntado; revisão aprovou na 3ª rodada | `diario/2026-11-15-e07-cadastros.md` |
 | 15/11/2026 | Mod "Salão" do Claude (ferramenta, fora do ERP) | Construído e **cancelado pelo responsável no mesmo dia**; tudo removido do repositório | `diario/2026-11-15-mod-salao.md` |
 | 13/11/2026 | Preparação do projeto (F0) | Instruções, requisitos, cérebro, skills e travas criados | `diario/2026-11-13-preparacao-do-projeto.md` |
 | 14/11/2026 | T01 parte 1 (E01): conferência e teste das travas | Estrutura juntada na `main` (PR #1); trava de `producao` bloqueou; 2 brechas e 3 propostas | `diario/2026-11-14-t01-conferencia.md` |
