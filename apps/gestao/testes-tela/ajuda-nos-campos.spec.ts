@@ -81,6 +81,9 @@ test.describe("telas internas do administrador", () => {
     await page.goto("/cadastros");
     await expect(page.getByTestId("ingrediente-Ovo")).toBeVisible();
     await page.getByRole("button", { name: "Cadastro rápido" }).click();
+    // Os corredores começam fechados: a busca abre o que tem resultado.
+    await expect(page.getByRole("button", { name: "Hortifrúti", exact: true })).toHaveAttribute("aria-expanded", "false");
+    await page.getByLabel("Procurar no catálogo").fill("tomate");
     await expect(page.getByRole("checkbox", { name: "Tomate", exact: true })).toBeVisible();
     await conferirAjuda(page, "cadastro rápido: catálogo", 4);
     await page.getByRole("checkbox", { name: "Tomate", exact: true }).check();

@@ -90,10 +90,12 @@ test("cadastro rápido e sugestões", async ({ page }) => {
   }
   await busca.fill("");
   const painel = page.locator("#painel-catalogo");
-  await page.getByTestId("catalogo-Queijo muçarela").scrollIntoViewIfNeeded();
-  await salvar(page, "03-cadastro-rapido-marcados");
-  await page.getByRole("button", { name: "Ajustar Presunto" }).click().catch(() => undefined);
-  void painel;
+  await page.addStyleTag({ content: ".rapido__barra { position: static !important; }" });
+  await expect(page.getByRole("region", { name: "Itens selecionados" })).toContainText("Selecionados (3)");
+  await salvar(page, "03-cadastro-rapido-marcados", painel);
+  await page.setViewportSize(CELULAR);
+  await salvar(page, "03b-cadastro-rapido-marcados-celular", painel);
+  await page.setViewportSize({ width: 1280, height: 900 });
 
   await page.getByRole("tab", { name: "Colar uma lista" }).click();
   await page.getByLabel("Cole sua lista de ingredientes").fill("Alface\nLimão - saco 3 kg\nOvo; caixa com 30\nTempero da casa - pote 500 g");

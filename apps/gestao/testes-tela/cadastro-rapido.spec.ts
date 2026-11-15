@@ -71,6 +71,47 @@ test("catálogo pronto: busca sem acento, marca 3, ajusta uma embalagem e grava"
   await expect(page.getByRole("checkbox", { name: "Presunto (já cadastrado)" })).toBeDisabled();
 });
 
+test("catálogo pronto: corredores recolhíveis, cartões selecionáveis e bandeja de selecionados", async ({ page }) => {
+  await entrar(page, "gerente.geral");
+  await abrirRapido(page);
+
+  // Na primeira vez, todos os corredores começam fechados, com a quantidade de itens em selo.
+  const botoes = page.locator(".catalogo__alternar");
+  const total = await botoes.count();
+  expect(total).toBeGreaterThan(5);
+  for (let i = 0; i < total; i++) await expect(botoes.nth(i)).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await expect(page.getByTestId("corredor-Hortifrúti").locator(".erp-selo").first()).toContainText(/\d+ itens?/);
+  expect((await page.locator("#painel-catalogo").boundingBox())!.height).toBeLessThan(3500);
+
+  // Abrir pelo cabeçalho mostra os cartões; marcar dá destaque, ícone ok e selo "marcados".
+  await page.getByRole("button", { name: "Hortifrúti", exact: true }).click();
+  const tomate = page.getByRole("checkbox", { name: "Tomate", exact: true });
+  await tomate.check();
+  const cartao = page.locator("label.cartao-sel", { has: tomate });
+  await expect(cartao).toHaveClass(/cartao-sel--marcado/);
+  await expect(cartao.locator("svg.erp-icone").first()).toBeVisible();
+  await expect(cartao).toContainText("Gramas (g)");
+  await expect(page.getByTestId("corredor-Hortifrúti")).toContainText("1 marcado");
+  await expect(page.getByRole("region", { name: "Itens selecionados" })).toContainText("Selecionados (1)");
+  // O cartão inteiro é a área de toque (pelo menos 44 px) e o foco aparece.
+  expect((await cartao.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await tomate.focus();
+  await expect(cartao).toHaveCSS("outline-style", "solid");
+
+  // Item já cadastrado: esmaecido, com selo, e não marca.
+  await page.getByLabel("Procurar no catálogo").fill("ovo");
+  const ovo = page.getByRole("checkbox", { name: "Ovo (já cadastrado)" });
+  await expect(ovo).toBeDisabled();
+  await expect(page.locator("label.cartao-sel", { has: ovo })).toContainText("Já cadastrado");
+
+  // Tirar da bandeja desmarca o cartão.
+  await page.getByLabel("Procurar no catálogo").fill("");
+  await page.getByRole("button", { name: "Desmarcar Tomate" }).click();
+  await expect(page.getByText("Nenhum item marcado")).toBeVisible();
+  await semEstouroDeLargura(page);
+});
+
 test("catálogo pronto: marcar todos do corredor pula o que já existe; servidor recusa com a mensagem do item", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await abrirRapido(page);

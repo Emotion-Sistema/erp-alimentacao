@@ -195,14 +195,22 @@ export function Grupo({
   exemplo,
   children,
   className,
-}: { legenda: string; children: ReactNode; className?: string } & TextoDeAjuda) {
+  ajudaNoTopo,
+}: {
+  legenda: string;
+  children: ReactNode;
+  className?: string;
+  /** Mostra a explicação logo abaixo do título (útil quando o conjunto é longo). */
+  ajudaNoTopo?: boolean;
+} & TextoDeAjuda) {
   const id = useId();
   const { aberto, alternar } = useAbertura();
   return (
     <fieldset className={className} data-campo-ajuda aria-describedby={ligacao(id, aberto)}>
       <legend>{legenda}</legend>
+      {ajudaNoTopo && <Ajuda id={id} rotulo={legenda} explicacao={explicacao} exemplo={exemplo} aberto={aberto} alternar={alternar} />}
       <ContextoDoGrupo.Provider value={ligacao(id, aberto)}>{children}</ContextoDoGrupo.Provider>
-      <Ajuda id={id} rotulo={legenda} explicacao={explicacao} exemplo={exemplo} aberto={aberto} alternar={alternar} />
+      {!ajudaNoTopo && <Ajuda id={id} rotulo={legenda} explicacao={explicacao} exemplo={exemplo} aberto={aberto} alternar={alternar} />}
     </fieldset>
   );
 }
@@ -212,14 +220,20 @@ export function OpcaoDoGrupo({
   rotulo,
   tipo = "checkbox",
   className,
+  conteudo,
   ...resto
-}: Omit<InputHTMLAttributes<HTMLInputElement>, "aria-describedby" | "type"> & { rotulo: string; tipo?: "checkbox" | "radio" }) {
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "aria-describedby" | "type"> & {
+  rotulo: string;
+  tipo?: "checkbox" | "radio";
+  /** Conteúdo visual no lugar do texto simples (cartão selecionável). O nome acessível continua sendo o rótulo. */
+  conteudo?: ReactNode;
+}) {
   const descricao = useContext(ContextoDoGrupo);
   if (descricao === null) throw new Error("OpcaoDoGrupo só pode ser usada dentro de Grupo");
   return (
     <label className={className}>
-      <input type={tipo} aria-describedby={descricao} {...resto} />
-      {rotulo}
+      <input type={tipo} aria-describedby={descricao} aria-label={conteudo ? rotulo : undefined} {...resto} />
+      {conteudo ?? rotulo}
     </label>
   );
 }

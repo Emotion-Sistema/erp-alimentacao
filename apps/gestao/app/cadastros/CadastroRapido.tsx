@@ -6,13 +6,13 @@
  * Só quem tem cadastros.gerenciar chega aqui; o servidor confere de novo em cada chamada.
  * Nada é gravado sem a pessoa apertar o botão de gravar, e tudo é "tudo ou nada" no servidor.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Aviso, Botao, Cartao, Citacao, Faixa, ListaComIcone, Selo } from "@erp/interface";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Aviso, Botao, Cartao, Citacao, Faixa, Icone, ListaComIcone, Selo, varianteDaArea } from "@erp/interface";
 import type { LinhaLida } from "@erp/dominio";
 import { buscarNoCatalogo, chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
 import { AreaDeTexto, Campo, Grupo, OpcaoDoGrupo, Selecao } from "../Campo";
 import { chamar } from "../chamar";
-import type { UnidadePadrao } from "./auxiliares";
+import { unidadePorExtenso, type UnidadePadrao } from "./auxiliares";
 import { EditorDeItem, embalagensDe, faltaNasEmbalagens, faltaNoItem, itemParaServidor, ResumoDoItemEditavel, type ItemEditavel, type Opcao } from "./Embalagens";
 
 type ItemDaApi = ItemDoCatalogo & { jaCadastrado: boolean };
@@ -181,17 +181,25 @@ function AbaCatalogo({
     setMensagem({ tipo: "sucesso", texto: `${plural(r.dados.criados, "ingrediente gravado", "ingredientes gravados")}.` });
   }
 
-  const grupoEscolhido = grupo || null;
+  /** Seções abertas ou fechadas pela pessoa. Sem escolha dela, abrem só com busca ou corredor escolhido. */
+  const [secaoAberta, setSecaoAberta] = useState<Record<string, boolean>>({});
+  const filtrando = busca.trim().length >= 2 || !!grupo;
+  const estaAberta = (g: string) => secaoAberta[g] ?? filtrando;
+  const idDaSecao = useId();
+
   return (
     <div className="rapido__painel">
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
-      <div className="cadastros__filtros">
+      <div className="cadastros__filtros catalogo__busca">
         <Campo
           rotulo="Procurar no catálogo"
           explicacao="Digite parte do nome (sem acento também) ou um apelido para achar o item."
           exemplo="mussarela, muçarela e mucarela dão o mesmo resultado."
           value={busca}
-          onChange={(e) => setBusca(e.target.value)}
+          onChange={(e) => {
+            setBusca(e.target.value);
+            setSecaoAberta({});
+          }}
           autoComplete="off"
         />
         <Selecao
@@ -199,67 +207,105 @@ function AbaCatalogo({
           explicacao="Mostra só um tipo de produto, como no mercado. Deixe em Todos para ver tudo."
           exemplo="Escolha Laticínios e ovos para ver queijo, leite e ovo."
           value={grupo}
-          onChange={(e) => setGrupo(e.target.value)}
+          onChange={(e) => {
+            setGrupo(e.target.value);
+            setSecaoAberta({});
+          }}
           opcoes={[{ valor: "", texto: "Todos os corredores" }, ...catalogo.grupos.map((g) => ({ valor: g, texto: g }))]}
         />
       </div>
-      <div className="cadastros__botoes">
-        {grupoEscolhido && (
-          <Botao variante="secundario" onClick={() => marcarTodos(visiveis)}>
-            Marcar todos de {grupoEscolhido}
-          </Botao>
-        )}
-        {nomes.length > 0 && (
-          <Botao variante="secundario" onClick={() => setMarcados({})}>
-            Desmarcar tudo
-          </Botao>
-        )}
-      </div>
       {secoes.length === 0 && <p>Nada encontrado no catálogo. Tente outra palavra ou use a aba Colar uma lista.</p>}
-      {secoes.map((s) => (
+      {secoes.length > 0 && (
         <Grupo
-          key={s.grupo}
-          legenda={s.grupo}
-          className="rapido__grupo"
-          explicacao="Marque o que a casa usa. Os já cadastrados ficam de fora. Depois de marcar, toque em Ajustar para mudar unidade, área ou embalagens."
-          exemplo="Marque Tomate e Cebola e aperte Gravar para cadastrar os dois de uma vez."
+          legenda="Corredores do catálogo"
+          className="rapido__grupo catalogo"
+          ajudaNoTopo
+          explicacao="Abra um corredor e marque o que a casa usa. Os já cadastrados ficam de fora. Os itens marcados aparecem em Selecionados, onde você pode ajustar unidade, área ou embalagens."
+          exemplo="Abra Hortifrúti, marque Tomate e Cebola e aperte Gravar para cadastrar os dois de uma vez."
         >
-          <ul className="lista-simples">
-            {s.itens.map((i) => {
-              const marcado = marcados[i.nome];
+          {secoes.map((s, n) => {
+            const aberta = estaAberta(s.grupo);
+            const idPainel = `${idDaSecao}-${n}`;
+            const doCorredor = s.itens.filter((i) => marcados[i.nome]).length;
+            const faltaMarcar = s.itens.some((i) => !i.jaCadastrado && !marcados[i.nome]);
+            return (
+              <section key={s.grupo} className="catalogo__secao" data-testid={`corredor-${s.grupo}`}>
+                <div className="catalogo__cabeca">
+                  <button
+                    type="button"
+                    className="catalogo__alternar"
+                    aria-expanded={aberta}
+                    aria-controls={idPainel}
+                    onClick={() => setSecaoAberta((a) => ({ ...a, [s.grupo]: !aberta }))}
+                  >
+                    <span className="catalogo__seta" aria-hidden="true" />
+                    <span className="catalogo__nome">{s.grupo}</span>
+                  </button>
+                  <span className="catalogo__selos">
+                    <Selo>{plural(s.itens.length, "item", "itens")}</Selo>
+                    {doCorredor > 0 && (
+                      <Selo variante="sucesso" icone="ok">
+                        {plural(doCorredor, "marcado", "marcados")}
+                      </Selo>
+                    )}
+                  </span>
+                  <Botao variante="secundario" aria-label={`Marcar todos de ${s.grupo}`} disabled={!faltaMarcar} onClick={() => marcarTodos(s.itens)}>
+                    Marcar todos
+                  </Botao>
+                </div>
+                {aberta && (
+                  <ul id={idPainel} className="lista-simples catalogo__grade">
+                    {s.itens.map((i) => (
+                      <li key={i.nome}>
+                        <CartaoDoItem item={i} marcado={!!marcados[i.nome]} nomeDaArea={nomeDaArea} aoMarcar={(ligado) => marcar(i, ligado)} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            );
+          })}
+        </Grupo>
+      )}
+      {nomes.length > 0 && (
+        <section className="catalogo__bandeja" aria-label="Itens selecionados">
+          <div className="catalogo__bandeja-cabeca">
+            <h3>Selecionados ({nomes.length})</h3>
+            <Botao variante="secundario" onClick={() => setMarcados({})}>
+              Desmarcar tudo
+            </Botao>
+          </div>
+          <ul className="lista-simples catalogo__minis">
+            {nomes.map((nome) => {
+              const marcado = marcados[nome]!;
               return (
-                <li key={i.nome} className="rapido__item" data-testid={`catalogo-${i.nome}`}>
-                  <OpcaoDoGrupo
-                    className="cadastros__opcao"
-                    rotulo={i.jaCadastrado ? `${i.nome} (já cadastrado)` : i.nome}
-                    checked={!!marcado}
-                    disabled={i.jaCadastrado}
-                    onChange={(e) => marcar(i, e.target.checked)}
-                  />
-                  {marcado && (
-                    <div className="rapido__detalhe">
-                      <div className="rapido__mini" aria-label={`Resumo de ${i.nome}`} role="group">
-                        <ResumoDoItemEditavel item={marcado} nomeDaArea={nomeDaArea} />
-                      </div>
+                <li key={nome} className="rapido__item" data-testid={`catalogo-${nome}`}>
+                  <div className="rapido__mini" aria-label={`Resumo de ${nome}`} role="group">
+                    <h4 className="rapido__nome">{marcado.nome || nome}</h4>
+                    <ResumoDoItemEditavel item={marcado} nomeDaArea={nomeDaArea} />
+                    <div className="cadastros__botoes">
                       <Botao
                         variante="secundario"
-                        aria-expanded={!!abertos[i.nome]}
-                        aria-label={`${abertos[i.nome] ? "Fechar o ajuste de" : "Ajustar"} ${i.nome}`}
-                        onClick={() => setAbertos((a) => ({ ...a, [i.nome]: !a[i.nome] }))}
+                        aria-expanded={!!abertos[nome]}
+                        aria-label={`${abertos[nome] ? "Fechar o ajuste de" : "Ajustar"} ${nome}`}
+                        onClick={() => setAbertos((a) => ({ ...a, [nome]: !a[nome] }))}
                       >
-                        {abertos[i.nome] ? "Fechar ajuste" : "Ajustar"}
+                        {abertos[nome] ? "Fechar ajuste" : "Ajustar"}
                       </Botao>
-                      {abertos[i.nome] && (
-                        <EditorDeItem item={marcado} areas={areas} unidadesBase={unidadesBase} unidades={unidades} aoMudar={(novo) => setMarcados((m) => ({ ...m, [i.nome]: novo }))} />
-                      )}
+                      <Botao variante="secundario" aria-label={`Desmarcar ${nome}`} onClick={() => marcar({ nome } as ItemDaApi, false)}>
+                        Tirar
+                      </Botao>
                     </div>
-                  )}
+                    {abertos[nome] && (
+                      <EditorDeItem item={marcado} areas={areas} unidadesBase={unidadesBase} unidades={unidades} aoMudar={(novo) => setMarcados((m) => ({ ...m, [nome]: novo }))} />
+                    )}
+                  </div>
                 </li>
               );
             })}
           </ul>
-        </Grupo>
-      ))}
+        </section>
+      )}
       <div className="rapido__barra">
         <span>{nomes.length === 0 ? "Nenhum item marcado" : plural(nomes.length, "item marcado", "itens marcados")}</span>
         <Botao disabled={nomes.length === 0 || gravando} onClick={() => void gravar()}>
@@ -267,6 +313,32 @@ function AbaCatalogo({
         </Botao>
       </div>
     </div>
+  );
+}
+
+/** Cartão selecionável de um item do catálogo: checkbox de verdade dentro de um label que cobre o cartão. */
+function CartaoDoItem({ item, marcado, nomeDaArea, aoMarcar }: { item: ItemDaApi; marcado: boolean; nomeDaArea: (a: string) => string; aoMarcar: (ligado: boolean) => void }) {
+  return (
+    <OpcaoDoGrupo
+      className={`cartao-sel${marcado ? " cartao-sel--marcado" : ""}${item.jaCadastrado ? " cartao-sel--ja" : ""}`}
+      rotulo={item.jaCadastrado ? `${item.nome} (já cadastrado)` : item.nome}
+      checked={marcado}
+      disabled={item.jaCadastrado}
+      onChange={(e) => aoMarcar(e.target.checked)}
+      conteudo={
+        <>
+          <span className="cartao-sel__topo">
+            <span className="cartao-sel__nome">{item.nome}</span>
+            {marcado && <Icone nome="ok" />}
+          </span>
+          <span className="cartao-sel__selos">
+            {item.jaCadastrado && <Selo icone="info">Já cadastrado</Selo>}
+            <Selo variante={varianteDaArea(item.area)}>{nomeDaArea(item.area)}</Selo>
+            <span className="erp-chip erp-chip--mini">{unidadePorExtenso(item.unidadeBase)}</span>
+          </span>
+        </>
+      }
+    />
   );
 }
 
