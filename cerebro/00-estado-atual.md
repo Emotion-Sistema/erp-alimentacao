@@ -40,7 +40,9 @@ Atualizado em: 14/11/2026
   Hipóteses: `cadastros.gerenciar` para dono, administrador e gerente geral; custo só com `custos.ver`.
   **Parte 1 feita** (PR 26, merge 05a65b2, no ar na homologação; migração 0006, decisão 0015;
   diário `diario/2026-11-15-e07-cadastros.md`). **Ideia nº 4 feita** (PRs 32 e 34: ajuda em cada campo e
-  cadastro rápido; no ar na homologação). Próximo: parte 2 (categorias, tipos de pedido, produtos). Conector do Google Drive ligado em 15/11/2026.
+  cadastro rápido; no ar na homologação). **Reforma visual no PR 37** (dados com rótulo,
+  selos, fundo sempre claro), aguardando o "aprovado" do responsável pelas capturas. Depois: parte 2 (categorias,
+  tipos de pedido, produtos). Conector do Google Drive ligado em 15/11/2026.
 - **Frentes paralelas** (15/11/2026): outro chat, com o modelo que o responsável escolher, pode cuidar
   de uma função só e falar com este pelo `cerebro/frentes/mural.md` (regras em `cerebro/frentes/README.md`).
   Aberta: **lista-de-compras** (Central de Compras, proposta aprovada; começa a LC1 depois da E07;
