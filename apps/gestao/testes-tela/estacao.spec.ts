@@ -152,12 +152,15 @@ test.describe("tablet da cozinha", () => {
     await tocarNaPessoa(page, "Teste cozinheira");
     await digitar(page, "2580");
     await expect(page.getByRole("button", { name: "Teste cozinheira, ativa agora" })).toBeVisible();
-    // Longe do fim: só a linha discreta.
+    // Longe do fim: só a linha discreta. O tablet sai às 00h30; entre 00h e 00h30 o fim real
+    // já está perto, por isso o teste afasta o fim antes de conferir (não depende do relógio).
+    sql("UPDATE estacao_presenca SET expira_em = now() + interval '3 hours' WHERE saiu_em IS NULL AND estacao_id = (SELECT id FROM estacao WHERE nome = 'Cozinha 4')");
+    await page.reload();
     await expect(page.getByText(/^Desliga às \d{2}:\d{2}$/)).toBeVisible();
     await expect(page.getByRole("button", { name: "Estender 30 min" })).toHaveCount(0);
 
     // Faltam 10 minutos: a faixa aparece.
-    sql("UPDATE estacao_presenca SET expira_em = now() + interval '10 minutes' WHERE saiu_em IS NULL");
+    sql("UPDATE estacao_presenca SET expira_em = now() + interval '10 minutes' WHERE saiu_em IS NULL AND estacao_id = (SELECT id FROM estacao WHERE nome = 'Cozinha 4')");
     await page.reload();
     const faixa = page.getByRole("alert", { name: "Aviso de desligamento" });
     await expect(faixa).toContainText(/O tablet desliga em (9|10) min/);

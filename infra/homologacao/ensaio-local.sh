@@ -40,8 +40,9 @@ como_app "SELECT count(*) FROM auditoria" >/dev/null || falha "aplicativo não l
 como_app "DELETE FROM sessao" 2>/dev/null && falha "aplicativo conseguiu apagar"
 como_app "CREATE TABLE intrusa (x int)" 2>/dev/null && falha "aplicativo conseguiu criar tabela"
 como_app "SELECT * FROM migracao_aplicada" 2>/dev/null && falha "aplicativo leu o controle de migrações"
+como_app "UPDATE unidade_medida SET fator = 900 WHERE codigo = 'kg'" 2>/dev/null && falha "aplicativo mudou uma unidade padrão"
 [ "$(sql "SELECT rolsuper FROM pg_roles WHERE rolname = 'erp_dono'")" = f ] || falha "dono do esquema é superusuário"
-ok "aplicativo lê e grava, mas não apaga, não cria tabela e não vê as migrações"
+ok "aplicativo lê e grava, mas não apaga, não cria tabela, não vê as migrações e não muda as unidades padrão"
 
 compose run --rm -T ferramentas node_modules/.bin/tsx -e '
   import("./packages/dominio/src/index.ts").then(async (d) => {

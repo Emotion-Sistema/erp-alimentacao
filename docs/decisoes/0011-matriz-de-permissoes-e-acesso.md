@@ -20,6 +20,8 @@ A permissão vem **só do cargo ativo**. O que não está listado é recusado e 
 | Configuração do sistema | ✓ | | | | | | | | | |
 | Enviar comunicados e ver quem leu (E05, decisão 0013) | ✓ | ✓ | | | | | | | | |
 | Horários: turnos e margem de troca (E05, decisão 0013) | ✓ | ✓ | | | | | | | | |
+| Ver cadastros: ingredientes, fornecedores (E07, decisão 0015) | ✓ | ✓ | ✓ | ✓ | | | ✓ | | | |
+| Mudar cadastros (E07, decisão 0015) | ✓ | ✓ | | | | | | | | |
 | Lançar pedido | ✓ | ✓ | | ✓ | ✓ | | | | | |
 | Ver os próprios pedidos / todos | ✓ | ✓ | | – / ✓ | ✓ / – | – / ✓ | | | | |
 | Alterar pedido | ✓ | ✓ | | ✓ | ✓ (avisa os supervisores) | | | | | |

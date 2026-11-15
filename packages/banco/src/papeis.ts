@@ -58,6 +58,8 @@ await comoAdmin(async (c) => {
     GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO erp_app, erp_worker;
     REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM erp_app, erp_worker;
     GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO erp_app, erp_worker;
-    REVOKE ALL ON migracao_aplicada FROM erp_app, erp_worker;`);
+    REVOKE ALL ON migracao_aplicada FROM erp_app, erp_worker;
+    -- Unidades padrão são fixas (decisão 0015): só migração muda o fator de kg ou litro.
+    REVOKE INSERT, UPDATE ON unidade_medida FROM erp_app, erp_worker;`);
 });
 console.log("banco pronto: papéis, migrações e permissões conferidos.");

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { entrar, loginDoCargo, semEstouroDeLargura } from "./ajudas";
 
 // Resultado esperado escrito à mão (independente do código), conforme a decisão 0011.
-const TODOS = ["Caixa", "Atendimento", "Produção", "Estoque e compras", "Gestão", "Financeiro"];
+const TODOS = ["Caixa", "Atendimento", "Produção", "Estoque e compras", "Gestão", "Cadastros", "Financeiro"];
 type Esperado = {
   nome: string;
   /** Aplicativos do lançador (cargo com mais de um). */
@@ -16,11 +16,11 @@ const MENU: Record<string, Esperado> = {
   dono: { nome: "Dono", apps: TODOS, funcionarios: true, auditoria: true },
   administrador: { nome: "Administrador", apps: TODOS, funcionarios: true, auditoria: true },
   gerente_geral: { nome: "Gerente geral", apps: TODOS.filter((a) => a !== "Financeiro"), funcionarios: true, auditoria: true },
-  financeiro: { nome: "Financeiro", apps: ["Estoque e compras", "Financeiro"], funcionarios: false, auditoria: false },
-  supervisor: { nome: "Supervisor", apps: ["Caixa", "Atendimento", "Produção", "Estoque e compras", "Gestão"], funcionarios: true, auditoria: false },
+  financeiro: { nome: "Financeiro", apps: ["Estoque e compras", "Cadastros", "Financeiro"], funcionarios: false, auditoria: false },
+  supervisor: { nome: "Supervisor", apps: ["Caixa", "Atendimento", "Produção", "Estoque e compras", "Gestão", "Cadastros"], funcionarios: true, auditoria: false },
   atendente: { nome: "Atendente", direto: { caminho: "/atendimento", itens: ["Mesas", "Meus pedidos"] }, funcionarios: false, auditoria: false },
   caixa: { nome: "Caixa", direto: { caminho: "/caixa", itens: ["Início do turno", "Mapa de mesas", "Receber", "Motoboys"] }, funcionarios: false, auditoria: false },
-  cozinheira: { nome: "Cozinheira", apps: ["Produção", "Estoque e compras"], funcionarios: false, auditoria: false },
+  cozinheira: { nome: "Cozinheira", apps: ["Produção", "Estoque e compras", "Cadastros"], funcionarios: false, auditoria: false },
   auxiliar_cozinha: { nome: "Auxiliar de cozinha", direto: { caminho: "/producao", itens: ["Visão geral"] }, funcionarios: false, auditoria: false },
   motoboy: { nome: "Motoboy próprio", direto: { caminho: "/entregas", itens: ["Minhas entregas"] }, funcionarios: false, auditoria: false },
   contador: { nome: "Contador externo", direto: { caminho: "/financeiro/contabil", itens: ["Pacote contábil"] }, funcionarios: false, auditoria: false },
