@@ -11,6 +11,13 @@ case "${1:-ajuda}" in
   atualizar)
     [ "${2:-}" = "--de-novo" ] && rm -f "$RAIZ/estado/recusadas" "$RAIZ"/estado/tentativas-*
     systemctl start erp-atualizar.service; journalctl -u erp-atualizar --no-pager -n 20 ;;
+  ssh-senha)
+    case "${2:-}" in
+      ligar) touch "$RAIZ/estado/ssh-com-senha" ;;
+      desligar) rm -f "$RAIZ/estado/ssh-com-senha" ;;
+      *) echo "uso: erp ssh-senha ligar | desligar"; exit 1 ;;
+    esac
+    bash "$CODIGO/infra/homologacao/ssh-so-chave.sh"; sshd -T 2>/dev/null | grep -E '^(passwordauthentication|permitrootlogin) ' || true ;;
   primeiro-acesso) compose run --rm -it ferramentas pnpm -s primeiro-acesso </dev/tty ;;
-  *) echo "uso: erp situacao | registros [linhas] | atualizar [--de-novo] | primeiro-acesso" ;;
+  *) echo "uso: erp situacao | registros [linhas] | atualizar [--de-novo] | ssh-senha ligar|desligar | primeiro-acesso" ;;
 esac

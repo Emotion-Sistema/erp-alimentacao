@@ -112,10 +112,16 @@ computador dele.
   homologação (a volta automática segura). Pendente: rodar a matriz da API com um papel
   igual ao `erp_app`.
 
+## SSH só por chave (15/11/2026)
+O responsável cadastrou a chave dele no painel e entrou com ela. Desde então o atualizador
+roda `ssh-so-chave.sh` a cada minuto: se o root tem chave cadastrada, grava
+`/etc/ssh/sshd_config.d/00-erp-so-chave.conf` (sem senha, root só com chave), confere com
+`sshd -t` (se falhar, apaga e nada muda) e confirma com `sshd -T`. Sem chave, não mexe.
+Para voltar a aceitar senha: `erp ssh-senha ligar` (e `desligar` para refazer).
+Não sabemos se o terminal do navegador da Hostinger usa a senha do root: o responsável
+confere depois da mudança. Se parar de abrir, ele entra pela chave e roda `erp ssh-senha ligar`.
+
 ## Fica para depois (com etapa)
-- **SSH só por chave:** hoje a senha de root do painel continua valendo (com fail2ban),
-  porque não se sabe se o terminal do navegador da Hostinger usa senha. Desligar depois de
-  o responsável cadastrar uma chave no painel. Não inventamos o comportamento do painel.
 - **Limite de requisições** no login e nas rotas públicas: o login já bloqueia por
   tentativas (E03); o limite por IP entra antes do site e do delivery públicos (Portão 3).
 - **Web Push** (chaves VAPID no servidor): com os avisos com aplicativo fechado (0013).

@@ -34,6 +34,8 @@ Desenho e motivos: `docs/decisoes/0014-homologacao-na-vps.md`.
 | `erp registros` | Últimas mensagens da atualização e dos aplicativos |
 | `erp atualizar` | Buscar a versão nova agora, sem esperar o minuto |
 | `erp atualizar --de-novo` | Tentar de novo uma versão que tinha falhado |
+| `erp ssh-senha ligar` | Voltar a aceitar a senha do root no SSH (o padrão é só chave) |
+| `erp ssh-senha desligar` | SSH de novo só com chave |
 
 ## O que fica no servidor
 `/opt/erp/codigo` (código), `/opt/erp/segredos` (senhas do banco e chave do segundo fator,
