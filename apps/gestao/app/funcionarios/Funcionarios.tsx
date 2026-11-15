@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Aviso, Botao, Campo, Cartao, Celula, Etiqueta, Selecao, Tabela } from "@erp/interface";
+import { Aviso, Botao, Cartao, Celula, Etiqueta, Tabela } from "@erp/interface";
+import { BotaoExemplos, Campo, Selecao } from "../Campo";
 import { chamar } from "../chamar";
 
 type Usuario = {
@@ -52,6 +53,7 @@ export function Funcionarios(props: Props) {
   return (
     <>
       <h1>Funcionários</h1>
+      <BotaoExemplos />
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
       {podeGerenciar && <NovoFuncionario cargos={cargos} agir={agir} />}
       {!lista ? (
@@ -136,10 +138,40 @@ function NovoFuncionario({ cargos, agir }: { cargos: Opcao[]; agir: Agir }) {
     <Cartao>
       <h2>Novo funcionário</h2>
       <form onSubmit={enviar} noValidate>
-        <Campo rotulo="Nome" name="nome" autoComplete="off" required />
-        <Campo rotulo="Usuário (para entrar)" name="login" autoComplete="off" autoCapitalize="none" required />
-        <Campo rotulo="Senha inicial" name="senha" type="password" autoComplete="new-password" required />
-        <Selecao rotulo="Cargo" name="cargo" defaultValue="atendente" opcoes={cargos} />
+        <Campo
+          rotulo="Nome"
+          explicacao="Nome da pessoa como vai aparecer nas telas e nos registros."
+          exemplo="Maria Silva (nome inventado)."
+          name="nome"
+          autoComplete="off"
+          required
+        />
+        <Campo
+          rotulo="Usuário (para entrar)"
+          explicacao="O nome que a pessoa digita para entrar. Sem espaços e sem letra maiúscula. Cada pessoa tem o seu."
+          exemplo="maria.silva"
+          name="login"
+          autoComplete="off"
+          autoCapitalize="none"
+          required
+        />
+        <Campo
+          rotulo="Senha inicial"
+          explicacao="Senha para o primeiro acesso. Entregue em mãos, sem escrever em mensagem."
+          exemplo="Use letras e números misturados, com pelo menos 10 caracteres, como cafe-Quente-482."
+          name="senha"
+          type="password"
+          autoComplete="new-password"
+          required
+        />
+        <Selecao
+          rotulo="Cargo"
+          explicacao="O cargo define o que a pessoa pode ver e fazer no sistema."
+          exemplo="Atendente para quem serve as mesas. Caixa para quem recebe os pagamentos."
+          name="cargo"
+          defaultValue="atendente"
+          opcoes={cargos}
+        />
         <Botao type="submit" disabled={enviando}>
           Criar funcionário
         </Botao>
@@ -183,7 +215,14 @@ function Acoes({
                   </li>
                 ))}
               </ul>
-              <Selecao rotulo={`Dar cargo a ${u.nome}`} value={cargoNovo} opcoes={cargos} onChange={(e) => setCargoNovo(e.target.value)} />
+              <Selecao
+                rotulo={`Dar cargo a ${u.nome}`}
+                explicacao="Escolha um cargo a mais para esta pessoa e toque em Dar cargo. Ela pode ter vários."
+                exemplo="Quem já é atendente e também ajuda no caixa recebe o cargo Caixa."
+                value={cargoNovo}
+                opcoes={cargos}
+                onChange={(e) => setCargoNovo(e.target.value)}
+              />
               <Botao variante="secundario" onClick={() => void agir(`${rota}/cargos`, "POST", { cargo: cargoNovo }, "Cargo dado.")}>
                 Dar cargo
               </Botao>
@@ -191,6 +230,8 @@ function Acoes({
             <div>
               <Campo
                 rotulo={`Código de 4 números de ${u.nome}`}
+                explicacao="O código que a pessoa usa no tablet da cozinha. Só números, sem repetir nem sequência."
+                exemplo="4827 (não use 1111 nem 1234)."
                 inputMode="numeric"
                 maxLength={4}
                 autoComplete="off"

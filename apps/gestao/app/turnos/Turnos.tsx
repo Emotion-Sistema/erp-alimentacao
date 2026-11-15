@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Aviso, Botao, Cartao } from "@erp/interface";
+import { BotaoExemplos, Campo } from "../Campo";
 import { chamar } from "../chamar";
 
 type Dados = { turnos: { id: number; nome: string; inicio: string; fim: string }[]; margemMinutos: number };
@@ -34,6 +35,7 @@ export function Turnos() {
   return (
     <>
       <h1>Turnos</h1>
+      <BotaoExemplos />
       {erro && <Aviso tipo="perigo">{erro}</Aviso>}
       {!dados ? (
         !erro && <p>Carregando...</p>
@@ -57,20 +59,20 @@ export function Turnos() {
               continuam valendo para quem está chegando. Assim nenhum aviso se perde na troca. A mudança vale para os avisos criados depois dela.
             </p>
             <form onSubmit={(e) => void salvar(e)}>
-              <label>
-                Minutos (0 a 120)
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={120}
-                  step={1}
-                  required
-                  value={margem}
-                  onChange={(e) => setMargem(e.target.value)}
-                  data-testid="margem-minutos"
-                />
-              </label>
+              <Campo
+                rotulo="Minutos (0 a 120)"
+                explicacao="Por quantos minutos, depois do fim do turno, quem está saindo ainda recebe os avisos."
+                exemplo="30 = a pessoa que sai ainda recebe avisos por mais 30 minutos. 0 = corta na hora."
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={120}
+                step={1}
+                required
+                value={margem}
+                onChange={(e) => setMargem(e.target.value)}
+                data-testid="margem-minutos"
+              />
               <Botao type="submit" variante="primario">
                 Salvar margem
               </Botao>

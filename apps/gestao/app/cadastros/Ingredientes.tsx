@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Aviso, Botao, Campo, Cartao, Etiqueta, Selecao } from "@erp/interface";
+import { Aviso, Botao, Cartao, Etiqueta } from "@erp/interface";
+import { BotaoExemplos, Campo, Marcador, Selecao } from "../Campo";
 import { chamar } from "../chamar";
 
 type Opcao = { valor: string; texto: string };
@@ -64,6 +65,7 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
   return (
     <>
       <h1>Ingredientes</h1>
+      <BotaoExemplos />
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
       {podeGerenciar && editando === null && (
         <p>
@@ -96,9 +98,15 @@ export function Ingredientes({ areas, unidadesBase, podeGerenciar }: Props) {
       )}
       <Cartao>
         <div className="cadastros__filtros">
-          <Campo rotulo="Buscar por nome" value={busca} onChange={(e) => setBusca(e.target.value)} autoComplete="off" />
+          <Campo
+            rotulo="Buscar por nome"
+            explicacao="Digite uma parte do nome para achar o ingrediente na lista."
+            exemplo="Digite fari e aparece Farinha de trigo."
+            value={busca} onChange={(e) => setBusca(e.target.value)} autoComplete="off" />
           <Selecao
             rotulo="Filtrar por área"
+            explicacao="Mostra só os ingredientes de um setor da casa. Deixe em Todas as áreas para ver tudo."
+            exemplo="Escolha Cozinha para esconder o que é do bar ou da cafeteria."
             value={areaFiltro}
             onChange={(e) => setAreaFiltro(e.target.value)}
             opcoes={[{ valor: "", texto: "Todas as áreas" }, ...areas]}
@@ -217,7 +225,15 @@ function FormularioIngrediente({
       {erro && <Aviso tipo="perigo">{erro}</Aviso>}
       <form onSubmit={enviar} noValidate>
         <div className="cadastros__form-linha">
-          <Campo rotulo="Nome" value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="off" required />
+          <Campo
+            rotulo="Nome"
+            explicacao="Nome do ingrediente como a equipe o conhece. Evite repetir um nome que já existe."
+            exemplo="Farinha de trigo, Ovo, Leite integral."
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            autoComplete="off"
+            required
+          />
           {ingrediente ? (
             <div>
               <p className="cadastros__travado">
@@ -225,16 +241,31 @@ function FormularioIngrediente({
               </p>
             </div>
           ) : (
-            <Selecao rotulo="Unidade do estoque" value={unidadeBase} onChange={(e) => setUnidadeBase(e.target.value)} opcoes={unidadesBase} />
+            <Selecao
+              rotulo="Unidade do estoque"
+              explicacao="A medida em que o estoque é contado. Depois de criada, não muda."
+              exemplo="Ovo: un. Farinha: g. Leite: ml."
+              value={unidadeBase} onChange={(e) => setUnidadeBase(e.target.value)} opcoes={unidadesBase} />
           )}
-          <Selecao rotulo="Área" value={area} onChange={(e) => setArea(e.target.value)} opcoes={areas} />
-          <Selecao rotulo="Fornecedor" value={fornecedorId} onChange={(e) => setFornecedorId(e.target.value)} opcoes={opcoesFornecedor} />
+          <Selecao
+            rotulo="Área"
+            explicacao="O setor onde o ingrediente é usado e guardado."
+            exemplo="Cozinha para farinha e ovo. Bar para café em grão."
+            value={area} onChange={(e) => setArea(e.target.value)} opcoes={areas} />
+          <Selecao
+            rotulo="Fornecedor"
+            explicacao="De quem você costuma comprar. Pode deixar sem fornecedor e escolher depois."
+            exemplo="Distribuidora Boa Safra (nome inventado). Cadastre antes em Fornecedores."
+            value={fornecedorId} onChange={(e) => setFornecedorId(e.target.value)} opcoes={opcoesFornecedor} />
         </div>
         {ingrediente && (
-          <label className="cadastros__opcao">
-            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
-            Ativo (desmarque para tirar de uso; nada é apagado)
-          </label>
+          <Marcador
+            rotulo="Ativo (desmarque para tirar de uso; nada é apagado)"
+            explicacao="Marcado, o ingrediente aparece para uso. Desmarcado, deixa de ser usado, mas o histórico fica guardado."
+            exemplo="Desmarque um ingrediente que a casa parou de comprar."
+            checked={ativo}
+            onChange={(e) => setAtivo(e.target.checked)}
+          />
         )}
         <div className="cadastros__botoes">
           <Botao type="submit" disabled={enviando}>
@@ -335,9 +366,15 @@ function Conversoes({ ingrediente, aoMudar }: { ingrediente: Ingrediente; aoMuda
       ) : (
         <form onSubmit={enviar} noValidate aria-label="Conversão">
           <div className="cadastros__form-linha">
-            <Campo rotulo="Unidade de compra (ex.: caixa)" value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="off" required />
+            <Campo
+              rotulo="Unidade de compra (ex.: caixa)"
+              explicacao="Como o ingrediente vem do fornecedor: o nome da embalagem."
+              exemplo="caixa, saco, pacote, fardo."
+              value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="off" required />
             <Campo
               rotulo={`Quantidade em ${ingrediente.unidadeBase} (aceita vírgula)`}
+              explicacao={`Quantas ${ingrediente.unidadeBase} cabem em 1 unidade de compra. O estoque conta sempre em ${ingrediente.unidadeBase}.`}
+              exemplo="caixa = 30 (1 caixa tem 30 ovos, estoque em un). Saco de 25 kg = 25000 (estoque em g)."
               value={quantidade}
               onChange={(e) => setQuantidade(e.target.value)}
               inputMode="decimal"

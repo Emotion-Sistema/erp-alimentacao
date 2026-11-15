@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Aviso, Botao, Campo, Celula, Etiqueta, Selecao, Tabela } from "@erp/interface";
+import { Aviso, Botao, Celula, Etiqueta, Tabela } from "@erp/interface";
+import { BotaoExemplos, Campo, Selecao } from "../Campo";
 import { chamar } from "../chamar";
 import { formatarDataHora } from "../formatar";
 
@@ -73,6 +74,7 @@ export function Auditoria() {
   return (
     <>
       <h1>Auditoria</h1>
+      <BotaoExemplos />
       <p>Tudo o que foi feito no sistema, com quem fez e quando. Nada aqui pode ser apagado.</p>
       <form
         onSubmit={(e) => {
@@ -81,10 +83,28 @@ export function Auditoria() {
         }}
         noValidate
       >
-        <Selecao rotulo="Resultado" value={filtros.resultado} opcoes={RESULTADOS} onChange={(e) => setFiltros({ ...filtros, resultado: e.target.value })} />
-        <Campo rotulo="Ação (nome exato, ex.: usuarios.gerenciar)" value={filtros.acao} onChange={(e) => setFiltros({ ...filtros, acao: e.target.value })} />
-        <Campo rotulo="De (data)" type="date" value={filtros.de} onChange={(e) => setFiltros({ ...filtros, de: e.target.value })} />
-        <Campo rotulo="Até (data)" type="date" value={filtros.ate} onChange={(e) => setFiltros({ ...filtros, ate: e.target.value })} />
+        <Selecao
+          rotulo="Resultado"
+          explicacao="Filtra pelo que aconteceu: deu certo ou foi recusado."
+          exemplo="Escolha Recusado para ver tentativas que o sistema barrou."
+          value={filtros.resultado} opcoes={RESULTADOS} onChange={(e) => setFiltros({ ...filtros, resultado: e.target.value })} />
+        <Campo
+          rotulo="Ação (nome exato, ex.: usuarios.gerenciar)"
+          explicacao="Opcional. O nome técnico da ação, escrito igualzinho. Deixe vazio para ver todas."
+          exemplo="usuarios.gerenciar mostra só o que foi feito na tela de funcionários."
+          value={filtros.acao} onChange={(e) => setFiltros({ ...filtros, acao: e.target.value })} />
+        <Campo
+          rotulo="De (data)"
+          explicacao="Opcional. Mostra registros a partir deste dia."
+          exemplo="01/11/2026 mostra de 1º de novembro em diante."
+          type="date"
+          value={filtros.de} onChange={(e) => setFiltros({ ...filtros, de: e.target.value })} />
+        <Campo
+          rotulo="Até (data)"
+          explicacao="Opcional. Mostra registros até este dia."
+          exemplo="15/11/2026 mostra até o dia 15 de novembro."
+          type="date"
+          value={filtros.ate} onChange={(e) => setFiltros({ ...filtros, ate: e.target.value })} />
         <Botao type="submit">Filtrar</Botao>
       </form>
       {erro && <Aviso tipo="perigo">{erro}</Aviso>}

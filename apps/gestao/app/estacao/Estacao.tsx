@@ -328,6 +328,7 @@ function Teclado({ pessoa, aoFechar, aoEntrar }: { pessoa: Pessoa; aoFechar: () 
     <div className="teclado-fundo" role="dialog" aria-modal="true" aria-label={`Código de ${pessoa.nome}`}>
       <div className="teclado">
         <h2>{pessoa.nome}, digite seu código</h2>
+        <p className="ajuda__explicacao">Toque os 4 números do seu código. Ele entra sozinho no último número. Se errar, toque em Apagar.</p>
         <div className="teclado__visor" aria-label={`${digitos.length} de 4 números digitados`}>
           {[0, 1, 2, 3].map((i) => (
             <span key={i} className={`teclado__bolinha${i < digitos.length ? " teclado__bolinha--cheia" : ""}`} />

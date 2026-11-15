@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Aviso } from "@erp/interface";
+import { Campo } from "./Campo";
 import { chamar } from "./chamar";
 import { ItemDeAviso, type AvisoDaCaixa } from "./ItemDeAviso";
 
@@ -204,10 +205,16 @@ export function CentralDeAvisos() {
                 void continuar();
               }}
             >
-              <label>
-                Precisa ficar? Digite <strong>sua</strong> senha:
-                <input type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
-              </label>
+              <Campo
+                rotulo="Precisa ficar? Digite sua senha"
+                explicacao="Só quem precisa continuar depois do fim do turno digita a própria senha. Serve para confirmar que é você."
+                exemplo="A mesma senha que você usa para entrar no sistema."
+                type="password"
+                autoComplete="current-password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                required
+              />
               <button type="submit" className="avisos__ativar">
                 Continuo no {turno.turnoAtual.nome}
               </button>

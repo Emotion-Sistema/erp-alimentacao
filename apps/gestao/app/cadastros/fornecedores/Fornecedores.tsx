@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Aviso, Botao, Campo, Cartao, Etiqueta } from "@erp/interface";
+import { Aviso, Botao, Cartao, Etiqueta } from "@erp/interface";
+import { BotaoExemplos, Campo, Marcador } from "../../Campo";
 import { chamar } from "../../chamar";
 
 type Fornecedor = {
@@ -37,6 +38,7 @@ export function Fornecedores({ podeGerenciar }: { podeGerenciar: boolean }) {
   return (
     <>
       <h1>Fornecedores</h1>
+      <BotaoExemplos />
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
       {podeGerenciar && editando === null && (
         <p>
@@ -150,19 +152,54 @@ function FormularioFornecedor({
       {erro && <Aviso tipo="perigo">{erro}</Aviso>}
       <form onSubmit={enviar} noValidate>
         <div className="cadastros__form-linha">
-          <Campo rotulo="Nome" value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="off" required />
-          <Campo rotulo="CPF ou CNPJ" value={documento} onChange={(e) => setDocumento(e.target.value)} inputMode="numeric" autoComplete="off" />
-          <Campo rotulo="Contato (pessoa)" value={contato} onChange={(e) => setContato(e.target.value)} autoComplete="off" />
-          <Campo rotulo="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} type="tel" autoComplete="off" />
-          <Campo rotulo="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="off" />
-          <Campo rotulo="Prazo de entrega (dias)" value={prazo} onChange={(e) => setPrazo(e.target.value)} inputMode="numeric" autoComplete="off" />
+          <Campo
+            rotulo="Nome"
+            explicacao="Nome da empresa ou da pessoa que vende para a casa."
+            exemplo="Distribuidora Boa Safra."
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            autoComplete="off"
+            required
+          />
+          <Campo
+            rotulo="CPF ou CNPJ"
+            explicacao="Opcional. Digite os números do documento, com ou sem pontos."
+            exemplo="CNPJ 11.222.333/0001-81 ou CPF 123.456.789-09 (números inventados)."
+            value={documento} onChange={(e) => setDocumento(e.target.value)} inputMode="numeric" autoComplete="off" />
+          <Campo
+            rotulo="Contato (pessoa)"
+            explicacao="Opcional. Com quem falar na hora de pedir ou reclamar."
+            exemplo="Carlos, do atendimento."
+            value={contato} onChange={(e) => setContato(e.target.value)} autoComplete="off" />
+          <Campo
+            rotulo="Telefone"
+            explicacao="Opcional. Telefone ou WhatsApp com o DDD."
+            exemplo="(11) 91234-5678 (número inventado)."
+            value={telefone} onChange={(e) => setTelefone(e.target.value)} type="tel" autoComplete="off" />
+          <Campo
+            rotulo="E-mail"
+            explicacao="Opcional. Endereço de e-mail para enviar pedidos."
+            exemplo="vendas@boasafra.exemplo.com"
+            value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="off" />
+          <Campo
+            rotulo="Prazo de entrega (dias)"
+            explicacao="Opcional. Quantos dias, em média, entre o pedido e a chegada. De 0 a 90."
+            exemplo="2 = entrega em 2 dias. 0 = entrega no mesmo dia."
+            value={prazo} onChange={(e) => setPrazo(e.target.value)} inputMode="numeric" autoComplete="off" />
         </div>
-        <Campo rotulo="Observação" value={observacao} onChange={(e) => setObservacao(e.target.value)} autoComplete="off" />
+        <Campo
+          rotulo="Observação"
+          explicacao="Opcional. Qualquer lembrete sobre este fornecedor."
+          exemplo="Só entrega de segunda a sexta, antes das 10h."
+          value={observacao} onChange={(e) => setObservacao(e.target.value)} autoComplete="off" />
         {fornecedor && (
-          <label className="cadastros__opcao">
-            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
-            Ativo (desmarque para tirar de uso; nada é apagado)
-          </label>
+          <Marcador
+            rotulo="Ativo (desmarque para tirar de uso; nada é apagado)"
+            explicacao="Marcado, o fornecedor aparece para escolha. Desmarcado, deixa de aparecer, mas o histórico fica guardado."
+            exemplo="Desmarque um fornecedor com quem a casa parou de comprar."
+            checked={ativo}
+            onChange={(e) => setAtivo(e.target.checked)}
+          />
         )}
         <div className="cadastros__botoes">
           <Botao type="submit" disabled={enviando}>

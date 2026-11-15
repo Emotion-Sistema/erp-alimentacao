@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Aviso, Botao, Cartao } from "@erp/interface";
+import { AreaDeTexto, BotaoExemplos, Grupo, OpcaoDoGrupo, Selecao } from "../Campo";
 import { chamar } from "../chamar";
 import { formatarDataHora } from "../formatar";
 
@@ -62,57 +63,79 @@ export function Comunicados({ cargos }: { cargos: { valor: string; texto: string
   return (
     <>
       <h1>Comunicados</h1>
+      <BotaoExemplos />
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
       <Cartao>
         <form onSubmit={(e) => void enviar(e)}>
-          <div className="erp-campo">
-            <label className="erp-campo__rotulo" htmlFor="comunicado-texto">
-              Recado
-            </label>
-            <textarea
-              id="comunicado-texto"
-              className="erp-campo__entrada"
-              rows={4}
-              maxLength={500}
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
+          <AreaDeTexto
+            id="comunicado-texto"
+            rotulo="Recado"
+            explicacao="Escreva o aviso curto e direto, até 500 letras. Quem for do cargo escolhido vai ver na tela."
+            exemplo="Hoje faltou gás de cozinha. Usem só a chapa elétrica até as 14h."
+            rows={4}
+            maxLength={500}
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+          />
+          <small>{texto.length} de 500 letras</small>
+          <Grupo
+            className="comunicados__grupo"
+            legenda="Para quais cargos"
+            explicacao="Marque quem precisa receber. Só os cargos marcados veem o recado."
+            exemplo="Marque Cozinheira e Auxiliar de cozinha para um aviso da cozinha. Marcar todos envia para a casa inteira."
+          >
+            <OpcaoDoGrupo
+              className="comunicados__opcao"
+              rotulo="Marcar todos"
+              checked={todos}
+              onChange={() => setMarcados(todos ? [] : cargos.map((c) => c.valor))}
             />
-            <small>{texto.length} de 500 letras</small>
-          </div>
-          <fieldset className="comunicados__grupo">
-            <legend>Para quais cargos</legend>
-            <label className="comunicados__opcao">
-              <input type="checkbox" checked={todos} onChange={() => setMarcados(todos ? [] : cargos.map((c) => c.valor))} />
-              Marcar todos
-            </label>
             {cargos.map((c) => (
-              <label key={c.valor} className="comunicados__opcao">
-                <input type="checkbox" checked={marcados.includes(c.valor)} onChange={() => alternar(c.valor)} />
-                {c.texto}
-              </label>
+              <OpcaoDoGrupo
+                key={c.valor}
+                className="comunicados__opcao"
+                rotulo={c.texto}
+                checked={marcados.includes(c.valor)}
+                onChange={() => alternar(c.valor)}
+              />
             ))}
-          </fieldset>
-          <div className="erp-campo">
-            <label className="erp-campo__rotulo" htmlFor="comunicado-prioridade">
-              Prioridade
-            </label>
-            <select id="comunicado-prioridade" className="erp-campo__entrada" value={prioridade} onChange={(e) => setPrioridade(e.target.value)}>
-              <option value="normal">Normal</option>
-              <option value="urgente">Urgente</option>
-              <option value="informativo">Informativo</option>
-            </select>
-          </div>
-          <fieldset className="comunicados__grupo">
-            <legend>Por quanto tempo vale</legend>
-            <label className="comunicados__opcao">
-              <input type="radio" name="validade" checked={validade === "ate_ler"} onChange={() => setValidade("ate_ler")} />
-              Até cada um confirmar a leitura
-            </label>
-            <label className="comunicados__opcao">
-              <input type="radio" name="validade" checked={validade === "turno"} onChange={() => setValidade("turno")} />
-              Só neste turno
-            </label>
-          </fieldset>
+          </Grupo>
+          <Selecao
+            id="comunicado-prioridade"
+            rotulo="Prioridade"
+            explicacao="Quanto o aviso deve chamar a atenção. Urgente toca e vibra; informativo é discreto."
+            exemplo="Urgente: falta de gás. Normal: troca de turno. Informativo: aniversário do mês."
+            value={prioridade}
+            onChange={(e) => setPrioridade(e.target.value)}
+            opcoes={[
+              { valor: "normal", texto: "Normal" },
+              { valor: "urgente", texto: "Urgente" },
+              { valor: "informativo", texto: "Informativo" },
+            ]}
+          />
+          <Grupo
+            className="comunicados__grupo"
+            legenda="Por quanto tempo vale"
+            explicacao="Escolha até quando o aviso fica aparecendo para cada pessoa."
+            exemplo="Até cada um confirmar: regra nova que todos precisam ler. Só neste turno: aviso que perde a validade quando o turno acaba."
+          >
+            <OpcaoDoGrupo
+              className="comunicados__opcao"
+              tipo="radio"
+              name="validade"
+              rotulo="Até cada um confirmar a leitura"
+              checked={validade === "ate_ler"}
+              onChange={() => setValidade("ate_ler")}
+            />
+            <OpcaoDoGrupo
+              className="comunicados__opcao"
+              tipo="radio"
+              name="validade"
+              rotulo="Só neste turno"
+              checked={validade === "turno"}
+              onChange={() => setValidade("turno")}
+            />
+          </Grupo>
           <Botao type="submit" disabled={enviando}>
             Enviar comunicado
           </Botao>
