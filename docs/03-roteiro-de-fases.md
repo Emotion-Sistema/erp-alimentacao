@@ -34,7 +34,7 @@ aplicativo, inclusive para quem tem um só (hoje ficam no lançador).
 | **E07** Cadastros | Produtos, tipos de pedido, ingredientes, unidades, conversões, fornecedores; importação de planilha | Sonnet; Opus revisa | Planilha de exemplo importada com os erros apontados |
 | **E08** Fichas técnicas | Receitas versionadas, rendimento, custo do prato | Opus na regra; Sonnet na tela | Custo confere com conta feita à mão |
 | **E09** Estoque | Áreas, em uso e guardado, movimentos, perda, contagem (RC-09) | Opus; revisor | Movimentos fecham em quantidade e custo |
-| **E10** Reposição | Linhas saudável e de emergência, avisos, lista de compras | Opus na regra; Sonnet na tela | Um aviso por cruzamento de linha |
+| **E10** Reposição | Linhas saudável e de emergência, avisos; a lista de compras é da frente lista-de-compras (LC3), que a E10 alimenta | Opus na regra; Sonnet na tela | Um aviso por cruzamento de linha |
 
 ## Bloco C: pedido e produção (o coração do sistema)
 | Etapa | Entrega | Modelos | Pronto quando |
