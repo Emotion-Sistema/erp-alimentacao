@@ -21,7 +21,6 @@ type Mensagem = { tipo: "sucesso" | "perigo" | "atencao"; texto: string } | null
 
 type Props = {
   areas: Opcao[];
-  unidadesBase: Opcao[];
   unidades: UnidadePadrao[];
   /** Atualiza a lista de ingredientes da tela de trás. */
   aoGravar: () => Promise<void>;
@@ -30,7 +29,7 @@ type Props = {
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 
-export function CadastroRapido({ areas, unidadesBase, unidades, aoGravar, aoFechar }: Props) {
+export function CadastroRapido({ areas, unidades, aoGravar, aoFechar }: Props) {
   const [aba, setAba] = useState<"catalogo" | "lista">("catalogo");
   const [catalogo, setCatalogo] = useState<CatalogoApi | null>(null);
   const [erroCatalogo, setErroCatalogo] = useState("");
@@ -92,7 +91,7 @@ export function CadastroRapido({ areas, unidadesBase, unidades, aoGravar, aoFech
       </div>
       <div role="tabpanel" id="painel-catalogo" aria-labelledby="aba-catalogo" hidden={aba !== "catalogo"}>
         {catalogo ? (
-          <AbaCatalogo catalogo={catalogo} areas={areas} unidadesBase={unidadesBase} unidades={unidades} nomeDaArea={nomeDaArea} aoGravar={depoisDeGravar} />
+          <AbaCatalogo catalogo={catalogo} areas={areas} unidades={unidades} nomeDaArea={nomeDaArea} aoGravar={depoisDeGravar} />
         ) : (
           !erroCatalogo && <p>Carregando o catálogo...</p>
         )}
@@ -101,7 +100,6 @@ export function CadastroRapido({ areas, unidadesBase, unidades, aoGravar, aoFech
         <AbaLista
           jaCadastrados={catalogo?.jaCadastrados ?? []}
           areas={areas}
-          unidadesBase={unidadesBase}
           unidades={unidades}
           nomeDaArea={nomeDaArea}
           aoGravar={depoisDeGravar}
@@ -116,14 +114,12 @@ export function CadastroRapido({ areas, unidadesBase, unidades, aoGravar, aoFech
 function AbaCatalogo({
   catalogo,
   areas,
-  unidadesBase,
   unidades,
   nomeDaArea,
   aoGravar,
 }: {
   catalogo: CatalogoApi;
   areas: Opcao[];
-  unidadesBase: Opcao[];
   unidades: UnidadePadrao[];
   nomeDaArea: (a: string) => string;
   aoGravar: () => Promise<void>;
@@ -145,7 +141,7 @@ function AbaCatalogo({
     [catalogo.grupos, visiveis],
   );
 
-  const doCatalogo = (i: ItemDaApi): ItemEditavel => ({ nome: i.nome, unidadeBase: i.unidadeBase, area: i.area, embalagens: embalagensDe(i.embalagens) });
+  const doCatalogo = (i: ItemDaApi): ItemEditavel => ({ nome: i.nome, unidadeBase: i.unidadeBase, unidadeExibicao: i.unidadeBase, area: i.area, embalagens: embalagensDe(i.embalagens) });
 
   function marcar(i: ItemDaApi, ligado: boolean) {
     setMensagem(null);
@@ -297,7 +293,7 @@ function AbaCatalogo({
                       </Botao>
                     </div>
                     {abertos[nome] && (
-                      <EditorDeItem item={marcado} areas={areas} unidadesBase={unidadesBase} unidades={unidades} aoMudar={(novo) => setMarcados((m) => ({ ...m, [nome]: novo }))} />
+                      <EditorDeItem item={marcado} areas={areas} unidades={unidades} aoMudar={(novo) => setMarcados((m) => ({ ...m, [nome]: novo }))} />
                     )}
                   </div>
                 </li>
@@ -359,14 +355,12 @@ const TEXTO_DA_SITUACAO = { pronto: "Pronto para gravar", conferir: "Conferir an
 function AbaLista({
   jaCadastrados,
   areas,
-  unidadesBase,
   unidades,
   nomeDaArea,
   aoGravar,
 }: {
   jaCadastrados: string[];
   areas: Opcao[];
-  unidadesBase: Opcao[];
   unidades: UnidadePadrao[];
   nomeDaArea: (a: string) => string;
   aoGravar: () => Promise<void>;
@@ -397,6 +391,7 @@ function AbaLista({
         item: {
           nome: l.nome,
           unidadeBase: l.unidadeBase ?? "",
+          unidadeExibicao: l.unidadeBase ?? "",
           area: l.area,
           embalagens: embalagensDe(l.embalagens.map((e) => [e.nome, e.quantidadeBase] as const)),
         },
@@ -413,7 +408,7 @@ function AbaLista({
       const erros: string[] = [];
       const faltas: string[] = [];
       if (l.item.nome.trim().length < 2) erros.push("Nome curto demais.");
-      if (!l.item.unidadeBase) erros.push("Diga como o estoque conta: g, ml ou un.");
+      if (!l.item.unidadeBase) erros.push("Diga como o estoque conta: kg, g, L, ml, un ou dz.");
       const k = chaveDeBusca(l.item.nome);
       if (k && existentes.has(k)) erros.push("Já está cadastrado.");
       const igual = todas.find((o) => o.chave !== l.chave && o.incluida && chaveDeBusca(o.item.nome) === k && k);
@@ -524,7 +519,6 @@ function AbaLista({
                     <EditorDeItem
                       item={l.item}
                       areas={areas}
-                      unidadesBase={unidadesBase}
                       unidades={unidades}
                       aoMudar={(novo) => {
                         const antes = l;

@@ -5,8 +5,8 @@
  * Usado na lista, no catálogo marcado, na prévia da lista colada e nas sugestões ao digitar.
  */
 import type { HTMLAttributes, ReactNode } from "react";
-import { BlocoDeConfirmacao, quantidadeComUnidade, ChipDeEmbalagem, Dado, FichaDeDados, GrupoDeChips, SecaoDoItem, Selo, varianteDaArea } from "@erp/interface";
-import { unidadePorExtenso } from "./auxiliares";
+import { BlocoDeConfirmacao, ChipDeEmbalagem, Dado, FichaDeDados, GrupoDeChips, SecaoDoItem, Selo, varianteDaArea } from "@erp/interface";
+import { equivalenciaNaUnidade, unidadePorExtenso } from "./auxiliares";
 
 export type EmbalagemDoResumo = { chave: string | number; nome: string; quantidade: string | null; inativa?: boolean };
 
@@ -19,12 +19,12 @@ export function SeloDaArea({ area, nome }: { area: string; nome: string }) {
 }
 
 /**
- * A conta de uma embalagem em destaque ("1 saco 25 kg = 25.000 g"). Sem nome ou sem quantidade
+ * A conta de uma embalagem em destaque ("1 saco 25 kg = 25 kg"). Sem nome ou sem quantidade
  * válida, mostra no lugar o que falta, no mesmo bloco.
  */
-export function ContaDaEmbalagem({ nome, quantidade, base, ...resto }: { nome: string; quantidade: string; base: string } & Omit<HTMLAttributes<HTMLParagraphElement>, "children">) {
+export function ContaDaEmbalagem({ nome, quantidade, base, exibicao, ...resto }: { nome: string; quantidade: string; base: string; exibicao?: string } & Omit<HTMLAttributes<HTMLParagraphElement>, "children">) {
   const n = nome.trim();
-  const equivalencia = quantidade.trim() ? quantidadeComUnidade(quantidade.trim(), base) : null;
+  const equivalencia = equivalenciaNaUnidade(quantidade, base, exibicao);
   if (!n || !equivalencia) {
     return (
       <BlocoDeConfirmacao vazio {...resto}>
@@ -41,6 +41,7 @@ export function ContaDaEmbalagem({ nome, quantidade, base, ...resto }: { nome: s
 
 export function ResumoDoItem({
   unidadeBase,
+  unidadeExibicao,
   area,
   nomeDaArea,
   fornecedor,
@@ -49,6 +50,8 @@ export function ResumoDoItem({
   acaoDasEmbalagens,
 }: {
   unidadeBase: string;
+  /** Unidade escolhida para ver e informar; sem ela, vale a de dentro. */
+  unidadeExibicao?: string;
   area: string;
   nomeDaArea: (a: string) => string;
   fornecedor?: string | null;
@@ -61,7 +64,7 @@ export function ResumoDoItem({
     <>
       <FichaDeDados>
         <Dado rotulo="Unidade do estoque" icone="balanca">
-          {unidadeBase ? unidadePorExtenso(unidadeBase) : null}
+          {unidadeBase ? unidadePorExtenso(unidadeExibicao || unidadeBase) : null}
         </Dado>
         <Dado rotulo="Área">
           <SeloDaArea area={area} nome={nomeDaArea(area)} />
@@ -78,7 +81,7 @@ export function ResumoDoItem({
         ) : (
           <GrupoDeChips rotulo="Embalagens">
             {embalagens.map((e) => (
-              <ChipDeEmbalagem key={e.chave} nome={e.nome} quantidade={e.quantidade} unidade={unidadeBase} inativa={e.inativa} />
+              <ChipDeEmbalagem key={e.chave} nome={e.nome} quantidade={e.quantidade} unidade={unidadeBase} equivalencia={e.quantidade ? equivalenciaNaUnidade(e.quantidade, unidadeBase, unidadeExibicao) : null} inativa={e.inativa} />
             ))}
           </GrupoDeChips>
         )}

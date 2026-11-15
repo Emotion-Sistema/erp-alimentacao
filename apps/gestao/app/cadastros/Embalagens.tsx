@@ -9,13 +9,24 @@ import { useState } from "react";
 import { BlocoDeConfirmacao, Botao } from "@erp/interface";
 import { ContaDaEmbalagem, ResumoDoItem } from "./ResumoDoItem";
 import { Campo, Selecao } from "../Campo";
+import { OPCOES_DE_UNIDADE, baseDaUnidade, opcoesDaBase } from "@erp/dominio/unidades";
 import { TIPOS_DE_EMBALAGEM, montarEmbalagem, multiplicarDecimal, type UnidadeBase, type UnidadePadrao } from "./auxiliares";
 
 export type Opcao = { valor: string; texto: string };
+
+/** As 6 unidades prontas do campo "Unidade do estoque", por extenso e na ordem combinada. */
+export const OPCOES_DA_UNIDADE: Opcao[] = OPCOES_DE_UNIDADE.map((o) => ({ valor: o.codigo, texto: o.nome }));
+/** Só as da família do ingrediente já criado (a unidade de dentro não muda): kg/g, L/ml ou un/dz. */
+export const opcoesDaFamilia = (base: string): Opcao[] => opcoesDaBase(base).map((o) => ({ valor: o.codigo, texto: o.nome }));
+export const EXPLICACAO_DA_UNIDADE =
+  "Como você quer ver e informar a quantidade deste item. Por dentro o sistema conta em gramas, mililitros ou unidades, para a conta nunca errar.";
+export const EXEMPLO_DA_UNIDADE = "Farinha: Quilos (kg). Ovo: Dúzias (dz) ou Unidades (un). Leite: Litros (L).";
 export type LinhaDeEmbalagem = { chave: number; nome: string; quantidade: string };
 export type ItemEditavel = {
   nome: string;
   unidadeBase: UnidadeBase | "";
+  /** Como a pessoa vê e informa a quantidade (kg, g, l, ml, un, dz). Vazio até escolher. */
+  unidadeExibicao: string;
   area: string;
   embalagens: LinhaDeEmbalagem[];
 };
@@ -39,11 +50,13 @@ export const quantidadeValida = (q: string) => multiplicarDecimal(q, "1") !== nu
  */
 export function ConstrutorDeEmbalagem({
   base,
+  exibicao,
   unidades,
   rotuloDoBotao = "Adicionar esta embalagem",
   aoMontar,
 }: {
   base: UnidadeBase;
+  exibicao?: string;
   unidades: UnidadePadrao[];
   rotuloDoBotao?: string;
   aoMontar: (e: { nome: string; quantidadeBase: string }) => void;
@@ -127,7 +140,7 @@ export function ConstrutorDeEmbalagem({
         ) : !montada ? (
           <BlocoDeConfirmacao vazio>Confira o tamanho: use só números (ex.: 25 ou 2,5).</BlocoDeConfirmacao>
         ) : (
-          <ContaDaEmbalagem nome={montada.nome} quantidade={quantidadeFinal} base={base} />
+          <ContaDaEmbalagem nome={montada.nome} quantidade={quantidadeFinal} base={base} exibicao={exibicao} />
         )}
       </div>
       <Botao variante="secundario" disabled={!pronta} onClick={adicionar}>
@@ -141,11 +154,13 @@ export function ConstrutorDeEmbalagem({
 export function LinhasDeEmbalagem({
   embalagens,
   base,
+  exibicao,
   prefixo = "Embalagem",
   aoMudar,
 }: {
   embalagens: LinhaDeEmbalagem[];
   base: string;
+  exibicao?: string;
   prefixo?: string;
   aoMudar: (novas: LinhaDeEmbalagem[]) => void;
 }) {
@@ -174,7 +189,7 @@ export function LinhasDeEmbalagem({
               autoComplete="off"
             />
           </div>
-          <ContaDaEmbalagem nome={e.nome} quantidade={e.quantidade} base={base} />
+          <ContaDaEmbalagem nome={e.nome} quantidade={e.quantidade} base={base} exibicao={exibicao} />
           <Botao variante="secundario" aria-label={`Tirar ${prefixo.toLowerCase()} ${n + 1}`} onClick={() => aoMudar(embalagens.filter((x) => x.chave !== e.chave))}>
             Tirar
           </Botao>
@@ -198,7 +213,7 @@ export function faltaNasEmbalagens(item: ItemEditavel): string[] {
 export function faltaNoItem(item: ItemEditavel): string[] {
   const faltas: string[] = [];
   if (item.nome.trim().length < 2) faltas.push("Falta o nome.");
-  if (!item.unidadeBase) faltas.push("Falta dizer como o estoque conta (g, ml ou un).");
+  if (!item.unidadeBase || !item.unidadeExibicao) faltas.push("Falta dizer como o estoque conta (kg, g, L, ml, un ou dz).");
   return [...faltas, ...faltaNasEmbalagens(item)];
 }
 
@@ -206,6 +221,7 @@ export function faltaNoItem(item: ItemEditavel): string[] {
 export const itemParaServidor = (i: ItemEditavel, fornecedorId: number | null = null) => ({
   nome: i.nome.trim(),
   unidadeBase: i.unidadeBase,
+  unidadeExibicao: i.unidadeExibicao || i.unidadeBase,
   area: i.area,
   fornecedorId,
   embalagens: i.embalagens.map((e) => ({ nome: e.nome.trim(), quantidadeBase: e.quantidade.trim().replace(",", ".") })),
@@ -216,6 +232,7 @@ export function ResumoDoItemEditavel({ item, nomeDaArea }: { item: ItemEditavel;
   return (
     <ResumoDoItem
       unidadeBase={item.unidadeBase}
+      unidadeExibicao={item.unidadeExibicao}
       area={item.area}
       nomeDaArea={nomeDaArea}
       embalagens={item.embalagens.map((e) => ({ chave: e.chave, nome: e.nome, quantidade: e.quantidade.trim() || null }))}
@@ -227,14 +244,12 @@ export function ResumoDoItemEditavel({ item, nomeDaArea }: { item: ItemEditavel;
 export function EditorDeItem({
   item,
   areas,
-  unidadesBase,
   unidades,
   aoMudar,
   comNome = true,
 }: {
   item: ItemEditavel;
   areas: Opcao[];
-  unidadesBase: Opcao[];
   unidades: UnidadePadrao[];
   aoMudar: (novo: ItemEditavel) => void;
   comNome?: boolean;
@@ -255,11 +270,14 @@ export function EditorDeItem({
         )}
         <Selecao
           rotulo="Unidade do estoque"
-          explicacao="A medida em que o estoque é contado. Depois de gravado, não muda."
-          exemplo="Ovo: un. Farinha: g. Leite: ml."
-          value={item.unidadeBase}
-          onChange={(e) => aoMudar({ ...item, unidadeBase: e.target.value as UnidadeBase })}
-          opcoes={item.unidadeBase ? unidadesBase : [{ valor: "", texto: "Escolha a unidade" }, ...unidadesBase]}
+          explicacao={EXPLICACAO_DA_UNIDADE}
+          exemplo={EXEMPLO_DA_UNIDADE}
+          value={item.unidadeExibicao}
+          onChange={(e) => {
+            const codigo = e.target.value;
+            aoMudar({ ...item, unidadeExibicao: codigo, unidadeBase: (baseDaUnidade(codigo) ?? "") as UnidadeBase | "" });
+          }}
+          opcoes={item.unidadeExibicao ? OPCOES_DA_UNIDADE : [{ valor: "", texto: "Escolha a unidade" }, ...OPCOES_DA_UNIDADE]}
         />
         <Selecao
           rotulo="Área do estoque"
@@ -271,10 +289,11 @@ export function EditorDeItem({
         />
       </div>
       <h4>Embalagens de compra</h4>
-      <LinhasDeEmbalagem embalagens={item.embalagens} base={item.unidadeBase} aoMudar={(embalagens) => aoMudar({ ...item, embalagens })} />
+      <LinhasDeEmbalagem embalagens={item.embalagens} base={item.unidadeBase} exibicao={item.unidadeExibicao} aoMudar={(embalagens) => aoMudar({ ...item, embalagens })} />
       <ConstrutorDeEmbalagem
         key={base}
         base={base}
+        exibicao={item.unidadeExibicao}
         unidades={unidades}
         aoMontar={(e) => aoMudar({ ...item, embalagens: [...item.embalagens, { chave: novaChave(), nome: e.nome, quantidade: e.quantidadeBase }] })}
       />
