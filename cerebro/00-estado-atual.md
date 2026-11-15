@@ -54,7 +54,7 @@ Atualizado em: 14/11/2026
 - Contexto: aviso a cada 10% (de 1 milhão); no aviso, atualizar o cérebro e pedir `/compact`.
 - GitHub: Caminho A (14/11/2026): plano gratuito, sem proteção de branch; a trava do
   repositório é a barreira. Rever antes da E23.
-- Modelos: base Opus 5.5; Sonnet e Haiku por subagentes (`docs/05-uso-dos-modelos.md`).
+- **Modelos: tudo no Opus 5.5** (decisão do responsável, 15/11/2026): sessão e todos os subagentes; outro modelo só se ele pedir (`docs/05-uso-dos-modelos.md`).
 - Aguardando: respostas do dono da empresa ao questionário em PDF (previstas para 14/11/2026).
 - No ar (produção): **nada**. Homologação: **no ar** em `https://gestao.187-53-114-38.sslip.io` (dados de teste).
 - Infraestrutura: VPS de homologação contratada na Hostinger em 14/11/2026 (KVM 2, IP

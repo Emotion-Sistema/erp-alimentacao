@@ -11,8 +11,8 @@
 ## Subagentes e modelos
 | Subagente | Modelo | Para quê |
 |---|---|---|
-| `construtor` | Sonnet 5.5 | Telas, cadastros, testes e relatórios a partir de especificação |
-| `ajudante` | Haiku 5.5 | Busca, leitura, resumos, dados de teste, diário |
+| `construtor` | Opus 5.5 | Telas, cadastros, testes e relatórios a partir de especificação |
+| `ajudante` | Opus 5.5 | Busca, leitura, resumos, dados de teste, diário |
 | `revisor` | Opus 5.5 | Revisão independente do que é crítico |
 A sessão principal roda em Opus 5.5 e coordena. Regras em `docs/05-uso-dos-modelos.md`.
 
