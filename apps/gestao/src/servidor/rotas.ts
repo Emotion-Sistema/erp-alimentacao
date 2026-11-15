@@ -9,6 +9,11 @@ import {
   atorDaEstacao,
   atorDaSessao,
   ativarNaEstacao,
+  listarFornecedores,
+  listarIngredientes,
+  salvarConversao,
+  salvarFornecedor,
+  salvarIngrediente,
   caixaDeAvisos,
   continuarNoTurno,
   mudarMargemDeTroca,
@@ -282,4 +287,21 @@ export const saude = seguro(async () => {
   await sql`SELECT 1`.execute(obterBanco());
   const versao = process.env.ERP_VERSAO;
   return json({ ok: true, versao: versao && /^[0-9a-f]{40}$/.test(versao) ? versao : "desenvolvimento" });
+});
+
+// ---------- cadastros (E07, decisão 0015) ----------
+
+export const verFornecedores = seguro(async (req) => json(await listarFornecedores(obterBanco(), await ator(req))));
+export const gravarFornecedor = seguro(async (req) => {
+  const db = obterBanco();
+  return json(await salvarFornecedor(db, await ator(req), await corpoJson(req)));
+});
+export const verIngredientes = seguro(async (req) => json(await listarIngredientes(obterBanco(), await ator(req))));
+export const gravarIngrediente = seguro(async (req) => {
+  const db = obterBanco();
+  return json(await salvarIngrediente(db, await ator(req), await corpoJson(req)));
+});
+export const gravarConversao = seguroComId(async (req, p) => {
+  const db = obterBanco();
+  return json(await salvarConversao(db, await ator(req), idDe(p), await corpoJson(req)));
 });

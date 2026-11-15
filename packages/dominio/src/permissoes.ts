@@ -52,6 +52,9 @@ export const ACOES = [
   "horarios.gerenciar",
   // Comunicação (RC-18): recados da gerência com confirmação de leitura
   "comunicados.enviar",
+  // Cadastros (E07, decisão 0015): ingredientes, unidades, conversões, fornecedores, produtos
+  "cadastros.ver",
+  "cadastros.gerenciar",
   // Pedido e atendimento
   "pedidos.lancar",
   "pedidos.ver_proprios",
@@ -120,11 +123,12 @@ export const PERMISSOES: Readonly<Record<Cargo, readonly Acao[]>> = {
   administrador: TUDO,
   // Tudo, exceto financeiro (RC-12, decisão 0008) e configuração do sistema.
   gerente_geral: sem(TUDO, ACOES_FINANCEIRAS, "configuracao.gerenciar"),
-  financeiro: ["financeiro.ver", "financeiro.gerenciar", "faturamento.ver", "caixa.fechamentos_ver", "contabil.ver", "custos.ver", "compras.materiais"],
+  financeiro: ["financeiro.ver", "financeiro.gerenciar", "faturamento.ver", "caixa.fechamentos_ver", "contabil.ver", "custos.ver", "compras.materiais", "cadastros.ver"],
   supervisor: [
     "usuarios.ver",
     "codigos.desbloquear",
     "estacoes.ver",
+    "cadastros.ver",
     "pedidos.lancar",
     "pedidos.ver_todos",
     "pedidos.alterar",
@@ -136,7 +140,7 @@ export const PERMISSOES: Readonly<Record<Cargo, readonly Acao[]>> = {
   // Atendente altera pedido; os supervisores são avisados e o gerente vê numa aba própria (14/11/2026).
   atendente: ["pedidos.lancar", "pedidos.ver_proprios", "pedidos.alterar", "pedidos.marcar_entregue"],
   caixa: ["caixa.operar", "pagamento.marcar_pago", "motoboys.organizar", "pedidos.ver_todos"],
-  cozinheira: ["producao.ver", "producao.operar", "producao.sensivel", "estoque.cozinha"],
+  cozinheira: ["producao.ver", "producao.operar", "producao.sensivel", "estoque.cozinha", "cadastros.ver"],
   auxiliar_cozinha: ["producao.ver", "producao.operar"],
   motoboy: ["entregas.proprias", "pedidos.marcar_entregue"],
   contador: ["contabil.ver"],

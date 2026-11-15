@@ -146,6 +146,52 @@ export interface AuditoriaTabela {
   ip: string | null;
 }
 
+// Decimal exato (numeric): o driver devolve texto; nunca vira float no caminho.
+type Decimal = ColumnType<string, string, string>;
+
+export interface UnidadeMedidaTabela {
+  codigo: string;
+  nome: string;
+  grandeza: "massa" | "volume" | "contagem";
+  fator: Decimal;
+  apelidos: string[];
+}
+
+export interface FornecedorTabela {
+  id: Generated<number>;
+  nome: string;
+  documento: string | null; // CPF ou CNPJ, só dígitos, texto
+  contato: string | null;
+  telefone: string | null;
+  email: string | null;
+  prazo_entrega_dias: number | null;
+  observacao: string | null;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface IngredienteTabela {
+  id: Generated<number>;
+  nome: string;
+  unidade_base: "g" | "ml" | "un";
+  area_estoque: "cozinha" | "bebidas_salao" | "cafeteria" | "sorvete";
+  fornecedor_id: number | null;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface IngredienteConversaoTabela {
+  id: Generated<number>;
+  ingrediente_id: number;
+  nome: string;
+  quantidade_base: Decimal;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
 export interface BancoTabelas {
   empresa: EmpresaTabela;
   unidade: UnidadeTabela;
@@ -160,4 +206,8 @@ export interface BancoTabelas {
   aviso: AvisoTabela;
   aviso_destino: AvisoDestinoTabela;
   turno: TurnoTabela;
+  unidade_medida: UnidadeMedidaTabela;
+  fornecedor: FornecedorTabela;
+  ingrediente: IngredienteTabela;
+  ingrediente_conversao: IngredienteConversaoTabela;
 }
