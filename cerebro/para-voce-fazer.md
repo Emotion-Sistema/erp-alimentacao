@@ -34,7 +34,6 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [x] 👉 Preparar o servidor de testes e criar o login (feito em 15/11/2026).
 - [x] 👉 Entrar na homologação com o próprio login (feito em 15/11/2026; critério da E06).
 - [x] "Ok" para a E07 (cadastros), 15/11/2026.
-- [ ] 👉 Mod "Salão": olhar o painel no aplicativo e dizer se a sala desenhada e a animação aparecem (chat do mod).
 - [ ] 👉 Listar os locais onde a empresa compra hoje: mercados, atacados, feira, fornecedores (sem pressa; frente lista-de-compras, LC1).
 - [x] Chave SSH cadastrada e testada (15/11/2026).
 - [x] SSH só com chave conferido (15/11/2026): senha recusada, terminal do navegador abre.
