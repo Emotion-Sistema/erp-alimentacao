@@ -12,6 +12,7 @@ import {
   tempo,
 } from './cena'
 import type { Cena } from './cena'
+import { PAGINA, PASTA_WEB } from './pagina'
 
 const PAINEL = 'salao'
 const TITULO = 'Salão'
@@ -71,6 +72,36 @@ const lerCena = async ($: EngineInterface): Promise<{ cena: Cena; t: number }> =
 }
 
 /** A cada batida: confere a equipe, tira quem saiu de cena e acerta o relógio. */
+let ultimaChave = ''
+let ultimaEscrita = 0
+
+/**
+ * Escreve a cena num arquivo para a página do navegador (onde o aplicativo
+ * não desenha painéis). Só escreve quando algo mudou, ou a cada 6 s como sinal de vida.
+ */
+async function publicar($: EngineInterface): Promise<void> {
+  const { cena } = await lerCena($)
+  const feitos = await read($, entregues)
+  const corpo = {
+    svg: desenharSala(cena),
+    nomeNivel: cena.nomeNivel,
+    pessoas: cena.pessoas,
+    emCena: cena.emCena.slice(0, 14),
+    fogo: cena.fogo.slice(0, 10),
+    feitos,
+  }
+  const chave = JSON.stringify(corpo)
+  const t = await $.clock.now()
+
+  if (chave === ultimaChave && t - ultimaEscrita < 6000) {
+    return
+  }
+
+  ultimaChave = chave
+  ultimaEscrita = t
+  await $.fs.write(`${PASTA_WEB}/cena.json`, JSON.stringify({ ...corpo, escrito: t }))
+}
+
 async function bater($: EngineInterface): Promise<void> {
   await atualizarEquipe($)
   const t = await $.clock.now()
@@ -88,6 +119,8 @@ async function bater($: EngineInterface): Promise<void> {
   if (lista.length > 0 || fogo.length > 0 || gente.length > 0) {
     await update($, agora, () => t)
   }
+
+  await publicar($)
 }
 
 export const register: Register = on => {
@@ -105,6 +138,8 @@ export const register: Register = on => {
 
       await update($, agora, () => t)
       void $.ui.open({ id: PAINEL, title: TITULO })
+      await $.fs.write(`${PASTA_WEB}/index.html`, PAGINA)
+      await publicar($)
     })
 
     return next(e)
@@ -173,6 +208,7 @@ export const register: Register = on => {
 
         await update($, tarefas, lista => [...limpar(lista, t), tarefa].slice(-300))
         await update($, agora, () => t)
+        await publicar($)
       })
     }
 
@@ -222,6 +258,7 @@ export const register: Register = on => {
         }
 
         await update($, agora, () => t)
+        await publicar($)
       })
     }
   })

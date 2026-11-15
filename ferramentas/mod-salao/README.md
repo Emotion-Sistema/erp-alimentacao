@@ -28,8 +28,15 @@ Níveis: casa vazia, movimento leve (1), casa cheia (2 a 3), rush (4 ou mais, ou
   lista substitui a do painel. Limite conhecido: um comando que termina no meio de uma
   resposta só sai do fogo quando a resposta acaba.
 
+## Onde aparece
+- Aplicativo que desenha painéis de mod: faixa e painel "Salão" dentro do próprio aplicativo.
+- Sessão na nuvem em que o aplicativo não desenha painéis (o `/salao` responde
+  "no-surface"): o mod escreve a cena em `/tmp/salao-web/` (`index.html` + `cena.json`) e a
+  página é servida com `python3 -m http.server 4747 --bind 127.0.0.1 --directory /tmp/salao-web`
+  (o Claude sobe em segundo plano e informa a porta 4747 à pré-visualização do aplicativo).
+
 ## Arquivos
-`hooks/cena.ts` (lógica e desenho, sem acesso ao motor), `hooks/register.tsx` (ganchos),
+`hooks/cena.ts` (lógica e desenho, sem acesso ao motor), `hooks/register.tsx` (ganchos), `hooks/pagina.ts` (página do navegador),
 `types/index.d.ts` (contrato do estado), `hooks/salao.test.tsx` (testes), `previa-rush.svg`
 (amostra do desenho).
 

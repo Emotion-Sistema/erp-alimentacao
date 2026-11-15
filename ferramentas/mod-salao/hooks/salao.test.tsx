@@ -39,6 +39,7 @@ test('comando em segundo plano acende o fogo; o fim da resposta confere e apaga'
     result: e.tool === 'Bash' && e.run_in_background === true ? { backgroundTaskId: 'b1' } : {},
   }))
   on('classic.Stop', () => ({}))
+  on('fs.write', () => ({ value: undefined }))
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
 
@@ -88,6 +89,7 @@ test('subagente em segundo plano aparece como profissional e como panela', async
   }))
   on('clock.now', () => ({ value: (relogio += 10) }))
   on('classic.Stop', () => ({}))
+  on('fs.write', () => ({ value: undefined }))
 
   await $.classic.Stop({
     stop_hook_active: false,
