@@ -116,7 +116,8 @@ describe("lista colada", () => {
     expect(por("Leite integral")).toMatchObject({ unidadeBase: "ml", area: "cafeteria" });
     expect(por("Leite integral").embalagens.filter((e) => e.nome === "fardo 12 l")).toHaveLength(1);
     expect(por("Refrigerante lata").embalagens[0]).toMatchObject({ nome: "fardo 12 un", quantidadeBase: "12" });
-    expect(por("Queijo muçarela").embalagens[0]).toMatchObject({ nome: "4 kg", quantidadeBase: "4000" });
+    // Sem tipo de embalagem e na mesma grandeza: só diz a unidade; as embalagens vêm do catálogo.
+    expect(por("Queijo muçarela").embalagens.every((e) => e.doCatalogo)).toBe(true);
     expect(por("Cebola")).toMatchObject({ unidadeBase: "g", situacao: "pronto" });
     // Fora do catálogo: unidade vem da embalagem; área fica como cozinha e pede conferência.
     expect(por("Molho especial da casa")).toMatchObject({ unidadeBase: "g", situacao: "conferir" });
@@ -252,5 +253,79 @@ describe("consulta do CNPJ", () => {
 describe("endereço do fornecedor", () => {
   it("a coluna existe e aceita até 300 caracteres", async () => {
     await expect(sql`SELECT endereco FROM fornecedor LIMIT 1`.execute(db)).resolves.toBeTruthy();
+  });
+});
+
+describe("lista colada: achados da revisão", () => {
+  const ler = (t: string, ja: string[] = []) => lerListaColada(t, ja);
+
+  it("unidade desconhecida é erro, nunca vira 'un'; cl, dl e t são conhecidas", () => {
+    expect(ler("Vinho tinto - garrafa 75 cl")[0]).toMatchObject({ unidadeBase: "ml", situacao: "conferir" });
+    expect(ler("Vinho tinto - garrafa 75 cl")[0]!.embalagens[0]).toMatchObject({ nome: "garrafa 75 cl", quantidadeBase: "750" });
+    const kgr = ler("Farinha xyz - saco 25 kgr")[0]!;
+    expect(kgr.situacao).toBe("erro");
+    expect(kgr.erros.join()).toContain('unidade "kgr"');
+    expect(ler("Areia - saco 2 t")[0]!.embalagens[0]).toMatchObject({ quantidadeBase: "2000000" });
+    expect(ler("Coisa - caixa 10 trecos")[0]!.situacao).toBe("erro");
+    expect(ler("Refri - fardo 12 latas")[0]!.embalagens[0]).toMatchObject({ nome: "fardo 12 un", quantidadeBase: "12" });
+  });
+
+  it("linha enorme com espaços não trava (antes levava 15 s) e é recusada", () => {
+    const lixo = "a" + " ".repeat(59000) + "!";
+    const inicio = Date.now();
+    const r = ler(`${lixo}\n${"b ".repeat(5000)}x\nTomate`);
+    expect(Date.now() - inicio).toBeLessThan(500);
+    expect(r[0]!.erros.join()).toContain("longa demais");
+    expect(r.find((x) => x.nome === "Tomate")!.situacao).toBe("pronto");
+  });
+
+  it("linhas em branco não contam no limite e o que ficou de fora é avisado", () => {
+    const alternado = Array.from({ length: 400 }, (_, k) => (k % 2 ? "" : `Item ${k} - pacote 1 kg`)).join("\n");
+    const r = ler(alternado);
+    expect(r.filter((x) => x.erros.join().includes("no máximo"))).toHaveLength(0);
+    expect(r).toHaveLength(200);
+    const cheio = ler(Array.from({ length: 310 }, (_, k) => `Item ${k} - pacote 1 kg`).join("\n"));
+    expect(cheio).toHaveLength(301);
+    expect(cheio[300]!.erros.join()).toContain("10 linha(s)");
+  });
+
+  it("'1 kg', '1 dz', '1 l' sem embalagem não viram conversão (o banco recusaria)", async () => {
+    for (const t of ["Açúcar mascavo 1 kg", "Sal grosso - 1 kg", "Ovo azul - 1 dz", "Leite de aveia - 1 l"]) {
+      const l = ler(t)[0]!;
+      expect(l.embalagens.filter((e) => !e.doCatalogo), t).toEqual([]);
+      expect(l.situacao, t).not.toBe("erro");
+    }
+    const l = ler(`Açúcar demerara ${sufixo} 1 kg\nSal rosa ${sufixo} - 1 kg`);
+    const r = await cadastrarEmLote(db, gerente, l.map((x) => ({ nome: x.nome, unidadeBase: x.unidadeBase, area: x.area, embalagens: x.embalagens.map((e) => ({ nome: e.nome, quantidadeBase: e.quantidadeBase })) })));
+    expect(r.criados).toBe(2);
+  });
+
+  it("'1.000' é ambíguo e vira erro; '1,5' e '1000' valem", () => {
+    expect(ler("Farinha qualquer - saco 1.000 g")[0]!.erros.join()).toContain("ambíguo");
+    expect(ler("Farinha qualquer - saco 1000 g")[0]!.embalagens[0]).toMatchObject({ quantidadeBase: "1000" });
+    expect(ler("Farinha qualquer - saco 1,5 kg")[0]!.embalagens[0]).toMatchObject({ nome: "saco 1,5 kg", quantidadeBase: "1500" });
+  });
+
+  it("apelido do catálogo usa o nome do catálogo e acusa já cadastrado", () => {
+    const l = ler("Mussarela - peça 4 kg", ["Queijo muçarela"])[0]!;
+    expect(l.nome).toBe("Queijo muçarela");
+    expect(l.erros.join()).toContain("Já está cadastrado");
+    expect(ler("Mussarela - peça 4 kg")[0]!.avisos.join()).toContain("nome do catálogo");
+  });
+
+  it("mais de 4 casas no fator é recusado (não trunca)", () => {
+    expect(ler("Suco x - fardo 6 x 1,12345 l")[0]!.situacao).toBe("erro");
+  });
+
+  it("embalagem repetida no mesmo item é recusada com mensagem clara", async () => {
+    const e = await erroDe(cadastrarEmLote(db, gerente, [{ nome: n("Embalagem dupla"), unidadeBase: "g", area: "cozinha", embalagens: [{ nome: "saco 5 kg", quantidadeBase: "5000" }, { nome: "Saco 5 KG", quantidadeBase: "5000" }] }]));
+    expect(e.message).toContain("aparece duas vezes");
+  });
+});
+
+describe("consulta do CNPJ: resposta de outro CNPJ", () => {
+  it("se a resposta vier com outro CNPJ, não usa", async () => {
+    const outro = { cnpj: "00000000000191", razao_social: "OUTRA" };
+    expect((await erroDe(consultarCnpj(db, gerente, "11222333000181", async () => ({ status: 200, json: async () => outro })))).message).toContain("Preencha à mão");
   });
 });

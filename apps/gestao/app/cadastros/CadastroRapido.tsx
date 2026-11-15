@@ -344,7 +344,8 @@ function AbaLista({
       if (k && existentes.has(k)) erros.push("Já está cadastrado.");
       const igual = todas.find((o) => o.chave !== l.chave && o.incluida && chaveDeBusca(o.item.nome) === k && k);
       if (igual && igual.chave < l.chave) erros.push(`Repetido: igual à linha ${igual.original.numero}.`);
-      const original = l.original.erros.filter((e) => !l.tocada && !/cadastrado|Repetido|Nome curto|estoque conta/.test(e));
+      // Limite e linha longa nunca somem ao editar; os demais erros são recalculados.
+      const original = l.original.erros.filter((e) => /no máximo|longa demais/.test(e) || (!l.tocada && !/cadastrado|Repetido|Nome curto|estoque conta/.test(e)));
       erros.push(...original);
       faltas.push(...faltaNasEmbalagens(l.item));
       const situacao: LinhaLida["situacao"] = erros.length ? "erro" : faltas.length || (!l.tocada && l.original.avisos.length) ? "conferir" : "pronto";

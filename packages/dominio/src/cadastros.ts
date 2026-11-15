@@ -107,8 +107,10 @@ function validar<T>(esquema: z.ZodType<T>, dados: unknown): T {
 function traduzir(e: unknown, repetido: string): never {
   const erro = e as { code?: string; message?: string };
   if (erro.code === "23505") throw new ErroDeRegra("conflito", repetido);
-  if (erro.code === "23514" && erro.message && !erro.message.includes("violates check constraint"))
-    throw new ErroDeRegra("dados_invalidos", erro.message);
+  // Gatilho da regra (sem nome de restrição): a mensagem dele é para a pessoa. Restrição do
+  // esquema (com nome): mensagem genérica, sem expor nome interno (e sem depender do idioma do banco).
+  if (erro.code === "23514" && erro.message && !(erro as { constraint?: string }).constraint) throw new ErroDeRegra("dados_invalidos", erro.message);
+  if (erro.code === "23514") throw new ErroDeRegra("dados_invalidos", "Algum valor está fora do permitido. Confira os campos.");
   if (erro.code === "23503") throw new ErroDeRegra("dados_invalidos", "Fornecedor ou ingrediente não encontrado.");
   if (erro.code === "22003") throw new ErroDeRegra("nao_encontrado", "Cadastro não encontrado.");
   throw e;
@@ -411,13 +413,18 @@ export async function cadastrarEmLote(db: Banco, ator: Ator | null, dados: unkno
     const k = it.nome.toLowerCase().replace(/\s+/g, " ");
     if (chaves.has(k)) throw new ErroDeRegra("dados_invalidos", `"${it.nome}" aparece duas vezes na lista.`);
     chaves.set(k, it.nome);
+    const embs = new Set<string>();
+    for (const e of it.embalagens) {
+      const ke = e.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+      if (embs.has(ke)) throw new ErroDeRegra("dados_invalidos", `"${it.nome}": a embalagem "${e.nome}" aparece duas vezes.`);
+      embs.add(ke);
+    }
   }
   return db.transaction().execute(async (trx) => {
     const ids: number[] = [];
     for (const it of itens) {
-      const ponto = `item_${ids.length}`;
+      // Tudo ou nada pela própria transação: qualquer erro desfaz o lote inteiro.
       try {
-        await sql.raw(`SAVEPOINT ${ponto}`).execute(trx);
         if (it.fornecedorId) {
           const f = await trx.selectFrom("fornecedor").select("ativo").where("id", "=", it.fornecedorId).forShare().executeTakeFirst();
           if (!f?.ativo) throw new ErroDeRegra("dados_invalidos", "Fornecedor não encontrado ou desativado.");
@@ -446,16 +453,17 @@ export async function cadastrarEmLote(db: Banco, ator: Ator | null, dados: unkno
           detalhes: { operacao: "criar_em_lote", antes: null, depois: { ...salvo, conversoes } },
           ip: quem.ip,
         });
-        await sql.raw(`RELEASE SAVEPOINT ${ponto}`).execute(trx);
         ids.push(salvo.id);
       } catch (e) {
         const motivo =
           e instanceof ErroDeRegra
             ? e.message
             : (e as { code?: string }).code === "23505"
-              ? "já existe um ingrediente ativo com esse nome (ou a mesma embalagem duas vezes)."
-              : (e as { code?: string }).code === "23514" && !(e as Error).message.includes("violates check constraint")
-                ? (e as Error).message
+              ? "já existe um ingrediente ativo com esse nome."
+              : (e as { code?: string }).code === "23514"
+                ? (e as { constraint?: string }).constraint
+                  ? "algum valor está fora do permitido."
+                  : (e as Error).message
                 : null;
         if (motivo === null) throw e;
         throw new ErroDeRegra("dados_invalidos", `"${it.nome}": ${motivo} Nada foi gravado; corrija e tente de novo.`);
@@ -490,7 +498,7 @@ export type DadosDoCnpj = {
   telefone: string | null;
   email: string | null;
 };
-type Buscar = (url: string, init: { signal: AbortSignal; headers: Record<string, string> }) => Promise<{ status: number; json(): Promise<unknown> }>;
+type Buscar = (url: string, init: { signal: AbortSignal; headers: Record<string, string>; redirect: "error" }) => Promise<{ status: number; json(): Promise<unknown> }>;
 
 const respostaBrasilApi = z.object({
   cnpj: z.string(),
@@ -522,7 +530,7 @@ export async function consultarCnpj(db: Banco, ator: Ator | null, cnpjDigitado: 
   const fora = () => new ErroDeRegra("conflito", "A consulta do CNPJ não respondeu agora. Preencha à mão ou tente de novo em instantes.");
   let r: { status: number; json(): Promise<unknown> };
   try {
-    r = await buscar(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, { signal: AbortSignal.timeout(6000), headers: { accept: "application/json" } });
+    r = await buscar(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, { signal: AbortSignal.timeout(6000), headers: { accept: "application/json" }, redirect: "error" });
   } catch {
     throw fora();
   }
@@ -534,6 +542,7 @@ export async function consultarCnpj(db: Banco, ator: Ator | null, cnpjDigitado: 
   } catch {
     throw fora();
   }
+  if (d.cnpj.replace(/\D/g, "") !== cnpj) throw fora();
   const limpo = (v: string | null | undefined) => (v ?? "").replace(/\s+/g, " ").trim() || null;
   const rua = [limpo(d.descricao_tipo_de_logradouro), limpo(d.logradouro)].filter(Boolean).join(" ");
   const partes = [

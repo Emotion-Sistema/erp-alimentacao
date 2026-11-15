@@ -2,7 +2,7 @@
  * Catálogo pronto de ingredientes comuns de cafeteria e lanchonete (ideia nº 4, 15/11/2026).
  * Só SUGESTÃO para cadastrar rápido: nada aqui vira cadastro sem a pessoa marcar e confirmar,
  * e tudo pode ser ajustado antes de gravar. Embalagens são as de costume no atacado; a casa
- * confere. O teste `catalogo.teste.ts` grava cada item num banco de teste: se uma embalagem
+ * confere. O teste `cadastro-rapido.teste.ts` grava cada item num banco de teste: se uma embalagem
  * ferir a regra de conversão (decisão 0015), o CI quebra.
  *
  * Formato da embalagem: [nome, quantidade na unidade do estoque]. Nome com tamanho
@@ -122,7 +122,7 @@ export const CATALOGO_INGREDIENTES: readonly ItemDoCatalogo[] = [
   i("Mercearia", "Açúcar em sachê", un, "cafeteria", [["caixa 400 un", "400"]], ["sachê de açúcar"]),
   i("Mercearia", "Adoçante em sachê", un, "cafeteria", [["caixa 400 un", "400"]]),
   i("Mercearia", "Sal refinado", g, "cozinha", [["pacote 1 kg", "1000"]], ["sal"]),
-  i("Mercearia", "Óleo de soja", ml, "cozinha", [["garrafa 900 ml", "900"], ["caixa 20 un", "18000"], ["galão 18 l", "18000"]], ["óleo"]),
+  i("Mercearia", "Óleo de soja", ml, "cozinha", [["garrafa 900 ml", "900"], ["caixa 20 garrafas", "18000"], ["galão 18 l", "18000"]], ["óleo"]),
   i("Mercearia", "Azeite de oliva", ml, "cozinha", [["garrafa 500 ml", "500"]], ["azeite"]),
   i("Mercearia", "Vinagre", ml, "cozinha", [["garrafa 750 ml", "750"]]),
   i("Mercearia", "Milho verde em conserva", g, "cozinha", [["lata 170 g", "170"], ["lata 2 kg", "2000"]], ["milho"]),
@@ -180,7 +180,7 @@ export const CATALOGO_INGREDIENTES: readonly ItemDoCatalogo[] = [
   i("Cafeteria", "Calda de caramelo", g, "cafeteria", [["bisnaga 1,3 kg", "1300"]], ["caramelo"]),
   i("Cafeteria", "Xarope de baunilha", ml, "cafeteria", [["garrafa 700 ml", "700"]], ["xarope"]),
   i("Cafeteria", "Canela em pó", g, "cafeteria", [["pacote 500 g", "500"]], ["canela"]),
-  i("Cafeteria", "Açaí", g, "cafeteria", [["balde 10 l", "10000"]], ["polpa de açaí"]),
+  i("Cafeteria", "Açaí", ml, "cafeteria", [["balde 10 l", "10000"]], ["polpa de açaí"]),
   // Congelados
   i("Congelados", "Batata pré-frita congelada", g, "cozinha", [["pacote 2 kg", "2000"], ["caixa 10 kg", "10000"]], ["batata frita", "batata palito"]),
   i("Congelados", "Nuggets de frango", g, "cozinha", [["pacote 1 kg", "1000"]], ["nuggets"]),
