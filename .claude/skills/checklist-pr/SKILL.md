@@ -11,6 +11,7 @@ Monte a descrição do PR com:
 - **Evidência:** testes executados e resultado real. Não afirmar o que não rodou.
 - **Dinheiro/estoque/permissão:** quais regras foram tocadas e quais testes as cobrem.
 - **Migrações:** presentes? reversíveis? testadas?
+- **Ajuda nos campos:** todo campo novo de digitar ou escolher usa o componente `Campo.tsx` com explicação e exemplo (decisão 0012); a tela com formulário tem o botão "Mostrar todos os exemplos" e entra no teste `ajuda-nos-campos.spec.ts`.
 - **Segredos:** nenhum token, senha, certificado ou `.env` incluído.
 - **Documentação e cérebro:** `docs/` e `cerebro/00-estado-atual.md` atualizados.
 - **👉 Como o responsável confere:** passos simples para validar na homologação, sem ler código.

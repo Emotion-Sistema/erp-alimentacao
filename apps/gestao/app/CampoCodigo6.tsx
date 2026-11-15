@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Aviso, Botao, Campo } from "@erp/interface";
+import { Aviso, Botao } from "@erp/interface";
+import { Campo } from "./Campo";
 import { chamar } from "./chamar";
 
 /** Pede os 6 números do aplicativo autenticador e confirma no servidor. */
@@ -29,6 +30,8 @@ export function ConfirmarCodigoDoAplicativo({ aoConfirmar }: { aoConfirmar: () =
         inputMode="numeric"
         autoComplete="one-time-code"
         maxLength={7}
+        explicacao="Digite os 6 números que o aplicativo autenticador mostra agora. Eles mudam a cada 30 segundos."
+        exemplo="123 456 (digite sem espaço: 123456). Se o código expirar, espere o próximo e digite de novo."
         placeholder="6 números"
         required
       />

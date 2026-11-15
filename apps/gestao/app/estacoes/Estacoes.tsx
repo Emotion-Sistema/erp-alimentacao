@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Aviso, Botao, Campo, Cartao, Etiqueta } from "@erp/interface";
+import { Aviso, Botao, Cartao, Etiqueta } from "@erp/interface";
+import { BotaoExemplos, Campo } from "../Campo";
 import { chamar } from "../chamar";
 
 type Estacao = {
@@ -49,6 +50,7 @@ export function Estacoes({ podeGerenciar }: { podeGerenciar: boolean }) {
   return (
     <>
       <h1>Estações da cozinha</h1>
+      <BotaoExemplos />
       <p>Cada estação é um tablet da cozinha. Aqui você vê quem está em cada uma.</p>
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
       {podeGerenciar && (
@@ -56,7 +58,11 @@ export function Estacoes({ podeGerenciar }: { podeGerenciar: boolean }) {
           <h2>Cadastrar ESTE aparelho como estação</h2>
           <p>Faça isso no próprio tablet da cozinha. Ao cadastrar, o seu acesso neste aparelho é encerrado e ele passa a mostrar a tela da estação.</p>
           <form onSubmit={cadastrar} noValidate>
-            <Campo rotulo="Nome da estação (ex.: Cozinha 1)" name="nome" autoComplete="off" required />
+            <Campo
+              rotulo="Nome da estação (ex.: Cozinha 1)"
+              explicacao="O nome que aparece para a equipe. Use algo que diga onde fica o tablet."
+              exemplo="Cozinha 1, Chapa, Bar."
+              name="nome" autoComplete="off" required />
             <Botao type="submit">Cadastrar ESTE aparelho como estação</Botao>
           </form>
         </Cartao>

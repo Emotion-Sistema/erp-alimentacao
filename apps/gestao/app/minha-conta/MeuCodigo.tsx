@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Aviso, Botao, Campo, Cartao } from "@erp/interface";
+import { Aviso, Botao, Cartao } from "@erp/interface";
+import { BotaoExemplos, Campo } from "../Campo";
 import { chamar } from "../chamar";
 
 export function MeuCodigo() {
@@ -21,11 +22,14 @@ export function MeuCodigo() {
   return (
     <Cartao>
       <h2>Meu código</h2>
+      <BotaoExemplos />
       <p>É o código que você digita no tablet da cozinha. Regras: 4 números, sem repetir (como 1111) e sem sequência (como 1234).</p>
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
       <form onSubmit={enviar} noValidate>
         <Campo
           rotulo="Novo código de 4 números"
+          explicacao="Só números, 4 no total. Não pode repetir (1111) nem ser sequência (1234)."
+          exemplo="4827 (invente o seu e não conte para ninguém)."
           inputMode="numeric"
           maxLength={4}
           autoComplete="off"

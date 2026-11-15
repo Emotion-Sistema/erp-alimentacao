@@ -58,3 +58,21 @@ tela inicial do Android precisa ser conferido em aparelho real (homologação, E
 ## Critério de aceite e evidência
 Teste do catálogo por cargo; testes de tela de cada aplicativo em celular (390x844), tablet
 (1280x800) e computador (1440x900), sem a página ficar mais larga que a tela; recusas pela tela.
+
+## Ajuda em cada campo (15/11/2026)
+Pedido do responsável: embaixo de cada campo de digitar ou escolher, uma explicação com
+exemplo rápido, que dá para mostrar ou esconder. Vale para o sistema inteiro.
+- Componente único em `apps/gestao/app/Campo.tsx` (`Campo`, `Selecao`, `AreaDeTexto`,
+  `Marcador`, `Grupo` + `OpcaoDoGrupo`). Cada campo tem: uma linha de EXPLICAÇÃO sempre visível
+  (ligada ao campo por `aria-describedby`) e um botão "Ver exemplo" / "Esconder exemplo"
+  (`aria-expanded`, `aria-controls`, alvo de toque de 44 px ou mais) que abre e fecha o EXEMPLO.
+  `explicacao` e `exemplo` são obrigatórios nas propriedades: campo sem ajuda nem compila.
+- `BotaoExemplos` no topo de toda tela com formulário: "Mostrar todos os exemplos" / "Esconder
+  todos os exemplos". A escolha fica guardada por aparelho (`localStorage`, dentro de try/catch;
+  se falhar, funciona sem guardar). Depois dela, um toque individual continua possível.
+- Texto em português simples, exemplos inventados (ex.: `maria.silva`), nunca dado real de pessoa.
+- Campo novo em qualquer tela interna usa esse componente, nunca `<input>`, `<select>` ou
+  `<textarea>` soltos. Os apps `loja` e `site` seguirão o mesmo padrão quando tiverem formulários.
+- Evidência: `apps/gestao/testes-tela/ajuda-nos-campos.spec.ts` percorre as telas com formulário e
+  FALHA se algum campo visível ficar sem explicação ligada ou sem botão de exemplo; também testa
+  abrir/fechar, "todos", persistência ao recarregar e o funcionamento sem armazenamento.

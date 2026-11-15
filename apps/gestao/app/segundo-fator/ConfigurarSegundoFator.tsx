@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Aviso } from "@erp/interface";
 import { chamar } from "../chamar";
+import { BotaoExemplos } from "../Campo";
 import { ConfirmarCodigoDoAplicativo } from "../CampoCodigo6";
 
 export function ConfigurarSegundoFator({ jaConfigurado }: { jaConfigurado: boolean }) {
@@ -25,6 +26,7 @@ export function ConfigurarSegundoFator({ jaConfigurado }: { jaConfigurado: boole
     return (
       <>
         <p>Digite o código que aparece no aplicativo autenticador do seu celular.</p>
+        <BotaoExemplos />
         <ConfirmarCodigoDoAplicativo aoConfirmar={irParaInicio} />
       </>
     );
@@ -47,6 +49,7 @@ export function ConfigurarSegundoFator({ jaConfigurado }: { jaConfigurado: boole
           <p>
             Código para digitar à mão: <code data-testid="segredo-2fa" className="segredo">{dados.segredo}</code>
           </p>
+          <BotaoExemplos />
           <ConfirmarCodigoDoAplicativo aoConfirmar={irParaInicio} />
         </>
       )}
