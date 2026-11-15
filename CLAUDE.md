@@ -41,11 +41,11 @@ Aparelhos internos: Android da empresa, um login por funcionário, permissões p
 5. **Skills.** No início de cada tarefa diga em uma linha: `🧩 Skills: usando X` e, se
    fizer sentido, `vale criar a skill Y porque...`. Tarefa repetida duas vezes vira
    proposta de skill. Catálogo em `cerebro/automacoes.md`.
-6. **🤖 Modelos.** A base é o Opus 5.5. Antes de iniciar qualquer tarefa, mostre o
-   `🤖 Plano de modelos` (qual modelo faz cada parte e por quê). No início de uma etapa
-   nova, espere o "ok". Tarefas que não exigem o Opus vão para os subagentes
-   `construtor` (Sonnet) e `ajudante` (Haiku); tudo que é crítico passa pelo `revisor`
-   (Opus). Regras em `docs/05-uso-dos-modelos.md`.
+6. **🤖 Modelos.** **Tudo é feito pelo Opus 5.5** (decisão do responsável, 15/11/2026): sessão
+   principal e todos os subagentes (`construtor`, `ajudante`, `revisor`). Outro modelo só se o
+   responsável pedir. Antes de iniciar qualquer tarefa, mostre o `🤖 Plano de modelos` (quem faz
+   cada parte). No início de uma etapa nova, espere o "ok". Tudo que é crítico passa pelo
+   `revisor`. Regras em `docs/05-uso-dos-modelos.md`.
 7. **Um assunto por sessão.** Se o responsável desviar, não responda ao mérito: diga qual
    é o assunto adequado, anote 2 linhas no cérebro e volte. Ideia nova do cliente passa
    pela skill `nova-ideia-cliente` antes de qualquer código.
@@ -132,7 +132,7 @@ Sem PostgreSQL local, `pnpm dev` sobe o do `docker-compose.yml`. Os testes usam 
 `teste-idempotencia-estoque`, `ensaio-restauracao`, `matriz-de-permissoes`.
 
 ## Subagentes (em `.claude/agents/`)
-`construtor` (Sonnet 5.5), `ajudante` (Haiku 5.5), `revisor` (Opus 5.5).
+`construtor`, `ajudante` e `revisor`, todos no Opus 5.5 (15/11/2026).
 
 ## Ordem de construção
 Siga `docs/03-roteiro-de-fases.md`, etapa por etapa (E01, E02...). Não pule etapa nem

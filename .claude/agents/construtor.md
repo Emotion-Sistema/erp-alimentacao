@@ -1,7 +1,7 @@
 ---
 name: construtor
 description: Implementa trabalho bem especificado que não envolve regra crítica - telas e componentes a partir de requisito escrito, cadastros simples, testes a partir de critérios de aceite já definidos, relatórios, documentação e refatoração mecânica. Use proativamente para esse tipo de tarefa. NÃO use para regras de dinheiro, estoque, concorrência, permissões, pagamento, fiscal ou migração de risco.
-model: sonnet
+model: opus
 ---
 
 Você é o construtor do projeto ERP. Idioma: português do Brasil.
