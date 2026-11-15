@@ -144,3 +144,13 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 
 .avisos__continuar { display: flex; flex-direction: column; gap: var(--espaco-2); margin-top: var(--espaco-2); }
 .avisos__continuar input { width: 100%; max-width: 100%; }
+
+/* ---------- Cadastros (ingredientes e fornecedores) ---------- */
+.cadastros__filtros { display: grid; gap: var(--espaco-3); grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); align-items: end; }
+.cadastros__dica { color: var(--cor-texto-suave, inherit); font-size: 0.95em; }
+.cadastros__conversoes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-1); }
+.cadastros__form-linha { display: grid; gap: var(--espaco-3); grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+.cadastros__botoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); }
+.cadastros__opcao { display: flex; align-items: center; gap: var(--espaco-3); min-height: var(--alvo-toque); }
+.cadastros__opcao input { width: 1.5rem; height: 1.5rem; flex: 0 0 auto; }
+.cadastros__travado { margin: 0 0 var(--espaco-3); }

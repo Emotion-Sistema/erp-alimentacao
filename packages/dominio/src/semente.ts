@@ -13,9 +13,12 @@ export const CODIGO_DE_TESTE = "2580";
 export async function semear(db: Banco): Promise<{ unidadeId: number }> {
   if (process.env.NODE_ENV === "production") throw new Error("Semente de dados fictícios não roda em produção.");
   const existente = await db.selectFrom("unidade").select("id").orderBy("id").executeTakeFirst();
-  if (existente) return { unidadeId: existente.id };
+  if (existente) {
+    await semearCadastros(db);
+    return { unidadeId: existente.id };
+  }
 
-  return db.transaction().execute(async (trx) => {
+  const r = await db.transaction().execute(async (trx) => {
     const empresa = await trx
       .insertInto("empresa")
       .values({ razao_social: "Empresa Exemplo Ltda (fictícia)", nome_fantasia: "Casa Exemplo", cnpj: null })
@@ -50,6 +53,54 @@ export async function semear(db: Banco): Promise<{ unidadeId: number }> {
     }
     return { unidadeId: unidade.id };
   });
+  await semearCadastros(db);
+  return r;
+}
+
+/** Fornecedores e ingredientes FICTÍCIOS (sem CPF/CNPJ). Pode rodar de novo: o que já existe pelo nome fica como está. */
+async function semearCadastros(db: Banco): Promise<void> {
+  const fornecedores = [
+    { nome: "Atacado Exemplo (fictício)", contato: "Contato de teste", prazo: 2 },
+    { nome: "Laticínios Exemplo (fictício)", contato: "Contato de teste", prazo: 1 },
+  ];
+  for (const f of fornecedores) {
+    await db
+      .insertInto("fornecedor")
+      .values({ nome: f.nome, contato: f.contato, prazo_entrega_dias: f.prazo })
+      .onConflict((oc) => oc.doNothing())
+      .execute();
+  }
+  const idDe = async (nome: string) =>
+    (await db.selectFrom("fornecedor").select("id").where(sql`lower(btrim(nome))`, "=", nome.toLowerCase()).executeTakeFirstOrThrow()).id;
+  const atacado = await idDe(fornecedores[0]!.nome);
+  const laticinios = await idDe(fornecedores[1]!.nome);
+
+  type Area = "cozinha" | "bebidas_salao" | "cafeteria";
+  const ingredientes: { nome: string; base: "g" | "ml" | "un"; area: Area; fornecedor: number; conversoes: [string, string][] }[] = [
+    { nome: "Ovo", base: "un", area: "cozinha", fornecedor: atacado, conversoes: [["caixa", "30"]] },
+    { nome: "Leite integral", base: "ml", area: "cafeteria", fornecedor: laticinios, conversoes: [["caixa 12 L", "12000"]] },
+    { nome: "Farinha de trigo", base: "g", area: "cozinha", fornecedor: atacado, conversoes: [["saco 25 kg", "25000"]] },
+    { nome: "Queijo mussarela", base: "g", area: "cozinha", fornecedor: laticinios, conversoes: [["peça", "3500"]] },
+    { nome: "Pão de hambúrguer", base: "un", area: "cozinha", fornecedor: atacado, conversoes: [["pacote", "8"], ["caixa", "48"]] },
+    { nome: "Café em grãos", base: "g", area: "cafeteria", fornecedor: atacado, conversoes: [["pacote 1 kg", "1000"]] },
+    { nome: "Refrigerante lata", base: "un", area: "bebidas_salao", fornecedor: atacado, conversoes: [["fardo", "12"]] },
+    { nome: "Açúcar", base: "g", area: "cafeteria", fornecedor: atacado, conversoes: [["pacote 5 kg", "5000"]] },
+  ];
+  for (const i of ingredientes) {
+    await db
+      .insertInto("ingrediente")
+      .values({ nome: i.nome, unidade_base: i.base, area_estoque: i.area, fornecedor_id: i.fornecedor })
+      .onConflict((oc) => oc.doNothing())
+      .execute();
+    const { id } = await db.selectFrom("ingrediente").select("id").where(sql`lower(btrim(nome))`, "=", i.nome.toLowerCase()).executeTakeFirstOrThrow();
+    for (const [nome, quantidade] of i.conversoes) {
+      await db
+        .insertInto("ingrediente_conversao")
+        .values({ ingrediente_id: id, nome, quantidade_base: quantidade })
+        .onConflict((oc) => oc.doNothing())
+        .execute();
+    }
+  }
 }
 
 /**

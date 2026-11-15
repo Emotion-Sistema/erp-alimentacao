@@ -6,14 +6,14 @@ import { describe, expect, it } from "vitest";
 import { ACOES, ACOES_FINANCEIRAS, APLICATIVOS, CARGOS, aplicativosDoCargo, itensVisiveis, pode, type Cargo } from "../src/index";
 
 const ESPERADO: Record<Cargo, string[]> = {
-  dono: ["caixa", "atendimento", "producao", "estoque", "gestao", "financeiro"],
-  administrador: ["caixa", "atendimento", "producao", "estoque", "gestao", "financeiro"],
-  gerente_geral: ["caixa", "atendimento", "producao", "estoque", "gestao"],
-  financeiro: ["estoque", "financeiro"],
-  supervisor: ["caixa", "atendimento", "producao", "estoque", "gestao"],
+  dono: ["caixa", "atendimento", "producao", "estoque", "gestao", "cadastros", "financeiro"],
+  administrador: ["caixa", "atendimento", "producao", "estoque", "gestao", "cadastros", "financeiro"],
+  gerente_geral: ["caixa", "atendimento", "producao", "estoque", "gestao", "cadastros"],
+  financeiro: ["estoque", "cadastros", "financeiro"],
+  supervisor: ["caixa", "atendimento", "producao", "estoque", "gestao", "cadastros"],
   atendente: ["atendimento"],
   caixa: ["caixa"],
-  cozinheira: ["producao", "estoque"],
+  cozinheira: ["producao", "estoque", "cadastros"],
   auxiliar_cozinha: ["producao"],
   motoboy: ["entregas"],
   contador: ["financeiro"],
