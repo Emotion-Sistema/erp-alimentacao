@@ -103,7 +103,7 @@ describe("conversões de unidade", () => {
     await salvarConversao(db, gerente, cafe, { id: c.id, nome: "pacote", quantidadeBase: "500", ativo: false });
     expect((await erroDe(converterParaBase(db, cafe, "1", "pacote"))).codigo).toBe("dados_invalidos");
     const lista = await listarIngredientes(db, gerente);
-    expect(lista.ingredientes.find((i) => i.id === cafe)?.conversoes).toEqual([{ id: c.id, nome: "pacote", quantidadeBase: "500", ativo: false }]);
+    expect(lista.ingredientes.find((i) => i.id === cafe)?.conversoes).toEqual([{ id: c.id, nome: "pacote", quantidadeBase: "500", ativo: false, modeloId: null }]);
   });
 
   it("conversão de outro ingrediente não é alterada pelo id errado", async () => {

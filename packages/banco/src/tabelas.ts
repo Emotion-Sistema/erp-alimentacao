@@ -188,8 +188,23 @@ export interface IngredienteTabela {
 export interface IngredienteConversaoTabela {
   id: Generated<number>;
   ingrediente_id: number;
+  /** De que modelo do catálogo veio (migração 0009); nulo se foi digitada. */
+  modelo_id: ColumnType<number | null, number | null | undefined, number | null>;
   nome: string;
   quantidade_base: Decimal;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface EmbalagemModeloTabela {
+  id: Generated<number>;
+  tipo: string;
+  tamanho: Decimal | null;
+  unidade: string | null;
+  fornecedor_id: number | null;
+  /** Gerado pelo banco (nome_do_modelo). */
+  nome: ColumnType<string, never, never>;
   ativo: Generated<boolean>;
   criado_em: Instante;
   atualizado_em: Instante;
@@ -213,4 +228,5 @@ export interface BancoTabelas {
   fornecedor: FornecedorTabela;
   ingrediente: IngredienteTabela;
   ingrediente_conversao: IngredienteConversaoTabela;
+  embalagem_modelo: EmbalagemModeloTabela;
 }

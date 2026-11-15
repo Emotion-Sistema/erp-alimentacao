@@ -213,7 +213,7 @@ export async function salvarFornecedor(db: Banco, ator: Ator | null, dados: unkn
 
 // ---------- ingredientes e conversões ----------
 
-export type Conversao = { id: number; nome: string; quantidadeBase: string; ativo: boolean };
+export type Conversao = { id: number; nome: string; quantidadeBase: string; ativo: boolean; modeloId?: number | null };
 export type Ingrediente = {
   id: number;
   nome: string;
@@ -242,7 +242,7 @@ export async function listarIngredientes(
     .execute();
   const conversoes = await db
     .selectFrom("ingrediente_conversao")
-    .select(["id", "ingrediente_id", "nome", "quantidade_base", "ativo"])
+    .select(["id", "ingrediente_id", "nome", "quantidade_base", "ativo", "modelo_id"])
     .orderBy("ativo", "desc")
     .orderBy(sql`lower(nome)`)
     .execute();
@@ -259,7 +259,7 @@ export async function listarIngredientes(
       ativo: l.ativo,
       conversoes: conversoes
         .filter((c) => c.ingrediente_id === l.id)
-        .map((c) => ({ id: c.id, nome: c.nome, quantidadeBase: decimalLimpo(c.quantidade_base), ativo: c.ativo })),
+        .map((c) => ({ id: c.id, nome: c.nome, quantidadeBase: decimalLimpo(c.quantidade_base), ativo: c.ativo, modeloId: c.modelo_id })),
     })),
     unidades: unidades.map((u) => ({ ...u, fator: decimalLimpo(u.fator) })),
   };
@@ -328,8 +328,20 @@ function conferirFamilia(base: UnidadeBase, exibicao: UnidadeParaMostrar | undef
 }
 
 /** Cria (sem id) ou altera (com id) uma conversão de compra de um ingrediente. */
+const dadosDoModelo = z.object({
+  modeloId: z.number({ error: "Escolha a embalagem do catálogo." }).int().positive(),
+  /** Só quando o tamanho do modelo não é da mesma família do estoque (ou não tem tamanho). */
+  quantidadeBase: decimalPositivo.optional(),
+});
+
+/**
+ * Cria (sem id) ou altera (com id) uma conversão de compra de um ingrediente. Com `modeloId`
+ * (ideia nº 6), cria a partir do catálogo: o nome vem do modelo e a quantidade sai da conta
+ * quando o tamanho é da mesma família do estoque; senão, a pessoa informa `quantidadeBase`.
+ */
 export async function salvarConversao(db: Banco, ator: Ator | null, ingredienteId: number, dados: unknown): Promise<Conversao> {
   const quem = await exigir(db, ator, "cadastros.gerenciar", { tipo: "ingrediente", id: ingredienteId });
+  if (dados && typeof dados === "object" && "modeloId" in dados) return conversaoDoModelo(db, quem, ingredienteId, validar(dadosDoModelo, dados));
   const d = validar(dadosConversao, dados);
   try {
     return await db.transaction().execute(async (trx) => {
@@ -376,6 +388,57 @@ export async function salvarConversao(db: Banco, ator: Ator | null, ingredienteI
   } catch (e) {
     if (e instanceof ErroDeRegra) throw e;
     traduzir(e, "Esse ingrediente já tem uma conversão com esse nome.");
+  }
+}
+
+async function conversaoDoModelo(
+  db: Banco,
+  quem: { usuarioId: number; ip?: string | null },
+  ingredienteId: number,
+  d: { modeloId: number; quantidadeBase?: string },
+): Promise<Conversao> {
+  try {
+    return await db.transaction().execute(async (trx) => {
+      const ing = await trx.selectFrom("ingrediente").select(["id", "unidade_base", "ativo"]).where("id", "=", ingredienteId).forShare().executeTakeFirst();
+      if (!ing) throw new ErroDeRegra("nao_encontrado", "Ingrediente não encontrado.");
+      if (!ing.ativo) throw new ErroDeRegra("dados_invalidos", "Esse ingrediente está desativado. Reative antes de mexer nas embalagens.");
+      // FOR SHARE: o modelo não muda de tamanho nem é desativado enquanto é ligado aqui.
+      const m = await sql<{ nome: string; ativo: boolean; q: string | null }>`
+        SELECT m.nome, m.ativo,
+               CASE WHEN u.grandeza = b.grandeza THEN round(m.tamanho * u.fator, 4)::text END AS q
+        FROM embalagem_modelo m
+        LEFT JOIN unidade_medida u ON u.codigo = m.unidade
+        CROSS JOIN unidade_medida b
+        WHERE m.id = ${d.modeloId} AND b.codigo = ${ing.unidade_base}
+        FOR SHARE OF m`.execute(trx);
+      const modelo = m.rows[0];
+      if (!modelo) throw new ErroDeRegra("nao_encontrado", "Embalagem do catálogo não encontrada.");
+      if (!modelo.ativo) throw new ErroDeRegra("dados_invalidos", "Essa embalagem está desativada no catálogo.");
+      const quantidade = modelo.q ?? d.quantidadeBase;
+      if (!quantidade)
+        throw new ErroDeRegra(
+          "dados_invalidos",
+          `${ing.unidade_base === "un" ? "Quantas" : "Quantos"} ${NOME_DA_UNIDADE_BASE[ing.unidade_base]} vêm em 1 ${modelo.nome}? Informe a quantidade.`,
+        );
+      const salvo = await trx
+        .insertInto("ingrediente_conversao")
+        .values({ ingrediente_id: ingredienteId, nome: modelo.nome, quantidade_base: quantidade, modelo_id: d.modeloId })
+        .returning(["id", "nome", "quantidade_base", "ativo", "modelo_id"])
+        .executeTakeFirstOrThrow();
+      await auditar(trx, {
+        usuarioId: quem.usuarioId,
+        acao: "cadastros.gerenciar",
+        resultado: "permitido",
+        alvoTipo: "ingrediente",
+        alvoId: ingredienteId,
+        detalhes: { operacao: "criar_conversao_do_catalogo", unidadeBase: ing.unidade_base, antes: null, depois: salvo },
+        ip: quem.ip ?? null,
+      });
+      return { id: salvo.id, nome: salvo.nome, quantidadeBase: decimalLimpo(salvo.quantidade_base), ativo: salvo.ativo, modeloId: salvo.modelo_id };
+    });
+  } catch (e) {
+    if (e instanceof ErroDeRegra) throw e;
+    traduzir(e, "Esse ingrediente já tem essa embalagem.");
   }
 }
 
