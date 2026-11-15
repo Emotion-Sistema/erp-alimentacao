@@ -69,3 +69,4 @@ com o próprio login.
 
 ## 15/11/2026: SSH só por chave
 Responsável criou a chave (ed25519, com frase-senha) e entrou com ela. `ssh-so-chave.sh` roda a cada minuto pelo atualizador e desliga a senha só se o root tiver chave; volta com `erp ssh-senha ligar`. Ensaiado num contêiner com sshd: sem chave não mexe, com chave desliga, idempotente, ligar/desligar, config quebrada não fica gravada. Falta o responsável conferir o terminal do navegador.
+No ar com o PR #18 (ec3ffb0). Revisão: ressalvas (chave que some deve religar a senha, conferir antes de gravar, registro sem repetição) corrigidas; aprovada na 2ª rodada. Responsável conferiu: senha recusada, terminal do navegador abre.
