@@ -13,6 +13,11 @@ Atualizado em: 14/11/2026
   categorias sempre à mão (com padrão); checklist de início do turno (RC-13, ideia nº 2).
 - Tablet da cozinha: sai às 00h30, a cozinha estende 30 min até 4x, com bipe (migração 0003).
 - Regra do responsável: nunca ignorar falha (CLAUDE.md); testes rodam em ordem embaralhada.
+- **Regra do responsável (15/11/2026): ele nunca altera textos para colar.** Todo texto ou script que ele deve
+  colar (chat novo, terminal) vai inteiro e pronto; se mudar, reenviar inteiro na sequência.
+- **Drive** (pasta "Claude"): 00 Referências, 01 Cliente, 02 Fiscal e contador, 03 Equipamentos, 04 Exportações,
+  05 Fichas técnicas (Prontas, Para atualizar), 06 Cardápio e produtos, 07 Identidade visual, 08 Compras e notas,
+  09 Planilhas para importar, e o documento LEIA-ME (criados em 15/11/2026). Caixa de entrada; a verdade é o repositório.
 - **E04 (base visual e cascas) feita** no PR #11 (merge 858ad9f; decisão 0012).
 - **E05 (avisos) feita** no PR #12 (merge 5a3ceac; decisão 0013): avisos por cargo ativo, unidade e
   turno, comunicados com confirmação de leitura, sino em todo app.

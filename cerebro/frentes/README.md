@@ -37,8 +37,8 @@ só para uma função nova, conversando com o chat principal **pelo cérebro**.
 | lista-de-compras (Central de Compras) | `lista-de-compras.md` | 15/11/2026 | Proposta aprovada em 15/11/2026 (ideia nº 3); sem código; espera a E07 para começar a LC1 |
 
 ## Bloco para abrir uma frente (o responsável cola no chat novo)
-Antes de colar, escolha o modelo no chat novo (seletor de modelo, ou `/model`). Troque o que
-está entre `< >`.
+O responsável não altera textos para colar (15/11/2026): o chat principal manda o bloco já
+preenchido. O modelo abaixo é só a base.
 
 ```
 Este chat é uma FRENTE PARALELA do projeto ERP, só para a função: <descreva a função em 1 a 3 linhas>.
