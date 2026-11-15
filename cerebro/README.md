@@ -11,6 +11,7 @@ que um chat descobre o que os outros fizeram. Regra: **se não está no cérebro
 | `diario/` | Uma síntese por sessão (o que foi feito, decidido e deixado pendente) |
 | `empresa/` | Tudo sobre a empresa: perfil, operação, identidade visual, presença digital, contas e serviços |
 | `ideias-do-cliente.md` | Ideias e pedidos, classificados antes de virar trabalho |
+| `frentes/` | Outros chats ao mesmo tempo, cada um numa função: arquivo por frente e o `mural.md`, por onde os chats trocam recados |
 | `automacoes.md` | Skills existentes e recomendadas, subagentes e modelos, conectores e plugins |
 
 Requisitos e decisões técnicas ficam em `docs/` (o cérebro aponta para eles, não os copia).
@@ -29,4 +30,5 @@ Requisitos e decisões técnicas ficam em `docs/` (o cérebro aponta para eles, 
 ## Limite conhecido
 Dois chats abertos ao mesmo tempo só enxergam o que o outro já juntou na `main`. Por isso
 cada chat grava o cérebro ao encerrar (skill `encerrar-sessao`), e convém não manter
-vários chats mexendo no mesmo assunto.
+vários chats mexendo no mesmo assunto. Para trabalhar em paralelo numa função separada, use
+as frentes (`frentes/README.md`).

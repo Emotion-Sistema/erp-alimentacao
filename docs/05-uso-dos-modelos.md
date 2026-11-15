@@ -42,3 +42,7 @@ Os subagentes estão em `.claude/agents/`. O modelo de cada um está no próprio
 
 ## Como o responsável escolhe o modelo da sessão
 No Claude Code, pelo seletor de modelo ou enviando `/model opus`.
+
+## Frentes paralelas (15/11/2026)
+O responsável pode abrir outro chat com outro modelo (ex.: Fable) para uma função separada
+(`cerebro/frentes/README.md`). O revisor (Opus) continua obrigatório no que é crítico.

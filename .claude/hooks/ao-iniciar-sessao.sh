@@ -9,6 +9,11 @@ else
   echo "cerebro/00-estado-atual.md não encontrado. Avise o responsável."
 fi
 echo
+if [ -f "$dir/cerebro/frentes/mural.md" ]; then
+  echo "=== MURAL ENTRE CHATS (cerebro/frentes/mural.md, últimos recados) ==="
+  grep '^- ' "$dir/cerebro/frentes/mural.md" | tail -n 15
+  echo
+fi
 echo "=== LEMBRETES ==="
 echo "1) Nada vai para o ar sem a mensagem do responsável começando com: Publique tudo"
 echo "2) O que o responsável precisa fazer vem com 👉 e fecha toda resposta."
