@@ -14,4 +14,5 @@ export * from "./aplicativos";
 export { prepararPrimeiroAcesso, dadosPrimeiroAcesso, TURNOS_PADRAO, SETORES_PADRAO } from "./primeiro-acesso";
 export * from "./cadastros";
 export * from "./catalogo-ingredientes";
+export * from "./unidades-do-estoque";
 export * from "./lista-colada";

@@ -53,3 +53,12 @@ sistema impeça equivalência incorreta.
 ## Consequências
 - A E08 grava a ficha em unidade base; a compra converte a embalagem por esta mesma função.
 - A frente lista-de-compras usa ingredientes, fornecedores e conversões daqui (mural).
+
+## Adendo (15/11/2026): unidade para mostrar (ideia nº 5, migração 0008)
+9. O responsável pediu as unidades comuns prontas na "Unidade do estoque" (kg, L...). A conta por dentro
+   **continua** em g, ml ou un (item 1). Cada ingrediente ganha `unidade_exibicao`, escolhida numa lista
+   pronta: kg ou g, L ou ml, un ou dz, sempre da mesma família da base (restrição no banco). Quem escolhe
+   kg cria um ingrediente que conta em g e é mostrado em kg. Pode ser trocada depois (só muda como se vê;
+   vai para a auditoria). A conta de exibição é exata (`mostrarQuantidade`, BigInt): kg e L com até 7
+   casas; dúzia só quando inteira, senão "1 dz e 6 un".
+

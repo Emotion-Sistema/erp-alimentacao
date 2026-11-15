@@ -176,6 +176,8 @@ export interface IngredienteTabela {
   id: Generated<number>;
   nome: string;
   unidade_base: "g" | "ml" | "un";
+  /** Como a pessoa vê e informa as quantidades (migração 0008); o gatilho põe a base se faltar. */
+  unidade_exibicao: ColumnType<"g" | "kg" | "ml" | "l" | "un" | "dz", "g" | "kg" | "ml" | "l" | "un" | "dz" | undefined, "g" | "kg" | "ml" | "l" | "un" | "dz">;
   area_estoque: "cozinha" | "bebidas_salao" | "cafeteria" | "sorvete";
   fornecedor_id: number | null;
   ativo: Generated<boolean>;

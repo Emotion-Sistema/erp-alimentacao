@@ -10,6 +10,7 @@ import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
 import { pode } from "./permissoes";
 import { exigir, type Ator } from "./sessao";
+import { NOME_DA_FAMILIA, UNIDADES_PARA_MOSTRAR, baseDaUnidade, opcoesDaBase, type UnidadeParaMostrar } from "./unidades-do-estoque";
 
 export const UNIDADES_BASE = ["g", "ml", "un"] as const;
 export type UnidadeBase = (typeof UNIDADES_BASE)[number];
@@ -80,6 +81,8 @@ export const dadosIngrediente = z.object({
   nome: nome("do ingrediente"),
   /** Só na criação; depois não muda. */
   unidadeBase: z.enum(UNIDADES_BASE, { error: "Escolha a unidade do estoque: g, ml ou un." }).optional(),
+  /** Como ver e informar as quantidades (ideia nº 5): kg ou g, L ou ml, un ou dz. */
+  unidadeExibicao: z.enum(UNIDADES_PARA_MOSTRAR, { error: "Escolha a unidade: kg, g, L, ml, un ou dz." }).optional(),
   area: z.enum(AREAS_ESTOQUE, { error: "Escolha a área de estoque." }),
   fornecedorId: z.number().int().positive().nullish().transform((v) => v ?? null),
   ativo: z.boolean().default(true),
@@ -215,6 +218,7 @@ export type Ingrediente = {
   id: number;
   nome: string;
   unidadeBase: UnidadeBase;
+  unidadeExibicao: UnidadeParaMostrar;
   area: AreaEstoque;
   fornecedorId: number | null;
   fornecedor: string | null;
@@ -232,7 +236,7 @@ export async function listarIngredientes(
   const linhas = await db
     .selectFrom("ingrediente as i")
     .leftJoin("fornecedor as f", "f.id", "i.fornecedor_id")
-    .select(["i.id", "i.nome", "i.unidade_base", "i.area_estoque", "i.fornecedor_id", "f.nome as fornecedor", "i.ativo"])
+    .select(["i.id", "i.nome", "i.unidade_base", "i.unidade_exibicao", "i.area_estoque", "i.fornecedor_id", "f.nome as fornecedor", "i.ativo"])
     .orderBy("i.ativo", "desc")
     .orderBy(sql`lower(i.nome)`)
     .execute();
@@ -248,6 +252,7 @@ export async function listarIngredientes(
       id: l.id,
       nome: l.nome,
       unidadeBase: l.unidade_base,
+      unidadeExibicao: l.unidade_exibicao,
       area: l.area_estoque,
       fornecedorId: l.fornecedor_id,
       fornecedor: l.fornecedor,
@@ -264,8 +269,10 @@ export async function listarIngredientes(
 export async function salvarIngrediente(db: Banco, ator: Ator | null, dados: unknown): Promise<{ id: number }> {
   const quem = await exigir(db, ator, "cadastros.gerenciar", { tipo: "ingrediente" });
   const d = validar(dadosIngrediente, dados);
-  if (!d.id && !d.unidadeBase) throw new ErroDeRegra("dados_invalidos", "Escolha a unidade do estoque: g, ml ou un.");
-  const colunas = ["id", "nome", "unidade_base", "area_estoque", "fornecedor_id", "ativo"] as const;
+  const baseNova = d.unidadeBase ?? (d.id ? undefined : d.unidadeExibicao && baseDaUnidade(d.unidadeExibicao));
+  if (!d.id && !baseNova) throw new ErroDeRegra("dados_invalidos", "Escolha a unidade do estoque: kg, g, L, ml, un ou dz.");
+  if (!d.id) conferirFamilia(baseNova!, d.unidadeExibicao);
+  const colunas = ["id", "nome", "unidade_base", "unidade_exibicao", "area_estoque", "fornecedor_id", "ativo"] as const;
   try {
     return await db.transaction().execute(async (trx) => {
       if (d.fornecedorId) {
@@ -282,16 +289,17 @@ export async function salvarIngrediente(db: Banco, ator: Ator | null, dados: unk
         if (!antes) throw new ErroDeRegra("nao_encontrado", "Ingrediente não encontrado.");
         if (d.unidadeBase && d.unidadeBase !== antes.unidade_base)
           throw new ErroDeRegra("dados_invalidos", "A unidade do estoque não muda depois de criada. Desative o ingrediente e cadastre outro.");
+        conferirFamilia(antes.unidade_base as UnidadeBase, d.unidadeExibicao);
         salvo = await trx
           .updateTable("ingrediente")
-          .set({ ...valores, atualizado_em: sql`now()` })
+          .set({ ...valores, ...(d.unidadeExibicao ? { unidade_exibicao: d.unidadeExibicao } : {}), atualizado_em: sql`now()` })
           .where("id", "=", d.id)
           .returning(colunas)
           .executeTakeFirstOrThrow();
       } else {
         salvo = await trx
           .insertInto("ingrediente")
-          .values({ ...valores, unidade_base: d.unidadeBase! })
+          .values({ ...valores, unidade_base: baseNova!, unidade_exibicao: d.unidadeExibicao ?? baseNova! })
           .returning(colunas)
           .executeTakeFirstOrThrow();
       }
@@ -310,6 +318,13 @@ export async function salvarIngrediente(db: Banco, ator: Ator | null, dados: unk
     if (e instanceof ErroDeRegra) throw e;
     traduzir(e, "Já existe um ingrediente com esse nome.");
   }
+}
+
+/** A unidade para mostrar tem de ser da mesma família da unidade do estoque (kg com g, L com ml, dz com un). */
+function conferirFamilia(base: UnidadeBase, exibicao: UnidadeParaMostrar | undefined): void {
+  if (!exibicao || baseDaUnidade(exibicao) === base) return;
+  const certas = opcoesDaBase(base).map((o) => o.sigla).join(" ou ");
+  throw new ErroDeRegra("dados_invalidos", `Este ingrediente conta em ${NOME_DA_FAMILIA[base]}: escolha ${certas}.`);
 }
 
 /** Cria (sem id) ou altera (com id) uma conversão de compra de um ingrediente. */
@@ -391,6 +406,7 @@ const dadosDoLote = z
     z.object({
       nome: nome("do ingrediente"),
       unidadeBase: z.enum(UNIDADES_BASE, { error: "Escolha a unidade do estoque: g, ml ou un." }),
+      unidadeExibicao: z.enum(UNIDADES_PARA_MOSTRAR, { error: "Escolha a unidade: kg, g, L, ml, un ou dz." }).optional(),
       area: z.enum(AREAS_ESTOQUE, { error: "Escolha a área de estoque." }),
       fornecedorId: z.number().int().positive().nullish().transform((v) => v ?? null),
       embalagens: z.array(dadosConversao.pick({ nome: true, quantidadeBase: true })).max(10).default([]),
@@ -413,6 +429,12 @@ export async function cadastrarEmLote(db: Banco, ator: Ator | null, dados: unkno
     const k = it.nome.toLowerCase().replace(/\s+/g, " ");
     if (chaves.has(k)) throw new ErroDeRegra("dados_invalidos", `"${it.nome}" aparece duas vezes na lista.`);
     chaves.set(k, it.nome);
+    try {
+      conferirFamilia(it.unidadeBase, it.unidadeExibicao);
+    } catch (e) {
+      if (e instanceof ErroDeRegra) throw new ErroDeRegra("dados_invalidos", `"${it.nome}": ${e.message}`);
+      throw e;
+    }
     const embs = new Set<string>();
     for (const e of it.embalagens) {
       const ke = e.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
@@ -431,8 +453,8 @@ export async function cadastrarEmLote(db: Banco, ator: Ator | null, dados: unkno
         }
         const salvo = await trx
           .insertInto("ingrediente")
-          .values({ nome: it.nome, unidade_base: it.unidadeBase, area_estoque: it.area, fornecedor_id: it.fornecedorId })
-          .returning(["id", "nome", "unidade_base", "area_estoque", "fornecedor_id", "ativo"])
+          .values({ nome: it.nome, unidade_base: it.unidadeBase, unidade_exibicao: it.unidadeExibicao ?? it.unidadeBase, area_estoque: it.area, fornecedor_id: it.fornecedorId })
+          .returning(["id", "nome", "unidade_base", "unidade_exibicao", "area_estoque", "fornecedor_id", "ativo"])
           .executeTakeFirstOrThrow();
         const conversoes = [];
         for (const e of it.embalagens) {
