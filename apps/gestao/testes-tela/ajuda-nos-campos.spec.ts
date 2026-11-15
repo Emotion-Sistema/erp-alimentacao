@@ -72,8 +72,15 @@ test.describe("telas internas do administrador", () => {
     await page.getByRole("button", { name: "Editar Ovo", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Editar Ovo" })).toBeVisible();
     await conferirAjuda(page, "editar ingrediente", 5);
-    await page.getByRole("button", { name: "Adicionar conversão" }).click();
-    await conferirAjuda(page, "conversão de compra", 7);
+    await page.getByRole("button", { name: /^Mostrar Embalagens/ }).click();
+    await page.getByRole("button", { name: "Escolher do catálogo" }).click();
+    await page.getByRole("checkbox", { name: "Saco 25 kg" }).check();
+    await expect(page.getByLabel("Quantas unidades (un) vêm em 1 saco 25 kg?")).toBeVisible();
+    await conferirAjuda(page, "embalagens do ingrediente (escolher do catálogo)", 9);
+    await page.getByRole("button", { name: "Criar nova embalagem" }).click();
+    await expect(page.getByRole("dialog", { name: "Nova embalagem" })).toBeVisible();
+    await conferirAjuda(page, "painel de nova embalagem", 10);
+    await page.getByRole("button", { name: "Cancelar" }).last().click();
     await semEstouroDeLargura(page);
   });
 
@@ -88,7 +95,8 @@ test.describe("telas internas do administrador", () => {
     await conferirAjuda(page, "cadastro rápido: catálogo", 4);
     await page.getByRole("checkbox", { name: "Tomate", exact: true }).check();
     await page.getByRole("button", { name: "Ajustar Tomate" }).click();
-    await page.getByRole("button", { name: "caixa", exact: true }).click();
+    await page.getByTestId("catalogo-Tomate").getByRole("button", { name: /^Mostrar Embalagens/ }).click();
+    await page.getByTestId("catalogo-Tomate").getByRole("button", { name: "Escolher do catálogo" }).click();
     await conferirAjuda(page, "cadastro rápido: ajuste de um item", 10);
     await page.getByRole("tab", { name: "Colar uma lista" }).click();
     await conferirAjuda(page, "cadastro rápido: colar uma lista", 1);
@@ -106,7 +114,21 @@ test.describe("telas internas do administrador", () => {
     await expect(page.getByRole("option", { name: /Calabresa/ })).toBeVisible();
     await conferirAjuda(page, "novo ingrediente com sugestão aberta", 6);
     await page.getByRole("option", { name: /Calabresa/ }).click();
+    await page.getByRole("button", { name: /^Mostrar Embalagens/ }).click();
+    await page.getByRole("button", { name: "Escolher do catálogo" }).click();
     await conferirAjuda(page, "novo ingrediente com embalagem sugerida", 8);
+  });
+
+  test("cadastros: aba Embalagens e o painel de editar", async ({ page }) => {
+    await page.goto("/cadastros/embalagens");
+    await expect(page.getByTestId("contagem-do-catalogo")).toContainText("no catálogo");
+    await conferirAjuda(page, "embalagens (busca)", 1);
+    // No celular os corredores começam fechados; a busca abre os que têm resultado.
+    await page.getByLabel("Procurar embalagem").fill("saco 25");
+    await page.getByRole("button", { name: "Editar Saco 25 kg" }).first().click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await conferirAjuda(page, "editar embalagem", 4);
+    await semEstouroDeLargura(page);
   });
 
   test("cadastros: fornecedores", async ({ page }) => {

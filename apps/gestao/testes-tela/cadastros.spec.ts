@@ -24,32 +24,30 @@ test("gerente geral cria um ingrediente com conversão e vê '1 caixa = 30 un'",
   // Depois de criado, só dá para trocar dentro da família (un ou dz): a unidade de dentro não muda.
   await expect(page.getByLabel("Unidade do estoque").locator("option")).toHaveText(["Unidades (un)", "Dúzias (dz)"]);
 
-  await page.getByRole("button", { name: "Adicionar conversão" }).click();
-  await page.getByLabel("Unidade de compra (ex.: caixa)").fill("caixa");
-  await page.getByLabel(/Quantidade em un/).fill("30");
-  await expect(page.getByTestId("ajuda-conversao")).toHaveText("1 caixa = 30 un");
-  await page.getByRole("button", { name: "Adicionar conversão" }).click();
-  await expect(page.getByText("Conversão adicionada.")).toBeVisible();
-  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toContainText("caixa = 30 un");
+  // Embalagens: o bloco vem recolhido; escolhe do catálogo (mesma família faz a conta sozinha).
+  const bloco = page.getByTestId("bloco-embalagens");
+  await expect(bloco.getByTestId("resumo-das-embalagens")).toHaveText("Nenhuma");
+  await bloco.getByRole("button", { name: /^Mostrar Embalagens/ }).click();
+  await bloco.getByRole("button", { name: "Escolher do catálogo" }).click();
+  await bloco.getByRole("checkbox", { name: "Caixa 30 un" }).check();
+  await expect(bloco.getByTestId("escolhidas")).toContainText("Caixa 30 un = 30 un");
+  await bloco.getByRole("button", { name: "Adicionar 1 embalagem" }).click();
+  await expect(bloco.getByText("1 embalagem adicionada.")).toBeVisible();
+  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toContainText("caixa 30 un = 30 un");
 
-  // Quantidade com vírgula e recusa do servidor perto do formulário.
-  await page.getByRole("button", { name: "Adicionar conversão" }).click();
-  await page.getByLabel("Unidade de compra (ex.: caixa)").fill("bandeja");
-  await page.getByLabel(/Quantidade em un/).fill("12,5");
-  await page.getByRole("button", { name: "Adicionar conversão" }).click();
-  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toContainText("bandeja = 12,5 un");
+  // Outra família (pacote de 500 g num item contado em un): pede a quantidade, aceita vírgula.
+  await bloco.getByRole("button", { name: "Escolher do catálogo" }).click();
+  await expect(bloco.getByRole("checkbox", { name: "Caixa 30 un (já colocada)" })).toBeDisabled();
+  await bloco.getByRole("checkbox", { name: "Pacote 500 g" }).check();
+  await expect(bloco.getByRole("button", { name: "Adicionar 1 embalagem" })).toBeDisabled();
+  await bloco.getByLabel("Quantas unidades (un) vêm em 1 pacote 500 g?").fill("12,5");
+  await bloco.getByRole("button", { name: "Adicionar 1 embalagem" }).click();
+  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toContainText("pacote 500 g = 12,5 un");
 
-  await page.getByRole("button", { name: "Adicionar conversão" }).click();
-  await page.getByLabel("Unidade de compra (ex.: caixa)").fill("dz");
-  await page.getByLabel(/Quantidade em un/).fill("2");
-  await page.getByRole("button", { name: "Adicionar conversão" }).click();
-  await expect(page.getByText(/já é convertido sozinho/)).toBeVisible();
-
-  // Desativar a conversão tira da lista (nada é apagado).
-  await page.getByRole("button", { name: "Cancelar" }).last().click();
-  await page.getByRole("button", { name: "Desativar a conversão bandeja" }).click();
-  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).not.toContainText("bandeja");
-  await expect(page.getByTestId("conversoes-do-ingrediente")).toContainText("inativa");
+  // Desativar tira da lista (nada é apagado) e o item fica marcado como desativado no bloco.
+  await bloco.getByRole("button", { name: "Desativar embalagem pacote 500 g" }).click();
+  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).not.toContainText("pacote 500 g");
+  await expect(bloco.getByTestId("conversoes-do-ingrediente")).toContainText("desativada");
   await semEstouroDeLargura(page);
 });
 
@@ -59,10 +57,11 @@ test("Farinha em Quilos (kg): a lista mostra kg, a embalagem 'saco 25 kg' mostra
   await page.getByRole("button", { name: "Novo ingrediente" }).click();
   await page.getByLabel("Nome", { exact: true }).fill("Farinha (tela kg)");
   await page.getByLabel("Unidade do estoque").selectOption("kg");
-  await page.getByLabel("Adicionar embalagem", { exact: true }).getByRole("button", { name: "saco" }).click();
-  await page.getByLabel("Tamanho da embalagem").fill("25");
-  await expect(page.getByTestId("previa-embalagem")).toHaveText("1 saco 25 kg = 25 kg");
-  await page.getByRole("button", { name: "Adicionar embalagem", exact: true }).click();
+  await page.getByRole("button", { name: /^Mostrar Embalagens/ }).click();
+  await page.getByRole("button", { name: "Escolher do catálogo" }).click();
+  await page.getByRole("checkbox", { name: "Saco 25 kg" }).check();
+  await expect(page.getByTestId("escolhidas")).toContainText("Saco 25 kg = 25 kg");
+  await page.getByRole("button", { name: "Adicionar 1 embalagem" }).click();
   await expect(page.getByRole("list", { name: "Embalagens colocadas" })).toContainText("= 25 kg");
   await page.getByRole("button", { name: "Criar ingrediente" }).click();
   await expect(page.getByText(/Ingrediente criado/)).toBeVisible();

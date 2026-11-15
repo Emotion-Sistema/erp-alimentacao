@@ -19,7 +19,11 @@ export type NomeDeIcone =
   | "alerta"
   | "ok"
   | "erro"
-  | "info";
+  | "info"
+  | "busca"
+  | "mais"
+  | "fechar"
+  | "desfazer";
 
 const DESENHOS: Record<NomeDeIcone, ReactNode> = {
   balanca: (
@@ -92,6 +96,15 @@ const DESENHOS: Record<NomeDeIcone, ReactNode> = {
       <path d="M12 11v6M12 7.5v.01" />
     </>
   ),
+  busca: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M16 16l5 5" />
+    </>
+  ),
+  mais: <path d="M12 5v14M5 12h14" />,
+  fechar: <path d="M6 6l12 12M18 6L6 18" />,
+  desfazer: <path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" />,
 };
 
 export function Icone({ nome, className }: { nome: NomeDeIcone; className?: string }) {

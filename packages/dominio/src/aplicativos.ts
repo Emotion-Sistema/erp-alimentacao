@@ -100,6 +100,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
     aparelho: "computador",
     itens: [
       { caminho: "/cadastros", texto: "Ingredientes", acao: "cadastros.ver" },
+      { caminho: "/cadastros/embalagens", texto: "Embalagens", acao: "cadastros.ver" },
       { caminho: "/cadastros/fornecedores", texto: "Fornecedores", acao: "cadastros.ver" },
     ],
   },

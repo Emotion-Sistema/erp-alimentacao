@@ -62,3 +62,12 @@ sistema impeça equivalência incorreta.
    vai para a auditoria). A conta de exibição é exata (`mostrarQuantidade`, BigInt): kg e L com até 7
    casas; dúzia só quando inteira, senão "1 dz e 6 un".
 
+
+## Adendo (15/11/2026): catálogo de embalagens (ideia nº 6, migração 0009)
+10. Modelos de embalagem ficam num catálogo próprio (`embalagem_modelo`): tipo (categoria: saco, caixa,
+    fardo...), tamanho e unidade opcionais e fornecedor opcional (padrão dele). Nome montado pelo banco
+    (`nome_do_modelo`), único entre os ativos por fornecedor (o geral e o de cada fornecedor convivem).
+    Vem com modelos comuns prontos. Tipo não pode ser unidade nem ter número. Modelo em uso não muda de tipo
+    nem de tamanho (gatilho); fornecedor e ativo mudam. No ingrediente, a embalagem continua sendo a
+    conversão (com `modelo_id` de origem): mesma família, a conta sai sozinha (quantidade informada é
+    ignorada); outra família ou sem tamanho, a pessoa informa. `para_unidade_base` segue a única conta.

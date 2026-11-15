@@ -11,6 +11,8 @@ import {
   ativarNaEstacao,
   cadastrarEmLote,
   catalogoParaCadastrar,
+  listarModelosDeEmbalagem,
+  salvarModeloDeEmbalagem,
   consultarCnpj,
   lerListaColada,
   listarFornecedores,
@@ -295,6 +297,11 @@ export const saude = seguro(async () => {
 
 // ---------- cadastros (E07, decisão 0015) ----------
 
+export const verEmbalagens = seguro(async (req) => json(await listarModelosDeEmbalagem(obterBanco(), await ator(req))));
+export const gravarEmbalagem = seguro(async (req) => {
+  const db = obterBanco();
+  return json(await salvarModeloDeEmbalagem(db, await ator(req), await corpoJson(req)));
+});
 export const verFornecedores = seguro(async (req) => json(await listarFornecedores(obterBanco(), await ator(req))));
 export const gravarFornecedor = seguro(async (req) => {
   const db = obterBanco();
