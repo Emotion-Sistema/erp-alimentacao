@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Aviso, Botao, Cartao, Etiqueta } from "@erp/interface";
 import { BotaoExemplos, Campo, Marcador } from "../../Campo";
 import { chamar } from "../../chamar";
+import { cnpjValido, digitarComMascara, mascararDocumento, mascararTelefone, soDigitos } from "../auxiliares";
 
 type Fornecedor = {
   id: number;
@@ -14,6 +15,7 @@ type Fornecedor = {
   email: string | null;
   prazoEntregaDias: number | null;
   observacao: string | null;
+  endereco: string | null;
   ativo: boolean;
 };
 type Mensagem = { tipo: "sucesso" | "perigo"; texto: string } | null;
@@ -80,7 +82,8 @@ export function Fornecedores({ podeGerenciar }: { podeGerenciar: boolean }) {
                   {[f.contato, f.telefone, f.email].filter(Boolean).join(" · ") || "Sem contato cadastrado"}
                   {f.prazoEntregaDias !== null && ` · Entrega em ${f.prazoEntregaDias} ${f.prazoEntregaDias === 1 ? "dia" : "dias"}`}
                 </p>
-                {f.documento && <p>CPF/CNPJ: {f.documento}</p>}
+                {f.documento && <p>CPF/CNPJ: {mascararDocumento(f.documento)}</p>}
+                {f.endereco && <p>Endereço: {f.endereco}</p>}
                 {f.observacao && <p className="cadastros__dica">{f.observacao}</p>}
                 {podeGerenciar && (
                   <p>
@@ -105,6 +108,17 @@ export function Fornecedores({ podeGerenciar }: { podeGerenciar: boolean }) {
   );
 }
 
+type DadosDoCnpj = {
+  cnpj: string;
+  razaoSocial: string;
+  nomeFantasia: string | null;
+  situacao: string | null;
+  ativa: boolean;
+  endereco: string | null;
+  telefone: string | null;
+  email: string | null;
+};
+
 function FormularioFornecedor({
   fornecedor,
   aoSalvar,
@@ -115,15 +129,69 @@ function FormularioFornecedor({
   aoFechar: () => void;
 }) {
   const [nome, setNome] = useState(fornecedor?.nome ?? "");
-  const [documento, setDocumento] = useState(fornecedor?.documento ?? "");
+  const [documento, setDocumento] = useState(mascararDocumento(fornecedor?.documento ?? ""));
   const [contato, setContato] = useState(fornecedor?.contato ?? "");
   const [telefone, setTelefone] = useState(fornecedor?.telefone ?? "");
   const [email, setEmail] = useState(fornecedor?.email ?? "");
+  const [endereco, setEndereco] = useState(fornecedor?.endereco ?? "");
   const [prazo, setPrazo] = useState(fornecedor?.prazoEntregaDias !== null && fornecedor ? String(fornecedor.prazoEntregaDias) : "");
   const [observacao, setObservacao] = useState(fornecedor?.observacao ?? "");
   const [ativo, setAtivo] = useState(fornecedor?.ativo ?? true);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
+  // Consulta do CNPJ: o que veio, se está buscando e a falha (a pessoa segue à mão).
+  const [consulta, setConsulta] = useState<DadosDoCnpj | null>(null);
+  const [buscando, setBuscando] = useState(false);
+  const [erroCnpj, setErroCnpj] = useState("");
+  const [conflitos, setConflitos] = useState<string[] | null>(null);
+
+  const digitosDoDocumento = soDigitos(documento);
+  const podeBuscarCnpj = digitosDoDocumento.length === 14 && cnpjValido(digitosDoDocumento);
+
+  async function buscarCnpj() {
+    setErroCnpj("");
+    setConsulta(null);
+    setConflitos(null);
+    setBuscando(true);
+    const consultado = digitosDoDocumento;
+    const r = await chamar<DadosDoCnpj>(`/api/cadastros/cnpj/${consultado}`);
+    setBuscando(false);
+    if (!r.ok || !r.dados) return setErroCnpj(r.mensagem);
+    setConsulta(r.dados);
+  }
+
+  /** O que a consulta traria para cada campo (só o que veio preenchido). */
+  function trazido(d: DadosDoCnpj) {
+    return {
+      nome: d.nomeFantasia ?? d.razaoSocial,
+      telefone: d.telefone ? mascararTelefone(d.telefone) : null,
+      email: d.email,
+      endereco: d.endereco,
+    };
+  }
+
+  function usarDados(d: DadosDoCnpj, sobrescrever: boolean) {
+    const novo = trazido(d);
+    const atual = { nome, telefone, email, endereco };
+    const aplicar = (campo: keyof typeof atual, valor: string | null, definir: (v: string) => void) => {
+      if (valor && (sobrescrever || !atual[campo].trim())) definir(valor);
+    };
+    aplicar("nome", novo.nome, setNome);
+    aplicar("telefone", novo.telefone, setTelefone);
+    aplicar("email", novo.email, setEmail);
+    aplicar("endereco", novo.endereco, setEndereco);
+    setConflitos(null);
+    setConsulta(null);
+  }
+
+  function pedirParaUsar(d: DadosDoCnpj) {
+    const novo = trazido(d);
+    const atual = { nome, telefone, email, endereco };
+    const rotulos = { nome: "Nome", telefone: "Telefone", email: "E-mail", endereco: "Endereço" } as const;
+    const diferentes = (Object.keys(atual) as (keyof typeof atual)[]).filter((c) => atual[c].trim() && novo[c] && atual[c].trim() !== novo[c]);
+    if (diferentes.length === 0) return usarDados(d, false);
+    setConflitos(diferentes.map((c) => rotulos[c]));
+  }
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -133,10 +201,12 @@ function FormularioFornecedor({
     const r = await chamar("/api/cadastros/fornecedores", "POST", {
       id: fornecedor?.id,
       nome,
-      documento: documento.trim() || null,
+      // O servidor limpa o documento; mandamos só os números.
+      documento: digitosDoDocumento || null,
       contato,
       telefone,
       email,
+      endereco,
       prazoEntregaDias: prazo.trim() === "" ? null : Number(prazo),
       observacao,
       ativo,
@@ -161,11 +231,23 @@ function FormularioFornecedor({
             autoComplete="off"
             required
           />
-          <Campo
-            rotulo="CPF ou CNPJ"
-            explicacao="Opcional. Digite os números do documento, com ou sem pontos."
-            exemplo="CNPJ 11.222.333/0001-81 ou CPF 123.456.789-09 (números inventados)."
-            value={documento} onChange={(e) => setDocumento(e.target.value)} inputMode="numeric" autoComplete="off" />
+          <div>
+            <Campo
+              rotulo="CPF ou CNPJ"
+              explicacao="Opcional. Digite só os números: os pontos e o traço aparecem sozinhos. Com 14 números de CNPJ, dá para buscar os dados da empresa."
+              exemplo="CNPJ 11.222.333/0001-81 ou CPF 123.456.789-09 (números inventados)."
+              value={documento}
+              onChange={(e) => setDocumento((antes) => digitarComMascara(e.target.value, antes, mascararDocumento))}
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={18}
+            />
+            {podeBuscarCnpj && (
+              <Botao variante="secundario" disabled={buscando} onClick={() => void buscarCnpj()}>
+                {buscando ? "Buscando..." : "Buscar dados do CNPJ"}
+              </Botao>
+            )}
+          </div>
           <Campo
             rotulo="Contato (pessoa)"
             explicacao="Opcional. Com quem falar na hora de pedir ou reclamar."
@@ -173,9 +255,15 @@ function FormularioFornecedor({
             value={contato} onChange={(e) => setContato(e.target.value)} autoComplete="off" />
           <Campo
             rotulo="Telefone"
-            explicacao="Opcional. Telefone ou WhatsApp com o DDD."
+            explicacao="Opcional. Telefone ou WhatsApp com o DDD. Os parênteses e o traço aparecem sozinhos."
             exemplo="(11) 91234-5678 (número inventado)."
-            value={telefone} onChange={(e) => setTelefone(e.target.value)} type="tel" autoComplete="off" />
+            value={telefone}
+            onChange={(e) => setTelefone((antes) => digitarComMascara(e.target.value, antes, mascararTelefone))}
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            maxLength={15}
+          />
           <Campo
             rotulo="E-mail"
             explicacao="Opcional. Endereço de e-mail para enviar pedidos."
@@ -187,6 +275,60 @@ function FormularioFornecedor({
             exemplo="2 = entrega em 2 dias. 0 = entrega no mesmo dia."
             value={prazo} onChange={(e) => setPrazo(e.target.value)} inputMode="numeric" autoComplete="off" />
         </div>
+        {(consulta || erroCnpj) && (
+          <div aria-live="polite" data-testid="resultado-cnpj">
+            {erroCnpj && <Aviso tipo="atencao">{erroCnpj} Você pode seguir preenchendo à mão.</Aviso>}
+            {consulta && (
+              <Cartao>
+                <h3>Dados encontrados para o CNPJ</h3>
+                {!consulta.ativa && (
+                  <Aviso tipo="perigo">
+                    Atenção: a situação deste CNPJ na Receita é <strong>{consulta.situacao ?? "desconhecida"}</strong> (não está ATIVA). Confira antes de comprar desta empresa.
+                  </Aviso>
+                )}
+                <dl className="cnpj__dados">
+                  <dt>Razão social</dt>
+                  <dd>{consulta.razaoSocial}</dd>
+                  <dt>Nome fantasia</dt>
+                  <dd>{consulta.nomeFantasia ?? "não informado"}</dd>
+                  <dt>Situação</dt>
+                  <dd>{consulta.situacao ?? "não informada"}</dd>
+                  <dt>Endereço</dt>
+                  <dd>{consulta.endereco ?? "não informado"}</dd>
+                  <dt>Telefone</dt>
+                  <dd>{consulta.telefone ? mascararTelefone(consulta.telefone) : "não informado"}</dd>
+                  <dt>E-mail</dt>
+                  <dd>{consulta.email ?? "não informado"}</dd>
+                </dl>
+                {conflitos ? (
+                  <Aviso tipo="atencao">
+                    <p>
+                      Você já digitou: <strong>{conflitos.join(", ")}</strong>. Quer trocar pelo que veio da Receita?
+                    </p>
+                    <div className="cadastros__botoes">
+                      <Botao onClick={() => usarDados(consulta, true)}>Trocar pelo da Receita</Botao>
+                      <Botao variante="secundario" onClick={() => usarDados(consulta, false)}>
+                        Manter o que digitei
+                      </Botao>
+                    </div>
+                  </Aviso>
+                ) : (
+                  <div className="cadastros__botoes">
+                    <Botao onClick={() => pedirParaUsar(consulta)}>Usar estes dados</Botao>
+                    <Botao variante="secundario" onClick={() => setConsulta(null)}>
+                      Descartar
+                    </Botao>
+                  </div>
+                )}
+              </Cartao>
+            )}
+          </div>
+        )}
+        <Campo
+          rotulo="Endereço"
+          explicacao="Opcional. Onde fica o fornecedor (rua, número, bairro, cidade). Se você buscou o CNPJ, vem preenchido."
+          exemplo="Rua das Flores, 120 - Centro - Campinas/SP (endereço inventado)."
+          value={endereco} onChange={(e) => setEndereco(e.target.value)} autoComplete="off" maxLength={300} />
         <Campo
           rotulo="Observação"
           explicacao="Opcional. Qualquer lembrete sobre este fornecedor."

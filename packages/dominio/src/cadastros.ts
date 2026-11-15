@@ -71,6 +71,7 @@ export const dadosFornecedor = z.object({
   email: textoOpcional(200).refine((v) => v === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "E-mail inválido."),
   prazoEntregaDias: z.number().int().min(0).max(90, "Prazo de 0 a 90 dias.").nullish().transform((v) => v ?? null),
   observacao: textoOpcional(500),
+  endereco: textoOpcional(300),
   ativo: z.boolean().default(true),
 });
 
@@ -106,8 +107,10 @@ function validar<T>(esquema: z.ZodType<T>, dados: unknown): T {
 function traduzir(e: unknown, repetido: string): never {
   const erro = e as { code?: string; message?: string };
   if (erro.code === "23505") throw new ErroDeRegra("conflito", repetido);
-  if (erro.code === "23514" && erro.message && !erro.message.includes("violates check constraint"))
-    throw new ErroDeRegra("dados_invalidos", erro.message);
+  // Gatilho da regra (sem nome de restrição): a mensagem dele é para a pessoa. Restrição do
+  // esquema (com nome): mensagem genérica, sem expor nome interno (e sem depender do idioma do banco).
+  if (erro.code === "23514" && erro.message && !(erro as { constraint?: string }).constraint) throw new ErroDeRegra("dados_invalidos", erro.message);
+  if (erro.code === "23514") throw new ErroDeRegra("dados_invalidos", "Algum valor está fora do permitido. Confira os campos.");
   if (erro.code === "23503") throw new ErroDeRegra("dados_invalidos", "Fornecedor ou ingrediente não encontrado.");
   if (erro.code === "22003") throw new ErroDeRegra("nao_encontrado", "Cadastro não encontrado.");
   throw e;
@@ -129,6 +132,7 @@ export type Fornecedor = {
   email: string | null;
   prazoEntregaDias: number | null;
   observacao: string | null;
+  endereco: string | null;
   ativo: boolean;
 };
 
@@ -141,6 +145,7 @@ const colunasFornecedor = [
   "email",
   "prazo_entrega_dias as prazoEntregaDias",
   "observacao",
+  "endereco",
   "ativo",
 ] as const;
 
@@ -152,7 +157,7 @@ export async function listarFornecedores(db: Banco, ator: Ator | null): Promise<
   const quem = await exigir(db, ator, "cadastros.ver", { tipo: "fornecedor" });
   const todos = await db.selectFrom("fornecedor").select(colunasFornecedor).orderBy("ativo", "desc").orderBy(sql`lower(nome)`).execute();
   if (pode(quem.cargoAtivo, "cadastros.gerenciar")) return todos;
-  return todos.map((f) => ({ ...f, documento: null, contato: null, telefone: null, email: null, observacao: null }));
+  return todos.map((f) => ({ ...f, documento: null, contato: null, telefone: null, email: null, observacao: null, endereco: null }));
 }
 
 /** Cria (sem id) ou altera (com id) um fornecedor. */
@@ -167,6 +172,7 @@ export async function salvarFornecedor(db: Banco, ator: Ator | null, dados: unkn
     email: d.email,
     prazo_entrega_dias: d.prazoEntregaDias,
     observacao: d.observacao,
+    endereco: d.endereco,
     ativo: d.ativo,
   };
   try {
@@ -375,4 +381,188 @@ export async function converterParaBase(db: Banco, ingredienteId: number, quanti
     if (erro.code === "22023" || erro.code === "P0002" || erro.code === "22003") throw new ErroDeRegra("dados_invalidos", erro.message ?? "Conversão impossível.");
     throw e;
   }
+}
+
+// ---------- cadastro rápido (ideia nº 4) ----------
+
+const MAXIMO_POR_LOTE = 300;
+const dadosDoLote = z
+  .array(
+    z.object({
+      nome: nome("do ingrediente"),
+      unidadeBase: z.enum(UNIDADES_BASE, { error: "Escolha a unidade do estoque: g, ml ou un." }),
+      area: z.enum(AREAS_ESTOQUE, { error: "Escolha a área de estoque." }),
+      fornecedorId: z.number().int().positive().nullish().transform((v) => v ?? null),
+      embalagens: z.array(dadosConversao.pick({ nome: true, quantidadeBase: true })).max(10).default([]),
+    }),
+  )
+  .min(1, "Marque pelo menos um item.")
+  .max(MAXIMO_POR_LOTE, `No máximo ${MAXIMO_POR_LOTE} itens por vez.`);
+
+/**
+ * Grava vários ingredientes de uma vez (catálogo pronto ou lista colada), cada um com as
+ * embalagens. Tudo ou nada: se um item falha, nenhum é gravado e a mensagem diz qual item e
+ * por quê (a mesma regra de cada cadastro: nome único entre os ativos, conversão sem
+ * equivalência errada, tamanho no nome que bate). Cada item fica na auditoria.
+ */
+export async function cadastrarEmLote(db: Banco, ator: Ator | null, dados: unknown): Promise<{ criados: number; ids: number[] }> {
+  const quem = await exigir(db, ator, "cadastros.gerenciar", { tipo: "ingrediente" });
+  const itens = validar(dadosDoLote, dados);
+  const chaves = new Map<string, string>();
+  for (const it of itens) {
+    const k = it.nome.toLowerCase().replace(/\s+/g, " ");
+    if (chaves.has(k)) throw new ErroDeRegra("dados_invalidos", `"${it.nome}" aparece duas vezes na lista.`);
+    chaves.set(k, it.nome);
+    const embs = new Set<string>();
+    for (const e of it.embalagens) {
+      const ke = e.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+      if (embs.has(ke)) throw new ErroDeRegra("dados_invalidos", `"${it.nome}": a embalagem "${e.nome}" aparece duas vezes.`);
+      embs.add(ke);
+    }
+  }
+  return db.transaction().execute(async (trx) => {
+    const ids: number[] = [];
+    for (const it of itens) {
+      // Tudo ou nada pela própria transação: qualquer erro desfaz o lote inteiro.
+      try {
+        if (it.fornecedorId) {
+          const f = await trx.selectFrom("fornecedor").select("ativo").where("id", "=", it.fornecedorId).forShare().executeTakeFirst();
+          if (!f?.ativo) throw new ErroDeRegra("dados_invalidos", "Fornecedor não encontrado ou desativado.");
+        }
+        const salvo = await trx
+          .insertInto("ingrediente")
+          .values({ nome: it.nome, unidade_base: it.unidadeBase, area_estoque: it.area, fornecedor_id: it.fornecedorId })
+          .returning(["id", "nome", "unidade_base", "area_estoque", "fornecedor_id", "ativo"])
+          .executeTakeFirstOrThrow();
+        const conversoes = [];
+        for (const e of it.embalagens) {
+          conversoes.push(
+            await trx
+              .insertInto("ingrediente_conversao")
+              .values({ ingrediente_id: salvo.id, nome: e.nome, quantidade_base: e.quantidadeBase })
+              .returning(["id", "nome", "quantidade_base"])
+              .executeTakeFirstOrThrow(),
+          );
+        }
+        await auditar(trx, {
+          usuarioId: quem.usuarioId,
+          acao: "cadastros.gerenciar",
+          resultado: "permitido",
+          alvoTipo: "ingrediente",
+          alvoId: salvo.id,
+          detalhes: { operacao: "criar_em_lote", antes: null, depois: { ...salvo, conversoes } },
+          ip: quem.ip,
+        });
+        ids.push(salvo.id);
+      } catch (e) {
+        const motivo =
+          e instanceof ErroDeRegra
+            ? e.message
+            : (e as { code?: string }).code === "23505"
+              ? (e as { constraint?: string }).constraint === "ingrediente_conversao_nome"
+                ? "duas embalagens com o mesmo nome (ex.: \"1 saco\" e \"saco\" são a mesma)."
+                : "já existe um ingrediente ativo com esse nome."
+              : (e as { code?: string }).code === "23514"
+                ? (e as { constraint?: string }).constraint
+                  ? "algum valor está fora do permitido."
+                  : (e as Error).message
+                : null;
+        if (motivo === null) throw e;
+        throw new ErroDeRegra("dados_invalidos", `"${it.nome}": ${motivo} Nada foi gravado; corrija e tente de novo.`);
+      }
+    }
+    return { criados: ids.length, ids };
+  });
+}
+
+/** Catálogo pronto para a tela, marcando o que já está cadastrado (ativo). */
+export async function catalogoParaCadastrar(db: Banco, ator: Ator | null) {
+  await exigir(db, ator, "cadastros.gerenciar", { tipo: "ingrediente" });
+  const { CATALOGO_INGREDIENTES, GRUPOS_DO_CATALOGO, chaveDeBusca } = await import("./catalogo-ingredientes");
+  const ativos = await db.selectFrom("ingrediente").select("nome").where("ativo", "=", true).execute();
+  const ja = new Set(ativos.map((a) => chaveDeBusca(a.nome)));
+  return {
+    grupos: GRUPOS_DO_CATALOGO,
+    itens: CATALOGO_INGREDIENTES.map((c) => ({ ...c, jaCadastrado: ja.has(chaveDeBusca(c.nome)) })),
+    jaCadastrados: ativos.map((a) => a.nome),
+  };
+}
+
+// ---------- consulta pública do CNPJ (ideia nº 4; responsável pediu em 15/11/2026) ----------
+
+export type DadosDoCnpj = {
+  cnpj: string;
+  razaoSocial: string;
+  nomeFantasia: string | null;
+  situacao: string | null;
+  ativa: boolean;
+  endereco: string | null;
+  telefone: string | null;
+  email: string | null;
+};
+type Buscar = (url: string, init: { signal: AbortSignal; headers: Record<string, string>; redirect: "error" }) => Promise<{ status: number; json(): Promise<unknown> }>;
+
+const respostaBrasilApi = z.object({
+  cnpj: z.string(),
+  razao_social: z.string().max(300),
+  nome_fantasia: z.string().max(300).nullish(),
+  descricao_situacao_cadastral: z.string().max(60).nullish(),
+  descricao_tipo_de_logradouro: z.string().max(60).nullish(),
+  logradouro: z.string().max(200).nullish(),
+  numero: z.string().max(30).nullish(),
+  complemento: z.string().max(200).nullish(),
+  bairro: z.string().max(100).nullish(),
+  municipio: z.string().max(100).nullish(),
+  uf: z.string().max(2).nullish(),
+  cep: z.string().max(10).nullish(),
+  ddd_telefone_1: z.string().max(20).nullish(),
+  email: z.string().max(200).nullish(),
+});
+
+/**
+ * Busca nome, situação e endereço de um CNPJ na consulta pública gratuita BrasilAPI
+ * (dados da Receita). Só PREENCHE o formulário: nada é gravado aqui. Devolve apenas os
+ * campos da empresa (nunca a lista de sócios). Fora do ar ou lento (6 s): a pessoa
+ * preenche à mão. `buscar` é trocado nos testes (sem rede).
+ */
+export async function consultarCnpj(db: Banco, ator: Ator | null, cnpjDigitado: string, buscar: Buscar = fetch as unknown as Buscar): Promise<DadosDoCnpj> {
+  await exigir(db, ator, "cadastros.gerenciar", { tipo: "fornecedor" });
+  const cnpj = String(cnpjDigitado ?? "").replace(/\D/g, "");
+  if (cnpj.length !== 14 || !documentoValido(cnpj)) throw new ErroDeRegra("dados_invalidos", "CNPJ inválido (confira os 14 números).");
+  const fora = () => new ErroDeRegra("conflito", "A consulta do CNPJ não respondeu agora. Preencha à mão ou tente de novo em instantes.");
+  let r: { status: number; json(): Promise<unknown> };
+  try {
+    r = await buscar(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, { signal: AbortSignal.timeout(6000), headers: { accept: "application/json" }, redirect: "error" });
+  } catch {
+    throw fora();
+  }
+  if (r.status === 404) throw new ErroDeRegra("nao_encontrado", "Esse CNPJ não foi encontrado na Receita. Confira os números.");
+  if (r.status !== 200) throw fora();
+  let d: z.infer<typeof respostaBrasilApi>;
+  try {
+    d = respostaBrasilApi.parse(await r.json());
+  } catch {
+    throw fora();
+  }
+  if (d.cnpj.replace(/\D/g, "") !== cnpj) throw fora();
+  const limpo = (v: string | null | undefined) => (v ?? "").replace(/\s+/g, " ").trim() || null;
+  const rua = [limpo(d.descricao_tipo_de_logradouro), limpo(d.logradouro)].filter(Boolean).join(" ");
+  const partes = [
+    [rua, limpo(d.numero)].filter(Boolean).join(", "),
+    limpo(d.complemento),
+    limpo(d.bairro),
+    [limpo(d.municipio), limpo(d.uf)].filter(Boolean).join("/"),
+    d.cep ? `CEP ${d.cep.replace(/\D/g, "").replace(/^(\d{5})(\d{3})$/, "$1-$2")}` : null,
+  ].filter((p) => p);
+  const situacao = limpo(d.descricao_situacao_cadastral);
+  return {
+    cnpj,
+    razaoSocial: limpo(d.razao_social) ?? "",
+    nomeFantasia: limpo(d.nome_fantasia),
+    situacao,
+    ativa: (situacao ?? "").toUpperCase() === "ATIVA",
+    endereco: partes.length ? partes.join(" - ").slice(0, 300) : null,
+    telefone: limpo(d.ddd_telefone_1),
+    email: limpo(d.email)?.toLowerCase() ?? null,
+  };
 }
