@@ -480,7 +480,15 @@ const dadosDoLote = z
       unidadeExibicao: z.enum(UNIDADES_PARA_MOSTRAR, { error: "Escolha a unidade: kg, g, L, ml, un ou dz." }).optional(),
       area: z.enum(AREAS_ESTOQUE, { error: "Escolha a área de estoque." }),
       fornecedorId: z.number().int().positive().nullish().transform((v) => v ?? null),
-      embalagens: z.array(dadosConversao.pick({ nome: true, quantidadeBase: true })).max(10).default([]),
+      embalagens: z
+        .array(
+          dadosConversao
+            .pick({ nome: true, quantidadeBase: true })
+            // De que modelo do catálogo veio (ideia nº 6); o banco só mantém se o nome bater.
+            .extend({ modeloId: z.number().int().positive().nullish().transform((v) => v ?? null) }),
+        )
+        .max(10)
+        .default([]),
     }),
   )
   .min(1, "Marque pelo menos um item.")
@@ -532,8 +540,8 @@ export async function cadastrarEmLote(db: Banco, ator: Ator | null, dados: unkno
           conversoes.push(
             await trx
               .insertInto("ingrediente_conversao")
-              .values({ ingrediente_id: salvo.id, nome: e.nome, quantidade_base: e.quantidadeBase })
-              .returning(["id", "nome", "quantidade_base"])
+              .values({ ingrediente_id: salvo.id, nome: e.nome, quantidade_base: e.quantidadeBase, modelo_id: e.modeloId })
+              .returning(["id", "nome", "quantidade_base", "modelo_id"])
               .executeTakeFirstOrThrow(),
           );
         }

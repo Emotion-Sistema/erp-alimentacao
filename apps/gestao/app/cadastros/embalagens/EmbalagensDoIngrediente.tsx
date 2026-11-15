@@ -7,7 +7,7 @@
  *
  * Dois modos:
  * - "local" (ingrediente novo, cadastro rápido, lista colada): só mexe na lista da tela, que vai
- *   ao servidor no lote como { nome, quantidadeBase } (o lote grava tudo ou nada).
+ *   ao servidor no lote como { nome, quantidadeBase, modeloId } (o lote grava tudo ou nada).
  * - "servidor" (ingrediente já gravado): cada escolha vai na hora por
  *   POST /api/cadastros/ingredientes/{id}/conversoes { modeloId, quantidadeBase? }; desativar,
  *   reativar e corrigir a quantidade usam a forma antiga { id, nome, quantidadeBase, ativo }.

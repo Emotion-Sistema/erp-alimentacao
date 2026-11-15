@@ -66,7 +66,7 @@ export const itemParaServidor = (i: ItemEditavel, fornecedorId: number | null = 
   unidadeExibicao: i.unidadeExibicao || i.unidadeBase,
   area: i.area,
   fornecedorId,
-  embalagens: i.embalagens.map((e) => ({ nome: e.nome.trim(), quantidadeBase: e.quantidade.trim().replace(",", ".") })),
+  embalagens: i.embalagens.map((e) => ({ nome: e.nome.trim(), quantidadeBase: e.quantidade.trim().replace(",", "."), modeloId: e.modeloId ?? null })),
 });
 
 /** Resumo visual de um item em edição (unidade, área e chips das embalagens). */

@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql, type Banco } from "@erp/banco";
 import {
+  cadastrarEmLote,
   converterParaBase,
   ErroDeRegra,
   listarIngredientes,
@@ -242,5 +243,18 @@ describe("concorrência entre catálogo e ingrediente (PostgreSQL real)", () => 
     } finally {
       await outro.destroy();
     }
+  });
+});
+
+describe("lote do cadastro rápido com embalagem do catálogo", () => {
+  it("guarda o modelo de origem; se o nome não bater, o vínculo não fica", async () => {
+    const m = await salvarModeloDeEmbalagem(db, gerente, { tipo: tipo("Saco"), tamanho: "3", unidade: "kg" });
+    const r = await cadastrarEmLote(db, gerente, [
+      { nome: n("Feijão lote"), unidadeBase: "g", unidadeExibicao: "kg", area: "cozinha", embalagens: [{ nome: m.nome, quantidadeBase: "3000", modeloId: m.id }] },
+      { nome: n("Lentilha lote"), unidadeBase: "g", area: "cozinha", embalagens: [{ nome: "pacotão", quantidadeBase: "900", modeloId: m.id }] },
+    ]);
+    expect((await conversoes(r.ids[0]!))[0]!.modeloId).toBe(m.id);
+    expect((await conversoes(r.ids[1]!))[0]!.modeloId).toBeNull();
+    expect((await listarModelosDeEmbalagem(db, gerente)).find((x) => x.id === m.id)!.emUso).toBe(1);
   });
 });
