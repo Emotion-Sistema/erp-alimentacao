@@ -22,5 +22,8 @@ until git ls-remote --exit-code "$REPO" homologacao >/dev/null 2>&1; do
 done
 [ -d /opt/erp/codigo/.git ] || git clone -q --branch homologacao "$REPO" /opt/erp/codigo
 git -C /opt/erp/codigo config core.sshCommand "$GIT_SSH_COMMAND"
+# Colada de novo: usa a versão marcada mais recente (o preparo pode ter sido corrigido).
+git -C /opt/erp/codigo fetch -q origin +refs/heads/homologacao:refs/remotes/origin/homologacao
+git -C /opt/erp/codigo checkout -q --force --detach refs/remotes/origin/homologacao
 git -C /opt/erp/codigo fetch -q origin +refs/heads/main:refs/remotes/origin/main
 bash /opt/erp/codigo/infra/homologacao/preparar-servidor.sh
