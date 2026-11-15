@@ -219,3 +219,4 @@ proposta no requisito `docs/requisitos/RC-19-central-de-compras.md`.
 |---|---|
 | 15/11/2026 | Frente aberta; ideia nº 3 registrada; proposta escrita; nenhum código |
 | 15/11/2026 | Proposta aprovada; leitura por IA (seção 4a) e CNPJ x cupom (4b) incluídas; PR 20 e PR 21 na `main` |
+| 15/11/2026 | Desvio (mod "salão de restaurante" para ver as tarefas do Claude): não tratado aqui, anotado no mural para chat próprio |
