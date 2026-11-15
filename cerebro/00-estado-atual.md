@@ -41,7 +41,7 @@ Atualizado em: 14/11/2026
   **Parte 1 feita** (PR 26, merge 05a65b2, no ar na homologação; migração 0006, decisão 0015;
   diário `diario/2026-11-15-e07-cadastros.md`). **Ideia nº 4 feita** (PRs 32 e 34: ajuda em cada campo e
   cadastro rápido; no ar na homologação). **Reforma visual feita** (PR 37, merge 65352af, aprovada pelo
-  responsável e no ar na homologação às 15:15 UTC: dados com rótulo, selos, fundo sempre claro). **Ideia nº 5** (15/11/2026): lista pronta de unidades do estoque (kg, L...), proposta aguardando "ok". Depois: parte 2 (categorias,
+  responsável e no ar na homologação às 15:15 UTC: dados com rótulo, selos, fundo sempre claro). **Ideia nº 5 feita** (PR 41, merge 58f00a2, no ar na homologação; migração 0008, adendo na decisão 0015): lista pronta de unidades (kg, g, L, ml, un, dz); conta por dentro segue em g/ml/un. Depois: parte 2 (categorias,
   tipos de pedido, produtos). Conector do Google Drive ligado em 15/11/2026.
 - **Frentes paralelas** (15/11/2026): outro chat, com o modelo que o responsável escolher, pode cuidar
   de uma função só e falar com este pelo `cerebro/frentes/mural.md` (regras em `cerebro/frentes/README.md`).
