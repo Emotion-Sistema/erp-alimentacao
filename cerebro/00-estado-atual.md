@@ -27,7 +27,15 @@ Atualizado em: 14/11/2026
   `homologacao`, migra, confere e volta se falhar; o fluxo do GitHub espera a versão em
   /api/saude). Papéis separados do banco (app não apaga). Login de dono do responsável
   (nomes de empresa e loja de teste; ainda sem tela para mudar, vem na E20).
-- Próxima etapa: **E07** (cadastros). Esperar o "ok".
+- **E07 (cadastros) em andamento** (ok do responsável em 15/11/2026), em 3 PRs: (1) unidades,
+  conversões, ingredientes, fornecedores, locais de estoque; (2) categorias com horários, tipos de
+  pedido e produtos; (3) importação de planilha (.xlsx, .csv e também **.html** com tabela, pedido
+  do responsável), com relatório de erros por linha na tela, sem gravar até estar certo.
+  Cardápio inventado até chegar o real; o responsável pode mandar atualizações a qualquer momento.
+  Hipóteses: `cadastros.gerenciar` para dono, administrador e gerente geral; custo só com `custos.ver`.
+- **Frentes paralelas** (15/11/2026): outro chat, com o modelo que o responsável escolher, pode cuidar
+  de uma função só e falar com este pelo `cerebro/frentes/mural.md` (regras em `cerebro/frentes/README.md`).
+- SSH do servidor só por chave desde 15/11/2026 (PR #18), conferido pelo responsável.
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
   gratuito; a trava do repositório é a única barreira automática.
 - Contexto: aviso a cada 10% (de 1 milhão); no aviso, atualizar o cérebro e pedir `/compact`.
