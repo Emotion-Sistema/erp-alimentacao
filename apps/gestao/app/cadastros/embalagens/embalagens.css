@@ -256,7 +256,7 @@
 .emb-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 13.5rem), 1fr)); gap: var(--espaco-2); list-style: none; margin: 0; padding: 0; }
 .emb-opcoes > li { min-width: 0; margin: 0; }
 .emb-opcao {
-  position: relative; display: grid; gap: var(--espaco-1); align-content: start; height: 100%; min-height: var(--alvo-toque-grande); min-width: 0;
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--espaco-1); align-content: start; height: 100%; min-height: var(--alvo-toque-grande); min-width: 0;
   padding: var(--espaco-3) var(--espaco-3) var(--espaco-3) calc(var(--espaco-3) + 2rem);
   background: var(--cor-fundo); border: 2px solid var(--cor-borda); border-radius: var(--raio); cursor: pointer;
 }
@@ -268,8 +268,9 @@
 .emb-opcao--fornecedor:not(.emb-opcao--marcada) { border-color: var(--selo-info-texto); }
 .emb-opcao__nome { font-weight: 800; overflow-wrap: anywhere; }
 .emb-opcao__conta { font-weight: 700; font-size: var(--texto-pequeno); }
-.emb-opcao__selos { display: flex; flex-wrap: wrap; gap: var(--espaco-1); }
-.emb-opcao__selos .erp-selo { white-space: nowrap; padding: 1px var(--espaco-2); }
+.emb-opcao__selos { display: flex; flex-wrap: wrap; gap: var(--espaco-1); min-width: 0; }
+/* Cada selo fica numa linha só; só quebra o texto se sozinho não couber no cartão (ex.: dentro da janela de ingrediente). */
+.emb-opcao__selos .erp-selo { padding: 1px var(--espaco-2); max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .emb-escolha__tipos { display: flex; flex-wrap: wrap; gap: var(--espaco-2); }
 .emb-escolhidas { display: grid; gap: var(--espaco-2); padding: var(--espaco-3); border-radius: var(--raio); background: var(--cor-superficie); min-width: 0; }
 .emb-escolhidas h5 { margin: 0; font-size: var(--tamanho-texto); }

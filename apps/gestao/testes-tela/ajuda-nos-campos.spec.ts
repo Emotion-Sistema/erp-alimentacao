@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { entrar, semEstouroDeLargura, SENHA, zerarSegundoFator } from "./ajudas";
+import { abrirAdicionar, entrar, semEstouroDeLargura, SENHA, zerarSegundoFator } from "./ajudas";
 
 // Padrão do sistema (decisão 0012, 15/11/2026): todo campo de digitar ou escolher tem uma explicação
 // sempre visível e um botão que abre e fecha um exemplo. Este teste FALHA se aparecer campo sem ajuda.
@@ -66,9 +66,10 @@ test.describe("telas internas do administrador", () => {
     await page.goto("/cadastros");
     await expect(page.getByTestId("ingrediente-Ovo")).toBeVisible();
     await conferirAjuda(page, "ingredientes (busca e filtro)", 2);
-    await page.getByRole("button", { name: "Novo ingrediente" }).click();
+    await abrirAdicionar(page, "Comum");
     await conferirAjuda(page, "novo ingrediente", 6);
     await page.getByRole("button", { name: "Cancelar" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByRole("button", { name: "Editar Ovo", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Editar Ovo" })).toBeVisible();
     await conferirAjuda(page, "editar ingrediente", 5);
@@ -87,7 +88,7 @@ test.describe("telas internas do administrador", () => {
   test("cadastros: cadastro rápido (catálogo, ajuste, lista colada) e embalagem de um toque", async ({ page }) => {
     await page.goto("/cadastros");
     await expect(page.getByTestId("ingrediente-Ovo")).toBeVisible();
-    await page.getByRole("button", { name: "Cadastro rápido" }).click();
+    await abrirAdicionar(page, "Rápido");
     // Os corredores começam fechados: a busca abre o que tem resultado.
     await expect(page.getByRole("button", { name: "Hortifrúti", exact: true })).toHaveAttribute("aria-expanded", "false");
     await page.getByLabel("Procurar no catálogo").fill("tomate");
@@ -109,7 +110,7 @@ test.describe("telas internas do administrador", () => {
 
   test("cadastros: formulário com sugestão do catálogo e salvar e próximo", async ({ page }) => {
     await page.goto("/cadastros");
-    await page.getByRole("button", { name: "Novo ingrediente" }).click();
+    await abrirAdicionar(page, "Comum");
     await page.getByRole("combobox", { name: "Nome" }).pressSequentially("calabr");
     await expect(page.getByRole("option", { name: /Calabresa/ })).toBeVisible();
     await conferirAjuda(page, "novo ingrediente com sugestão aberta", 6);

@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { entrar } from "./ajudas";
+import { abrirAdicionar, entrar } from "./ajudas";
 
 // Capturas das telas para o responsável ver (PNG, deviceScaleFactor 2, tema claro).
 // Só roda com CAPTURAS=pasta (ex.: CAPTURAS=/tmp/telas pnpm teste:tela capturas). Nada é assertado além de a tela abrir.
@@ -82,7 +82,7 @@ test("ingredientes, fornecedores e CNPJ", async ({ page }) => {
 test("cadastro rápido e sugestões", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await page.goto("/cadastros");
-  await page.getByRole("button", { name: "Cadastro rápido" }).click();
+  await abrirAdicionar(page, "Rápido");
   const busca = page.getByLabel("Procurar no catálogo");
   for (const [termo, nome] of [["mussarela", "Queijo muçarela"], ["bacon", "Bacon"], ["presunto", "Presunto"]] as const) {
     await busca.fill(termo);
@@ -107,7 +107,7 @@ test("cadastro rápido e sugestões", async ({ page }) => {
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/cadastros");
-  await page.getByRole("button", { name: "Novo ingrediente" }).click();
+  await abrirAdicionar(page, "Comum");
   await page.getByLabel("Nome", { exact: true }).fill("mussa");
   await expect(page.getByRole("listbox", { name: "Sugestões do catálogo" })).toBeVisible();
   await salvar(page, "05-sugestoes-ao-digitar", page.locator(".sugestao"));

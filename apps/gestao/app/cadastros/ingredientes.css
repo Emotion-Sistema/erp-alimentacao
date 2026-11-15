@@ -1,0 +1,87 @@
+/* Tela de Ingredientes: lista primeiro, botão "Adicionar ingrediente" e a janela (popup) por cima.
+   Só variáveis do tema (packages/interface/src/tema.css); fundo sempre claro. */
+
+/* ---------- cabeçalho da lista ---------- */
+.ingredientes__topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-3); margin-bottom: var(--espaco-4); }
+.ingredientes__topo h1 { margin: 0; }
+.ingredientes__adicionar { display: inline-flex; align-items: center; justify-content: center; gap: var(--espaco-2); font-weight: 700; }
+.ingredientes__topo + [aria-live] .erp-aviso { margin-top: 0; }
+.ingredientes__realce > .erp-item, .ingredientes__realce > article {
+  outline: 3px solid var(--cor-primaria); outline-offset: 2px;
+  background: color-mix(in srgb, var(--cor-primaria) 8%, var(--cor-superficie));
+  animation: ingredientes-brilho 1.2s ease-out 1;
+}
+@keyframes ingredientes-brilho {
+  from { background: color-mix(in srgb, var(--cor-primaria) 22%, var(--cor-superficie)); }
+  to { background: color-mix(in srgb, var(--cor-primaria) 8%, var(--cor-superficie)); }
+}
+.ingredientes__form { display: grid; gap: var(--espaco-3); min-width: 0; }
+.ingredientes__form > * { min-width: 0; }
+.ingredientes__form .erp-aviso { margin: 0; }
+
+/* ---------- janela (popup) ---------- */
+.janela {
+  margin: auto; padding: 0; border: 2px solid var(--cor-borda); border-radius: var(--raio); overflow: hidden; overflow: clip;
+  width: min(60rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); max-height: min(90dvh, 60rem);
+  background: var(--cor-fundo); color: var(--cor-texto); box-shadow: 0 12px 40px color-mix(in srgb, var(--cor-texto) 25%, transparent);
+  animation: janela-entra 0.2s ease-out;
+}
+.janela::backdrop { background: color-mix(in srgb, var(--cor-texto) 45%, transparent); }
+.janela[open] { display: flex; flex-direction: column; }
+.janela__cabeca {
+  flex: none; display: grid; gap: var(--espaco-3); padding: var(--espaco-3) var(--espaco-4) 0;
+  background: var(--cor-fundo); border-bottom: 2px solid var(--cor-borda); min-width: 0;
+}
+.janela__linha { display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-3); min-width: 0; }
+.janela__linha:last-child { padding-bottom: var(--espaco-3); }
+.janela__titulo { margin: 0; font-size: var(--texto-grande); overflow-wrap: anywhere; min-width: 0; }
+.janela__fechar { display: inline-flex; align-items: center; gap: var(--espaco-2); flex: none; padding-inline: var(--espaco-4); }
+.janela__corpo { position: relative; flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--espaco-4); }
+.janela__corpo > * { min-width: 0; }
+.janela__corpo .rapido__barra { margin-inline: calc(-1 * var(--espaco-4)); margin-bottom: calc(-1 * var(--espaco-4)); bottom: calc(-1 * var(--espaco-4)); }
+
+/* Abas Rápido e Comum: nome forte e uma linha que explica. */
+.janela__abas { display: flex; gap: var(--espaco-2); min-width: 0; }
+.janela__aba {
+  flex: 1 1 0; min-width: 0; min-height: var(--alvo-toque); display: grid; gap: 2px; align-content: start; text-align: left;
+  padding: var(--espaco-2) var(--espaco-4); font: inherit; cursor: pointer;
+  background: var(--cor-superficie); color: var(--cor-texto); border: 2px solid var(--cor-borda); border-bottom: 0;
+  border-radius: var(--raio) var(--raio) 0 0;
+}
+.janela__aba-nome { font-weight: 700; }
+.janela__aba-texto { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); overflow-wrap: anywhere; }
+.janela__aba[aria-selected="true"] { background: var(--cor-primaria); color: var(--cor-primaria-texto); border-color: var(--cor-primaria); }
+.janela__aba[aria-selected="true"] .janela__aba-texto { color: var(--cor-primaria-texto); }
+
+/* "Descartar o que foi digitado?" */
+.janela__pergunta {
+  display: grid; gap: var(--espaco-2); padding: var(--espaco-3); margin-bottom: var(--espaco-3);
+  border: 2px solid var(--cor-atencao); border-left-width: 8px; border-radius: var(--raio); background: var(--cor-superficie);
+}
+.janela__pergunta p { margin: 0; }
+.janela__pergunta-titulo { font-weight: 700; }
+
+/* Celular: a janela ocupa a tela inteira e sobe de baixo. */
+@media (max-width: 40rem) {
+  .janela {
+    width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; inset: 0;
+    border: 0; border-radius: 0; animation-name: janela-sobe;
+  }
+  .janela__cabeca { padding-inline: var(--espaco-3); }
+  .janela__corpo { padding: var(--espaco-3); }
+  .janela__corpo .rapido__barra { margin-inline: calc(-1 * var(--espaco-3)); margin-bottom: calc(-1 * var(--espaco-3)); bottom: calc(-1 * var(--espaco-3)); }
+  .janela__aba { padding-inline: var(--espaco-3); }
+  .janela__aba-texto { display: none; }
+  .ingredientes__adicionar { flex: 1 1 100%; }
+}
+@keyframes janela-entra {
+  from { transform: translateY(1rem); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes janela-sobe {
+  from { transform: translateY(3rem); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .janela, .ingredientes__realce > .erp-item, .ingredientes__realce > article { animation: none; }
+}

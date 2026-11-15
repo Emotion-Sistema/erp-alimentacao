@@ -5,9 +5,10 @@
  * "Colar uma lista" (texto solto, lido pelo servidor, com prévia verde/amarela/vermelha).
  * Só quem tem cadastros.gerenciar chega aqui; o servidor confere de novo em cada chamada.
  * Nada é gravado sem a pessoa apertar o botão de gravar, e tudo é "tudo ou nada" no servidor.
+ * Fica na aba Rápido da janela "Adicionar ingrediente" (Ingredientes.tsx); depois de gravar, continua aberto.
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Aviso, Botao, Cartao, Citacao, Faixa, Icone, ListaComIcone, Selo, varianteDaArea } from "@erp/interface";
+import { Aviso, Botao, Citacao, Faixa, Icone, ListaComIcone, Selo, varianteDaArea } from "@erp/interface";
 import type { LinhaLida } from "@erp/dominio";
 import { buscarNoCatalogo, chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
 import { AreaDeTexto, Campo, Grupo, OpcaoDoGrupo, Selecao } from "../Campo";
@@ -24,12 +25,11 @@ type Props = {
   unidades: UnidadePadrao[];
   /** Atualiza a lista de ingredientes da tela de trás. */
   aoGravar: () => Promise<void>;
-  aoFechar: () => void;
 };
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 
-export function CadastroRapido({ areas, unidades, aoGravar, aoFechar }: Props) {
+export function CadastroRapido({ areas, unidades, aoGravar }: Props) {
   const [aba, setAba] = useState<"catalogo" | "lista">("catalogo");
   const [catalogo, setCatalogo] = useState<CatalogoApi | null>(null);
   const [erroCatalogo, setErroCatalogo] = useState("");
@@ -57,14 +57,8 @@ export function CadastroRapido({ areas, unidades, aoGravar, aoFechar }: Props) {
   ];
 
   return (
-    <Cartao>
-      <div className="rapido__topo">
-        <h2>Cadastro rápido</h2>
-        <Botao variante="secundario" onClick={aoFechar}>
-          Fechar
-        </Botao>
-      </div>
-      <p className="cadastros__dica">Cadastre vários ingredientes de uma vez, sem digitar um por um. O campo de digitar um ingrediente continua no botão Novo ingrediente.</p>
+    <div className="rapido">
+      <p className="cadastros__dica">Cadastre vários ingredientes de uma vez, sem digitar um por um. Para digitar um ingrediente só, use a aba Comum.</p>
       {erroCatalogo && <Aviso tipo="perigo">{erroCatalogo}</Aviso>}
       <div role="tablist" aria-label="Jeito de cadastrar" className="rapido__abas">
         {abas.map((a, n) => (
@@ -105,7 +99,7 @@ export function CadastroRapido({ areas, unidades, aoGravar, aoFechar }: Props) {
           aoGravar={depoisDeGravar}
         />
       </div>
-    </Cartao>
+    </div>
   );
 }
 

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { entrar, semEstouroDeLargura } from "./ajudas";
+import { abrirAdicionar, entrar, semEstouroDeLargura } from "./ajudas";
 
 // Catálogo de embalagens (ideia nº 6): aba Embalagens em Cadastros e o bloco de embalagens do
 // ingrediente (recolhido, escolher do catálogo, criar nova). Roda contra o banco de tela real.
@@ -247,7 +247,7 @@ test("cozinheira vê o catálogo, mas não cria, não edita e o servidor recusa"
 test("ingrediente novo: bloco recolhido, padrão do fornecedor no topo, escolher várias e a conta ao vivo", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await page.goto("/cadastros");
-  await page.getByRole("button", { name: "Novo ingrediente" }).click();
+  await abrirAdicionar(page, "Comum");
   await page.getByRole("combobox", { name: "Nome" }).fill("Arroz (tela embalagens)");
   await page.getByLabel("Unidade do estoque").selectOption("kg");
   await page.getByLabel("Fornecedor").selectOption({ label: ATACADO });
@@ -352,11 +352,11 @@ test("ingrediente existente: 'Criar nova embalagem' no bloco grava no catálogo,
 test("lista: 'Adicionar embalagem' abre o ingrediente com o bloco já aberto", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await page.goto("/cadastros");
-  await page.getByRole("button", { name: "Novo ingrediente" }).click();
+  await abrirAdicionar(page, "Comum");
   await page.getByRole("combobox", { name: "Nome" }).fill("Sal grosso (tela embalagens)");
   await page.getByRole("button", { name: "Criar ingrediente" }).click();
   await expect(page.getByText(/Ingrediente criado/)).toBeVisible();
-  await page.getByRole("button", { name: "Fechar" }).first().click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Adicionar embalagem a Sal grosso (tela embalagens)" }).click();
   await expect(page.getByTestId("bloco-embalagens").getByRole("button", { name: /^Esconder Embalagens/ })).toBeVisible();
   await expect(page.getByTestId("bloco-embalagens").getByRole("button", { name: "Escolher do catálogo" })).toBeVisible();

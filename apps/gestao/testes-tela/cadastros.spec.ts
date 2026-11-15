@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { entrar, semEstouroDeLargura } from "./ajudas";
+import { abrirAdicionar, entrar, semEstouroDeLargura } from "./ajudas";
 
 test.use({ viewport: { width: 390, height: 844 } });
 test.describe.configure({ mode: "serial" });
@@ -12,7 +12,7 @@ test("gerente geral cria um ingrediente com conversão e vê '1 caixa = 30 un'",
   await expect(page.getByTestId("ingrediente-Ovo")).toContainText("caixa = 30 un");
   await expect(page.locator(".cadastros__dica").filter({ hasText: "já convertem sozinhas" })).toContainText("1 kg = 1.000 g");
 
-  await page.getByRole("button", { name: "Novo ingrediente" }).click();
+  await abrirAdicionar(page, "Comum");
   await page.getByLabel("Nome", { exact: true }).fill("Ovo caipira (tela)");
   // Lista pronta com as 6 unidades, por extenso e nesta ordem.
   const unidade = page.getByLabel("Unidade do estoque");
@@ -20,8 +20,13 @@ test("gerente geral cria um ingrediente com conversão e vê '1 caixa = 30 un'",
   await unidade.selectOption("un");
   await page.getByLabel("Área", { exact: true }).selectOption("cozinha");
   await page.getByRole("button", { name: "Criar ingrediente" }).click();
+  // Gravou: a janela fecha, o aviso aparece na lista e o novo fica em destaque.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText(/Ingrediente criado/)).toBeVisible();
-  // Depois de criado, só dá para trocar dentro da família (un ou dz): a unidade de dentro não muda.
+  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toHaveAttribute("data-realce", "sim");
+  // Depois de criado (Editar abre a mesma janela), só dá para trocar dentro da família (un ou dz).
+  await page.getByRole("button", { name: "Editar Ovo caipira (tela)" }).click();
+  await expect(page.getByRole("dialog", { name: "Editar Ovo caipira (tela)" })).toBeVisible();
   await expect(page.getByLabel("Unidade do estoque").locator("option")).toHaveText(["Unidades (un)", "Dúzias (dz)"]);
 
   // Embalagens: o bloco vem recolhido; escolhe do catálogo (mesma família faz a conta sozinha).
@@ -54,7 +59,7 @@ test("gerente geral cria um ingrediente com conversão e vê '1 caixa = 30 un'",
 test("Farinha em Quilos (kg): a lista mostra kg, a embalagem 'saco 25 kg' mostra 25 kg, e editar só oferece kg e g", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await page.goto("/cadastros");
-  await page.getByRole("button", { name: "Novo ingrediente" }).click();
+  await abrirAdicionar(page, "Comum");
   await page.getByLabel("Nome", { exact: true }).fill("Farinha (tela kg)");
   await page.getByLabel("Unidade do estoque").selectOption("kg");
   await page.getByRole("button", { name: /^Mostrar Embalagens/ }).click();
@@ -65,8 +70,11 @@ test("Farinha em Quilos (kg): a lista mostra kg, a embalagem 'saco 25 kg' mostra
   await expect(page.getByRole("list", { name: "Embalagens colocadas" })).toContainText("= 25 kg");
   await page.getByRole("button", { name: "Criar ingrediente" }).click();
   await expect(page.getByText(/Ingrediente criado/)).toBeVisible();
+  await page.getByRole("button", { name: "Editar Farinha (tela kg)" }).click();
   await expect(page.getByLabel("Unidade do estoque").locator("option")).toHaveText(["Quilos (kg)", "Gramas (g)"]);
-  await page.getByRole("button", { name: "Fechar" }).first().click();
+  // Sem nada digitado, Fechar fecha sem perguntar.
+  await page.getByRole("button", { name: "Fechar", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   const item = page.getByTestId("ingrediente-Farinha (tela kg)");
   await expect(item).toContainText("Quilos (kg)");
   await expect(item).toContainText("saco 25 kg = 25 kg");
@@ -85,6 +93,8 @@ test("gerente geral busca, filtra e desativa um ingrediente", async ({ page }) =
   await page.getByLabel(/^Ativo/).uncheck();
   await page.getByRole("button", { name: "Salvar ingrediente" }).click();
   await expect(page.getByText("Ingrediente salvo.")).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toHaveAttribute("data-realce", "sim");
   await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toContainText("Inativo");
 });
 
@@ -111,6 +121,7 @@ test("cozinheira vê a lista, mas não vê botões de criar nem de editar", asyn
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByRole("list", { name: /Ingredientes|Fornecedores/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Novo (ingrediente|fornecedor)$/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Adicionar ingrediente" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Editar/ })).toHaveCount(0);
   }
 });
