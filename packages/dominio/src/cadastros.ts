@@ -8,6 +8,7 @@ import { sql, type Banco } from "@erp/banco";
 import { z } from "zod";
 import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
+import { pode } from "./permissoes";
 import { exigir, type Ator } from "./sessao";
 
 export const UNIDADES_BASE = ["g", "ml", "un"] as const;
@@ -103,6 +104,7 @@ function traduzir(e: unknown, repetido: string): never {
   if (erro.code === "23514" && erro.message && !erro.message.includes("violates check constraint"))
     throw new ErroDeRegra("dados_invalidos", erro.message);
   if (erro.code === "23503") throw new ErroDeRegra("dados_invalidos", "Fornecedor ou ingrediente não encontrado.");
+  if (erro.code === "22003") throw new ErroDeRegra("nao_encontrado", "Cadastro não encontrado.");
   throw e;
 }
 
@@ -137,9 +139,15 @@ const colunasFornecedor = [
   "ativo",
 ] as const;
 
+/**
+ * Quem só vê cadastros (cozinheira, supervisor, financeiro) recebe nome, prazo e situação:
+ * CPF, telefone, e-mail e contato podem ser de pessoa física e ficam com quem gerencia.
+ */
 export async function listarFornecedores(db: Banco, ator: Ator | null): Promise<Fornecedor[]> {
-  await exigir(db, ator, "cadastros.ver", { tipo: "fornecedor" });
-  return db.selectFrom("fornecedor").select(colunasFornecedor).orderBy("ativo", "desc").orderBy(sql`lower(nome)`).execute();
+  const quem = await exigir(db, ator, "cadastros.ver", { tipo: "fornecedor" });
+  const todos = await db.selectFrom("fornecedor").select(colunasFornecedor).orderBy("ativo", "desc").orderBy(sql`lower(nome)`).execute();
+  if (pode(quem.cargoAtivo, "cadastros.gerenciar")) return todos;
+  return todos.map((f) => ({ ...f, documento: null, contato: null, telefone: null, email: null, observacao: null }));
 }
 
 /** Cria (sem id) ou altera (com id) um fornecedor. */
@@ -250,7 +258,8 @@ export async function salvarIngrediente(db: Banco, ator: Ator | null, dados: unk
   try {
     return await db.transaction().execute(async (trx) => {
       if (d.fornecedorId) {
-        const f = await trx.selectFrom("fornecedor").select("ativo").where("id", "=", d.fornecedorId).executeTakeFirst();
+        // FOR SHARE: ninguém desativa o fornecedor enquanto este ingrediente é ligado a ele.
+        const f = await trx.selectFrom("fornecedor").select("ativo").where("id", "=", d.fornecedorId).forShare().executeTakeFirst();
         if (!f) throw new ErroDeRegra("dados_invalidos", "Fornecedor não encontrado.");
         if (!f.ativo) throw new ErroDeRegra("dados_invalidos", "Esse fornecedor está desativado.");
       }
@@ -298,8 +307,9 @@ export async function salvarConversao(db: Banco, ator: Ator | null, ingredienteI
   const d = validar(dadosConversao, dados);
   try {
     return await db.transaction().execute(async (trx) => {
-      const ing = await trx.selectFrom("ingrediente").select(["id", "unidade_base"]).where("id", "=", ingredienteId).executeTakeFirst();
+      const ing = await trx.selectFrom("ingrediente").select(["id", "unidade_base", "ativo"]).where("id", "=", ingredienteId).forShare().executeTakeFirst();
       if (!ing) throw new ErroDeRegra("nao_encontrado", "Ingrediente não encontrado.");
+      if (!ing.ativo) throw new ErroDeRegra("dados_invalidos", "Esse ingrediente está desativado. Reative antes de mexer nas conversões.");
       const colunas = ["id", "nome", "quantidade_base", "ativo"] as const;
       const valores = { nome: d.nome, quantidade_base: d.quantidadeBase, ativo: d.ativo };
       let antes: Record<string, unknown> | undefined;
@@ -344,6 +354,8 @@ export async function salvarConversao(db: Banco, ator: Ator | null, ingredienteI
 }
 
 /**
+ * USO INTERNO DO SERVIDOR (não ligar direto numa rota: não confere permissão; quem chama já
+ * conferiu a dela, como a importação, a compra e a ficha técnica).
  * Quanto `quantidade` `unidade` vale na unidade base do ingrediente (texto decimal exato).
  * Sem caminho de conversão, recusa com a explicação (nunca chuta). Usada pela importação de
  * planilha, pela compra e pela ficha técnica.
@@ -355,7 +367,7 @@ export async function converterParaBase(db: Banco, ingredienteId: number, quanti
     return decimalLimpo(r.rows[0]!.v);
   } catch (e) {
     const erro = e as { code?: string; message?: string };
-    if (erro.code === "22023" || erro.code === "P0002") throw new ErroDeRegra("dados_invalidos", erro.message ?? "Conversão impossível.");
+    if (erro.code === "22023" || erro.code === "P0002" || erro.code === "22003") throw new ErroDeRegra("dados_invalidos", erro.message ?? "Conversão impossível.");
     throw e;
   }
 }

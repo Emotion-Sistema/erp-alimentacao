@@ -1,31 +1,51 @@
 -- 0006: cadastros da E07, parte 1 (decisão 0015): unidades de medida, fornecedores,
 -- ingredientes e conversões. Só adiciona. Nada se apaga: o que sai de uso fica inativo (RC-17).
 
+-- Nome de unidade escrito de qualquer jeito -> forma única para comparar: minúsculas, sem
+-- acento, sem pontuação, sem caractere de controle nem espaço especial, espaços juntados, e
+-- número separado da letra e sem o "1" da frente ("1 Kg." e "1kg" -> "kg";
+-- "Saco 5kg" -> "saco 5 kg"; "10kg" -> "10 kg"). Usada no bloqueio de
+-- equivalência errada, na conta de conversão e no índice de nome único.
+CREATE FUNCTION nome_de_unidade(p_texto text) RETURNS text
+LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE AS $$
+  SELECT regexp_replace(
+           btrim(regexp_replace(regexp_replace(
+             translate(lower(p_texto), 'áàâãäéèêëíìîïóòôõöúùûüçñ', 'aaaaaeeeeiiiiooooouuuucn'),
+             '[^a-z0-9]+', ' ', 'g'),
+             '([0-9])([a-z])', '\1 \2', 'g')),
+           '^1 ', '')
+$$;
+
 -- Unidades de medida padrão. Cada uma é de uma grandeza e vale um fator EXATO da unidade base
 -- da grandeza (massa: g; volume: ml; contagem: un). Não são cadastro: a conversão entre elas é
 -- física e o sistema a faz sozinho. Entre grandezas (kg -> litro, unidade -> gramas) só com a
--- conversão explícita de cada ingrediente (tabela ingrediente_conversao).
+-- conversão explícita de cada ingrediente (tabela ingrediente_conversao). O aplicativo não
+-- muda esta tabela (papeis.ts tira INSERT e UPDATE dele); só migração.
 CREATE TABLE unidade_medida (
   codigo   text PRIMARY KEY,
   nome     text NOT NULL,
   grandeza text NOT NULL CHECK (grandeza IN ('massa', 'volume', 'contagem')),
   fator    numeric(14, 4) NOT NULL CHECK (fator > 0),
-  -- Outros jeitos de escrever a mesma unidade (sem acento, em minúsculas).
+  -- Outros jeitos de escrever a mesma unidade, já na forma de nome_de_unidade().
   apelidos text[] NOT NULL DEFAULT '{}'
 );
 INSERT INTO unidade_medida (codigo, nome, grandeza, fator, apelidos) VALUES
-  ('g',  'grama',      'massa',    1,    '{gr,grs,grama,gramas}'),
-  ('kg', 'quilograma', 'massa',    1000, '{kgs,quilo,quilos,kilo,kilos,quilograma,quilogramas}'),
-  ('ml', 'mililitro',  'volume',   1,    '{mls,mililitro,mililitros}'),
-  ('l',  'litro',      'volume',   1000, '{lt,lts,litro,litros}'),
-  ('un', 'unidade',    'contagem', 1,    '{und,unid,unidade,unidades}'),
-  ('dz', 'dúzia',      'contagem', 12,   '{duzia,duzias,dúzia,dúzias}');
+  ('mg', 'miligrama',  'massa',    0.001,   '{mgs,miligrama,miligramas}'),
+  ('g',  'grama',      'massa',    1,       '{gr,grs,grama,gramas}'),
+  ('kg', 'quilograma', 'massa',    1000,    '{kgs,quilo,quilos,kilo,kilos,quilograma,quilogramas,kilograma,kilogramas}'),
+  ('t',  'tonelada',   'massa',    1000000, '{ton,tonelada,toneladas}'),
+  ('ml', 'mililitro',  'volume',   1,       '{mls,cc,cm3,mililitro,mililitros}'),
+  ('cl', 'centilitro', 'volume',   10,      '{centilitro,centilitros}'),
+  ('dl', 'decilitro',  'volume',   100,     '{decilitro,decilitros}'),
+  ('l',  'litro',      'volume',   1000,    '{lt,lts,litro,litros}'),
+  ('un', 'unidade',    'contagem', 1,       '{und,unid,unidade,unidades}'),
+  ('dz', 'dúzia',      'contagem', 12,      '{duzia,duzias}');
 
--- Acha a unidade padrão escrita de qualquer jeito conhecido ('KG', 'quilo', ' Litros ').
+-- Acha a unidade padrão escrita de qualquer jeito conhecido ('KG', 'quilo', ' Litros ', '1 kg.').
 CREATE FUNCTION unidade_padrao(p_texto text) RETURNS unidade_medida
 LANGUAGE sql STABLE AS $$
   SELECT u.* FROM unidade_medida u
-  WHERE lower(btrim(p_texto)) = u.codigo OR lower(btrim(p_texto)) = ANY (u.apelidos)
+  WHERE nome_de_unidade(p_texto) = u.codigo OR nome_de_unidade(p_texto) = ANY (u.apelidos)
 $$;
 
 CREATE TABLE fornecedor (
@@ -43,8 +63,9 @@ CREATE TABLE fornecedor (
   criado_em          timestamptz NOT NULL DEFAULT now(),
   atualizado_em      timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX fornecedor_nome ON fornecedor (lower(btrim(nome)));
-CREATE UNIQUE INDEX fornecedor_documento ON fornecedor (documento) WHERE documento IS NOT NULL;
+-- Nome e documento únicos entre os ATIVOS: um desativado não impede cadastrar de novo.
+CREATE UNIQUE INDEX fornecedor_nome ON fornecedor (lower(btrim(nome))) WHERE ativo;
+CREATE UNIQUE INDEX fornecedor_documento ON fornecedor (documento) WHERE documento IS NOT NULL AND ativo;
 
 CREATE TABLE ingrediente (
   id            integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -59,7 +80,7 @@ CREATE TABLE ingrediente (
   criado_em     timestamptz NOT NULL DEFAULT now(),
   atualizado_em timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX ingrediente_nome ON ingrediente (lower(btrim(nome)));
+CREATE UNIQUE INDEX ingrediente_nome ON ingrediente (lower(btrim(nome))) WHERE ativo;
 
 CREATE FUNCTION ingrediente_base_fixa() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
@@ -80,19 +101,23 @@ CREATE TRIGGER ingrediente_unidade_base_fixa
 CREATE TABLE ingrediente_conversao (
   id              integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   ingrediente_id  integer NOT NULL REFERENCES ingrediente (id),
-  nome            text NOT NULL CHECK (length(btrim(nome)) BETWEEN 1 AND 40),
+  nome            text NOT NULL CHECK (length(btrim(nome)) BETWEEN 1 AND 40 AND nome !~ '[[:cntrl:]]'
+                                       AND nome_de_unidade(nome) <> ''),
   quantidade_base numeric(14, 4) NOT NULL CHECK (quantidade_base > 0),
   ativo           boolean NOT NULL DEFAULT true,
   criado_em       timestamptz NOT NULL DEFAULT now(),
   atualizado_em   timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX ingrediente_conversao_nome ON ingrediente_conversao (ingrediente_id, lower(btrim(nome)));
+CREATE UNIQUE INDEX ingrediente_conversao_nome ON ingrediente_conversao (ingrediente_id, nome_de_unidade(nome)) WHERE ativo;
 
 CREATE FUNCTION conversao_sem_equivalencia_errada() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
   u     unidade_medida;
   base  unidade_medida;
 BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.ingrediente_id <> OLD.ingrediente_id THEN
+    RAISE EXCEPTION 'A conversão não muda de ingrediente.' USING ERRCODE = 'check_violation';
+  END IF;
   SELECT * INTO base FROM unidade_medida WHERE codigo = (SELECT unidade_base FROM ingrediente WHERE id = NEW.ingrediente_id);
   SELECT * INTO u FROM unidade_padrao(NEW.nome);
   IF u.codigo IS NOT NULL AND u.grandeza = base.grandeza THEN
@@ -108,27 +133,38 @@ CREATE TRIGGER ingrediente_conversao_valida
 
 -- Converte uma quantidade de qualquer unidade aceita para a unidade base do ingrediente.
 -- Mesma grandeza: pelo fator padrão. Senão: pela conversão ativa do ingrediente. Sem caminho:
--- erro (nunca chuta). É a ÚNICA conta de conversão do sistema: compra, ficha técnica e
--- importação usam esta função.
+-- erro (nunca chuta). Quantidade vazia, zero ou negativa: erro (estorno é movimento próprio,
+-- não conversão negativa). Resultado arredondado a 4 casas (meio para cima), a mesma precisão
+-- em que tudo é guardado; se der zero, erro (quantidade pequena demais para a unidade).
+-- É a ÚNICA conta de conversão do sistema: compra, ficha técnica e importação usam esta função.
 CREATE FUNCTION para_unidade_base(p_ingrediente integer, p_quantidade numeric, p_unidade text) RETURNS numeric
 LANGUAGE plpgsql STABLE AS $$
 DECLARE
-  base  unidade_medida;
-  u     unidade_medida;
-  fator numeric;
+  base      unidade_medida;
+  u         unidade_medida;
+  fator     numeric;
+  resultado numeric;
 BEGIN
+  IF p_quantidade IS NULL OR p_quantidade <= 0 THEN
+    RAISE EXCEPTION 'A quantidade precisa ser maior que zero.' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
   SELECT um.* INTO base FROM ingrediente i JOIN unidade_medida um ON um.codigo = i.unidade_base WHERE i.id = p_ingrediente;
   IF base.codigo IS NULL THEN
     RAISE EXCEPTION 'Ingrediente % não existe.', p_ingrediente USING ERRCODE = 'no_data_found';
   END IF;
   SELECT * INTO u FROM unidade_padrao(p_unidade);
   IF u.codigo IS NOT NULL AND u.grandeza = base.grandeza THEN
-    RETURN p_quantidade * u.fator; -- a base (g, ml, un) tem fator 1
+    fator := u.fator; -- a base (g, ml, un) tem fator 1
+  ELSE
+    SELECT c.quantidade_base INTO fator FROM ingrediente_conversao c
+    WHERE c.ingrediente_id = p_ingrediente AND c.ativo AND nome_de_unidade(c.nome) = nome_de_unidade(p_unidade);
   END IF;
-  SELECT c.quantidade_base INTO fator FROM ingrediente_conversao c
-  WHERE c.ingrediente_id = p_ingrediente AND c.ativo AND lower(btrim(c.nome)) = lower(btrim(p_unidade));
   IF fator IS NULL THEN
-    RAISE EXCEPTION 'Não há conversão de "%" para %.', btrim(p_unidade), base.codigo USING ERRCODE = 'invalid_parameter_value';
+    RAISE EXCEPTION 'Não há conversão de "%" para %.', btrim(coalesce(p_unidade, '')), base.codigo USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  RETURN p_quantidade * fator;
+  resultado := round(p_quantidade * fator, 4);
+  IF resultado = 0 THEN
+    RAISE EXCEPTION 'Quantidade pequena demais: dá menos de 0,0001 %.', base.codigo USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  RETURN resultado;
 END $$;

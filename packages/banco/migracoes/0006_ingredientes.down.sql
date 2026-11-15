@@ -8,3 +8,4 @@ DROP FUNCTION IF EXISTS ingrediente_base_fixa();
 DROP TABLE IF EXISTS fornecedor;
 DROP FUNCTION IF EXISTS unidade_padrao(text);
 DROP TABLE IF EXISTS unidade_medida;
+DROP FUNCTION IF EXISTS nome_de_unidade(text);

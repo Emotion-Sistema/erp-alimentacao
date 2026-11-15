@@ -14,10 +14,13 @@ sistema impeça equivalência incorreta.
 ## Decisão
 1. **Unidade do estoque** de cada ingrediente: g, ml ou un. É nela que o estoque conta e a
    ficha técnica gasta. **Não muda depois de criada**: mudar trocaria o sentido de todo saldo
-   e de toda conversão. Errou? Desative e cadastre outro (o gatilho no banco também recusa).
-2. **Unidades padrão** (tabela `unidade_medida`, fixa): g e kg (massa), ml e l (volume), un e
-   dz (contagem), com apelidos ("quilo", "litros", "duzia"). Dentro da mesma grandeza o sistema
-   converte sozinho, com fator exato.
+   e de toda conversão. Errou? Desative e cadastre outro, com o mesmo nome se quiser (nomes só
+   precisam ser únicos entre os ativos); o gatilho no banco também recusa a troca.
+2. **Unidades padrão** (tabela `unidade_medida`, fixa; o aplicativo não consegue mudá-la, só
+   migração): mg, g, kg, t (massa), ml, cl, dl, l (volume), un e dz (contagem), com apelidos
+   ("quilo", "litros", "duzia", "cc"). Dentro da mesma grandeza o sistema converte sozinho.
+   Nomes são comparados numa forma única (`nome_de_unidade`): sem maiúscula, acento, pontuação
+   nem o "1" da frente ("1 Kg." = "kg").
 3. **Conversão explícita por ingrediente** (`ingrediente_conversao`): "1 caixa = 30 un",
    "1 saco 25 kg = 25000 g", "1 kg = 1030 ml" (leite, pela densidade), "1 unidade = 50 g".
    É o único jeito de passar de uma grandeza para outra ou de usar uma embalagem.
@@ -26,7 +29,11 @@ sistema impeça equivalência incorreta.
    sabe a conta certa. Sem caminho de conversão, a conta é recusada com a explicação; nunca chuta.
 5. **Uma conta só:** a função `para_unidade_base` do banco. Compra, ficha técnica e importação
    usam ela (no código: `converterParaBase`). Quantidade é decimal exato, com até 4 casas
-   (numeric(14,4)), aceita vírgula, nunca passa por float.
+   (numeric(14,4)), aceita vírgula, nunca passa por float. Quantidade vazia, zero ou negativa é
+   recusada (estorno é movimento próprio). O resultado é arredondado a 4 casas (meio para cima);
+   se der zero, é recusado.
+   **Para a E08/E09:** o movimento grava a quantidade já convertida (e qual conversão usou), porque
+   mudar uma conversão depois não pode mudar o sentido de compras passadas.
 6. **Nada se apaga** (RC-17): ingrediente, conversão e fornecedor são desativados. Toda criação e
    mudança fica na auditoria com o antes e o depois. Nomes não se repetem (sem diferença de
    maiúsculas e espaços); CPF/CNPJ do fornecedor é conferido pelos dígitos e guardado só com números.

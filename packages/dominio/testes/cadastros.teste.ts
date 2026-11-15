@@ -206,3 +206,68 @@ describe("quem pode", () => {
     expect(decimalLimpo("100")).toBe("100");
   });
 });
+
+describe("ressalvas da revisão (E07 parte 1)", () => {
+  it("equivalência errada é recusada em qualquer grafia: ponto, acento, tab, espaço especial, '1 kg', mg", async () => {
+    const farinha = await ingrediente("Farinha especial", "g");
+    for (const nome of ["kg.", "kilograma", "Kilôgrama", "1 kg", "1kg", "mg", "kg\t", "kg\u00a0", "GRAMAS", "t"]) {
+      const e = await erroDe(salvarConversao(db, gerente, farinha, { nome, quantidadeBase: "900" }));
+      expect(e.message, JSON.stringify(nome)).toContain("já é convertido sozinho");
+    }
+    // Direto no banco também (a importação manda texto cru).
+    await expect(sql`INSERT INTO ingrediente_conversao (ingrediente_id, nome, quantidade_base) VALUES (${farinha}, ${"kg\t"}, 900)`.execute(db)).rejects.toThrow();
+    expect(await converterParaBase(db, farinha, "1", "1 Kg.")).toBe("1000");
+    expect(await converterParaBase(db, farinha, "500", "mg")).toBe("0.5");
+    // Nome de embalagem com número continua valendo.
+    await salvarConversao(db, gerente, farinha, { nome: "saco 10kg", quantidadeBase: "10000" });
+    expect(await converterParaBase(db, farinha, "2", "Saco 10 KG")).toBe("20000");
+  });
+
+  it("a função de conversão recusa quantidade vazia, zero e negativa e arredonda a 4 casas", async () => {
+    const sal = await ingrediente("Sal grosso", "g");
+    for (const q of [null, 0, -5]) {
+      await expect(sql`SELECT para_unidade_base(${sal}, ${q}::numeric, 'kg')`.execute(db), String(q)).rejects.toThrow(/maior que zero/);
+    }
+    const r = await sql<{ v: string }>`SELECT para_unidade_base(${sal}, 0.00012345, 'kg')::text AS v`.execute(db);
+    expect(r.rows[0]!.v).toBe("0.1235");
+    await expect(sql`SELECT para_unidade_base(${sal}, 0.00001, 'g')`.execute(db)).rejects.toThrow(/pequena demais/);
+  });
+
+  it("conversão não muda de ingrediente; ingrediente desativado não recebe conversão", async () => {
+    const a = await ingrediente("Pimenta", "g");
+    const b = await ingrediente("Páprica", "g");
+    const c = await salvarConversao(db, gerente, a, { nome: "pote", quantidadeBase: "100" });
+    await expect(sql`UPDATE ingrediente_conversao SET ingrediente_id = ${b} WHERE id = ${c.id}`.execute(db)).rejects.toThrow(/não muda de ingrediente/);
+    await salvarIngrediente(db, gerente, { id: b, nome: n("Páprica"), area: "cozinha", ativo: false });
+    expect((await erroDe(salvarConversao(db, gerente, b, { nome: "pote", quantidadeBase: "100" }))).message).toContain("desativado");
+  });
+
+  it("nome só é único entre os ativos: desativado não impede cadastrar de novo; reativar com nome tomado é recusado", async () => {
+    const velho = await ingrediente("Creme de leite", "g");
+    await salvarIngrediente(db, gerente, { id: velho, nome: n("Creme de leite"), area: "cozinha", ativo: false });
+    const novo = await ingrediente("Creme de leite", "ml");
+    expect(novo).not.toBe(velho);
+    expect((await erroDe(salvarIngrediente(db, gerente, { id: velho, nome: n("Creme de leite"), area: "cozinha", ativo: true }))).codigo).toBe("conflito");
+  });
+
+  it("quem só vê não recebe CPF, telefone, e-mail nem contato do fornecedor", async () => {
+    const f = await salvarFornecedor(db, gerente, { nome: n("Feirante"), documento: "52998224725", telefone: "32 99999-0000", email: "feira@exemplo.com", contato: "Fulano" });
+    const cozinheira = await atorDoCargo(db, "cozinheira");
+    const visto = (await listarFornecedores(db, cozinheira)).find((x) => x.id === f.id);
+    expect(visto).toMatchObject({ nome: f.nome, documento: null, telefone: null, email: null, contato: null });
+    const doGerente = (await listarFornecedores(db, gerente)).find((x) => x.id === f.id);
+    expect(doGerente).toMatchObject({ documento: "52998224725", telefone: "32 99999-0000" });
+    await salvarFornecedor(db, gerente, { id: f.id, nome: f.nome, documento: null, ativo: false });
+  });
+
+  it("sem cadastros.gerenciar não grava fornecedor nem conversão", async () => {
+    const sal = await ingrediente("Sal refinado", "g");
+    const supervisor = await atorDoCargo(db, "supervisor");
+    expect((await erroDe(salvarFornecedor(db, supervisor, { nome: n("Do supervisor") }))).codigo).toBe("sem_permissao");
+    expect((await erroDe(salvarConversao(db, supervisor, sal, { nome: "pote", quantidadeBase: "1" }))).codigo).toBe("sem_permissao");
+  });
+
+  it("id fora do limite vira 'não encontrado', não erro do servidor", async () => {
+    expect((await erroDe(salvarConversao(db, gerente, 99999999999, { nome: "pote", quantidadeBase: "1" }))).codigo).toBe("nao_encontrado");
+  });
+});
