@@ -10,7 +10,7 @@ import { baseDaUnidade } from "@erp/dominio/unidades";
 import { equivalenciaNaUnidade, unidadePorExtenso, type UnidadeBase, type UnidadePadrao } from "./auxiliares";
 import { CadastroRapido } from "./CadastroRapido";
 import { CampoNomeComSugestao } from "./CampoNomeComSugestao";
-import { OPCOES_DA_UNIDADE, EXEMPLO_DA_UNIDADE, EXPLICACAO_DA_UNIDADE, opcoesDaFamilia, ConstrutorDeEmbalagem, LinhasDeEmbalagem, embalagensDe, faltaNasEmbalagens, itemParaServidor, novaChave, type LinhaDeEmbalagem } from "./Embalagens";
+import { OPCOES_DA_UNIDADE, EXEMPLO_DA_UNIDADE, EXPLICACAO_DA_UNIDADE, opcoesDaFamilia, ConstrutorDeEmbalagem, EmbalagensDeCompra, embalagensDe, faltaNasEmbalagens, itemParaServidor, type LinhaDeEmbalagem } from "./Embalagens";
 
 type Opcao = { valor: string; texto: string };
 type Conversao = { id: number; nome: string; quantidadeBase: string; ativo: boolean };
@@ -409,16 +409,9 @@ function FormularioIngrediente({
           <section aria-label="Embalagens de compra">
             <h3>Embalagens de compra</h3>
             <p className="cadastros__dica">
-              Opcional. Como o ingrediente vem do fornecedor (caixa, saco, pacote) e quanto vem em cada uma. Por dentro o estoque conta em {unidadeBase}; a quantidade de cada embalagem é escrita em {unidadeBase}.
+              Opcional. Como o item vem do fornecedor (caixa, saco, pacote) e quanto vem em cada um. O sistema faz a conta sozinho.
             </p>
-            <LinhasDeEmbalagem embalagens={embalagens} base={unidadeBase} exibicao={unidadeExibicao} aoMudar={setEmbalagens} />
-            <ConstrutorDeEmbalagem
-              key={unidadeExibicao}
-              base={unidadeBase as UnidadeBase}
-              exibicao={unidadeExibicao}
-              unidades={unidades}
-              aoMontar={(e) => setEmbalagens((l) => [...l, { chave: novaChave(), nome: e.nome, quantidade: e.quantidadeBase }])}
-            />
+            <EmbalagensDeCompra key={unidadeExibicao} embalagens={embalagens} base={unidadeBase as UnidadeBase} exibicao={unidadeExibicao} unidades={unidades} aoMudar={setEmbalagens} />
           </section>
         )}
         {ingrediente && (
@@ -555,6 +548,7 @@ function Conversoes({ ingrediente, unidades, aoMudar }: { ingrediente: Ingredien
             base={ingrediente.unidadeBase as UnidadeBase}
             exibicao={ingrediente.unidadeExibicao}
             unidades={unidades}
+            titulo="Montar a embalagem"
             rotuloDoBotao="Usar esta embalagem nos campos acima"
             aoMontar={(e) => {
               setNome(e.nome);

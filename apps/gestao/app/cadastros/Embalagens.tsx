@@ -1,16 +1,16 @@
 "use client";
 
 /**
- * Peças compartilhadas do cadastro de ingredientes: embalagem com um toque, linhas de embalagem
- * editáveis e o editor de um item (nome, unidade, área e embalagens). Usadas no formulário do
+ * Peças compartilhadas do cadastro de ingredientes: embalagens de compra (lista e bloco para
+ * adicionar ou editar) e o editor de um item (nome, unidade, área e embalagens). Usadas no formulário do
  * ingrediente, no catálogo pronto e na lista colada. Todo campo usa os componentes com ajuda.
  */
 import { useState } from "react";
-import { BlocoDeConfirmacao, Botao } from "@erp/interface";
+import { BlocoDeConfirmacao, Botao, Icone, Selo } from "@erp/interface";
 import { ContaDaEmbalagem, ResumoDoItem } from "./ResumoDoItem";
 import { Campo, Selecao } from "../Campo";
 import { OPCOES_DE_UNIDADE, baseDaUnidade, opcoesDaBase } from "@erp/dominio/unidades";
-import { TIPOS_DE_EMBALAGEM, montarEmbalagem, multiplicarDecimal, type UnidadeBase, type UnidadePadrao } from "./auxiliares";
+import { GRANDEZA_DA_BASE, TIPOS_DE_EMBALAGEM, comVirgula, equivalenciaNaUnidade, montarEmbalagem, multiplicarDecimal, unidadePorExtenso, type UnidadeBase, type UnidadePadrao } from "./auxiliares";
 
 export type Opcao = { valor: string; texto: string };
 
@@ -44,45 +44,117 @@ const UNIDADE_PADRAO_DO_TAMANHO: Record<UnidadeBase, string> = { g: "kg", ml: "l
 /** Valor decimal positivo? (aceita vírgula). */
 export const quantidadeValida = (q: string) => multiplicarDecimal(q, "1") !== null;
 
+/** Chave de comparação de nomes, igual à do servidor (sem acento, caixa ou pontuação). */
+const chaveDoNome = (n: string) =>
+  n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+const OUTRO = "__outro";
+
+/** "Quantos gramas (g)", "Quantos mililitros (ml)", "Quantas unidades (un)": a medida do estoque por extenso. */
+const quantosPorExtenso = (base: UnidadeBase) => `${base === "un" ? "Quantas" : "Quantos"} ${unidadePorExtenso(base).toLowerCase()}`;
+
 /**
- * Embalagem com um toque: toca no tipo (caixa, saco...), diz o tamanho e a unidade, e a conta
- * é feita sozinha quando é da mesma grandeza do estoque. O campo de digitar livre continua nas linhas.
+ * Desmonta o nome de uma embalagem já colocada ("saco 25 kg") em tipo, tamanho e unidade, para
+ * "Editar" carregar tudo no bloco. Nome que não segue o desenho vai inteiro em "Outro nome".
+ */
+function lerNomeDaEmbalagem(nome: string, unidades: UnidadePadrao[]): { tipo: string; outro: string; tamanho: string; codigo?: string } {
+  const n = nome.trim();
+  const tipos: readonly string[] = TIPOS_DE_EMBALAGEM;
+  const m = /^(.*?)\s*([0-9]+(?:[.,][0-9]+)?)\s*([^0-9\s.,]+)\.?\s*$/.exec(n);
+  if (m) {
+    const u = unidades.find((x) => x.codigo.toLowerCase() === m[3]!.toLowerCase());
+    const t = m[1]!.trim().toLowerCase();
+    if (u && tipos.includes(t)) return { tipo: t, outro: "", tamanho: m[2]!, codigo: u.codigo };
+    if (u && t) return { tipo: OUTRO, outro: m[1]!.trim(), tamanho: m[2]!, codigo: u.codigo };
+  }
+  if (tipos.includes(n.toLowerCase())) return { tipo: n.toLowerCase(), outro: "", tamanho: "" };
+  return { tipo: OUTRO, outro: n, tamanho: "" };
+}
+
+/**
+ * O nome já diz o tamanho ("saco 25 kg")? Então a quantidade tem de bater (mesma regra do servidor).
+ * Devolve a mensagem de erro, ou nulo quando está tudo certo (ou o nome não diz tamanho).
+ */
+function conferirTamanhoNoNome(nome: string, quantidade: string, base: UnidadeBase, unidades: UnidadePadrao[]): string | null {
+  const m = /([0-9]+(?:[.,][0-9]+)?)\s*([^0-9\s.,]+)\.?\s*$/.exec(nome.trim().toLowerCase());
+  if (!m) return null;
+  const u = unidades.find((x) => x.codigo.toLowerCase() === m[2]);
+  if (!u || u.grandeza !== GRANDEZA_DA_BASE[base]) return null;
+  const esperado = multiplicarDecimal(m[1]!, u.fator);
+  const atual = multiplicarDecimal(quantidade, "1");
+  if (!esperado || !atual || esperado === atual) return null;
+  return `O nome diz ${m[1]} ${u.codigo}, que dá ${comVirgula(esperado)} ${base}, mas a quantidade é ${comVirgula(atual)} ${base}. Acerte um dos dois.`;
+}
+
+/**
+ * Bloco "Adicionar embalagem": uma frase que se lê sozinha ("1 [tipo] com [tamanho] [unidade]"),
+ * o resultado ao vivo e o botão. Serve também para editar (carrega a embalagem escolhida).
+ * A conta é feita sozinha quando a unidade do tamanho é da mesma família do estoque.
  */
 export function ConstrutorDeEmbalagem({
   base,
   exibicao,
   unidades,
-  rotuloDoBotao = "Adicionar esta embalagem",
+  titulo = "Adicionar embalagem",
+  rotuloDoBotao = "Adicionar embalagem",
+  inicial = null,
+  nomesUsados = [],
   aoMontar,
+  aoCancelar,
 }: {
   base: UnidadeBase;
   exibicao?: string;
   unidades: UnidadePadrao[];
+  titulo?: string;
   rotuloDoBotao?: string;
+  /** Embalagem a editar: carrega tipo, tamanho e unidade neste mesmo bloco. */
+  inicial?: { nome: string; quantidade: string } | null;
+  /** Nomes que já estão na lista (sem a que está sendo editada), para barrar repetido. */
+  nomesUsados?: string[];
   aoMontar: (e: { nome: string; quantidadeBase: string }) => void;
+  aoCancelar?: () => void;
 }) {
-  const [tipo, setTipo] = useState("");
-  const [tamanho, setTamanho] = useState("");
-  const [codigo, setCodigo] = useState(UNIDADE_PADRAO_DO_TAMANHO[base]);
-  const [quantidade, setQuantidade] = useState("");
+  const lido = inicial ? lerNomeDaEmbalagem(inicial.nome, unidades) : null;
+  const [tipo, setTipo] = useState(lido?.tipo ?? "");
+  const [outro, setOutro] = useState(lido?.outro ?? "");
+  const [tamanho, setTamanho] = useState(lido?.tamanho ?? "");
+  const padrao = exibicao && unidades.some((u) => u.codigo === exibicao) ? exibicao : UNIDADE_PADRAO_DO_TAMANHO[base];
+  const [codigo, setCodigo] = useState(lido?.codigo ?? padrao);
+  const [tentou, setTentou] = useState(false);
+  const [quantidade, setQuantidade] = useState(inicial ? inicial.quantidade : "");
 
   const unidade = unidades.find((u) => u.codigo === codigo);
-  const montada = tipo ? montarEmbalagem(tipo, tamanho, unidade, base) : null;
+  const nomeDoTipo = tipo === OUTRO ? outro.trim() : tipo;
+  const montada = nomeDoTipo ? montarEmbalagem(nomeDoTipo, tamanho, unidade, base) : null;
   const quantidadeFinal = montada ? (montada.precisaQuantidade ? quantidade : (montada.quantidadeBase ?? "")) : "";
-  const pronta = !!montada && quantidadeValida(quantidadeFinal);
+
+  // O que impede de adicionar (a primeira coisa que falta), dito em linguagem simples.
+  let bloqueio: string | null = null;
+  if (!tipo) bloqueio = "Escolha o tipo da embalagem (caixa, saco, pacote...).";
+  else if (!nomeDoTipo) bloqueio = "Escreva o nome da embalagem.";
+  else if (!montada) bloqueio = "Confira o tamanho: use só números (ex.: 25 ou 2,5).";
+  else if (!quantidadeValida(quantidadeFinal)) bloqueio = `Diga ${quantosPorExtenso(base).toLowerCase()} vêm em 1 ${montada.nome}.`;
+  else if (nomesUsados.some((n) => chaveDoNome(n) === chaveDoNome(montada.nome))) bloqueio = `Já existe uma embalagem chamada "${montada.nome}". Mude o tipo ou o tamanho.`;
+  else bloqueio = conferirTamanhoNoNome(montada.nome, quantidadeFinal, base, unidades);
 
   function adicionar() {
-    if (!montada || !pronta) return;
+    setTentou(true);
+    if (bloqueio || !montada) return;
     aoMontar({ nome: montada.nome, quantidadeBase: quantidadeFinal.trim().replace(",", ".") });
-    setTipo("");
-    setTamanho("");
-    setQuantidade("");
+    if (!inicial) {
+      setTipo("");
+      setOutro("");
+      setTamanho("");
+      setCodigo(padrao);
+      setQuantidade("");
+      setTentou(false);
+    }
   }
 
   return (
     <section
-      className="embalagem"
-      aria-label="Embalagem com um toque"
+      className={["embalagem", inicial && "embalagem--editando"].filter(Boolean).join(" ")}
+      aria-label={titulo}
       onKeyDown={(e) => {
         // Enter num campo daqui adiciona a embalagem (e não envia o formulário de trás).
         if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
@@ -91,19 +163,41 @@ export function ConstrutorDeEmbalagem({
         }
       }}
     >
-      <h3>Embalagem com um toque</h3>
+      <h4 className="embalagem__titulo">
+        <Icone nome="caixa" />
+        {titulo}
+        {inicial && <Selo variante="info">editando</Selo>}
+      </h4>
       <fieldset className="embalagem__tipos">
-        <legend>Toque no tipo de embalagem</legend>
+        <legend>
+          <span className="embalagem__passo">1</span> Que embalagem é? Toque no tipo.
+        </legend>
         {TIPOS_DE_EMBALAGEM.map((t) => (
           <button key={t} type="button" className="embalagem__tipo" aria-pressed={tipo === t} onClick={() => setTipo(tipo === t ? "" : t)}>
             {t}
           </button>
         ))}
+        <button type="button" className="embalagem__tipo embalagem__tipo--outro" aria-pressed={tipo === OUTRO} onClick={() => setTipo(tipo === OUTRO ? "" : OUTRO)}>
+          Outro nome
+        </button>
       </fieldset>
-      <div className="cadastros__form-linha">
+      {tipo === OUTRO && (
+        <Campo
+          rotulo="Nome da embalagem"
+          explicacao="Escreva como a embalagem vem do fornecedor, só o tipo (sem o tamanho, que vai abaixo)."
+          exemplo="tonel, engradado, cartela."
+          value={outro}
+          onChange={(e) => setOutro(e.target.value)}
+          autoComplete="off"
+        />
+      )}
+      <div className="embalagem__medida" role="group" aria-label="Quanto vem dentro">
+        <p className="embalagem__frase">
+          <span className="embalagem__passo">2</span> Com quanto dentro? <span className="embalagem__opcional">Opcional.</span>
+        </p>
         <Campo
           rotulo="Tamanho da embalagem"
-          explicacao="Opcional. Quanto vem dentro de 1 embalagem. Aceita vírgula."
+          explicacao="Quanto vem dentro de 1 embalagem. Aceita vírgula. Pode deixar vazio."
           exemplo="25 (e escolha kg ao lado) para um saco de 25 kg."
           value={tamanho}
           onChange={(e) => setTamanho(e.target.value)}
@@ -112,7 +206,7 @@ export function ConstrutorDeEmbalagem({
         />
         <Selecao
           rotulo="Unidade do tamanho"
-          explicacao="A medida do tamanho ao lado. Se for da mesma família da unidade do estoque, a quantidade é calculada sozinha."
+          explicacao="A medida do tamanho ao lado. Se for da mesma família do estoque, a quantidade é calculada sozinha."
           exemplo="kg para saco de 25 kg; l para galão de 5 l; un para caixa com 30 un."
           value={codigo}
           onChange={(e) => setCodigo(e.target.value)}
@@ -121,11 +215,11 @@ export function ConstrutorDeEmbalagem({
       </div>
       {montada?.precisaQuantidade && (
         <Campo
-          rotulo={`Quantas ${base} vêm em 1 ${montada.nome}`}
+          rotulo={`${quantosPorExtenso(base)} vêm em 1 ${montada.nome}?`}
           explicacao={
             tamanho.trim()
               ? `Esse tamanho é de outra medida que o estoque (${base}): diga quanto dá em ${base}.`
-              : `Diga quantas ${base} cabem em 1 ${montada.nome}.`
+              : `Diga ${quantosPorExtenso(base).toLowerCase()} cabem em 1 ${montada.nome}.`
           }
           exemplo={base === "un" ? "Saco de 3 kg de limão: cerca de 40 un." : "Caixa: 12000 se vierem 12 litros e o estoque for em ml."}
           value={quantidade}
@@ -135,7 +229,7 @@ export function ConstrutorDeEmbalagem({
         />
       )}
       <div data-testid="previa-embalagem" aria-live="polite">
-        {!tipo ? (
+        {!nomeDoTipo ? (
           <BlocoDeConfirmacao vazio>Escolha um tipo para ver a conta.</BlocoDeConfirmacao>
         ) : !montada ? (
           <BlocoDeConfirmacao vazio>Confira o tamanho: use só números (ex.: 25 ou 2,5).</BlocoDeConfirmacao>
@@ -143,58 +237,104 @@ export function ConstrutorDeEmbalagem({
           <ContaDaEmbalagem nome={montada.nome} quantidade={quantidadeFinal} base={base} exibicao={exibicao} />
         )}
       </div>
-      <Botao variante="secundario" disabled={!pronta} onClick={adicionar}>
-        {rotuloDoBotao}
-      </Botao>
+      {bloqueio && (tipo || tentou) && (
+        <p className="embalagem__bloqueio" role="status" data-testid="bloqueio-embalagem">
+          <Icone nome="alerta" />
+          <span>{bloqueio}</span>
+        </p>
+      )}
+      <div className="cadastros__botoes">
+        <Botao variante={inicial ? "primario" : "secundario"} disabled={!!bloqueio} onClick={adicionar}>
+          {rotuloDoBotao}
+        </Botao>
+        {aoCancelar && (
+          <Botao variante="secundario" onClick={aoCancelar}>
+            Cancelar
+          </Botao>
+        )}
+      </div>
     </section>
   );
 }
 
-/** Linhas de embalagem para corrigir à mão (nome e quantidade), com botão de tirar. */
-export function LinhasDeEmbalagem({
+/**
+ * Embalagens de compra num fluxo só: em cima as já colocadas (só leitura, com Editar e Tirar),
+ * embaixo o bloco para adicionar ou, ao editar, para salvar a alteração.
+ */
+export function EmbalagensDeCompra({
   embalagens,
   base,
   exibicao,
-  prefixo = "Embalagem",
+  unidades,
   aoMudar,
 }: {
   embalagens: LinhaDeEmbalagem[];
-  base: string;
+  base: UnidadeBase;
   exibicao?: string;
-  prefixo?: string;
+  unidades: UnidadePadrao[];
   aoMudar: (novas: LinhaDeEmbalagem[]) => void;
 }) {
-  const trocar = (chave: number, parte: Partial<LinhaDeEmbalagem>) => aoMudar(embalagens.map((e) => (e.chave === chave ? { ...e, ...parte } : e)));
+  const [editando, setEditando] = useState<number | null>(null);
+  const alvo = embalagens.find((e) => e.chave === editando) ?? null;
   return (
-    <div className="embalagem__linhas">
-      {embalagens.length === 0 && <p className="cadastros__dica">Sem embalagens. Se o ingrediente é comprado em caixa, saco ou pacote, acrescente uma abaixo.</p>}
-      {embalagens.map((e, n) => (
-        <div key={e.chave} className="embalagem__linha" role="group" aria-label={`${prefixo} ${n + 1}`}>
-          <div className="cadastros__form-linha">
-            <Campo
-              rotulo={`${prefixo} ${n + 1}: nome`}
-              explicacao="Como a embalagem vem do fornecedor. Se o nome tem o tamanho, ele precisa bater com a quantidade."
-              exemplo="saco 25 kg, caixa 30 un, pacote."
-              value={e.nome}
-              onChange={(ev) => trocar(e.chave, { nome: ev.target.value })}
-              autoComplete="off"
-            />
-            <Campo
-              rotulo={`${prefixo} ${n + 1}: quantidade em ${base || "estoque"}`}
-              explicacao={`Quantas ${base || "unidades do estoque"} cabem em 1 embalagem. Aceita vírgula.`}
-              exemplo="saco 25 kg com estoque em g: 25000."
-              value={e.quantidade}
-              onChange={(ev) => trocar(e.chave, { quantidade: ev.target.value })}
-              inputMode="decimal"
-              autoComplete="off"
-            />
-          </div>
-          <ContaDaEmbalagem nome={e.nome} quantidade={e.quantidade} base={base} exibicao={exibicao} />
-          <Botao variante="secundario" aria-label={`Tirar ${prefixo.toLowerCase()} ${n + 1}`} onClick={() => aoMudar(embalagens.filter((x) => x.chave !== e.chave))}>
-            Tirar
-          </Botao>
-        </div>
-      ))}
+    <div className="embalagem__fluxo">
+      {embalagens.length === 0 ? (
+        <p className="erp-vazio">Nenhuma embalagem ainda. É opcional.</p>
+      ) : (
+        <ul className="embalagem__lista" aria-label="Embalagens colocadas">
+          {embalagens.map((e) => {
+            const equivalencia = equivalenciaNaUnidade(e.quantidade, base, exibicao);
+            return (
+              <li key={e.chave} className={["embalagem__cartao", e.chave === editando && "embalagem__cartao--editando"].filter(Boolean).join(" ")}>
+                <Icone nome="caixa" />
+                <span className="embalagem__nome">{e.nome.trim() || "Sem nome"}</span>
+                {equivalencia ? (
+                  <span className="embalagem__equivalencia">= {equivalencia}</span>
+                ) : (
+                  <span className="erp-chip__falta">
+                    <Icone nome="alerta" />
+                    falta a quantidade
+                  </span>
+                )}
+                <span className="embalagem__acoes">
+                  <Botao variante="secundario" aria-label={`Editar embalagem ${e.nome.trim()}`} onClick={() => setEditando(e.chave)}>
+                    Editar
+                  </Botao>
+                  <Botao
+                    variante="secundario"
+                    aria-label={`Tirar embalagem ${e.nome.trim()}`}
+                    onClick={() => {
+                      if (editando === e.chave) setEditando(null);
+                      aoMudar(embalagens.filter((x) => x.chave !== e.chave));
+                    }}
+                  >
+                    Tirar
+                  </Botao>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <ConstrutorDeEmbalagem
+        key={`${base}-${editando ?? "novo"}`}
+        base={base}
+        exibicao={exibicao}
+        unidades={unidades}
+        titulo={alvo ? "Editar embalagem" : "Adicionar embalagem"}
+        rotuloDoBotao={alvo ? "Salvar alteração" : "Adicionar embalagem"}
+        inicial={alvo ? { nome: alvo.nome, quantidade: alvo.quantidade } : null}
+        nomesUsados={embalagens.filter((e) => e.chave !== editando).map((e) => e.nome)}
+        aoCancelar={alvo ? () => setEditando(null) : undefined}
+        aoMontar={(m) => {
+          if (alvo) {
+            aoMudar(embalagens.map((e) => (e.chave === alvo.chave ? { ...e, nome: m.nome, quantidade: m.quantidadeBase } : e)));
+            setEditando(null);
+          } else {
+            aoMudar([...embalagens, { chave: novaChave(), nome: m.nome, quantidade: m.quantidadeBase }]);
+          }
+        }}
+      />
     </div>
   );
 }
@@ -289,14 +429,7 @@ export function EditorDeItem({
         />
       </div>
       <h4>Embalagens de compra</h4>
-      <LinhasDeEmbalagem embalagens={item.embalagens} base={item.unidadeBase} exibicao={item.unidadeExibicao} aoMudar={(embalagens) => aoMudar({ ...item, embalagens })} />
-      <ConstrutorDeEmbalagem
-        key={base}
-        base={base}
-        exibicao={item.unidadeExibicao}
-        unidades={unidades}
-        aoMontar={(e) => aoMudar({ ...item, embalagens: [...item.embalagens, { chave: novaChave(), nome: e.nome, quantidade: e.quantidadeBase }] })}
-      />
+      <EmbalagensDeCompra embalagens={item.embalagens} base={base} exibicao={item.unidadeExibicao} unidades={unidades} aoMudar={(embalagens) => aoMudar({ ...item, embalagens })} />
     </div>
   );
 }
