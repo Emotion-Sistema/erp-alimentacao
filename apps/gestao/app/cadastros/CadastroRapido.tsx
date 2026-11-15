@@ -7,13 +7,13 @@
  * Nada é gravado sem a pessoa apertar o botão de gravar, e tudo é "tudo ou nada" no servidor.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Aviso, Botao, Cartao, Etiqueta } from "@erp/interface";
+import { Aviso, Botao, Cartao, Citacao, Faixa, ListaComIcone, Selo } from "@erp/interface";
 import type { LinhaLida } from "@erp/dominio";
 import { buscarNoCatalogo, chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
 import { AreaDeTexto, Campo, Grupo, OpcaoDoGrupo, Selecao } from "../Campo";
 import { chamar } from "../chamar";
 import type { UnidadePadrao } from "./auxiliares";
-import { EditorDeItem, embalagensDe, faltaNasEmbalagens, faltaNoItem, itemParaServidor, resumoDoItem, type ItemEditavel, type Opcao } from "./Embalagens";
+import { EditorDeItem, embalagensDe, faltaNasEmbalagens, faltaNoItem, itemParaServidor, ResumoDoItemEditavel, type ItemEditavel, type Opcao } from "./Embalagens";
 
 type ItemDaApi = ItemDoCatalogo & { jaCadastrado: boolean };
 type CatalogoApi = { grupos: string[]; itens: ItemDaApi[]; jaCadastrados: string[] };
@@ -238,7 +238,9 @@ function AbaCatalogo({
                   />
                   {marcado && (
                     <div className="rapido__detalhe">
-                      <p className="cadastros__dica">{resumoDoItem(marcado, nomeDaArea)}</p>
+                      <div className="rapido__mini" aria-label={`Resumo de ${i.nome}`} role="group">
+                        <ResumoDoItemEditavel item={marcado} nomeDaArea={nomeDaArea} />
+                      </div>
                       <Botao
                         variante="secundario"
                         aria-expanded={!!abertos[i.nome]}
@@ -279,8 +281,8 @@ type LinhaDaTela = {
   aberta: boolean;
 };
 
-const COR_DA_SITUACAO = { pronto: "sucesso", conferir: "atencao", erro: "perigo" } as const;
-const TEXTO_DA_SITUACAO = { pronto: "Pronto", conferir: "Conferir", erro: "Com erro" } as const;
+const FAIXA_DA_SITUACAO = { pronto: "sucesso", conferir: "alerta", erro: "perigo" } as const;
+const TEXTO_DA_SITUACAO = { pronto: "Pronto para gravar", conferir: "Conferir antes de gravar", erro: "Com erro" } as const;
 
 function AbaLista({
   jaCadastrados,
@@ -402,10 +404,18 @@ function AbaLista({
       </div>
       {linhas && (
         <>
-          <p data-testid="resumo-da-lista" aria-live="polite">
-            <strong>{plural(contagem.pronto, "pronta", "prontas")}</strong>, {plural(contagem.conferir, "para conferir", "para conferir")},{" "}
-            {plural(contagem.erro, "com erro", "com erro")}. Linha com erro fica de fora até você corrigir (ou desmarque).
-          </p>
+          <div data-testid="resumo-da-lista" aria-live="polite" className="rapido__contadores">
+            <Selo variante="sucesso" icone="ok">
+              {plural(contagem.pronto, "pronta", "prontas")}
+            </Selo>
+            <Selo variante="alerta" icone="alerta">
+              {plural(contagem.conferir, "para conferir", "para conferir")}
+            </Selo>
+            <Selo variante="perigo" icone="erro">
+              {plural(contagem.erro, "com erro", "com erro")}
+            </Selo>
+          </div>
+          <p className="cadastros__dica">Linha com erro fica de fora até você corrigir (ou desmarque).</p>
           <Grupo
             legenda="Linhas lidas"
             className="rapido__grupo"
@@ -415,34 +425,21 @@ function AbaLista({
             <ul className="lista-simples" data-testid="linhas-lidas">
               {avaliadas.map(({ l, erros, faltas, situacao }) => (
                 <li key={l.chave} className={`rapido__linha rapido__linha--${situacao}`} data-testid={`linha-${l.original.numero}`} data-situacao={situacao}>
+                  <Faixa tipo={FAIXA_DA_SITUACAO[situacao]} className="rapido__faixa">
+                    {TEXTO_DA_SITUACAO[situacao]}
+                  </Faixa>
                   <OpcaoDoGrupo
                     className="cadastros__opcao"
-                    rotulo={`Linha ${l.original.numero}: ${l.original.texto}`}
+                    rotulo={`Linha ${l.original.numero}`}
                     checked={l.incluida && situacao !== "erro"}
                     disabled={situacao === "erro"}
                     onChange={(e) => mudar(l.chave, { incluida: e.target.checked })}
                   />
-                  <p>
-                    <Etiqueta tipo={COR_DA_SITUACAO[situacao]}>{TEXTO_DA_SITUACAO[situacao]}</Etiqueta> <strong>{l.item.nome || "(sem nome)"}</strong>
-                  </p>
-                  <p className="cadastros__dica">{resumoDoItem(l.item, nomeDaArea)}</p>
-                  {erros.length > 0 && (
-                    <ul className="rapido__problemas rapido__problemas--erro">
-                      {erros.map((e) => (
-                        <li key={e}>{e}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {erros.length === 0 && (
-                    <ul className="rapido__problemas">
-                      {(l.tocada ? [] : l.original.avisos).map((a) => (
-                        <li key={a}>{a}</li>
-                      ))}
-                      {faltas.map((f) => (
-                        <li key={f}>{f}</li>
-                      ))}
-                    </ul>
-                  )}
+                  <h3 className="rapido__nome">{l.item.nome || "Sem nome"}</h3>
+                  <Citacao>{l.original.texto}</Citacao>
+                  <ResumoDoItemEditavel item={l.item} nomeDaArea={nomeDaArea} />
+                  <ListaComIcone tipo="perigo" itens={erros} aria-label="Erros desta linha" />
+                  {erros.length === 0 && <ListaComIcone tipo="alerta" itens={[...(l.tocada ? [] : l.original.avisos), ...faltas]} aria-label="Avisos desta linha" />}
                   <Botao
                     variante="secundario"
                     aria-expanded={l.aberta}

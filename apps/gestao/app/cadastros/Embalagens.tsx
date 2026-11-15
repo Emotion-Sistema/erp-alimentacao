@@ -6,9 +6,10 @@
  * ingrediente, no catálogo pronto e na lista colada. Todo campo usa os componentes com ajuda.
  */
 import { useState } from "react";
-import { Botao } from "@erp/interface";
+import { BlocoDeConfirmacao, Botao } from "@erp/interface";
+import { ContaDaEmbalagem, ResumoDoItem } from "./ResumoDoItem";
 import { Campo, Selecao } from "../Campo";
-import { TIPOS_DE_EMBALAGEM, comVirgula, montarEmbalagem, multiplicarDecimal, type UnidadeBase, type UnidadePadrao } from "./auxiliares";
+import { TIPOS_DE_EMBALAGEM, montarEmbalagem, multiplicarDecimal, type UnidadeBase, type UnidadePadrao } from "./auxiliares";
 
 export type Opcao = { valor: string; texto: string };
 export type LinhaDeEmbalagem = { chave: number; nome: string; quantidade: string };
@@ -120,13 +121,15 @@ export function ConstrutorDeEmbalagem({
           autoComplete="off"
         />
       )}
-      <p className="cadastros__dica" data-testid="previa-embalagem" aria-live="polite">
-        {!tipo
-          ? "Escolha um tipo para ver a conta."
-          : !montada
-            ? "Confira o tamanho: use só números (ex.: 25 ou 2,5)."
-            : `1 ${montada.nome} = ${quantidadeFinal.trim() ? comVirgula(quantidadeFinal.trim()) : "[quantidade]"} ${base}`}
-      </p>
+      <div data-testid="previa-embalagem" aria-live="polite">
+        {!tipo ? (
+          <BlocoDeConfirmacao vazio>Escolha um tipo para ver a conta.</BlocoDeConfirmacao>
+        ) : !montada ? (
+          <BlocoDeConfirmacao vazio>Confira o tamanho: use só números (ex.: 25 ou 2,5).</BlocoDeConfirmacao>
+        ) : (
+          <ContaDaEmbalagem nome={montada.nome} quantidade={quantidadeFinal} base={base} />
+        )}
+      </div>
       <Botao variante="secundario" disabled={!pronta} onClick={adicionar}>
         {rotuloDoBotao}
       </Botao>
@@ -171,9 +174,7 @@ export function LinhasDeEmbalagem({
               autoComplete="off"
             />
           </div>
-          <p className="cadastros__dica">
-            1 {e.nome.trim() || "[nome]"} = {e.quantidade.trim() ? comVirgula(e.quantidade.trim()) : "[quantidade]"} {base}
-          </p>
+          <ContaDaEmbalagem nome={e.nome} quantidade={e.quantidade} base={base} />
           <Botao variante="secundario" aria-label={`Tirar ${prefixo.toLowerCase()} ${n + 1}`} onClick={() => aoMudar(embalagens.filter((x) => x.chave !== e.chave))}>
             Tirar
           </Botao>
@@ -210,9 +211,17 @@ export const itemParaServidor = (i: ItemEditavel, fornecedorId: number | null = 
   embalagens: i.embalagens.map((e) => ({ nome: e.nome.trim(), quantidadeBase: e.quantidade.trim().replace(",", ".") })),
 });
 
-/** Resumo de uma linha: "g · Alimentos da cozinha · saco 25 kg, unidade". */
-export const resumoDoItem = (i: ItemEditavel, nomeDaArea: (a: string) => string) =>
-  `${i.unidadeBase || "sem unidade"} · ${nomeDaArea(i.area)} · ${i.embalagens.length ? i.embalagens.map((e) => e.nome || "(sem nome)").join(", ") : "sem embalagens"}`;
+/** Resumo visual de um item em edição (unidade, área e chips das embalagens). */
+export function ResumoDoItemEditavel({ item, nomeDaArea }: { item: ItemEditavel; nomeDaArea: (a: string) => string }) {
+  return (
+    <ResumoDoItem
+      unidadeBase={item.unidadeBase}
+      area={item.area}
+      nomeDaArea={nomeDaArea}
+      embalagens={item.embalagens.map((e) => ({ chave: e.chave, nome: e.nome, quantidade: e.quantidade.trim() || null }))}
+    />
+  );
+}
 
 /** Editor completo de um item: nome, unidade, área, embalagens e a embalagem de um toque. */
 export function EditorDeItem({

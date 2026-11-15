@@ -135,6 +135,8 @@ test.describe("telas internas do administrador", () => {
     ] as const) {
       await page.goto(url);
       await expect(page.getByRole("button", { name: /todos os exemplos/ })).toBeVisible();
+      // Os campos de algumas telas chegam depois da resposta da API: espera a rede ficar quieta.
+      await page.waitForLoadState("networkidle");
       await conferirAjuda(page, url, minimo);
     }
   });

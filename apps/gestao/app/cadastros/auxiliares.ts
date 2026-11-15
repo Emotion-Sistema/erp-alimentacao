@@ -7,6 +7,10 @@
 export type UnidadePadrao = { codigo: string; nome: string; grandeza: string; fator: string };
 export type UnidadeBase = "g" | "ml" | "un";
 
+/** Unidade do estoque sempre por extenso, com a sigla: "Gramas (g)". */
+const UNIDADE_POR_EXTENSO: Record<string, string> = { g: "Gramas (g)", ml: "Mililitros (ml)", un: "Unidades (un)" };
+export const unidadePorExtenso = (u: string): string => UNIDADE_POR_EXTENSO[u] ?? u;
+
 export const GRANDEZA_DA_BASE: Record<UnidadeBase, string> = { g: "massa", ml: "volume", un: "contagem" };
 
 /** Botões de tipo de embalagem, na ordem mais comum primeiro. */

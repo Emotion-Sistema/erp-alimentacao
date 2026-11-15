@@ -42,7 +42,7 @@ test("gerente envia, o caixa vê no sino, confirma, e o gerente vê quem confirm
     const painel = caixa.page.getByTestId("painel-avisos");
     await expect(painel).toBeVisible();
     const item = painel.getByTestId("aviso-item").filter({ hasText: texto });
-    await expect(item).toContainText(/de \S+/);
+    await expect(item).toContainText(/De\s*\S+/);
     await expect(item.getByRole("button", { name: "Li e entendi" })).toBeVisible();
     await item.getByRole("button", { name: "Li e entendi" }).click();
     await expect(item).toContainText("Leitura confirmada");

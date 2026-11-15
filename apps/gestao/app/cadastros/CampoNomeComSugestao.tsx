@@ -7,7 +7,9 @@
  */
 import { useId, useMemo, useState } from "react";
 import { buscarNoCatalogo, chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
+import { Selo, quantidadeComUnidade, varianteDaArea } from "@erp/interface";
 import { Campo } from "../Campo";
+import { unidadePorExtenso } from "./auxiliares";
 
 export function CampoNomeComSugestao({
   id,
@@ -110,9 +112,20 @@ export function CampoNomeComSugestao({
                   escolher(s);
                 }}
               >
-                <strong>{s.nome}</strong>
-                <span>
-                  {ja ? "já cadastrado" : `${s.unidadeBase} · ${nomeDaArea(s.area)}${s.embalagens.length ? ` · ${s.embalagens.map(([n2]) => n2).join(", ")}` : ""}`}
+                <strong className="sugestao__nome">{s.nome}</strong>
+                <span className="sugestao__detalhes">
+                  {ja && <Selo icone="info">já cadastrado</Selo>}
+                  <Selo icone="balanca">{unidadePorExtenso(s.unidadeBase)}</Selo>
+                  <Selo variante={varianteDaArea(s.area)} icone="local">
+                    {nomeDaArea(s.area)}
+                  </Selo>
+                  {s.embalagens.slice(0, 3).map(([nomeEmb, q]) => (
+                    <span key={nomeEmb} className="erp-chip erp-chip--mini">
+                      <span className="erp-chip__nome">{nomeEmb}</span>
+                      {q && quantidadeComUnidade(q, s.unidadeBase) && <span className="erp-chip__equivalencia">= {quantidadeComUnidade(q, s.unidadeBase)}</span>}
+                    </span>
+                  ))}
+                  {s.embalagens.length > 3 && <Selo>+{s.embalagens.length - 3}</Selo>}
                 </span>
               </li>
             );

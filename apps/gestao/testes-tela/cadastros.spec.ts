@@ -9,8 +9,8 @@ test("gerente geral cria um ingrediente com conversão e vê '1 caixa = 30 un'",
   await page.goto("/cadastros");
   await expect(page.getByRole("heading", { name: "Ingredientes", level: 1 })).toBeVisible();
   // Os ingredientes fictícios da semente aparecem e a dica das unidades que convertem sozinhas também.
-  await expect(page.getByTestId("ingrediente-Ovo")).toContainText("1 caixa = 30 un");
-  await expect(page.getByText(/já convertem sozinhas/)).toContainText("1 kg = 1000 g");
+  await expect(page.getByTestId("ingrediente-Ovo")).toContainText("caixa = 30 un");
+  await expect(page.locator(".cadastros__dica").filter({ hasText: "já convertem sozinhas" })).toContainText("1 kg = 1.000 g");
 
   await page.getByRole("button", { name: "Novo ingrediente" }).click();
   await page.getByLabel("Nome", { exact: true }).fill("Ovo caipira (tela)");
@@ -27,14 +27,14 @@ test("gerente geral cria um ingrediente com conversão e vê '1 caixa = 30 un'",
   await expect(page.getByTestId("ajuda-conversao")).toHaveText("1 caixa = 30 un");
   await page.getByRole("button", { name: "Adicionar conversão" }).click();
   await expect(page.getByText("Conversão adicionada.")).toBeVisible();
-  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toContainText("1 caixa = 30 un");
+  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toContainText("caixa = 30 un");
 
   // Quantidade com vírgula e recusa do servidor perto do formulário.
   await page.getByRole("button", { name: "Adicionar conversão" }).click();
   await page.getByLabel("Unidade de compra (ex.: caixa)").fill("bandeja");
   await page.getByLabel(/Quantidade em un/).fill("12,5");
   await page.getByRole("button", { name: "Adicionar conversão" }).click();
-  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toContainText("1 bandeja = 12,5 un");
+  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toContainText("bandeja = 12,5 un");
 
   await page.getByRole("button", { name: "Adicionar conversão" }).click();
   await page.getByLabel("Unidade de compra (ex.: caixa)").fill("dz");
@@ -62,7 +62,7 @@ test("gerente geral busca, filtra e desativa um ingrediente", async ({ page }) =
   await page.getByLabel(/^Ativo/).uncheck();
   await page.getByRole("button", { name: "Salvar ingrediente" }).click();
   await expect(page.getByText("Ingrediente salvo.")).toBeVisible();
-  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toContainText("inativo");
+  await expect(page.getByTestId("ingrediente-Ovo caipira (tela)")).toContainText("Inativo");
 });
 
 test("gerente geral cria um fornecedor e o servidor recusa CNPJ inválido", async ({ page }) => {
@@ -77,7 +77,7 @@ test("gerente geral cria um fornecedor e o servidor recusa CNPJ inválido", asyn
   await page.getByLabel("Prazo de entrega (dias)").fill("3");
   await page.getByRole("button", { name: "Criar fornecedor" }).click();
   await expect(page.getByText("Fornecedor criado.")).toBeVisible();
-  await expect(page.getByTestId("fornecedor-Hortifruti da tela (fictício)")).toContainText("Entrega em 3 dias");
+  await expect(page.getByTestId("fornecedor-Hortifruti da tela (fictício)")).toContainText(/Prazo de entrega\s*3 dias/);
   await semEstouroDeLargura(page);
 });
 

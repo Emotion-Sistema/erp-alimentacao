@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Aviso, Botao, Celula, Etiqueta, Tabela } from "@erp/interface";
+import { Aviso, Botao, Celula, Dado, Etiqueta, FichaDeDados, Selo, Tabela } from "@erp/interface";
 import { BotaoExemplos, Campo, Selecao } from "../Campo";
 import { chamar } from "../chamar";
 import { formatarDataHora } from "../formatar";
@@ -26,16 +26,24 @@ const RESULTADOS = [
   { valor: "falhou", texto: "Falhou" },
 ];
 
-/** Resume os detalhes em uma linha curta. */
-function resumirDetalhes(d: unknown): string {
-  if (d === null || d === undefined) return "";
-  const texto =
-    typeof d === "object"
-      ? Object.entries(d as Record<string, unknown>)
-          .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
-          .join("; ")
-      : String(d);
-  return texto.length > 140 ? `${texto.slice(0, 140)}...` : texto;
+const limitar = (t: string) => (t.length > 80 ? `${t.slice(0, 80)}...` : t);
+
+/** Detalhes do registro como dados com rótulo (até 4), em vez de uma linha corrida. */
+function Detalhes({ d }: { d: unknown }) {
+  if (d === null || d === undefined || d === "") return <span className="erp-vazio">Sem detalhes</span>;
+  if (typeof d !== "object") return <>{limitar(String(d))}</>;
+  const itens = Object.entries(d as Record<string, unknown>);
+  if (itens.length === 0) return <span className="erp-vazio">Sem detalhes</span>;
+  return (
+    <FichaDeDados compacta>
+      {itens.slice(0, 4).map(([k, v]) => (
+        <Dado key={k} rotulo={k}>
+          {limitar(typeof v === "object" ? JSON.stringify(v) : String(v))}
+        </Dado>
+      ))}
+      {itens.length > 4 && <Dado rotulo="Mais">{itens.length - 4} item(ns)</Dado>}
+    </FichaDeDados>
+  );
 }
 
 export function Auditoria() {
@@ -135,8 +143,16 @@ export function Auditoria() {
                     {r.resultado === "permitido" ? "Permitido" : r.resultado === "recusado" ? "Recusado" : "Falhou"}
                   </Etiqueta>
                 </Celula>
-                <Celula rotulo="Alvo">{[r.alvoTipo, r.alvoId].filter((x) => x !== null && x !== undefined).join(" ")}</Celula>
-                <Celula rotulo="Detalhes">{resumirDetalhes(r.detalhes)}</Celula>
+                <Celula rotulo="Alvo">
+                  {r.alvoTipo || r.alvoId !== null ? (
+                    <Selo>{[r.alvoTipo, r.alvoId].filter((x) => x !== null && x !== undefined).join(" ")}</Selo>
+                  ) : (
+                    <span className="erp-vazio">Nenhum</span>
+                  )}
+                </Celula>
+                <Celula rotulo="Detalhes">
+                  <Detalhes d={r.detalhes} />
+                </Celula>
               </tr>
             ))}
           </tbody>
