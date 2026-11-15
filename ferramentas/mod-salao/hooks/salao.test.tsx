@@ -17,7 +17,15 @@ const PAINEL = {
 const FAIXA = {
   plugin: 'salao',
   component: 'AbovePrompt',
-  props: { hasSurvey: false },
+  props: {
+    hasSurvey: false,
+    isCollapsed: false,
+    isWorking: false,
+    maxRows: 3,
+    bodyColumns: 80,
+    scroll: { offset: 0, bodyRows: 3 },
+    view: {},
+  },
 } as const
 
 test('comando em segundo plano acende o fogo; o fim da resposta confere e apaga', async ($, on) => {

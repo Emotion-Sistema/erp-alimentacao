@@ -111,9 +111,13 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'salao' }, async $ => {
-    await $.ui.open({ id: PAINEL, title: TITULO })
+    const aberto = await $.ui.open({ id: PAINEL, title: TITULO })
 
-    return { text: 'Painel Salão aberto.' }
+    return {
+      text: aberto.isPlaced
+        ? 'Painel Salão aberto e desenhado pelo aplicativo.'
+        : `O aplicativo não desenhou o painel Salão. Motivo informado: ${aberto.reason}`,
+    }
   })
 
   on('turn.start', async ($, e, next) => {
