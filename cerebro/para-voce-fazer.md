@@ -33,7 +33,8 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 ## Agora (E06)
 - [x] 👉 Preparar o servidor de testes e criar o login (feito em 15/11/2026).
 - [x] 👉 Entrar na homologação com o próprio login (feito em 15/11/2026; critério da E06).
-- [ ] 👉 Dar o "ok" para a E07 (cadastros).
+- [x] "Ok" para a E07 (cadastros), 15/11/2026.
+- [ ] 👉 Listar os locais onde a empresa compra hoje: mercados, atacados, feira, fornecedores (sem pressa; frente lista-de-compras, LC1).
 - [x] Chave SSH cadastrada e testada (15/11/2026).
 - [x] SSH só com chave conferido (15/11/2026): senha recusada, terminal do navegador abre.
 - [ ] 👉 Guardar uma cópia da chave privada (o arquivo `id_ed25519` sem `.pub`, na pasta `.ssh` do seu usuário) num pendrive ou cofre de senhas.

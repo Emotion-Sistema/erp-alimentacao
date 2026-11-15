@@ -35,6 +35,8 @@ Atualizado em: 14/11/2026
   Hipóteses: `cadastros.gerenciar` para dono, administrador e gerente geral; custo só com `custos.ver`.
 - **Frentes paralelas** (15/11/2026): outro chat, com o modelo que o responsável escolher, pode cuidar
   de uma função só e falar com este pelo `cerebro/frentes/mural.md` (regras em `cerebro/frentes/README.md`).
+  Aberta: **lista-de-compras** (Central de Compras, proposta aprovada; começa a LC1 depois da E07;
+  migrações 0100+; RC-19 reservado para ela).
 - SSH do servidor só por chave desde 15/11/2026 (PR #18), conferido pelo responsável.
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
   gratuito; a trava do repositório é a única barreira automática.
