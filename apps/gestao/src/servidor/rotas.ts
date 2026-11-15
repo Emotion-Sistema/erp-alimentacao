@@ -9,6 +9,10 @@ import {
   atorDaEstacao,
   atorDaSessao,
   ativarNaEstacao,
+  cadastrarEmLote,
+  catalogoParaCadastrar,
+  consultarCnpj,
+  lerListaColada,
   listarFornecedores,
   listarIngredientes,
   salvarConversao,
@@ -305,3 +309,21 @@ export const gravarConversao = seguroComId(async (req, p) => {
   const db = obterBanco();
   return json(await salvarConversao(db, await ator(req), idDe(p), await corpoJson(req)));
 });
+
+// ---------- cadastro rápido (ideia nº 4) ----------
+
+export const verCatalogo = seguro(async (req) => json(await catalogoParaCadastrar(obterBanco(), await ator(req))));
+export const gravarLote = seguro(async (req) => {
+  const db = obterBanco();
+  return json(await cadastrarEmLote(db, await ator(req), await corpoJson(req)), 201);
+});
+/** Lê a lista colada e devolve a prévia (não grava). */
+export const lerLista = seguro(async (req) => {
+  const db = obterBanco();
+  const corpo = (await corpoJson(req)) as { texto?: unknown };
+  const cat = await catalogoParaCadastrar(db, await ator(req));
+  if (typeof corpo?.texto !== "string" || corpo.texto.length > 60000)
+    throw new ErroDeRegra("dados_invalidos", "Cole a lista (até 300 linhas).");
+  return json({ linhas: lerListaColada(corpo.texto, cat.jaCadastrados) });
+});
+export const verCnpj = seguroComId(async (req, p) => json(await consultarCnpj(obterBanco(), await ator(req), p.cnpj ?? "")));

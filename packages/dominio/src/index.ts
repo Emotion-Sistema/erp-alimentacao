@@ -13,3 +13,5 @@ export * from "./turnos";
 export * from "./aplicativos";
 export { prepararPrimeiroAcesso, dadosPrimeiroAcesso, TURNOS_PADRAO, SETORES_PADRAO } from "./primeiro-acesso";
 export * from "./cadastros";
+export * from "./catalogo-ingredientes";
+export * from "./lista-colada";

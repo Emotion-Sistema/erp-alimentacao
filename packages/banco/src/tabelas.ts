@@ -166,6 +166,7 @@ export interface FornecedorTabela {
   email: string | null;
   prazo_entrega_dias: number | null;
   observacao: string | null;
+  endereco: string | null;
   ativo: Generated<boolean>;
   criado_em: Instante;
   atualizado_em: Instante;
