@@ -66,3 +66,6 @@ com o próprio login.
   - Web Push;
   - backup fora do servidor (E23);
   - teste em Android real.
+
+## 15/11/2026: SSH só por chave
+Responsável criou a chave (ed25519, com frase-senha) e entrou com ela. `ssh-so-chave.sh` roda a cada minuto pelo atualizador e desliga a senha só se o root tiver chave; volta com `erp ssh-senha ligar`. Ensaiado num contêiner com sshd: sem chave não mexe, com chave desliga, idempotente, ligar/desligar, config quebrada não fica gravada. Falta o responsável conferir o terminal do navegador.

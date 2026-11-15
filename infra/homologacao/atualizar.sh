@@ -25,6 +25,12 @@ compose() { # compose <versao> <args...>
   ERP_VERSAO="$v" docker compose -p erp --env-file "$SEGREDOS" -f "$CODIGO/infra/homologacao/compose.yml" "$@"
 }
 
+# SSH só por chave (ssh-so-chave.sh); um problema nele não para a atualização.
+# Fora do servidor (ensaio com ERP_RAIZ) não mexe no SSH da máquina.
+if [ -z "${ERP_RAIZ:-}" ]; then
+  bash "$CODIGO/infra/homologacao/ssh-so-chave.sh" || log "ajuste do SSH falhou (mensagem acima)"
+fi
+
 git -C "$CODIGO" fetch --quiet origin \
   +refs/heads/main:refs/remotes/origin/main +refs/heads/homologacao:refs/remotes/origin/homologacao
 novo="$(git -C "$CODIGO" rev-parse refs/remotes/origin/homologacao)"
