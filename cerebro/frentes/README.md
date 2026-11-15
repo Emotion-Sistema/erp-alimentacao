@@ -35,6 +35,7 @@ só para uma função nova, conversando com o chat principal **pelo cérebro**.
 | Frente | Arquivo | Aberta em | Situação |
 |---|---|---|---|
 | lista-de-compras (Central de Compras) | `lista-de-compras.md` | 15/11/2026 | Proposta aprovada em 15/11/2026 (ideia nº 3); sem código; espera a E07 para começar a LC1 |
+| fichas-tecnicas | `fichas-tecnicas.md` | 15/11/2026 | Lê as fichas do Drive e organiza no cérebro, sem código; lista de ingredientes pronta |
 
 ## Bloco para abrir uma frente (o responsável cola no chat novo)
 O responsável não altera textos para colar (15/11/2026): o chat principal manda o bloco já
