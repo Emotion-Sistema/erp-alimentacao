@@ -205,6 +205,35 @@ export const CATALOGO_INGREDIENTES: readonly ItemDoCatalogo[] = [
 ];
 
 /** Texto para comparar: minúsculas, sem acento, espaços juntados. */
+/**
+ * Itens com a unidade em dúvida: o catálogo e as fichas técnicas não batem (perguntas 1 e 2 em
+ * `cerebro/empresa/fichas-tecnicas/perguntas.md`; resposta do responsável prevista para 22/11/2026).
+ * Saem do cadastro rápido com asterisco e não podem ser marcados; no cadastro comum, aviso.
+ * Quando a resposta chegar: corrigir a unidade de cada um aqui e esvaziar esta lista.
+ */
+export const NOMES_A_CONFIRMAR: readonly string[] = [
+  "Laranja",
+  "Banana",
+  "Abacaxi",
+  "Limão",
+  "Alface",
+  "Hambúrguer bovino",
+  "Açaí",
+  "Leite condensado",
+  "Chantilly",
+  "Creme de leite",
+  "Molho de tomate",
+];
+export const AVISO_A_CONFIRMAR = "Unidade a confirmar com o responsável (resposta das fichas técnicas prevista para 22/11). Não cadastre ainda.";
+
+/** O item (ou o nome digitado, inclusive apelido) está entre os de unidade a confirmar? */
+export function aConfirmar(item: string | ItemDoCatalogo): boolean {
+  const chaves = new Set(
+    CATALOGO_INGREDIENTES.filter((c) => NOMES_A_CONFIRMAR.includes(c.nome)).flatMap((c) => [c.nome, ...(c.sinonimos ?? [])].map(chaveDeBusca)),
+  );
+  return chaves.has(chaveDeBusca(typeof item === "string" ? item : item.nome));
+}
+
 export function chaveDeBusca(t: string): string {
   return t
     .normalize("NFD")

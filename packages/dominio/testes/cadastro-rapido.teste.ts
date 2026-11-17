@@ -350,3 +350,15 @@ describe("lista colada: ressalvas da 2ª revisão", () => {
     expect(e.message).toContain("duas embalagens com o mesmo nome");
   });
 });
+
+describe("itens com unidade a confirmar (perguntas das fichas, 22/11/2026)", () => {
+  it("cada nome da lista existe no catálogo; nome e apelido são reconhecidos", async () => {
+    const { CATALOGO_INGREDIENTES, NOMES_A_CONFIRMAR, aConfirmar } = await import("../src/catalogo-ingredientes");
+    for (const n of NOMES_A_CONFIRMAR) expect(CATALOGO_INGREDIENTES.some((c) => c.nome === n), n).toBe(true);
+    expect(NOMES_A_CONFIRMAR).toHaveLength(11);
+    expect(aConfirmar("limao taiti")).toBe(true);
+    expect(aConfirmar("  LARANJA ")).toBe(true);
+    expect(aConfirmar("Tomate")).toBe(false);
+    expect(aConfirmar("Pão de hambúrguer")).toBe(false);
+  });
+});
