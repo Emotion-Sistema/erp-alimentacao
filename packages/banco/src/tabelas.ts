@@ -223,6 +223,17 @@ export interface CategoriaTabela {
   atualizado_em: Instante;
 }
 
+export interface TipoProducaoTabela {
+  id: Generated<number>;
+  nome: string;
+  area: "cozinha" | "cafeteria";
+  capacidade: Generated<number>;
+  ordem: Generated<number>;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
 export interface HorarioUnidadeTabela {
   unidade_id: number;
   dia: number;
@@ -307,6 +318,7 @@ export interface BancoTabelas {
   ingrediente_conversao: IngredienteConversaoTabela;
   embalagem_modelo: EmbalagemModeloTabela;
   categoria: CategoriaTabela;
+  tipo_producao: TipoProducaoTabela;
   horario_unidade: HorarioUnidadeTabela;
   horario_unidade_data: HorarioUnidadeDataTabela;
   horario_venda: HorarioVendaTabela;
