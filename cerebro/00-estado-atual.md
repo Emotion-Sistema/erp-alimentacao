@@ -51,7 +51,8 @@ Atualizado em: 17/11/2026
 - SSH do servidor só por chave desde 15/11/2026 (PR #18), conferido pelo responsável.
 - Travas: reforçadas (decisão 0009). Proteção de branch do GitHub não vale no plano
   gratuito; a trava do repositório é a única barreira automática.
-- Contexto: aviso a cada 10% (de 1 milhão); no aviso, atualizar o cérebro e pedir `/compact`.
+- Contexto: aviso a cada 10% (de 1 milhão); no aviso, atualizar o cérebro em silêncio e pedir `/compact` só junto da próxima mensagem útil.
+- **Regra do responsável (17/11/2026): menos interrupção.** Mensagem só com entrega pronta ou decisão dele, completa, sem picotar; sem avisos de andamento; sem "nada desta vez" (CLAUDE.md regra 2).
 - GitHub: Caminho A (14/11/2026): plano gratuito, sem proteção de branch; a trava do
   repositório é a barreira. Rever antes da E23.
 - **Modelos: tudo no Opus 5.5** (decisão do responsável, 15/11/2026): sessão e todos os subagentes; outro modelo só se ele pedir (`docs/05-uso-dos-modelos.md`).

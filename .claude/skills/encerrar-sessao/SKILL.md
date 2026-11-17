@@ -20,8 +20,10 @@ description: Gravar a síntese da conversa no cérebro do projeto e gerar o bloc
    perguntar). Sem isso o próximo chat não enxerga nada. Confirme que o merge aconteceu.
 
 ## 2. Modo compactar (aviso automático de contexto) ou novo chat
-**Modo compactar** (padrão no aviso de contexto, decisão 0009): depois do passo 1, termine
-com a linha `👉 Envie /compact para eu continuar neste mesmo chat.` e não gere o bloco abaixo.
+**Modo compactar** (padrão no aviso de contexto, decisão 0009): faça o passo 1 em silêncio.
+Não mande mensagem só para isso. Na próxima mensagem que já iria ao responsável (entrega
+pronta ou decisão dele), inclua no `👉 Para você fazer` o item `Envie /compact para eu
+continuar neste mesmo chat.` Não gere o bloco abaixo.
 
 **Novo chat** (só quando o responsável pedir ou o assunto terminar): termine a resposta com exatamente este formato, dentro de um bloco de código, para o
 responsável copiar com um clique:

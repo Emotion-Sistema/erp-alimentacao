@@ -28,15 +28,20 @@ Aparelhos internos: Android da empresa, um login por funcionário, permissões p
    Um hook bloqueia a tentativa. Procedimento na skill `publicar`.
 2. **👉 marca o que é do responsável.** Tudo que ele precisa fazer com as próprias mãos
    (testar algo, clicar no painel da hospedagem, criar conta, responder ao cliente) vem
-   em linha iniciada por 👉. Toda resposta sua termina com a seção
-   `👉 Para você fazer` (lista numerada, passo a passo) ou `👉 Para você fazer: nada desta vez.`
+   em linha iniciada por 👉, numa seção `👉 Para você fazer` (lista numerada, passo a passo).
    Use 👉 só para isso. Registre os itens abertos em `cerebro/para-voce-fazer.md`.
+   **Menos interrupção (pedido do responsável, 17/11/2026):** fale com ele só quando uma
+   entrega estiver pronta para ver ou quando houver algo que só ele pode decidir. Uma
+   mensagem completa, sem picotar: nada de avisos de andamento ("estou fazendo X", "CI
+   rodando", "aguardando"), nada de "nada desta vez". Sem ação dele, não há seção 👉.
+   Se precisar fechar um turno no meio do trabalho, uma linha curta basta, sem 👉.
 3. **Cérebro.** `cerebro/` guarda a síntese de todas as sessões e tudo sobre a empresa.
    Ao encerrar um assunto use a skill `encerrar-sessao`. Uma sessão só sabe o que a outra
    fez pelo cérebro: se não foi escrito lá, não aconteceu.
 4. **Contexto.** A cada 10% de contexto usado aparece um aviso automático: atualize o
-   cérebro (skill `encerrar-sessao`, modo compactar) e peça ao responsável para enviar
-   `/compact`; a conversa continua no mesmo chat (decisão 0009). Só quando ele pedir novo
+   cérebro em silêncio (skill `encerrar-sessao`, modo compactar). Peça `/compact` só junto
+   da próxima mensagem que já iria a ele (entrega pronta ou decisão), nunca numa mensagem
+   só para isso; a conversa continua no mesmo chat (decisão 0009). Só quando ele pedir novo
    chat, termine a resposta com o bloco `📋 COPIE E COLE EM UM NOVO CHAT` da mesma skill.
 5. **Skills.** No início de cada tarefa diga em uma linha: `🧩 Skills: usando X` e, se
    fizer sentido, `vale criar a skill Y porque...`. Tarefa repetida duas vezes vira

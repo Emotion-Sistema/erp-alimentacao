@@ -14,7 +14,8 @@ frase, e um push para `refs/heads/main` passava; (c) a proteção de branch do G
 ## Decisão
 1. Limite do aviso de contexto: 1.000.000 (`ERP_CONTEXTO_MAX`). Aviso a cada 10% de uso.
    No aviso: atualizar o cérebro e pedir ao responsável `/compact`, continuando no mesmo
-   chat. Novo chat só quando ele pedir.
+   chat. Novo chat só quando ele pedir. (Ajuste de 17/11/2026: o pedido de `/compact` vai
+   junto da próxima mensagem que já iria a ele, nunca sozinho; ver CLAUDE.md regras 2 e 4.)
 2. A trava bloqueia, sem "Publique tudo", qualquer ferramenta do GitHub que cite a branch
    `producao` (gravar arquivo, criar branch, criar ou mudar PR com base `producao`), e
    push com `refs/heads/main` ou `refs/heads/producao`.
