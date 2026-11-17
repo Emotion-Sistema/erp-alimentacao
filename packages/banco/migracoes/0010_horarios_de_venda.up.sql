@@ -148,8 +148,12 @@ DECLARE
   u record; c record; k record;
   v_inicio time; v_fim time; v_pausa record;
 BEGIN
-  IF p_canal NOT IN ('loja', 'delivery') THEN
-    RAISE EXCEPTION 'Canal desconhecido: %', p_canal USING ERRCODE = 'invalid_parameter_value';
+  -- Canal ou instante nulo não pode virar "aberto" (NULL NOT IN dá nulo e deixaria passar).
+  IF p_canal IS NULL OR p_canal NOT IN ('loja', 'delivery') THEN
+    RAISE EXCEPTION 'Canal desconhecido: %', coalesce(p_canal, '(vazio)') USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_instante IS NULL THEN
+    RAISE EXCEPTION 'Instante vazio.' USING ERRCODE = 'invalid_parameter_value';
   END IF;
   SELECT fuso_horario INTO v_fuso FROM unidade WHERE id = p_unidade;
   IF v_fuso IS NULL THEN
@@ -214,9 +218,20 @@ BEGIN
     RETURN;
   END IF;
   IF v_hora < v_inicio THEN
+    -- Só promete a hora de abrir se nenhuma pausa estiver valendo nela; se houver, promete o fim
+    -- da pausa (quando cai dentro da janela) ou nada.
+    SELECT p.ate INTO v_pausa FROM pausa_venda p
+      WHERE p.unidade_id = p_unidade AND p.encerrada_em IS NULL
+        AND p.inicio <= (v_data + v_inicio) AT TIME ZONE v_fuso
+        AND (p.ate IS NULL OR p.ate > (v_data + v_inicio) AT TIME ZONE v_fuso)
+        AND (p.canal IS NULL OR p.canal = p_canal)
+        AND (p.categoria_id IS NULL OR p.categoria_id = p_categoria)
+      ORDER BY p.ate DESC NULLS FIRST LIMIT 1;
     RETURN QUERY SELECT false,
       CASE WHEN v_inicio = u.abre THEN 'antes_de_abrir' ELSE 'fora_do_horario' END::text,
-      (v_data + v_inicio) AT TIME ZONE v_fuso;
+      CASE WHEN NOT FOUND THEN (v_data + v_inicio) AT TIME ZONE v_fuso
+           WHEN v_pausa.ate IS NOT NULL AND v_pausa.ate < (v_data + v_fim) AT TIME ZONE v_fuso THEN v_pausa.ate
+      END;
     RETURN;
   END IF;
 

@@ -200,6 +200,15 @@ describe("regra no banco: pode vender agora?", () => {
     // Encerrada (retomada) não vale mais.
     await db.updateTable("pausa_venda").set({ encerrada_em: new Date(), encerrada_por: quem }).where("id", "=", geral.id).execute();
     expect(await sv(u, "loja", null, "2026-11-19 13:00")).toMatchObject({ aberta: true });
+    // Antes de abrir com pausa já marcada: não promete a hora de abrir, e sim o fim da pausa.
+    await pausa(null, null, "2026-11-24 09:00", "2026-11-24 12:00");
+    expect(await sv(u, "loja", null, "2026-11-24 09:30")).toEqual({ aberta: false, motivo: "antes_de_abrir", abre_as: "12:00" });
+    await pausa("delivery", null, "2026-11-25 08:00", null);
+    expect(await sv(u, "delivery", null, "2026-11-25 09:30")).toEqual({ aberta: false, motivo: "antes_de_abrir", abre_as: null });
+    expect(await sv(u, "loja", null, "2026-11-25 09:30")).toEqual({ aberta: false, motivo: "antes_de_abrir", abre_as: "10:00" });
+    // Pausa que acaba antes de abrir não muda a promessa.
+    await pausa("loja", null, "2026-11-26 08:00", "2026-11-26 09:00");
+    expect(await sv(u, "loja", null, "2026-11-26 08:30")).toEqual({ aberta: false, motivo: "antes_de_abrir", abre_as: "10:00" });
     // Pausa não vale fora do horário: o motivo continua sendo o horário.
     expect(await sv(u, "delivery", b, "2026-11-18 09:00")).toMatchObject({ motivo: "antes_de_abrir" });
   });
@@ -210,6 +219,9 @@ describe("regra no banco: pode vender agora?", () => {
     await db.updateTable("categoria").set({ ativo: false }).where("id", "=", c).execute();
     expect(await sv(u, "loja", c, "2026-11-17 12:00")).toMatchObject({ aberta: false, motivo: "categoria_inativa" });
     await expect(sv(u, "ifood", null, "2026-11-17 12:00")).rejects.toThrow(/Canal desconhecido/);
+    // Canal ou instante vazio nunca vira "aberto".
+    await expect(sql`SELECT * FROM situacao_de_venda(${u}, NULL, NULL, '2026-11-17 12:00-03')`.execute(db)).rejects.toThrow(/Canal desconhecido/);
+    await expect(sql`SELECT * FROM situacao_de_venda(${u}, 'loja', NULL, NULL)`.execute(db)).rejects.toThrow(/Instante vazio/);
   });
 
   it("o banco recusa horário fora de ordem e janela sem hora", async () => {
@@ -373,6 +385,16 @@ describe("datas especiais", () => {
     const ativas = await db.selectFrom("horario_unidade_data").select("id").where("unidade_id", "=", gerente.unidadeId!).where(sql<boolean>`data = ${d}::date`).where("ativo", "=", true).execute();
     expect(ativas).toHaveLength(1);
     await cancelarDataEspecial(db, gerente, { tipo: "unidade", id: ativas[0]!.id });
+    // O mesmo para a data de um canal.
+    await Promise.all([
+      salvarDataDeVenda(db, gerente, { canal: "delivery", categoriaId: null, data: d, modo: "fechado", motivo: "Sem motoboy A" }),
+      salvarDataDeVenda(db, dono, { canal: "delivery", categoriaId: null, data: d, modo: "fechado", motivo: "Sem motoboy B" }),
+    ]);
+    const doCanal = await db.selectFrom("horario_venda_data").select("id").where("unidade_id", "=", gerente.unidadeId!).where("canal", "=", "delivery").where("categoria_id", "is", null).where(sql<boolean>`data = ${d}::date`).where("ativo", "=", true).execute();
+    expect(doCanal).toHaveLength(1);
+    await cancelarDataEspecial(db, gerente, { tipo: "venda", id: doCanal[0]!.id });
+    const a = await ultimaAuditoria("horario_venda_data");
+    expect(a.detalhes).toMatchObject({ operacao: "cancelar", antes: { ativo: true, canal: "delivery" }, depois: { ativo: false } });
   });
 });
 
@@ -392,6 +414,11 @@ describe("pausa manual", () => {
     const r = await db.selectFrom("pausa_venda").select(["encerrada_por"]).where("id", "=", p.id).executeTakeFirstOrThrow();
     expect(r.encerrada_por).toBe(gerente.usuarioId);
     expect((await ultimaAuditoria("pausa_venda")).detalhes).toMatchObject({ operacao: "retomar" });
+    // Pausa de outra unidade não é achada.
+    const outra = await novaUnidade();
+    const alheia = await db.insertInto("pausa_venda").values({ unidade_id: outra, canal: "loja", motivo: "Outra loja", criada_por: gerente.usuarioId }).returning("id").executeTakeFirstOrThrow();
+    expect((await erroDe(retomarVenda(db, gerente, { id: alheia.id }))).codigo).toBe("nao_encontrado");
+    expect((await db.selectFrom("pausa_venda").select("encerrada_em").where("id", "=", alheia.id).executeTakeFirstOrThrow()).encerrada_em).toBeNull();
   });
 
   it("recusa pausa sem motivo, curta ou longa demais", async () => {
@@ -409,6 +436,8 @@ describe("categorias", () => {
     expect(c).toMatchObject({ nome: `Sobremesas ${sufixo}`, descricao: "Doces", ordem: 70, ativo: true });
     expect((await erroDe(salvarCategoria(db, gerente, { nome: `SOBREMESAS ${sufixo.toUpperCase()}` }))).codigo).toBe("conflito");
     // Alterar sem mandar ordem e ativo mantém os dois.
+    // Sem mandar a descrição, ela fica; nula limpa.
+    expect(await salvarCategoria(db, gerente, { id: c.id, nome: c.nome })).toMatchObject({ ordem: 70, ativo: true, descricao: "Doces" });
     expect(await salvarCategoria(db, gerente, { id: c.id, nome: c.nome, descricao: null })).toMatchObject({ ordem: 70, ativo: true, descricao: null });
     await salvarCategoria(db, gerente, { id: c.id, nome: c.nome, ativo: false });
     const outra = await salvarCategoria(db, gerente, { nome: `Sobremesas ${sufixo}` });

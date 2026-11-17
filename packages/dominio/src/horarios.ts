@@ -141,7 +141,8 @@ const esquemaCategoria = z.object({
     .trim()
     .max(300, "Descrição com no máximo 300 letras.")
     .nullish()
-    .transform((v) => (v ? v : null)),
+    // Sem o campo, fica como está; nulo ou vazio limpa.
+    .transform((v) => (v === undefined ? undefined : v ? v : null)),
   ordem: z.number().int().min(0).max(9999).optional(),
   ativo: z.boolean().optional(),
 });
@@ -461,17 +462,18 @@ export async function cancelarDataEspecial(db: Banco, ator: Ator | null, dados: 
   try {
     await db.transaction().execute(async (trx) => {
       await travarUnidade(trx, unidadeId);
-      const r = await sql<{ id: number }>`
+      const r = await sql<Record<string, unknown>>`
         UPDATE ${sql.table(tabela)} SET ativo = false, atualizado_em = now()
-        WHERE id = ${d.id} AND unidade_id = ${unidadeId} AND ativo RETURNING id`.execute(trx);
-      if (!r.rows[0]) throw new ErroDeRegra("nao_encontrado", "Data especial não encontrada (ou já cancelada).");
+        WHERE id = ${d.id} AND unidade_id = ${unidadeId} AND ativo RETURNING *`.execute(trx);
+      const linha = r.rows[0];
+      if (!linha) throw new ErroDeRegra("nao_encontrado", "Data especial não encontrada (ou já cancelada).");
       await auditar(trx, {
         usuarioId: quem.usuarioId,
         acao: "horarios.gerenciar",
         resultado: "permitido",
         alvoTipo: tabela,
         alvoId: d.id,
-        detalhes: { operacao: "cancelar", antes: { ativo: true }, depois: { ativo: false } },
+        detalhes: { operacao: "cancelar", antes: { ...linha, ativo: true }, depois: linha },
         ip: quem.ip,
       });
     });
@@ -523,6 +525,7 @@ export async function retomarVenda(db: Banco, ator: Ator | null, dados: unknown)
   const quem = await exigir(db, ator, "horarios.gerenciar", { tipo: "pausa_venda" });
   const unidadeId = unidadeDo(quem);
   const d = validar(esquemaRetomar, dados);
+  // Sem trava na unidade: o UPDATE com "encerrada_em IS NULL" já garante uma retomada só.
   try {
     await db.transaction().execute(async (trx) => {
       const r = await trx
@@ -557,7 +560,7 @@ export async function salvarCategoria(db: Banco, ator: Ator | null, dados: unkno
   const colunas = ["id", "nome", "descricao", "ordem", "ativo"] as const;
   try {
     const salvo = await db.transaction().execute(async (trx) => {
-      const valores = { nome: d.nome, descricao: d.descricao, ...(d.ordem === undefined ? {} : { ordem: d.ordem }), ...(d.ativo === undefined ? {} : { ativo: d.ativo }) };
+      const valores = { nome: d.nome, ...(d.descricao === undefined ? {} : { descricao: d.descricao }), ...(d.ordem === undefined ? {} : { ordem: d.ordem }), ...(d.ativo === undefined ? {} : { ativo: d.ativo }) };
       let antes: Categoria | undefined;
       let s: Categoria;
       if (d.id) {

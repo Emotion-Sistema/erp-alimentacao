@@ -51,6 +51,12 @@ Só o gerente geral, o dono e o administrador mudam horários. A E12 (disponibil
      outra coisa e fica na E12.
    - O horário de fechamento da loja (23h30) é informativo por enquanto. Quem decide venda é o
      último pedido da cozinha.
+   - **Às 23h em ponto já não aceita pedido.** O último pedido aceito é o das 22h59. Vale o mesmo
+     para o fim de qualquer janela.
+   - As categorias valem para a empresa toda. Os horários são de cada unidade.
+   - Numa data especial que abre a loja num dia normalmente fechado (evento numa segunda), o canal e
+     as categorias seguem a semana daquele dia. Se o delivery está fechado às segundas, ele precisa
+     de uma data especial própria. A tela avisa disso.
 
 ## Alternativas descartadas
 - **Horário só por categoria, sem camada de canal.** O delivery teria de repetir o horário em
