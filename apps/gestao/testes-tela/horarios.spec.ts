@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { entrar, janelaSemEstouro, semEstouroDeLargura } from "./ajudas";
+import { entrar, janelaNoCentro, janelaSemEstouro, semEstouroDeLargura } from "./ajudas";
 
 // Horários de venda (E07 parte 2): faixa Agora, semana da loja, canais, datas especiais e pausas.
 // Roda contra o banco de tela real. A ordem importa (mode serial): a data especial usa a segunda
@@ -48,6 +48,7 @@ test("datas especiais: loja inteira fechada, delivery com horário, aviso do dia
   const feriado = dataDaqui(10);
   await page.getByRole("button", { name: "Nova data especial" }).click();
   let janela = page.getByRole("dialog", { name: "Nova data especial" });
+  await janelaNoCentro(page, janela);
   await janela.getByLabel("Data").fill(feriado);
   await expect(janela.getByRole("radio", { name: "Loja inteira" })).toBeChecked();
   await expect(janela.getByRole("radio", { name: "Fechado" })).toBeChecked();
@@ -188,6 +189,7 @@ test("pausar e retomar: a loja sai de venda na hora e volta", async ({ page }) =
   await expect(page.getByTestId("pausas")).toContainText("Nada pausado agora.");
   await page.getByRole("button", { name: "Pausar agora" }).click();
   const janela = page.getByRole("dialog", { name: "Pausar agora" });
+  await janelaNoCentro(page, janela);
   await janela.getByRole("radio", { name: "Só a loja" }).check();
   await janela.getByRole("radio", { name: "30 min" }).check();
   // Motivo é obrigatório; a sugestão preenche.

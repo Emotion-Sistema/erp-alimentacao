@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { entrar, janelaSemEstouro, semEstouroDeLargura } from "./ajudas";
+import { entrar, janelaNoCentro, janelaSemEstouro, semEstouroDeLargura } from "./ajudas";
 
 // Categorias (E07 parte 2): cartões com a situação agora, nova categoria, editar, desativar com
 // "Desfazer" e o horário de cada categoria por canal (a mesma grade de 7 dias da tela de horários).
@@ -24,6 +24,7 @@ test("gerente cria uma categoria, dá um horário a ela no delivery, edita, desa
   // Nova categoria (a ordem já vem sugerida depois da última).
   await page.getByRole("button", { name: "Nova categoria" }).click();
   const janela = page.getByRole("dialog", { name: "Nova categoria" });
+  await janelaNoCentro(page, janela);
   await expect(janela.getByLabel("Ordem no cardápio")).toHaveValue(/^\d+$/);
   await janela.getByLabel("Nome").fill("x");
   await janela.getByRole("button", { name: "Criar categoria" }).click();
