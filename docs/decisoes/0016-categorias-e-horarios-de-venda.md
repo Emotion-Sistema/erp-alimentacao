@@ -51,7 +51,7 @@ Só o gerente geral, o dono e o administrador mudam horários. A E12 (disponibil
      outra coisa e fica na E12.
    - O horário de fechamento da loja (23h30) é informativo por enquanto. Quem decide venda é o
      último pedido da cozinha.
-   - **Às 23h em ponto já não aceita pedido.** O último pedido aceito é o das 22h59. Vale o mesmo
+   - **Às 23h em ponto já não aceita pedido** (✔ confirmado pelo responsável em 17/11/2026). O último pedido aceito é o das 22h59. Vale o mesmo
      para o fim de qualquer janela.
    - As categorias valem para a empresa toda. Os horários são de cada unidade.
    - Numa data especial que abre a loja num dia normalmente fechado (evento numa segunda), o canal e
