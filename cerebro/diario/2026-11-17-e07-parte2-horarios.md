@@ -52,12 +52,15 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - O responsável conferiu na homologação todos os testes anteriores, e tudo deu certo.
 - **PR 2 (tipos de produção) em andamento** na branch `feat/tipos-de-producao`:
   - feito: migração 0011 (`tipo_producao`: nome, área cozinha/cafeteria, capacidade 1 a 50, ordem, ativo), regra em `packages/dominio/src/tipos-producao.ts`, rotas `/api/cadastros/tipos-producao`, decisão 0017 e 6 testes;
-  - o construtor está fazendo a tela `/cadastros/tipos-producao`;
-  - depois disso: revisor, PR e CI.
+  - tela `/cadastros/tipos-producao` feita pelo construtor;
+  - revisor aprovou com ressalvas, todas corrigidas: desativar manda só `{ id, ativo }` (não desfaz mudança de outra pessoa); nomes próprios `AREAS_DE_PRODUCAO`, `NOME_DA_AREA_DE_PRODUCAO` etc.;
+  - **PR 57 juntado (merge d9fdea1).**
+- Falha ocasional em `gerente.spec` achada e corrigida: o anunciador de página do Next também é `role="alert"`. Use `avisoNaTela(page)` (em `testes-tela/ajudas.ts`), nunca `page.getByRole("alert")` solto.
+- **Regra nova do responsável:** menos interrupção. Mensagem só com entrega pronta ou decisão dele (CLAUDE.md regra 2; PR 56).
 - Hipóteses da 0017: cada tipo começa com capacidade 1; porções, salgados e almoço ficam em "Pratos e grelhados" até haver tipo próprio.
 
 ## O que ficou pendente
-- Terminar o PR 2 (tipos de produção) e fazer o PR 3 (produtos).
+- PR 3 (produtos: preço em centavos, categoria, tipo de produção, tempo de preparo).
 - As 11 unidades divergentes do catálogo esperam as perguntas 1 e 2 das fichas (`cerebro/empresa/fichas-tecnicas/perguntas.md`).
 
 ## O que deu errado ou surpreendeu
