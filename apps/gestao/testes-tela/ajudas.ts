@@ -53,3 +53,42 @@ export async function semEstouroDeLargura(page: Page) {
   }));
   expect(rolagem, `largura da página ${rolagem} maior que a tela ${largura}`).toBeLessThanOrEqual(largura);
 }
+
+/**
+ * Tela de Ingredientes: abre a janela "Adicionar ingrediente" (botão no topo da lista) na aba pedida.
+ * Rápido = catálogo pronto e lista colada; Comum = um ingrediente por vez.
+ */
+export async function abrirAdicionar(page: Page, aba: "Rápido" | "Comum") {
+  await expect(page.getByTestId("lista-ingredientes")).toBeVisible();
+  await page.getByRole("button", { name: "Adicionar ingrediente", exact: true }).click();
+  const janela = page.getByRole("dialog", { name: "Adicionar ingrediente" });
+  await expect(janela).toBeVisible();
+  const guia = janela.getByRole("tab", { name: aba, exact: true });
+  await guia.click();
+  await expect(guia).toHaveAttribute("aria-selected", "true");
+  return janela;
+}
+
+/** Nada dentro da janela aberta passa da largura dela (a rolagem é só para baixo) e a janela cabe na tela. */
+export async function janelaSemEstouro(page: Page) {
+  const r = await page.locator("dialog.janela[open]").evaluate((d) => {
+    const corpo = d.querySelector<HTMLElement>(".janela__corpo")!;
+    const cabeca = d.querySelector<HTMLElement>(".janela__cabeca")!;
+    // Para a mensagem de erro: o elemento que passa da borda direita do corpo.
+    const limite = corpo.getBoundingClientRect().right;
+    const culpado = Array.from(corpo.querySelectorAll<HTMLElement>("*")).find((e) => e.getClientRects().length && e.getBoundingClientRect().right > limite + 0.5);
+    return {
+      culpado: culpado ? `${culpado.tagName}.${culpado.className} "${(culpado.textContent ?? "").slice(0, 40)}"` + (` ${(() => { const c: string[] = []; for (let e: HTMLElement | null = culpado; e && e !== corpo; e = e.parentElement) { const r = e.getBoundingClientRect(); c.push(`${e.tagName}.${e.className}[${Math.round(r.left)}-${Math.round(r.right)} w${e.scrollWidth}/${e.clientWidth}]`); } return c.join(" < "); })()}`) : "",
+      corpo: [corpo.scrollWidth, corpo.clientWidth],
+      cabeca: [cabeca.scrollWidth, cabeca.clientWidth],
+      // A janela em si nunca rola (só o corpo): senão o cabeçalho e o Fechar sairiam da tela.
+      altura: [d.scrollHeight, d.clientHeight],
+      janela: d.getBoundingClientRect().width,
+      tela: document.documentElement.clientWidth,
+    };
+  });
+  expect(r.corpo[0], `conteúdo da janela ${r.corpo[0]} maior que ${r.corpo[1]} (${r.culpado})`).toBeLessThanOrEqual(r.corpo[1]!);
+  expect(r.cabeca[0], `cabeçalho da janela ${r.cabeca[0]} maior que ${r.cabeca[1]}`).toBeLessThanOrEqual(r.cabeca[1]!);
+  expect(r.altura[0], `a janela rola sozinha (${r.altura[0]} > ${r.altura[1]})`).toBeLessThanOrEqual(r.altura[1]!);
+  expect(r.janela).toBeLessThanOrEqual(r.tela);
+}

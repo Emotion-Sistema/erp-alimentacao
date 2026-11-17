@@ -12,6 +12,23 @@ import { equivalenciaNaUnidade, type UnidadeBase } from "../auxiliares";
 import { nomeParaMostrar, perguntaDaQuantidade, quantidadeDigitada } from "./contas";
 import { T } from "./textos";
 
+/**
+ * O campo fecha ao perder o foco. Se a pessoa saiu dele apertando outro botão (ex.: "Tirar"),
+ * fecha só depois de soltar: senão a lista encolhe entre apertar e soltar, o botão muda de lugar
+ * (principalmente dentro da janela, onde a rolagem fica no fim) e o toque cai em outro ponto.
+ */
+let ponteiroApertado = false;
+if (typeof document !== "undefined") {
+  document.addEventListener("pointerdown", () => (ponteiroApertado = true), true);
+  document.addEventListener("pointerup", () => window.setTimeout(() => (ponteiroApertado = false), 0), true);
+  document.addEventListener("pointercancel", () => (ponteiroApertado = false), true);
+}
+function depoisDeSoltar(fazer: () => void) {
+  if (!ponteiroApertado) return fazer();
+  // O clique sai logo depois do pointerup: espera ele acontecer antes de mexer no tamanho da lista.
+  document.addEventListener("pointerup", () => window.setTimeout(fazer, 0), { once: true, capture: true });
+}
+
 export function CartaoDaColocada({
   nome,
   quantidade,
@@ -80,7 +97,7 @@ export function CartaoDaColocada({
             value={aoMudarQuantidade ? quantidade.replace(".", ",") : rascunho}
             onChange={(e) => (aoMudarQuantidade ? aoMudarQuantidade(e.target.value) : setRascunho(e.target.value))}
             onFocus={() => setEditando(true)}
-            onBlur={() => aoMudarQuantidade && setEditando(false)}
+            onBlur={() => aoMudarQuantidade && depoisDeSoltar(() => setEditando(false))}
             inputMode="decimal"
             autoComplete="off"
             autoFocus={editando}

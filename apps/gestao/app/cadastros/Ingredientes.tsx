@@ -1,7 +1,15 @@
 "use client";
 
+/**
+ * Tela de Ingredientes (E07): a lista vem primeiro, com busca e filtro. Quem tem cadastros.gerenciar
+ * vê o botão "Adicionar ingrediente" (atalho: tecla A), que abre uma janela por cima da tela com
+ * duas abas: Rápido (catálogo pronto e lista colada, vários de uma vez) e Comum (um ingrediente por
+ * vez). Editar, Duplicar e "Adicionar embalagem" abrem a mesma janela, no formulário Comum.
+ * Ao gravar, a lista atualiza e os ingredientes novos ou salvos ficam em destaque.
+ * A tela só esconde botões: o servidor confere a permissão em cada chamada.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Aviso, Botao, Cartao, ChipDeEmbalagem, GrupoDeChips, ItemDeLista } from "@erp/interface";
+import { Aviso, Botao, Cartao, ChipDeEmbalagem, GrupoDeChips, Icone, ItemDeLista } from "@erp/interface";
 import { ResumoDoItem } from "./ResumoDoItem";
 import { chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
 import { BotaoExemplos, Campo, Marcador, Selecao } from "../Campo";
@@ -14,6 +22,7 @@ import { OPCOES_DA_UNIDADE, EXEMPLO_DA_UNIDADE, EXPLICACAO_DA_UNIDADE, opcoesDaF
 import { ajustarLinhasParaBase } from "./embalagens/contas";
 import { EmbalagensDoIngrediente } from "./embalagens/EmbalagensDoIngrediente";
 import { ProvedorDoCatalogo, usarCatalogo } from "./embalagens/usarCatalogo";
+import { JanelaModal, usarPedirFechar } from "./JanelaModal";
 
 type Opcao = { valor: string; texto: string };
 type Conversao = { id: number; nome: string; quantidadeBase: string; ativo: boolean; modeloId?: number | null };
@@ -35,9 +44,44 @@ type Mensagem = { tipo: "sucesso" | "perigo"; texto: string } | null;
 /** Valores com que o formulário de novo ingrediente abre (ao duplicar). */
 type Modelo = { nome: string; unidadeExibicao: string; area: string; fornecedorId: number | null; embalagens: (readonly [string, string])[] };
 
+type Aba = "rapido" | "comum";
+/** O que a janela mostra: adicionar (abas Rápido e Comum) ou editar um ingrediente que já existe. */
+type Janela = { modo: "novo"; aba: Aba; modelo?: Modelo } | { modo: "editar"; id: number; abrirEmbalagens: boolean };
+
 type Props = { areas: Opcao[]; podeGerenciar: boolean };
 
 const BASE_DA_GRANDEZA: Record<string, string> = { massa: "g", volume: "ml", contagem: "un" };
+/** Última aba usada na janela (só uma comodidade deste aparelho). */
+const CHAVE_DA_ABA = "erp.ingredientes.aba";
+const ABAS: { id: Aba; nome: string; texto: string }[] = [
+  { id: "rapido", nome: "Rápido", texto: "Vários de uma vez, do catálogo pronto ou de uma lista colada." },
+  { id: "comum", nome: "Comum", texto: "Um ingrediente por vez, digitando cada campo." },
+];
+const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+
+function lerAbaGuardada(): Aba {
+  try {
+    return window.localStorage.getItem(CHAVE_DA_ABA) === "comum" ? "comum" : "rapido";
+  } catch {
+    return "rapido";
+  }
+}
+function guardarAba(aba: Aba) {
+  try {
+    window.localStorage.setItem(CHAVE_DA_ABA, aba);
+  } catch {
+    /* sem armazenamento: só não lembra */
+  }
+}
+
+/** Tecla de atalho só vale fora de campo de texto, sem modificador e sem janela aberta. */
+function atalhoLivre(e: KeyboardEvent): boolean {
+  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return false;
+  if (document.querySelector("dialog[open]")) return false;
+  const alvo = e.target as HTMLElement | null;
+  if (!alvo) return true;
+  return !(alvo.isContentEditable || alvo instanceof HTMLInputElement || alvo instanceof HTMLTextAreaElement || alvo instanceof HTMLSelectElement);
+}
 
 export function Ingredientes({ areas, podeGerenciar }: Props) {
   const [dados, setDados] = useState<Lista | null>(null);
@@ -45,14 +89,17 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
   const [busca, setBusca] = useState("");
   const [areaFiltro, setAreaFiltro] = useState("");
   const [mensagem, setMensagem] = useState<Mensagem>(null);
-  /** "novo" = formulário de criação; número = id do ingrediente em edição. */
-  const [editando, setEditando] = useState<"novo" | number | null>(null);
-  /** Painel do cadastro rápido (catálogo pronto e lista colada). */
-  const [rapido, setRapido] = useState(false);
-  /** Ingrediente copiado para o formulário de novo (botão Duplicar). */
-  const [modelo, setModelo] = useState<{ valores: Modelo; numero: number } | null>(null);
-  /** Abrir o ingrediente já com o bloco de embalagens aberto (botão "Adicionar embalagem" da lista). */
-  const [abrirEmbalagens, setAbrirEmbalagens] = useState(false);
+  const [janela, setJanela] = useState<Janela | null>(null);
+  /** Abas da janela já abertas desta vez: continuam montadas (escondidas) para não perder o que foi digitado. */
+  const [visitadas, setVisitadas] = useState<ReadonlySet<Aba>>(new Set());
+  /** Há algo digitado na janela e ainda não gravado (fechar pergunta antes). */
+  const [sujo, setSujo] = useState(false);
+  /** Aviso dentro da janela (ex.: "salvar e cadastrar o próximo"). */
+  const [avisoDaJanela, setAvisoDaJanela] = useState<Mensagem>(null);
+  /** Ingredientes em destaque na lista (os novos ou o que acabou de ser salvo). */
+  const [realce, setRealce] = useState<ReadonlySet<number>>(new Set());
+  const conhecidos = useRef<Set<number> | null>(null);
+  const novosNaJanela = useRef(0);
   /** Catálogo de embalagens, compartilhado por todos os blocos desta tela (formulário e cadastro rápido). */
   const catalogo = usarCatalogo();
   const recarregarCatalogo = catalogo.recarregar;
@@ -60,8 +107,18 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
 
   const carregar = useCallback(async () => {
     const [i, f] = await Promise.all([chamar<Lista>("/api/cadastros/ingredientes"), chamar<Fornecedor[]>("/api/cadastros/fornecedores")]);
-    if (i.ok && i.dados) setDados(i.dados);
-    else setMensagem({ tipo: "perigo", texto: i.mensagem });
+    if (i.ok && i.dados) {
+      // Quem apareceu agora (cadastrado na janela) fica em destaque na lista.
+      const ids = i.dados.ingredientes.map((x) => x.id);
+      const antes = conhecidos.current;
+      const novos = antes ? ids.filter((id) => !antes.has(id)) : [];
+      conhecidos.current = new Set(ids);
+      setDados(i.dados);
+      if (novos.length) {
+        setRealce(new Set(novos));
+        novosNaJanela.current += novos.length;
+      }
+    } else setMensagem({ tipo: "perigo", texto: i.mensagem });
     if (f.ok && f.dados) setFornecedores(f.dados);
   }, []);
   /** Depois de mexer nas embalagens de um ingrediente: a lista e o "em uso" do catálogo mudam. */
@@ -71,6 +128,54 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  const abrir = useCallback((nova: Janela) => {
+    setMensagem(null);
+    setAvisoDaJanela(null);
+    setSujo(false);
+    setRealce(new Set());
+    novosNaJanela.current = 0;
+    setVisitadas(new Set(nova.modo === "novo" ? [nova.aba] : []));
+    setJanela(nova);
+  }, []);
+  const abrirNovo = useCallback(() => abrir({ modo: "novo", aba: lerAbaGuardada() }), [abrir]);
+
+  /** Fecha a janela de vez. Sem texto próprio, avisa quantos ingredientes novos entraram na lista. */
+  const fechar = useCallback((texto?: string) => {
+    const novos = novosNaJanela.current;
+    novosNaJanela.current = 0;
+    setJanela(null);
+    setSujo(false);
+    setAvisoDaJanela(null);
+    if (texto) setMensagem({ tipo: "sucesso", texto });
+    else if (novos > 0) setMensagem({ tipo: "sucesso", texto: `${plural(novos, "ingrediente novo", "ingredientes novos")} na lista, em destaque.` });
+  }, []);
+
+  function trocarAba(aba: Aba) {
+    guardarAba(aba);
+    setVisitadas((v) => new Set([...v, aba]));
+    setJanela((j) => (j?.modo === "novo" ? { ...j, aba } : j));
+  }
+
+  // Atalho: tecla A abre a janela de adicionar (só quem pode gerenciar).
+  useEffect(() => {
+    if (!podeGerenciar) return;
+    function aoTeclar(e: KeyboardEvent) {
+      if (!atalhoLivre(e) || (e.key !== "a" && e.key !== "A")) return;
+      e.preventDefault();
+      abrirNovo();
+    }
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, [podeGerenciar, abrirNovo]);
+
+  // Com a janela fechada, o primeiro destacado aparece na tela.
+  useEffect(() => {
+    if (janela || realce.size === 0) return;
+    const primeiro = document.querySelector<HTMLElement>('[data-realce="sim"]');
+    const calmo = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    primeiro?.scrollIntoView({ block: "nearest", behavior: calmo ? "auto" : "smooth" });
+  }, [janela, realce]);
 
   const visiveis = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -85,71 +190,45 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
 
   const nomesExistentes = useMemo(() => new Set((dados?.ingredientes ?? []).filter((i) => i.ativo).map((i) => chaveDeBusca(i.nome))), [dados]);
 
-  const emEdicao = typeof editando === "number" ? dados?.ingredientes.find((i) => i.id === editando) : undefined;
+  const emEdicao = janela?.modo === "editar" ? dados?.ingredientes.find((i) => i.id === janela.id) : undefined;
+
+  const formulario = (ingrediente?: Ingrediente, modelo?: Modelo, abrirEmbalagens = false) => (
+    <FormularioIngrediente
+      ingrediente={ingrediente}
+      modelo={modelo}
+      areas={areas}
+      unidades={dados?.unidades ?? []}
+      fornecedores={fornecedores}
+      nomesExistentes={nomesExistentes}
+      aoSalvar={async (id, texto) => {
+        await carregar();
+        setRealce(new Set([id]));
+        fechar(texto);
+      }}
+      aoSalvarEProximo={async (texto) => {
+        await carregar();
+        setSujo(false);
+        setAvisoDaJanela({ tipo: "sucesso", texto });
+      }}
+      aoMudarConversao={carregarTudo}
+      abrirEmbalagens={abrirEmbalagens}
+      unidadeDoEstoque={ingrediente ? { base: ingrediente.unidadeBase, exibicao: ingrediente.unidadeExibicao } : undefined}
+    />
+  );
 
   return (
     <ProvedorDoCatalogo catalogo={catalogo}>
-      <h1>Ingredientes</h1>
-      <BotaoExemplos />
+      <div className="ingredientes__topo">
+        <h1>Ingredientes</h1>
+        {podeGerenciar && (
+          <Botao className="ingredientes__adicionar" aria-keyshortcuts="A" title="Atalho: tecla A" onClick={abrirNovo}>
+            <Icone nome="mais" />
+            Adicionar ingrediente
+          </Botao>
+        )}
+      </div>
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
-      {podeGerenciar && editando === null && !rapido && (
-        <p className="cadastros__botoes">
-          <Botao
-            onClick={() => {
-              setMensagem(null);
-              setRapido(true);
-            }}
-          >
-            Cadastro rápido
-          </Botao>
-          <Botao
-            variante="secundario"
-            onClick={() => {
-              setMensagem(null);
-              setModelo(null);
-              setEditando("novo");
-            }}
-          >
-            Novo ingrediente
-          </Botao>
-        </p>
-      )}
-      {podeGerenciar && rapido && editando === null && (
-        <CadastroRapido
-          areas={areas}
-          unidades={dados?.unidades ?? []}
-          aoGravar={carregarTudo}
-          aoFechar={() => setRapido(false)}
-        />
-      )}
-      {podeGerenciar && editando !== null && (editando === "novo" || emEdicao) && (
-        <FormularioIngrediente
-          key={editando === "novo" ? `novo-${modelo?.numero ?? 0}` : emEdicao!.id}
-          ingrediente={emEdicao}
-          modelo={editando === "novo" ? modelo?.valores : undefined}
-          areas={areas}
-          unidades={dados?.unidades ?? []}
-          fornecedores={fornecedores}
-          nomesExistentes={nomesExistentes}
-          aoSalvar={async (id, texto) => {
-            await carregar();
-            setMensagem({ tipo: "sucesso", texto });
-            setEditando(id);
-          }}
-          aoSalvarEProximo={async (texto) => {
-            await carregar();
-            setMensagem({ tipo: "sucesso", texto });
-          }}
-          aoMudarConversao={carregarTudo}
-          abrirEmbalagens={abrirEmbalagens}
-          aoFechar={() => {
-            setModelo(null);
-            setEditando(null);
-            setAbrirEmbalagens(false);
-          }}
-          unidadeDoEstoque={emEdicao ? { base: emEdicao.unidadeBase, exibicao: emEdicao.unidadeExibicao } : undefined}
-        />
-      )}
+      <BotaoExemplos />
       <Cartao>
         <div className="cadastros__filtros">
           <Campo
@@ -166,17 +245,6 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
             opcoes={[{ valor: "", texto: "Todas as áreas" }, ...areas]}
           />
         </div>
-        {dica.length > 0 && (
-          <div className="cadastros__dica">
-            <p>Estas unidades já convertem sozinhas, não precisa cadastrar:</p>
-            <GrupoDeChips rotulo="Unidades que já convertem sozinhas">
-              {dica.map((u) => (
-                <ChipDeEmbalagem key={u.codigo} nome={`1 ${u.codigo}`} quantidade={u.fator} unidade={u.base} />
-              ))}
-            </GrupoDeChips>
-            <p>Para caixa, saco, pacote e outras embalagens de compra, use o bloco Embalagens de compra do ingrediente (o catálogo fica em Cadastros, Embalagens).</p>
-          </div>
-        )}
       </Cartao>
       {!dados ? (
         !mensagem && <p>Carregando...</p>
@@ -185,43 +253,37 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
       ) : (
         <ul className="lista-simples" data-testid="lista-ingredientes" aria-label="Ingredientes">
           {visiveis.map((i) => (
-            <li key={i.id} data-testid={`ingrediente-${i.nome}`}>
+            <li
+              key={i.id}
+              data-testid={`ingrediente-${i.nome}`}
+              data-realce={realce.has(i.id) ? "sim" : undefined}
+              className={realce.has(i.id) ? "ingredientes__realce" : undefined}
+            >
               <ItemDeLista
                 titulo={i.nome}
                 ativo={i.ativo}
                 acoes={
                   podeGerenciar && (
                     <>
-                      <Botao
-                        variante="secundario"
-                        aria-label={`Editar ${i.nome}`}
-                        onClick={() => {
-                          setMensagem(null);
-                          setRapido(false);
-                          setAbrirEmbalagens(false);
-                          setEditando(i.id);
-                        }}
-                      >
+                      <Botao variante="secundario" aria-label={`Editar ${i.nome}`} onClick={() => abrir({ modo: "editar", id: i.id, abrirEmbalagens: false })}>
                         Editar
                       </Botao>
                       <Botao
                         variante="secundario"
                         aria-label={`Duplicar ${i.nome}`}
-                        onClick={() => {
-                          setMensagem(null);
-                          setRapido(false);
-                          setModelo({
-                            numero: (modelo?.numero ?? 0) + 1,
-                            valores: {
+                        onClick={() =>
+                          abrir({
+                            modo: "novo",
+                            aba: "comum",
+                            modelo: {
                               nome: `${i.nome} (cópia)`,
                               unidadeExibicao: i.unidadeExibicao,
                               area: i.area,
                               fornecedorId: i.fornecedorId,
                               embalagens: i.conversoes.filter((c) => c.ativo).map((c) => [c.nome, c.quantidadeBase] as const),
                             },
-                          });
-                          setEditando("novo");
-                        }}
+                          })
+                        }
                       >
                         Duplicar
                       </Botao>
@@ -243,12 +305,7 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
                         <Botao
                           variante="secundario"
                           aria-label={`Adicionar embalagem a ${i.nome}`}
-                          onClick={() => {
-                            setMensagem(null);
-                            setRapido(false);
-                            setAbrirEmbalagens(true);
-                            setEditando(i.id);
-                          }}
+                          onClick={() => abrir({ modo: "editar", id: i.id, abrirEmbalagens: true })}
                         >
                           Adicionar embalagem
                         </Botao>
@@ -260,6 +317,85 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
             </li>
           ))}
         </ul>
+      )}
+      {dica.length > 0 && (
+        <Cartao>
+          <div className="cadastros__dica">
+            <p>Estas unidades já convertem sozinhas, não precisa cadastrar:</p>
+            <GrupoDeChips rotulo="Unidades que já convertem sozinhas">
+              {dica.map((u) => (
+                <ChipDeEmbalagem key={u.codigo} nome={`1 ${u.codigo}`} quantidade={u.fator} unidade={u.base} />
+              ))}
+            </GrupoDeChips>
+            <p>Para caixa, saco, pacote e outras embalagens de compra, use o bloco Embalagens de compra do ingrediente (o catálogo fica em Cadastros, Embalagens).</p>
+          </div>
+        </Cartao>
+      )}
+
+      {podeGerenciar && janela?.modo === "novo" && (
+        <JanelaModal
+          titulo="Adicionar ingrediente"
+          sujo={sujo}
+          aoMexer={() => setSujo(true)}
+          aoFechar={() => fechar()}
+          data-testid="janela-ingrediente"
+          topo={
+            <div role="tablist" aria-label="Jeito de adicionar" className="janela__abas">
+              {ABAS.map((a, n) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  role="tab"
+                  id={`janela-aba-${a.id}`}
+                  aria-selected={janela.aba === a.id}
+                  aria-controls={`janela-painel-${a.id}`}
+                  aria-labelledby={`janela-aba-${a.id}-nome`}
+                  aria-describedby={`janela-aba-${a.id}-texto`}
+                  tabIndex={janela.aba === a.id ? 0 : -1}
+                  className="janela__aba"
+                  onClick={() => trocarAba(a.id)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+                    const outra = ABAS[(n + 1) % ABAS.length]!;
+                    trocarAba(outra.id);
+                    document.getElementById(`janela-aba-${outra.id}`)?.focus();
+                  }}
+                >
+                  <span id={`janela-aba-${a.id}-nome`} className="janela__aba-nome">
+                    {a.nome}
+                  </span>
+                  <span id={`janela-aba-${a.id}-texto`} className="janela__aba-texto">
+                    {a.texto}
+                  </span>
+                </button>
+              ))}
+            </div>
+          }
+        >
+          <BotaoExemplos />
+          <div role="tabpanel" id="janela-painel-rapido" aria-labelledby="janela-aba-rapido" hidden={janela.aba !== "rapido"}>
+            {visitadas.has("rapido") && (
+              <CadastroRapido
+                areas={areas}
+                unidades={dados?.unidades ?? []}
+                aoGravar={async () => {
+                  await carregarTudo();
+                  setSujo(false);
+                }}
+              />
+            )}
+          </div>
+          <div role="tabpanel" id="janela-painel-comum" aria-labelledby="janela-aba-comum" hidden={janela.aba !== "comum"}>
+            <div aria-live="polite">{avisoDaJanela && <Aviso tipo={avisoDaJanela.tipo}>{avisoDaJanela.texto}</Aviso>}</div>
+            {visitadas.has("comum") && formulario(undefined, janela.modelo)}
+          </div>
+        </JanelaModal>
+      )}
+      {podeGerenciar && janela?.modo === "editar" && emEdicao && (
+        <JanelaModal titulo={`Editar ${emEdicao.nome}`} sujo={sujo} aoMexer={() => setSujo(true)} aoFechar={() => fechar()} data-testid="janela-ingrediente">
+          <BotaoExemplos />
+          {formulario(emEdicao, undefined, janela.abrirEmbalagens)}
+        </JanelaModal>
       )}
     </ProvedorDoCatalogo>
   );
@@ -279,7 +415,6 @@ function FormularioIngrediente({
   aoSalvarEProximo,
   aoMudarConversao,
   abrirEmbalagens,
-  aoFechar,
 }: {
   ingrediente?: Ingrediente;
   modelo?: Modelo;
@@ -288,12 +423,14 @@ function FormularioIngrediente({
   fornecedores: Fornecedor[];
   nomesExistentes: ReadonlySet<string>;
   unidadeDoEstoque?: { base: string; exibicao: string };
+  /** Gravou: a janela fecha e a lista mostra o texto. */
   aoSalvar: (id: number, texto: string) => Promise<void>;
+  /** Gravou e a janela continua aberta para o próximo. */
   aoSalvarEProximo: (texto: string) => Promise<void>;
   aoMudarConversao: () => Promise<void>;
   abrirEmbalagens?: boolean;
-  aoFechar: () => void;
 }) {
+  const pedirFechar = usarPedirFechar();
   const [nome, setNome] = useState(ingrediente?.nome ?? modelo?.nome ?? "");
   /** Como a pessoa vê a quantidade (kg, g, l, ml, un, dz); a unidade de dentro sai dela. */
   const [unidadeExibicao, setUnidadeExibicao] = useState(ingrediente?.unidadeExibicao ?? modelo?.unidadeExibicao ?? "kg");
@@ -306,16 +443,17 @@ function FormularioIngrediente({
   const [sugerido, setSugerido] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const montado = useRef(false);
 
   // Cópia de outro ingrediente: o nome já vem selecionado para a pessoa só digitar por cima.
   useEffect(() => {
-    if (montado.current) return;
-    montado.current = true;
     if (!modelo) return;
-    const campo = document.getElementById(ID_NOME) as HTMLInputElement | null;
-    campo?.focus();
-    campo?.select();
+    // Espera a janela abrir (o campo só pega o foco com ela aberta).
+    const espera = window.setTimeout(() => {
+      const campo = document.getElementById(ID_NOME) as HTMLInputElement | null;
+      campo?.focus();
+      campo?.select();
+    }, 0);
+    return () => window.clearTimeout(espera);
   }, [modelo]);
 
   // Só fornecedores ativos; o do próprio ingrediente continua aparecendo se foi desativado depois.
@@ -362,9 +500,9 @@ function FormularioIngrediente({
     setEnviando(false);
     const id = r.dados?.ids?.[0];
     if (!r.ok || id === undefined) return setErro(r.mensagem);
-    if (!proximo) return aoSalvar(id, "Ingrediente criado. Agora você pode cadastrar as conversões de compra (caixa, saco...).");
-    // Salvar e cadastrar o próximo: limpa o que é de cada ingrediente, mantém unidade e área.
     const gravado = nome.trim();
+    if (!proximo) return aoSalvar(id, `Ingrediente criado: ${gravado}. Ele está em destaque na lista.`);
+    // Salvar e cadastrar o próximo: limpa o que é de cada ingrediente, mantém unidade e área.
     setNome("");
     setEmbalagens([]);
     setFornecedorId("");
@@ -374,8 +512,7 @@ function FormularioIngrediente({
   }
 
   return (
-    <Cartao>
-      <h2>{ingrediente ? `Editar ${ingrediente.nome}` : "Novo ingrediente"}</h2>
+    <div className="ingredientes__form">
       {erro && <Aviso tipo="perigo">{erro}</Aviso>}
       {sugerido && !ingrediente && (
         <div aria-live="polite">
@@ -455,8 +592,8 @@ function FormularioIngrediente({
               Salvar e cadastrar o próximo
             </Botao>
           )}
-          <Botao variante="secundario" onClick={aoFechar}>
-            {ingrediente ? "Fechar" : "Cancelar"}
+          <Botao variante="secundario" onClick={pedirFechar}>
+            Cancelar
           </Botao>
         </div>
       </form>
@@ -473,6 +610,6 @@ function FormularioIngrediente({
           abertoNoInicio={abrirEmbalagens}
         />
       )}
-    </Cartao>
+    </div>
   );
 }

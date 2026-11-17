@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { entrar, semEstouroDeLargura } from "./ajudas";
+import { abrirAdicionar, entrar, semEstouroDeLargura } from "./ajudas";
 
 // Cadastro rápido de ingredientes e fornecedores (ideia nº 4): catálogo pronto, lista colada,
 // sugestão ao digitar, embalagens do catálogo, duplicar, salvar e próximo, máscaras e consulta de CNPJ.
@@ -20,7 +20,7 @@ async function altoDeToque(...itens: Locator[]) {
 async function abrirRapido(page: Page) {
   await page.goto("/cadastros");
   await expect(page.getByTestId("ingrediente-Ovo")).toBeVisible();
-  await page.getByRole("button", { name: "Cadastro rápido" }).click();
+  await abrirAdicionar(page, "Rápido");
   await expect(page.getByRole("tab", { name: "Catálogo pronto" })).toHaveAttribute("aria-selected", "true");
 }
 
@@ -189,7 +189,7 @@ test("colar uma lista: prévia verde, amarela e vermelha; corrige uma linha; gra
 test("ao digitar o nome, sugere do catálogo (teclado e leitor de tela) e preenche unidade, área e embalagens", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await page.goto("/cadastros");
-  await page.getByRole("button", { name: "Novo ingrediente" }).click();
+  await abrirAdicionar(page, "Comum");
   const nome = page.getByRole("combobox", { name: "Nome" });
   await expect(nome).toHaveAttribute("aria-expanded", "false");
   await nome.pressSequentially("calabr");
@@ -232,21 +232,26 @@ test("ao digitar o nome, sugere do catálogo (teclado e leitor de tela) e preenc
 test("sugestão escolhida com o dedo preenche unidade em ml e área da cafeteria", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await page.goto("/cadastros");
-  await page.getByRole("button", { name: "Novo ingrediente" }).click();
+  await abrirAdicionar(page, "Comum");
   const nome = page.getByRole("combobox", { name: "Nome" });
   await nome.pressSequentially("chantil");
   await page.getByRole("option", { name: /Chantilly/ }).click();
   await expect(page.getByLabel("Unidade do estoque")).toHaveValue("ml");
   await expect(page.getByLabel("Área", { exact: true })).toHaveValue("cafeteria");
   await altoDeToque(page.getByRole("button", { name: "Criar ingrediente" }));
+  // Algo foi digitado: Cancelar pergunta antes de descartar.
   await page.getByRole("button", { name: "Cancelar" }).click();
+  await expect(page.getByRole("alertdialog", { name: "Descartar o que foi digitado?" })).toBeVisible();
+  await page.getByRole("button", { name: "Descartar", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
 test("duplicar copia tudo, deixa o nome '(cópia)' selecionado e grava um novo", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await page.goto("/cadastros");
   await page.getByRole("button", { name: "Duplicar Farinha de trigo", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Novo ingrediente" })).toBeVisible();
+  const janela = page.getByRole("dialog", { name: "Adicionar ingrediente" });
+  await expect(janela.getByRole("tab", { name: "Comum", exact: true })).toHaveAttribute("aria-selected", "true");
   const nome = page.getByRole("combobox", { name: "Nome" });
   await expect(nome).toHaveValue("Farinha de trigo (cópia)");
   await expect(nome).toBeFocused();
@@ -269,7 +274,7 @@ test("duplicar copia tudo, deixa o nome '(cópia)' selecionado e grava um novo",
 test("salvar e cadastrar o próximo: limpa, mantém área e unidade e volta o foco ao nome", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await page.goto("/cadastros");
-  await page.getByRole("button", { name: "Novo ingrediente" }).click();
+  await abrirAdicionar(page, "Comum");
   const nome = page.getByRole("combobox", { name: "Nome" });
   await nome.fill("Canela em pó (tela)");
   await page.getByLabel("Unidade do estoque").selectOption("g");
@@ -435,13 +440,14 @@ test("fornecedores: sem internet (rede caída) também mostra mensagem simples",
   await expect(page.getByTestId("resultado-cnpj")).toContainText("Sem conexão com o servidor");
 });
 
-test("cozinheira vê a lista, mas não vê Cadastro rápido, Duplicar nem Buscar CNPJ", async ({ page }) => {
+test("cozinheira vê a lista, mas não vê Adicionar ingrediente, Duplicar nem Buscar CNPJ", async ({ page }) => {
   await entrar(page, "cozinheira");
   await page.goto("/cadastros");
   await expect(page.getByTestId("ingrediente-Ovo")).toBeVisible();
   await expect(page.getByRole("button", { name: "Cadastro rápido" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Duplicar/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Novo ingrediente" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Adicionar ingrediente" })).toHaveCount(0);
   // O servidor também recusa quem não tem a permissão (não é só esconder o botão).
   const catalogo = await page.request.get("/api/cadastros/catalogo");
   expect(catalogo.status()).toBe(403);
