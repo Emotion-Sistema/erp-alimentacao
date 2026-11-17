@@ -1,7 +1,7 @@
 # 2026-11-17: E07 parte 2, PR 1: categorias e horários de venda
 
 - Assunto da sessão: E07, cadastros (parte 2)
-- Branch / PR: `feat/horarios-de-venda` (servidor, ainda sem PR) e `feat/horarios-telas` (telas, com o construtor)
+- Branch / PR: PR 51 (merge 1ce59cb, servidor + telas) e PR 52 (merge 711eb56, asterisco nos itens a confirmar)
 
 ## O que foi pedido
 "ok" do responsável para começar a parte 2 da E07. Ela vai em 3 PRs: (1) horários; (2) tipos de
@@ -36,8 +36,18 @@ Ver a decisão 0016: três camadas com interseção, semana como padrão, data e
 regra só no banco. Hipóteses abertas: uma janela por dia; sem passar da meia-noite; às 23h em
 ponto já não aceita pedido; categoria vale para a empresa toda.
 
+## Depois (mesmo dia)
+- As telas do construtor foram juntadas à branch do servidor. Passaram `pnpm teste` (346) e `teste:tela` (139). O PR 51 teve CI verde e foi juntado.
+- O responsável confirmou: **às 23h em ponto o sistema já não aceita pedido** (decisão 0016).
+- As perguntas 1 e 2 das fichas só terão resposta em **22/11**. Há um lembrete agendado nesta sessão para 22/11 às 9h (horário de Brasília).
+- A pedido dele, os 11 itens de unidade a confirmar ganharam **asterisco** (PR 52):
+  - no cadastro rápido, não podem ser marcados;
+  - no cadastro comum e na lista colada, aparece um aviso.
+
+  A lista fica num lugar só, `NOMES_A_CONFIRMAR` em `catalogo-ingredientes.ts`. Com a resposta, corrigir as unidades e esvaziar a lista.
+- Aprendizado: `pnpm tipos` não confere o app Next (`apps/gestao`). Erro de tipo das telas só aparece no `next build`, que roda no teste de tela e no CI.
+
 ## O que ficou pendente
-- Juntar as telas do construtor na branch do servidor, rodar tudo e abrir o PR. Depois disso, CI, merge e conferência na homologação.
 - PR 2 (tipos de produção) e PR 3 (produtos).
 - As 11 unidades divergentes do catálogo esperam as perguntas 1 e 2 das fichas (`cerebro/empresa/fichas-tecnicas/perguntas.md`).
 
