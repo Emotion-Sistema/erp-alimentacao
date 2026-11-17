@@ -1,6 +1,6 @@
 # Estado atual do projeto
 
-Atualizado em: 14/11/2026
+Atualizado em: 17/11/2026
 
 ## Em que pé estamos
 - Fase: **E02 (fundação) feita** no PR #4: monorepositório, banco, login e permissões no
@@ -41,7 +41,7 @@ Atualizado em: 14/11/2026
   **Parte 1 feita** (PR 26, merge 05a65b2, no ar na homologação; migração 0006, decisão 0015;
   diário `diario/2026-11-15-e07-cadastros.md`). **Ideia nº 4 feita** (PRs 32 e 34: ajuda em cada campo e
   cadastro rápido; no ar na homologação). **Reforma visual feita** (PR 37, merge 65352af, aprovada pelo
-  responsável e no ar na homologação às 15:15 UTC: dados com rótulo, selos, fundo sempre claro). **Ideia nº 5 feita** (PR 41; embalagens num bloco só, aprovado, PR seguinte, merge 58f00a2, no ar na homologação; migração 0008, adendo na decisão 0015): lista pronta de unidades (kg, g, L, ml, un, dz); conta por dentro segue em g/ml/un. **Ideia nº 6 feita** (PR 46, merge eac6ff2, no ar na homologação; migração 0009, decisão 0015 item 10): aba Embalagens (catálogo por tipo, padrão por fornecedor) e bloco recolhido no ingrediente; telas em `apps/gestao/app/cadastros/embalagens/` com LEIA-ME. **Aba Ingredientes** com a lista primeiro e janela "Adicionar ingrediente" (Rápido/Comum) (PR 48, merge 77986a6, no ar na homologação em 17/11/2026). Depois: parte 2 (categorias,
+  responsável e no ar na homologação às 15:15 UTC: dados com rótulo, selos, fundo sempre claro). **Ideia nº 5 feita** (PR 41; embalagens num bloco só, aprovado, PR seguinte, merge 58f00a2, no ar na homologação; migração 0008, adendo na decisão 0015): lista pronta de unidades (kg, g, L, ml, un, dz); conta por dentro segue em g/ml/un. **Ideia nº 6 feita** (PR 46, merge eac6ff2, no ar na homologação; migração 0009, decisão 0015 item 10): aba Embalagens (catálogo por tipo, padrão por fornecedor) e bloco recolhido no ingrediente; telas em `apps/gestao/app/cadastros/embalagens/` com LEIA-ME. **Aba Ingredientes** com a lista primeiro e janela "Adicionar ingrediente" (Rápido/Comum) (PR 48, merge 77986a6, no ar na homologação em 17/11/2026). **Parte 2 em andamento (17/11/2026):** PR 1 de categorias e horários de venda (migração 0010, decisão 0016; servidor revisado na branch `feat/horarios-de-venda`, telas com o construtor em `feat/horarios-telas`; diário `diario/2026-11-17-e07-parte2-horarios.md`). Depois: PR 2 tipos de produção e PR 3 produtos (parte 2: categorias,
   tipos de pedido, produtos). Conector do Google Drive ligado em 15/11/2026.
 - **Frentes paralelas** (15/11/2026): outro chat, com o modelo que o responsável escolher, pode cuidar
   de uma função só e falar com este pelo `cerebro/frentes/mural.md` (regras em `cerebro/frentes/README.md`).
@@ -97,6 +97,7 @@ Tudo sobre um núcleo único. Detalhes em `docs/01-visao-e-escopo.md`.
 ## Histórico de sessões
 | Data | Assunto | Resultado | Diário |
 |---|---|---|---|
+| 17/11/2026 | E07 parte 2, PR 1: categorias e horários | Servidor pronto e revisado; telas em construção | `diario/2026-11-17-e07-parte2-horarios.md` |
 | 15/11/2026 | E07: cadastros (parte 1) | Ingredientes, fornecedores, conversões; PR 26 juntado; revisão aprovou na 3ª rodada | `diario/2026-11-15-e07-cadastros.md` |
 | 15/11/2026 | Mod "Salão" do Claude (ferramenta, fora do ERP) | Construído e **cancelado pelo responsável no mesmo dia**; tudo removido do repositório | `diario/2026-11-15-mod-salao.md` |
 | 13/11/2026 | Preparação do projeto (F0) | Instruções, requisitos, cérebro, skills e travas criados | `diario/2026-11-13-preparacao-do-projeto.md` |
