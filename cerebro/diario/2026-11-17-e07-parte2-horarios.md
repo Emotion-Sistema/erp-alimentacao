@@ -47,8 +47,17 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
   A lista fica num lugar só, `NOMES_A_CONFIRMAR` em `catalogo-ingredientes.ts`. Com a resposta, corrigir as unidades e esvaziar a lista.
 - Aprendizado: `pnpm tipos` não confere o app Next (`apps/gestao`). Erro de tipo das telas só aparece no `next build`, que roda no teste de tela e no CI.
 
+## Mais tarde (mesmo dia)
+- O responsável viu que a janela "Pausar agora" abria deslocada no canto. A causa era a regra `.hor-tela > * { margin: 0 }`, que também tirava a margem automática do `<dialog>`. A correção foi trocar para `> :not(dialog)` (PR 54, merge edb9e7d). O teste novo `janelaNoCentro` (em `testes-tela/ajudas.ts`) confere as janelas.
+- O responsável conferiu na homologação todos os testes anteriores, e tudo deu certo.
+- **PR 2 (tipos de produção) em andamento** na branch `feat/tipos-de-producao`:
+  - feito: migração 0011 (`tipo_producao`: nome, área cozinha/cafeteria, capacidade 1 a 50, ordem, ativo), regra em `packages/dominio/src/tipos-producao.ts`, rotas `/api/cadastros/tipos-producao`, decisão 0017 e 6 testes;
+  - o construtor está fazendo a tela `/cadastros/tipos-producao`;
+  - depois disso: revisor, PR e CI.
+- Hipóteses da 0017: cada tipo começa com capacidade 1; porções, salgados e almoço ficam em "Pratos e grelhados" até haver tipo próprio.
+
 ## O que ficou pendente
-- PR 2 (tipos de produção) e PR 3 (produtos).
+- Terminar o PR 2 (tipos de produção) e fazer o PR 3 (produtos).
 - As 11 unidades divergentes do catálogo esperam as perguntas 1 e 2 das fichas (`cerebro/empresa/fichas-tecnicas/perguntas.md`).
 
 ## O que deu errado ou surpreendeu
