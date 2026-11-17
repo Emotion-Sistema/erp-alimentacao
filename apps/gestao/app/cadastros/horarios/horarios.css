@@ -1,0 +1,149 @@
+/*
+ * Horários de venda e Categorias (E07 parte 2). Só variáveis do tema (packages/interface/src/tema.css);
+ * nenhuma cor escrita aqui. Prefixo "hor-" em tudo. Fundo sempre claro.
+ * No celular (até 40rem) cada dia da grade vira um cartão empilhado.
+ */
+
+/* ---------- tela ---------- */
+.hor-tela { display: grid; gap: var(--espaco-4); min-width: 0; }
+.hor-tela > * { min-width: 0; margin: 0; }
+.hor-tela__cabeca h1 { margin: 0 0 var(--espaco-2); }
+.hor-tela__intro { margin: 0; color: var(--cor-texto-suave); max-width: 48rem; }
+.hor-tela__cabeca--com-botao { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--espaco-3); }
+.hor-tela__cabeca--com-botao > div { flex: 1 1 24rem; min-width: 0; }
+.hor-tela .erp-aviso { margin: 0; }
+
+/* ---------- faixa Agora ---------- */
+.hor-agora {
+  display: grid; gap: var(--espaco-2); padding: var(--espaco-3) var(--espaco-4);
+  background: var(--cor-superficie); border: 1px solid var(--cor-borda); border-radius: var(--raio);
+}
+.hor-agora__titulo { margin: 0; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cor-texto-suave); }
+.hor-agora__lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: var(--espaco-3); }
+.hor-agora__canal {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); min-width: 0;
+  padding: var(--espaco-3); background: var(--cor-fundo); border: 1px solid var(--cor-borda); border-left: 6px solid var(--cor-borda); border-radius: var(--raio);
+}
+.hor-agora__canal--aberto { border-left-color: var(--cor-sucesso); }
+.hor-agora__nome { font-weight: 800; font-size: var(--texto-grande); }
+.hor-agora__frase { flex-basis: 100%; font-weight: 600; overflow-wrap: anywhere; }
+.hor-agora__nota { margin: 0; font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
+
+/* ---------- seções ---------- */
+.hor-secao { display: grid; gap: var(--espaco-3); min-width: 0; padding: var(--espaco-4); background: var(--cor-fundo); border: 1px solid var(--cor-borda); border-radius: var(--raio); box-shadow: var(--sombra); }
+.hor-secao > * { min-width: 0; margin: 0; }
+.hor-secao h2 { margin: 0; }
+.hor-secao__cabeca { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-3); }
+.hor-secao__intro { margin: 0; color: var(--cor-texto-suave); }
+.hor-secao__acao { display: inline-flex; align-items: center; gap: var(--espaco-2); }
+.hor-secao__botoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); }
+.hor-secao--discreta { background: var(--cor-superficie); box-shadow: none; border-style: dashed; }
+.hor-vazio { margin: 0; padding: var(--espaco-3); border: 2px dashed var(--cor-borda); border-radius: var(--raio); color: var(--cor-texto-suave); text-align: center; }
+@media (max-width: 40rem) {
+  .hor-secao { padding: var(--espaco-3); }
+  .hor-secao__acao, .hor-secao__botoes > * { width: 100%; justify-content: center; }
+}
+
+/* ---------- grade de 7 dias ---------- */
+.hor-grade { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: var(--espaco-2); }
+.hor-grade > legend { font-weight: 700; padding: 0; margin-bottom: var(--espaco-1); }
+.hor-grade__dias { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); min-width: 0; }
+.hor-dia {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--espaco-2) var(--espaco-4); min-width: 0;
+  padding: var(--espaco-3); background: var(--cor-fundo); border: 1px solid var(--cor-borda); border-left: 6px solid var(--cor-primaria); border-radius: var(--raio);
+}
+.hor-dia--fechado { background: var(--cor-superficie); border-left-color: var(--cor-borda); }
+.hor-dia--erro { border-color: var(--cor-perigo); border-left-color: var(--cor-perigo); }
+.hor-dia__cabeca { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); flex: 0 0 13rem; min-width: 0; }
+.hor-dia__nome { font-weight: 800; font-size: var(--texto-grande); min-width: 6rem; }
+.hor-dia__horas { display: flex; flex-wrap: wrap; gap: var(--espaco-2) var(--espaco-3); min-width: 0; }
+.hor-dia__fechado { margin: 0; color: var(--cor-texto-suave); align-self: center; }
+.hor-dia__modos { display: flex; flex-wrap: wrap; gap: var(--espaco-2); min-width: 0; }
+.hor-dia__vale { display: inline-flex; align-items: center; gap: var(--espaco-2); }
+.hor-dia__vale-rotulo { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cor-texto-suave); }
+.hor-dia__copiar {
+  min-height: 44px; padding: 0 var(--espaco-3); background: transparent; color: var(--cor-primaria); font: inherit; font-size: var(--texto-pequeno); font-weight: 600;
+  border: 2px solid transparent; border-radius: var(--raio); text-decoration: underline; cursor: pointer; margin-left: auto;
+}
+.hor-dia__copiar:hover { border-color: var(--cor-primaria); }
+.hor-dia__problema { flex-basis: 100%; display: flex; align-items: center; gap: var(--espaco-2); margin: 0; color: var(--cor-perigo); font-weight: 700; }
+.erp-campo--grade { margin: 0; gap: var(--espaco-1); }
+.hor-hora { width: 7.5rem; font-variant-numeric: tabular-nums; }
+.hor-dia .erp-campo__rotulo { font-size: var(--texto-pequeno); }
+.hor-dia .erp-campo__entrada:disabled, .hor-dia input:disabled + * { cursor: not-allowed; }
+
+/* Chave Aberta/Fechada e as três escolhas do dia: alvo de toque grande. */
+.hor-chave, .hor-modo, .hor-escolha {
+  display: inline-flex; align-items: center; gap: var(--espaco-2); min-height: 44px; padding: 0 var(--espaco-3);
+  border: 2px solid var(--cor-borda); border-radius: 999px; background: var(--cor-fundo); font-weight: 600; cursor: pointer;
+}
+.hor-chave input, .hor-modo input, .hor-escolha input { width: 1.25rem; height: 1.25rem; margin: 0; flex: none; }
+.hor-chave:has(input:checked), .hor-modo:has(input:checked), .hor-escolha:has(input:checked) { border-color: var(--cor-primaria); background: var(--selo-info-fundo); color: var(--selo-info-texto); }
+.hor-chave:has(input:disabled), .hor-modo:has(input:disabled) { cursor: not-allowed; opacity: 0.8; }
+.hor-escolhas { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--espaco-2); min-width: 0; }
+.hor-escolhas > legend { font-weight: 700; padding: 0; margin-bottom: var(--espaco-2); }
+.hor-escolhas > .ajuda { flex-basis: 100%; }
+
+@media (max-width: 40rem) {
+  .hor-dia { display: grid; align-items: stretch; }
+  .hor-dia__cabeca { flex: none; justify-content: space-between; }
+  .hor-dia__horas { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); }
+  .hor-hora { width: 100%; }
+  .hor-dia__modos { display: grid; }
+  .hor-modo { justify-content: flex-start; }
+  .hor-dia__copiar { margin-left: 0; justify-self: start; }
+}
+
+/* ---------- abas Loja | Delivery ---------- */
+.hor-abas { display: grid; gap: var(--espaco-3); min-width: 0; }
+.hor-abas__lista { display: flex; gap: var(--espaco-2); border-bottom: 2px solid var(--cor-borda); }
+.hor-abas__aba {
+  min-height: var(--alvo-toque); padding: 0 var(--espaco-5); font: inherit; font-weight: 700; cursor: pointer;
+  background: transparent; color: var(--cor-texto); border: 2px solid var(--cor-borda); border-bottom: 0; border-radius: var(--raio) var(--raio) 0 0;
+}
+.hor-abas__aba[aria-selected="true"] { background: var(--cor-primaria); color: var(--cor-primaria-texto); border-color: var(--cor-primaria); }
+.hor-abas__painel { min-width: 0; }
+.hor-venda { display: grid; gap: var(--espaco-3); min-width: 0; }
+@media (max-width: 40rem) { .hor-abas__aba { flex: 1 1 0; padding: 0 var(--espaco-2); } }
+
+/* ---------- listas de datas e pausas ---------- */
+.hor-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); }
+.hor-item { display: grid; gap: var(--espaco-2); min-width: 0; padding: var(--espaco-3); background: var(--cor-superficie); border: 1px solid var(--cor-borda); border-radius: var(--raio); }
+.hor-item--pausa { border-left: 6px solid var(--cor-atencao); }
+.hor-item__linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); min-width: 0; }
+.hor-item__quando { display: inline-flex; align-items: center; gap: var(--espaco-2); font-weight: 800; font-size: var(--texto-grande); }
+.hor-item__alvo { font-size: var(--texto-grande); overflow-wrap: anywhere; }
+.hor-item__motivo { margin: 0; overflow-wrap: anywhere; }
+.hor-item__acoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); }
+.hor-confirmar { display: grid; gap: var(--espaco-2); padding: var(--espaco-3); border: 2px solid var(--cor-perigo); border-radius: var(--raio); background: var(--cor-fundo); }
+.hor-confirmar p { margin: 0; font-weight: 600; }
+@media (max-width: 40rem) { .hor-item__acoes > * { width: 100%; } }
+
+/* ---------- janelas ---------- */
+.hor-form { display: grid; gap: var(--espaco-3); min-width: 0; }
+.hor-form > * { min-width: 0; margin: 0; }
+.hor-form .erp-aviso { margin: 0; }
+.hor-sugestoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); margin-top: calc(-1 * var(--espaco-2)); }
+
+/* ---------- categorias ---------- */
+.hor-cats { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-3); }
+.hor-cats__item { min-width: 0; }
+.hor-cat {
+  display: grid; gap: var(--espaco-3); min-width: 0; padding: var(--espaco-4);
+  background: var(--cor-fundo); border: 1px solid var(--cor-borda); border-radius: var(--raio); box-shadow: var(--sombra);
+}
+.hor-cat--inativa { background: var(--cor-superficie); box-shadow: none; border-style: dashed; }
+.hor-cat__cabeca { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); min-width: 0; }
+.hor-cat__nome { margin: 0; font-size: var(--texto-grande); font-weight: 800; overflow-wrap: anywhere; }
+.hor-cat--inativa .hor-cat__nome { color: var(--cor-texto-suave); }
+.hor-cat__descricao { margin: 0; overflow-wrap: anywhere; }
+.hor-cat__descricao--vazia { color: var(--cor-texto-suave); font-style: italic; }
+.hor-cat__selos { display: flex; flex-wrap: wrap; gap: var(--espaco-2); }
+.hor-cat__acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); }
+.hor-cat__horario { background: var(--selo-info-fundo); color: var(--selo-info-texto); }
+.hor-cat__grade { display: grid; gap: var(--espaco-3); min-width: 0; padding-top: var(--espaco-3); border-top: 1px solid var(--cor-borda); }
+@media (max-width: 40rem) {
+  .hor-cat { padding: var(--espaco-3); }
+  .hor-cat__acoes > * { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) { .hor-tela * { transition: none !important; animation: none !important; } }

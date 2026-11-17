@@ -1,6 +1,7 @@
 import { metadadosDoApp } from "../manifesto-do-app";
 import "./embalagens/embalagens.css";
 import "./ingredientes.css";
+import "./horarios/horarios.css";
 
 export const metadata = metadadosDoApp("cadastros");
 

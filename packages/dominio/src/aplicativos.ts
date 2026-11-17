@@ -96,12 +96,14 @@ export const APLICATIVOS: readonly Aplicativo[] = [
     codigo: "cadastros",
     nome: "Cadastros",
     caminho: "/cadastros",
-    descricao: "Ingredientes, unidades de compra e fornecedores.",
+    descricao: "Ingredientes, embalagens, fornecedores, categorias e horários de venda.",
     aparelho: "computador",
     itens: [
       { caminho: "/cadastros", texto: "Ingredientes", acao: "cadastros.ver" },
       { caminho: "/cadastros/embalagens", texto: "Embalagens", acao: "cadastros.ver" },
       { caminho: "/cadastros/fornecedores", texto: "Fornecedores", acao: "cadastros.ver" },
+      { caminho: "/cadastros/categorias", texto: "Categorias", acao: "cadastros.ver" },
+      { caminho: "/cadastros/horarios", texto: "Horários de venda", acao: "cadastros.ver" },
     ],
   },
   {

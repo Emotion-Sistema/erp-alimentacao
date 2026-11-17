@@ -237,3 +237,30 @@ export function OpcaoDoGrupo({
     </label>
   );
 }
+
+/**
+ * Campo de digitar DENTRO de um Grupo, usando a ajuda do grupo (uma explicação e um exemplo para a
+ * grade inteira, ex.: os 7 dias da semana). O rótulo fica sempre visível; `complemento` entra só para
+ * o leitor de tela ("Abre" + " na segunda"), para cada campo ter nome único.
+ */
+export function CampoDoGrupo({
+  rotulo,
+  complemento,
+  id,
+  className,
+  ...resto
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "aria-describedby"> & { rotulo: string; complemento?: string }) {
+  const descricao = useContext(ContextoDoGrupo);
+  if (descricao === null) throw new Error("CampoDoGrupo só pode ser usado dentro de Grupo");
+  const gerado = useId();
+  const idCampo = id ?? gerado;
+  return (
+    <div className="erp-campo erp-campo--grade">
+      <label className="erp-campo__rotulo" htmlFor={idCampo}>
+        {rotulo}
+        {complemento && <span className="ajuda__so-leitor"> {complemento}</span>}
+      </label>
+      <input id={idCampo} className={["erp-campo__entrada", className].filter(Boolean).join(" ")} aria-describedby={descricao} {...resto} />
+    </div>
+  );
+}

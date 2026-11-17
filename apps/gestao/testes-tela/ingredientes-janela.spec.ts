@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { abrirAdicionar, entrar, janelaSemEstouro, semEstouroDeLargura } from "./ajudas";
+import { URL_GESTAO } from "./playwright.config";
 
 // Tela de Ingredientes com a lista primeiro e a janela (popup) "Adicionar ingrediente" (pedido do
 // responsável, 15/11/2026): botão no topo da lista, abas Rápido e Comum, Esc fecha e o foco volta,
@@ -262,7 +263,7 @@ test.describe("capturas", () => {
         deviceScaleFactor: 2,
         locale: "pt-BR",
         reducedMotion: "reduce",
-        baseURL: "http://localhost:3100",
+        baseURL: URL_GESTAO,
       });
       const page = await contexto.newPage();
       await entrar(page, "gerente.geral");

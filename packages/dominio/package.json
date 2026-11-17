@@ -5,7 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./catalogo": "./src/catalogo-ingredientes.ts",
-    "./unidades": "./src/unidades-do-estoque.ts"
+    "./unidades": "./src/unidades-do-estoque.ts",
+    "./horarios": "./src/horarios-comum.ts"
   },
   "scripts": {
     "semente": "tsx src/semente.ts",

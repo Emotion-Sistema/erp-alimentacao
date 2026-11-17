@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { abrirAdicionar, entrar, semEstouroDeLargura } from "./ajudas";
+import { URL_GESTAO } from "./playwright.config";
 
 // Catálogo de embalagens (ideia nº 6): aba Embalagens em Cadastros e o bloco de embalagens do
 // ingrediente (recolhido, escolher do catálogo, criar nova). Roda contra o banco de tela real.
@@ -370,7 +371,7 @@ test.describe("capturas", () => {
 
   for (const largura of [1280, 390]) {
     test(`capturas ${largura}`, async ({ browser }) => {
-      const contexto = await browser.newContext({ viewport: { width: largura, height: largura === 390 ? 844 : 900 }, deviceScaleFactor: 2, locale: "pt-BR", baseURL: "http://localhost:3100" });
+      const contexto = await browser.newContext({ viewport: { width: largura, height: largura === 390 ? 844 : 900 }, deviceScaleFactor: 2, locale: "pt-BR", baseURL: URL_GESTAO });
       const page = await contexto.newPage();
       await entrar(page, "gerente.geral");
       await abrirAba(page);
