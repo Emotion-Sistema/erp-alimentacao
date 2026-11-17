@@ -17,3 +17,4 @@ export * from "./catalogo-ingredientes";
 export * from "./unidades-do-estoque";
 export * from "./embalagens";
 export * from "./lista-colada";
+export * from "./horarios";

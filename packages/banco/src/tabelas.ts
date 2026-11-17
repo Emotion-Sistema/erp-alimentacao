@@ -210,6 +210,83 @@ export interface EmbalagemModeloTabela {
   atualizado_em: Instante;
 }
 
+type Hora = string; // "HH:MM:SS" (time do PostgreSQL, hora local da unidade)
+type Canal = "loja" | "delivery";
+
+export interface CategoriaTabela {
+  id: Generated<number>;
+  nome: string;
+  descricao: string | null;
+  ordem: Generated<number>;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface HorarioUnidadeTabela {
+  unidade_id: number;
+  dia: number;
+  aberta: boolean;
+  abre: Hora | null;
+  ultimo_pedido: Hora | null;
+  fecha: Hora | null;
+  atualizado_em: Instante;
+}
+
+export interface HorarioUnidadeDataTabela {
+  id: Generated<number>;
+  unidade_id: number;
+  data: ColumnType<string, string, string>;
+  aberta: boolean;
+  abre: Hora | null;
+  ultimo_pedido: Hora | null;
+  fecha: Hora | null;
+  motivo: string;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface HorarioVendaTabela {
+  id: Generated<number>;
+  unidade_id: number;
+  canal: Canal;
+  categoria_id: number | null;
+  dia: number;
+  modo: "segue" | "fechado" | "aberto";
+  inicio: Hora | null;
+  fim: Hora | null;
+  atualizado_em: Instante;
+}
+
+export interface HorarioVendaDataTabela {
+  id: Generated<number>;
+  unidade_id: number;
+  canal: Canal;
+  categoria_id: number | null;
+  data: ColumnType<string, string, string>;
+  modo: "fechado" | "aberto";
+  inicio: Hora | null;
+  fim: Hora | null;
+  motivo: string;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface PausaVendaTabela {
+  id: Generated<number>;
+  unidade_id: number;
+  canal: Canal | null;
+  categoria_id: number | null;
+  inicio: Instante;
+  ate: Date | null;
+  motivo: string;
+  criada_por: number;
+  encerrada_em: Date | null;
+  encerrada_por: number | null;
+}
+
 export interface BancoTabelas {
   empresa: EmpresaTabela;
   unidade: UnidadeTabela;
@@ -229,4 +306,10 @@ export interface BancoTabelas {
   ingrediente: IngredienteTabela;
   ingrediente_conversao: IngredienteConversaoTabela;
   embalagem_modelo: EmbalagemModeloTabela;
+  categoria: CategoriaTabela;
+  horario_unidade: HorarioUnidadeTabela;
+  horario_unidade_data: HorarioUnidadeDataTabela;
+  horario_venda: HorarioVendaTabela;
+  horario_venda_data: HorarioVendaDataTabela;
+  pausa_venda: PausaVendaTabela;
 }

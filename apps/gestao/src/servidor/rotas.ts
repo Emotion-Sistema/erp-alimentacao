@@ -12,6 +12,16 @@ import {
   cadastrarEmLote,
   catalogoParaCadastrar,
   listarModelosDeEmbalagem,
+  listarCategorias,
+  salvarCategoria,
+  verHorarios,
+  salvarSemanaDaUnidade,
+  salvarSemanaDeVenda,
+  salvarDataDaUnidade,
+  salvarDataDeVenda,
+  cancelarDataEspecial,
+  pausarVenda,
+  retomarVenda,
   salvarModeloDeEmbalagem,
   consultarCnpj,
   lerListaColada,
@@ -296,6 +306,18 @@ export const saude = seguro(async () => {
 });
 
 // ---------- cadastros (E07, decisão 0015) ----------
+
+// ---------- categorias e horários de venda (E07 parte 2, decisão 0016) ----------
+export const verCategorias = seguro(async (req) => json(await listarCategorias(obterBanco(), await ator(req))));
+export const gravarCategoria = seguro(async (req) => json(await salvarCategoria(obterBanco(), await ator(req), await corpoJson(req))));
+export const verHorariosDeVenda = seguro(async (req) => json(await verHorarios(obterBanco(), await ator(req))));
+export const gravarSemanaDaUnidade = seguro(async (req) => json(await salvarSemanaDaUnidade(obterBanco(), await ator(req), await corpoJson(req))));
+export const gravarSemanaDeVenda = seguro(async (req) => json(await salvarSemanaDeVenda(obterBanco(), await ator(req), await corpoJson(req))));
+export const gravarDataDaUnidade = seguro(async (req) => json(await salvarDataDaUnidade(obterBanco(), await ator(req), await corpoJson(req))));
+export const gravarDataDeVenda = seguro(async (req) => json(await salvarDataDeVenda(obterBanco(), await ator(req), await corpoJson(req))));
+export const cancelarData = seguro(async (req) => json(await cancelarDataEspecial(obterBanco(), await ator(req), await corpoJson(req))));
+export const pausar = seguro(async (req) => json(await pausarVenda(obterBanco(), await ator(req), await corpoJson(req))));
+export const retomar = seguro(async (req) => json(await retomarVenda(obterBanco(), await ator(req), await corpoJson(req))));
 
 export const verEmbalagens = seguro(async (req) => json(await listarModelosDeEmbalagem(obterBanco(), await ator(req))));
 export const gravarEmbalagem = seguro(async (req) => {
