@@ -6,7 +6,7 @@
 
 /* ---------- tela ---------- */
 .hor-tela { display: grid; gap: var(--espaco-4); min-width: 0; }
-.hor-tela > * { min-width: 0; margin: 0; }
+.hor-tela > :not(dialog) { min-width: 0; margin: 0; }
 .hor-tela__cabeca h1 { margin: 0 0 var(--espaco-2); }
 .hor-tela__intro { margin: 0; color: var(--cor-texto-suave); max-width: 48rem; }
 .hor-tela__cabeca--com-botao { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--espaco-3); }
@@ -31,7 +31,7 @@
 
 /* ---------- seções ---------- */
 .hor-secao { display: grid; gap: var(--espaco-3); min-width: 0; padding: var(--espaco-4); background: var(--cor-fundo); border: 1px solid var(--cor-borda); border-radius: var(--raio); box-shadow: var(--sombra); }
-.hor-secao > * { min-width: 0; margin: 0; }
+.hor-secao > :not(dialog) { min-width: 0; margin: 0; }
 .hor-secao h2 { margin: 0; }
 .hor-secao__cabeca { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-3); }
 .hor-secao__intro { margin: 0; color: var(--cor-texto-suave); }

@@ -26,6 +26,8 @@
   background: var(--cor-fundo); color: var(--cor-texto); box-shadow: 0 12px 40px color-mix(in srgb, var(--cor-texto) 25%, transparent);
   animation: janela-entra 0.2s ease-out;
 }
+/* Sempre no centro da tela, mesmo dentro de um bloco que zera a margem dos filhos (ex.: .hor-tela > *). */
+dialog.janela { margin: auto; }
 .janela::backdrop { background: color-mix(in srgb, var(--cor-texto) 45%, transparent); }
 .janela[open] { display: flex; flex-direction: column; }
 .janela__cabeca {

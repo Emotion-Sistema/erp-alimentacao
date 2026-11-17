@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { Secret, TOTP } from "otpauth";
 import { APLICATIVOS } from "../../../packages/dominio/src/aplicativos";
 import { BANCO } from "./playwright.config";
@@ -46,6 +46,20 @@ export async function entrar(page: Page, login: string, comSegundoFator = false)
 }
 
 /** Garante que a página não ficou mais larga do que a tela. */
+/** A janela (dialog) abre no centro da tela, não grudada num canto (o responsável viu deslocada em 17/11/2026). */
+export async function janelaNoCentro(page: Page, janela: Locator) {
+  const tela = page.viewportSize()!;
+  // Espera a animação de entrada terminar (ela desliza alguns pixels).
+  await expect
+    .poll(async () => {
+      const c = (await janela.boundingBox())!;
+      const horizontal = Math.abs(c.x - (tela.width - c.x - c.width));
+      const vertical = c.height < tela.height - 4 ? Math.abs(c.y - (tela.height - c.y - c.height)) : 0;
+      return Math.max(horizontal, vertical);
+    }, { message: "janela centralizada na tela" })
+    .toBeLessThanOrEqual(2);
+}
+
 export async function semEstouroDeLargura(page: Page) {
   const { rolagem, largura } = await page.evaluate(() => ({
     rolagem: document.documentElement.scrollWidth,
@@ -63,6 +77,7 @@ export async function abrirAdicionar(page: Page, aba: "Rápido" | "Comum") {
   await page.getByRole("button", { name: "Adicionar ingrediente", exact: true }).click();
   const janela = page.getByRole("dialog", { name: "Adicionar ingrediente" });
   await expect(janela).toBeVisible();
+  await janelaNoCentro(page, janela);
   const guia = janela.getByRole("tab", { name: aba, exact: true });
   await guia.click();
   await expect(guia).toHaveAttribute("aria-selected", "true");
