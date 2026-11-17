@@ -132,6 +132,36 @@ test.describe("telas internas do administrador", () => {
     await semEstouroDeLargura(page);
   });
 
+  test("cadastros: horários de venda (grades e janelas) e categorias", async ({ page }) => {
+    await page.goto("/cadastros/horarios");
+    await expect(page.getByTestId("semana-da-loja")).toBeVisible();
+    await conferirAjuda(page, "horários de venda (semana e canal)", 18);
+    await page.getByTestId("canais").getByRole("group", { name: "Sexta" }).getByRole("radio", { name: "Horário próprio" }).check();
+    await conferirAjuda(page, "horários de venda (canal com horário próprio)", 20);
+    await page.getByRole("button", { name: "Desfazer mudanças" }).click();
+    await page.getByRole("button", { name: "Nova data especial" }).click();
+    const data = page.getByRole("dialog", { name: "Nova data especial" });
+    await data.getByRole("radio", { name: "Horário diferente" }).check();
+    await conferirAjuda(page, "nova data especial (loja inteira)", 5);
+    await data.getByRole("radio", { name: "Uma categoria num canal" }).check();
+    await conferirAjuda(page, "nova data especial (categoria)", 6);
+    await data.getByRole("button", { name: "Cancelar" }).click();
+    await page.getByRole("button", { name: "Descartar" }).click();
+    await page.getByRole("button", { name: "Pausar agora" }).click();
+    await page.getByRole("dialog", { name: "Pausar agora" }).getByRole("radio", { name: "Uma categoria num canal" }).check();
+    await conferirAjuda(page, "pausar agora", 3);
+    await page.getByRole("dialog", { name: "Pausar agora" }).getByRole("button", { name: "Cancelar" }).click();
+    await page.getByRole("button", { name: "Descartar" }).click();
+    await semEstouroDeLargura(page);
+
+    await page.goto("/cadastros/categorias");
+    await page.getByRole("button", { name: "Horário de Almoço", exact: true }).click();
+    await conferirAjuda(page, "categorias (horário da categoria)", 7);
+    await page.getByRole("button", { name: "Nova categoria" }).click();
+    await conferirAjuda(page, "nova categoria", 3);
+    await semEstouroDeLargura(page);
+  });
+
   test("cadastros: fornecedores", async ({ page }) => {
     await page.goto("/cadastros/fornecedores");
     await page.getByRole("button", { name: "Novo fornecedor" }).click();

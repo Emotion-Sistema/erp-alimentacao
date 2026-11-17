@@ -1,14 +1,17 @@
 import { existsSync } from "node:fs";
 import { defineConfig } from "@playwright/test";
 
-export const URL_LOJA = `http://localhost:3101`;
-export const URL_SITE = `http://localhost:3102`;
+// Portas dos servidores de teste: PORTA_TELA troca as três (gestão, loja = +1, site = +2), para
+// rodar ao lado de outro processo que já usa as de sempre (3100, 3101, 3102).
+const PORTA = Number(process.env.PORTA_TELA ?? 3100);
+const PORTA_LOJA = PORTA + 1;
+const PORTA_SITE = PORTA + 2;
+export const URL_GESTAO = `http://localhost:${PORTA}`;
+export const URL_LOJA = `http://localhost:${PORTA_LOJA}`;
+export const URL_SITE = `http://localhost:${PORTA_SITE}`;
 // Banco dos testes de tela: dá para trocar (ex.: revisão em paralelo), mas sempre um "_teste".
 export const BANCO = process.env.DATABASE_URL_TELA ?? "postgres://erp:erp@localhost:5432/erp_tela_teste";
 if (!/\/[a-z0-9_]+_teste$/.test(BANCO)) throw new Error("DATABASE_URL_TELA precisa apontar para um banco terminado em _teste");
-const PORTA = 3100;
-const PORTA_LOJA = 3101;
-const PORTA_SITE = 3102;
 
 export default defineConfig({
   testDir: ".",
