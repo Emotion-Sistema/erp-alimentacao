@@ -2,7 +2,7 @@
 
 /** Cartão de um tipo de produção: nome, área, capacidade e, para quem gerencia, Editar e Desativar/Reativar. */
 import { Botao, Selo } from "@erp/interface";
-import { NOME_DA_AREA, type TipoDeProducao } from "@erp/dominio/tipos-producao";
+import { NOME_DA_AREA_DE_PRODUCAO, type TipoDeProducao } from "@erp/dominio/tipos-producao";
 import { TT } from "./textos";
 
 export function CartaoDoTipo({
@@ -21,7 +21,7 @@ export function CartaoDoTipo({
     <article className={["hor-cat", !t.ativo && "hor-cat--inativa"].filter(Boolean).join(" ")} data-testid={`tipo-${t.nome}`}>
       <header className="hor-cat__cabeca">
         <h3 className="hor-cat__nome">{t.nome}</h3>
-        <Selo>{NOME_DA_AREA[t.area]}</Selo>
+        <Selo>{NOME_DA_AREA_DE_PRODUCAO[t.area]}</Selo>
         {!t.ativo && <Selo variante="alerta">{TT.cartao.desativado}</Selo>}
       </header>
       <p className="hor-cat__descricao" data-testid="capacidade-do-tipo">

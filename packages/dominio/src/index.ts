@@ -19,6 +19,3 @@ export * from "./embalagens";
 export * from "./lista-colada";
 export * from "./horarios";
 export * from "./tipos-producao";
-// Os dois módulos têm NOME_DA_AREA: na raiz vale o das áreas de estoque; o das áreas de produção
-// fica em `@erp/dominio/tipos-producao`.
-export { NOME_DA_AREA } from "./cadastros";

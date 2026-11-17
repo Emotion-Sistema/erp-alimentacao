@@ -3,7 +3,7 @@
 /** Janela para criar ou editar um tipo de produção (nome, área, capacidade, ordem). Grava em /api/cadastros/tipos-producao. */
 import { useState, type FormEvent } from "react";
 import { Aviso, Botao } from "@erp/interface";
-import { AREAS, CAPACIDADE_MAXIMA, NOME_DA_AREA, SAIDA_DA_AREA, type Area, type TipoDeProducao } from "@erp/dominio/tipos-producao";
+import { AREAS_DE_PRODUCAO, CAPACIDADE_MAXIMA, NOME_DA_AREA_DE_PRODUCAO, SAIDA_DA_AREA_DE_PRODUCAO, type AreaDeProducao, type TipoDeProducao } from "@erp/dominio/tipos-producao";
 import { chamar } from "../../chamar";
 import { BotaoExemplos, Campo, Grupo, OpcaoDoGrupo } from "../../Campo";
 import { JanelaModal, usarPedirFechar } from "../JanelaModal";
@@ -32,7 +32,7 @@ export function JanelaDoTipo({
 }) {
   const [sujo, setSujo] = useState(false);
   const [nome, setNome] = useState(tipo?.nome ?? "");
-  const [area, setArea] = useState<Area | null>(tipo?.area ?? null);
+  const [area, setArea] = useState<AreaDeProducao | null>(tipo?.area ?? null);
   const [capacidade, setCapacidade] = useState(String(tipo?.capacidade ?? 1));
   const [ordem, setOrdem] = useState(String(tipo?.ordem ?? ordemSugerida));
   const [erro, setErro] = useState("");
@@ -65,8 +65,8 @@ export function JanelaDoTipo({
       <form className="hor-form" onSubmit={(e) => void salvar(e)} noValidate>
         <Campo rotulo={TT.janela.nome} explicacao={TT.janela.nomeAjuda} exemplo={TT.janela.nomeExemplo} value={nome} maxLength={40} onChange={(e) => setNome(e.target.value)} required autoComplete="off" />
         <Grupo legenda={TT.janela.area} explicacao={TT.janela.areaAjuda} exemplo={TT.janela.areaExemplo} className="hor-escolhas">
-          {AREAS.map((a) => (
-            <OpcaoDoGrupo key={a} tipo="radio" name="area" rotulo={TT.janela.opcaoArea(NOME_DA_AREA[a], SAIDA_DA_AREA[a])} className="hor-escolha" checked={area === a} onChange={() => setArea(a)} />
+          {AREAS_DE_PRODUCAO.map((a) => (
+            <OpcaoDoGrupo key={a} tipo="radio" name="area" rotulo={TT.janela.opcaoArea(NOME_DA_AREA_DE_PRODUCAO[a], SAIDA_DA_AREA_DE_PRODUCAO[a])} className="hor-escolha" checked={area === a} onChange={() => setArea(a)} />
           ))}
         </Grupo>
         <Campo rotulo={TT.janela.capacidade} explicacao={TT.janela.capacidadeAjuda} exemplo={TT.janela.capacidadeExemplo} value={capacidade} inputMode="numeric" maxLength={2} onChange={(e) => setCapacidade(e.target.value)} />

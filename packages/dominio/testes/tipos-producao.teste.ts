@@ -58,12 +58,19 @@ describe("tipos de produção", () => {
     const t = await salvarTipoDeProducao(db, gerente, { nome: `  Porções   ${sufixo} `, area: "cozinha", capacidade: 3, ordem: 40 });
     expect(t).toMatchObject({ nome: `Porções ${sufixo}`, area: "cozinha", capacidade: 3, ordem: 40, ativo: true });
     const a1 = await ultimaAuditoria(t.id);
-    expect(a1).toMatchObject({ acao: "cadastros.gerenciar", usuario_id: gerente.usuarioId, detalhes: { operacao: "criar", antes: null } });
+    expect(a1).toMatchObject({ acao: "cadastros.gerenciar", usuario_id: gerente.usuarioId, detalhes: { operacao: "criar", antes: null, depois: { id: t.id, nome: t.nome, area: "cozinha", capacidade: 3, ordem: 40, ativo: true } } });
 
     const t2 = await salvarTipoDeProducao(db, gerente, { id: t.id, nome: t.nome, area: "cafeteria" });
     expect(t2).toMatchObject({ area: "cafeteria", capacidade: 3, ordem: 40, ativo: true });
     const a2 = await ultimaAuditoria(t.id);
     expect(a2.detalhes).toMatchObject({ operacao: "alterar", antes: { area: "cozinha" }, depois: { area: "cafeteria" } });
+
+    // Desativar só com id e ativo: não volta a área nem o nome que outra pessoa mudou.
+    await salvarTipoDeProducao(db, gerente, { id: t.id, nome: `${t.nome} novo` });
+    const t3 = await salvarTipoDeProducao(db, gerente, { id: t.id, ativo: false });
+    expect(t3).toMatchObject({ nome: `${t.nome} novo`, area: "cafeteria", capacidade: 3, ordem: 40, ativo: false });
+    // Alterar sem mandar ativo mantém o ativo.
+    expect(await salvarTipoDeProducao(db, gerente, { id: t.id, capacidade: 4 })).toMatchObject({ capacidade: 4, ativo: false });
   });
 
   it("nome único entre os ativos (sem ligar para acento e maiúscula); desativar libera o nome", async () => {
@@ -90,6 +97,14 @@ describe("tipos de produção", () => {
     expect(await msg({ nome: "Tipo bom", area: "cozinha", capacidade: 51 })).toMatch(/até 50/);
     expect(await msg({ nome: "Tipo bom", area: "cozinha", capacidade: 1.5 })).toMatch(/inteiro/);
     expect(await msg({ nome: "Tipo\u0007ruim", area: "cozinha" })).toMatch(/inválido/);
+    expect(await msg({ area: "cozinha" })).toMatch(/Informe o nome/);
+    expect(await msg({ nome: "Tipo bom", area: "cozinha", ordem: 10000 })).toBeTruthy();
+    expect(await msg({ nome: "Tipo bom", area: "cozinha", ordem: -1 })).toBeTruthy();
+    expect(await msg({ nome: "Tipo bom", area: "cozinha", ativo: "sim" })).toBeTruthy();
+    expect(await msg({ id: "1", ativo: false })).toBeTruthy();
+    expect(await msg({ id: 0, ativo: false })).toBeTruthy();
+    const n = await db.selectFrom("tipo_producao").select("id").where("nome", "=", "Tipo bom").execute();
+    expect(n).toHaveLength(0);
     expect((await erroDe(salvarTipoDeProducao(db, gerente, { id: 999999, nome: "Fantasma", area: "cozinha" }))).codigo).toBe("nao_encontrado");
   });
 

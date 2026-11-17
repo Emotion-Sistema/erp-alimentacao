@@ -10,7 +10,7 @@ import { sql, type Banco } from "@erp/banco";
 import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
 import { exigir, type Ator } from "./sessao";
-import { AREAS, CAPACIDADE_MAXIMA, type TipoDeProducao } from "./tipos-producao-comum";
+import { AREAS_DE_PRODUCAO, CAPACIDADE_MAXIMA, type TipoDeProducao } from "./tipos-producao-comum";
 
 export * from "./tipos-producao-comum";
 
@@ -20,8 +20,9 @@ const esquemaTipo = z.object({
     .string({ error: "Informe o nome do tipo." })
     .trim()
     .transform((v) => v.replace(/\s+/g, " "))
-    .pipe(z.string().min(2, "Nome com pelo menos 2 letras.").max(40, "Nome com no máximo 40 letras.").refine((v) => !/\p{Cc}/u.test(v), "Nome com caractere inválido.")),
-  area: z.enum(AREAS, { error: "Área: cozinha ou cafeteria." }),
+    .pipe(z.string().min(2, "Nome com pelo menos 2 letras.").max(40, "Nome com no máximo 40 letras.").refine((v) => !/\p{Cc}/u.test(v), "Nome com caractere inválido."))
+    .optional(),
+  area: z.enum(AREAS_DE_PRODUCAO, { error: "Área: cozinha ou cafeteria." }).optional(),
   capacidade: z
     .number({ error: "Capacidade: um número inteiro." })
     .int("Capacidade: um número inteiro.")
@@ -45,13 +46,20 @@ export async function listarTiposDeProducao(db: Banco, ator: Ator | null): Promi
   return db.selectFrom("tipo_producao").select(colunas).orderBy("ativo", "desc").orderBy("ordem").orderBy("nome").orderBy("id").execute();
 }
 
-/** Cria (sem id) ou altera (com id). Campo ausente na alteração fica como está. */
+/**
+ * Cria (sem id; nome e área obrigatórios) ou altera (com id). Na alteração, campo ausente
+ * fica como está: desativar manda só `{ id, ativo }` e não desfaz a mudança de outra pessoa.
+ */
 export async function salvarTipoDeProducao(db: Banco, ator: Ator | null, dados: unknown): Promise<TipoDeProducao> {
   const quem = await exigir(db, ator, "cadastros.gerenciar", { tipo: "tipo_producao" });
   const d = validar(esquemaTipo, dados);
+  if (!d.id) {
+    const faltam = [d.nome === undefined ? "Informe o nome do tipo." : null, d.area === undefined ? "Área: cozinha ou cafeteria." : null].filter(Boolean);
+    if (faltam.length) throw new ErroDeRegra("dados_invalidos", faltam.join(" "));
+  }
   const valores = {
-    nome: d.nome,
-    area: d.area,
+    ...(d.nome === undefined ? {} : { nome: d.nome }),
+    ...(d.area === undefined ? {} : { area: d.area }),
     ...(d.capacidade === undefined ? {} : { capacidade: d.capacidade }),
     ...(d.ordem === undefined ? {} : { ordem: d.ordem }),
     ...(d.ativo === undefined ? {} : { ativo: d.ativo }),
@@ -65,7 +73,7 @@ export async function salvarTipoDeProducao(db: Banco, ator: Ator | null, dados: 
         if (!antes) throw new ErroDeRegra("nao_encontrado", "Tipo de produção não encontrado.");
         s = await trx.updateTable("tipo_producao").set({ ...valores, atualizado_em: sql`now()` }).where("id", "=", d.id).returning(colunas).executeTakeFirstOrThrow();
       } else {
-        s = await trx.insertInto("tipo_producao").values(valores).returning(colunas).executeTakeFirstOrThrow();
+        s = await trx.insertInto("tipo_producao").values({ ...valores, nome: d.nome!, area: d.area! }).returning(colunas).executeTakeFirstOrThrow();
       }
       await auditar(trx, {
         usuarioId: quem.usuarioId,

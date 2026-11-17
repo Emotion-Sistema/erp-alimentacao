@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { entrar, loginDoCargo, semEstouroDeLargura } from "./ajudas";
+import { avisoNaTela, entrar, loginDoCargo, semEstouroDeLargura } from "./ajudas";
 
 // Resultado esperado escrito à mão (independente do código), conforme a decisão 0011.
 const TODOS = ["Caixa", "Atendimento", "Produção", "Estoque e compras", "Gestão", "Cadastros", "Financeiro"];
@@ -71,7 +71,7 @@ test("senha errada mostra a mensagem do servidor", async ({ page }) => {
   await page.getByLabel("Usuário").fill("caixa");
   await page.getByLabel("Senha").fill("senha-errada-123");
   await page.getByRole("button", { name: "Entrar" }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(avisoNaTela(page)).toBeVisible();
 });
 
 test("dono entra de novo com segundo fator já configurado (código na tela de entrada)", async ({ page }) => {
@@ -85,5 +85,5 @@ test("dono entra de novo com segundo fator já configurado (código na tela de e
   await expect(page.getByLabel("Código do aplicativo autenticador")).toBeVisible();
   await page.getByLabel("Código do aplicativo autenticador").fill("000000");
   await page.getByRole("button", { name: "Confirmar" }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(avisoNaTela(page)).toBeVisible();
 });

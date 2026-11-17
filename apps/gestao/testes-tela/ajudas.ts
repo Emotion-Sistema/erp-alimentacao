@@ -47,6 +47,13 @@ export async function entrar(page: Page, login: string, comSegundoFator = false)
 
 /** Garante que a página não ficou mais larga do que a tela. */
 /** A janela (dialog) abre no centro da tela, não grudada num canto (o responsável viu deslocada em 17/11/2026). */
+/**
+ * Aviso de erro ou sucesso da página (role="alert"). Deixa de fora o anunciador de troca de
+ * página do Next (`#__next-route-announcer__`), que também é role="alert" e aparece depois de
+ * uma navegação: sem isso, `getByRole("alert")` acha dois e o teste falha por acaso.
+ */
+export const avisoNaTela = (page: Page) => page.locator('[role="alert"]:not(#__next-route-announcer__)');
+
 export async function janelaNoCentro(page: Page, janela: Locator) {
   const tela = page.viewportSize()!;
   // Espera a animação de entrada terminar (ela desliza alguns pixels).

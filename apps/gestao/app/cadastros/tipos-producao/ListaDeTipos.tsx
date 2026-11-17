@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Aviso, Botao, Icone } from "@erp/interface";
-import { AREAS, NOME_DA_AREA, SAIDA_DA_AREA, type TipoDeProducao } from "@erp/dominio/tipos-producao";
+import { AREAS_DE_PRODUCAO, NOME_DA_AREA_DE_PRODUCAO, SAIDA_DA_AREA_DE_PRODUCAO, type TipoDeProducao } from "@erp/dominio/tipos-producao";
 import { chamar } from "../../chamar";
 import { AvisoComDesfazer, type AvisoRapido } from "../embalagens/AvisoComDesfazer";
 import { CartaoDoTipo } from "./CartaoDoTipo";
@@ -49,7 +49,7 @@ export function ListaDeTipos({ podeGerenciar }: { podeGerenciar: boolean }) {
 
   async function mudarAtivo(t: TipoDeProducao, ativo: boolean, desfazendo = false) {
     setErroAcao("");
-    const r = await chamar<TipoDeProducao>("/api/cadastros/tipos-producao", "POST", { id: t.id, nome: t.nome, area: t.area, ativo });
+    const r = await chamar<TipoDeProducao>("/api/cadastros/tipos-producao", "POST", { id: t.id, ativo });
     if (!r.ok) return setErroAcao(r.mensagem);
     await recarregar();
     if (desfazendo) return avisar(TT.avisos.desfeito(t.nome));
@@ -83,12 +83,12 @@ export function ListaDeTipos({ podeGerenciar }: { podeGerenciar: boolean }) {
       {tipos && tipos.length === 0 && <p className="hor-vazio">{TT.pagina.nenhum}</p>}
       {tipos &&
         tipos.length > 0 &&
-        AREAS.map((a) => {
+        AREAS_DE_PRODUCAO.map((a) => {
           const daArea = ativos.filter((t) => t.area === a);
           return (
             <section key={a} className="hor-secao" aria-labelledby={`tp-area-${a}`} data-testid={`area-${a}`}>
-              <h2 id={`tp-area-${a}`}>{NOME_DA_AREA[a]}</h2>
-              <p className="hor-secao__intro">{TT.pagina.saida(SAIDA_DA_AREA[a])}</p>
+              <h2 id={`tp-area-${a}`}>{NOME_DA_AREA_DE_PRODUCAO[a]}</h2>
+              <p className="hor-secao__intro">{TT.pagina.saida(SAIDA_DA_AREA_DE_PRODUCAO[a])}</p>
               {daArea.length === 0 ? <p className="hor-vazio">{TT.pagina.nenhumNaArea}</p> : <ul className="hor-cats">{daArea.map(cartao)}</ul>}
             </section>
           );
