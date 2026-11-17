@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { aguardarInicio, entrar, semEstouroDeLargura } from "./ajudas";
+import { aguardarInicio, avisoNaTela, entrar, semEstouroDeLargura } from "./ajudas";
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -22,7 +22,7 @@ test("gerente cria um atendente, mas não consegue dar cargo de financeiro", asy
   await linha.getByText("Gerenciar Ana Atendente").click();
   await linha.getByLabel("Dar cargo a Ana Atendente").selectOption("financeiro");
   await linha.getByRole("button", { name: "Dar cargo", exact: true }).click();
-  await expect(page.getByRole("alert")).toBeVisible().catch(() => undefined);
+  await expect(avisoNaTela(page)).toBeVisible().catch(() => undefined);
   await expect(page.getByText(/não pode/i)).toBeVisible();
   await expect(linha.locator('[data-rotulo="Cargos"]')).not.toContainText("Financeiro");
   await semEstouroDeLargura(page);
@@ -81,7 +81,7 @@ test("minha conta: trocar o código mostra a regra e recusa sequência", async (
   await expect(page.getByText(/sem repetir/)).toBeVisible();
   await page.getByLabel("Novo código de 4 números").fill("1234");
   await page.getByRole("button", { name: "Trocar meu código" }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(avisoNaTela(page)).toBeVisible();
   await page.getByLabel("Novo código de 4 números").fill("2580");
   await page.getByRole("button", { name: "Trocar meu código" }).click();
   await expect(page.getByText("Seu código foi trocado.")).toBeVisible();

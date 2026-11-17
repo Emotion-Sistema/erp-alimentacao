@@ -13,6 +13,8 @@ import {
   catalogoParaCadastrar,
   listarModelosDeEmbalagem,
   listarCategorias,
+  listarTiposDeProducao,
+  salvarTipoDeProducao,
   salvarCategoria,
   verHorarios,
   salvarSemanaDaUnidade,
@@ -306,6 +308,10 @@ export const saude = seguro(async () => {
 });
 
 // ---------- cadastros (E07, decisão 0015) ----------
+
+// ---------- tipos de produção (E07 parte 2, decisão 0017) ----------
+export const verTiposDeProducao = seguro(async (req) => json(await listarTiposDeProducao(obterBanco(), await ator(req))));
+export const gravarTipoDeProducao = seguro(async (req) => json(await salvarTipoDeProducao(obterBanco(), await ator(req), await corpoJson(req))));
 
 // ---------- categorias e horários de venda (E07 parte 2, decisão 0016) ----------
 export const verCategorias = seguro(async (req) => json(await listarCategorias(obterBanco(), await ator(req))));

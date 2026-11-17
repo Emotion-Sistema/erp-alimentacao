@@ -18,3 +18,4 @@ export * from "./unidades-do-estoque";
 export * from "./embalagens";
 export * from "./lista-colada";
 export * from "./horarios";
+export * from "./tipos-producao";
