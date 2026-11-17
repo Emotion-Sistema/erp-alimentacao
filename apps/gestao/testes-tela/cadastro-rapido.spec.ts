@@ -118,6 +118,19 @@ test("catálogo pronto: corredores recolhíveis, cartões selecionáveis e bande
   await semEstouroDeLargura(page);
 });
 
+test("itens com unidade a confirmar: asterisco, aviso e não dá para marcar (nem pelo marcar todos)", async ({ page }) => {
+  await entrar(page, "gerente.geral");
+  await abrirRapido(page);
+  await page.getByLabel("Corredor").selectOption("Hortifrúti");
+  await expect(page.getByTestId("aviso-a-confirmar")).toContainText("22/11");
+  const laranja = page.getByRole("checkbox", { name: "Laranja * (unidade a confirmar, não cadastre ainda)" });
+  await expect(laranja).toBeDisabled();
+  await page.getByRole("button", { name: "Marcar todos de Hortifrúti" }).click();
+  await expect(laranja).not.toBeChecked();
+  await expect(page.getByRole("button", { name: "Desmarcar Tomate" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Desmarcar Laranja" })).toHaveCount(0);
+});
+
 test("catálogo pronto: marcar todos do corredor pula o que já existe; servidor recusa com a mensagem do item", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await abrirRapido(page);

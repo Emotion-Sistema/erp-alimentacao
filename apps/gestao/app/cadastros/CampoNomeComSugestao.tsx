@@ -6,8 +6,8 @@
  * (unidade, área e embalagens) para o formulário preencher; a pessoa confirma antes de gravar.
  */
 import { useId, useMemo, useState } from "react";
-import { buscarNoCatalogo, chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
-import { Selo, varianteDaArea } from "@erp/interface";
+import { aConfirmar, AVISO_A_CONFIRMAR, buscarNoCatalogo, chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
+import { Aviso, Selo, varianteDaArea } from "@erp/interface";
 import { Campo } from "../Campo";
 import { equivalenciaNaUnidade, unidadePorExtenso } from "./auxiliares";
 
@@ -112,9 +112,13 @@ export function CampoNomeComSugestao({
                   escolher(s);
                 }}
               >
-                <strong className="sugestao__nome">{s.nome}</strong>
+                <strong className="sugestao__nome">
+                  {s.nome}
+                  {aConfirmar(s) && " *"}
+                </strong>
                 <span className="sugestao__detalhes">
                   {ja && <Selo icone="info">já cadastrado</Selo>}
+                  {aConfirmar(s) && <Selo variante="alerta">* unidade a confirmar</Selo>}
                   <Selo icone="balanca">{unidadePorExtenso(s.unidadeBase)}</Selo>
                   <Selo variante={varianteDaArea(s.area)} icone="local">
                     {nomeDaArea(s.area)}
@@ -131,6 +135,11 @@ export function CampoNomeComSugestao({
             );
           })}
       </ul>
+      {aConfirmar(valor) && (
+        <Aviso tipo="atencao" data-testid="nome-a-confirmar">
+          * {AVISO_A_CONFIRMAR}
+        </Aviso>
+      )}
     </div>
   );
 }
