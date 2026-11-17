@@ -15,6 +15,8 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Em claude.ai/code, conectar o GitHub e instalar o app do Claude neste repositório.
 
 ## Assim que possível (destrava o trabalho)
+- [ ] 👉 Responder às perguntas 1 e 2 das fichas (fruta, alface e bife em gramas? açaí, leite condensado, chantilly, creme de leite e molho de tomate em g ou ml?) — destrava a correção das 11 unidades do cadastro rápido.
+- [ ] 👉 Confirmar as hipóteses de horário da decisão 0016 (uma janela por dia; nada passa da meia-noite; às 23h em ponto já não aceita pedido; pausa só por gerente geral, dono e administrador).
 - [ ] 👉 Enviar logo, cores e identidade visual da empresa (pode ser pelo Drive).
 - [ ] 👉 Responder às perguntas de `docs/04-pendencias.md` com o cliente (comece pelas de número 1, 5, 13 e 14).
 - [ ] 👉 Enviar cardápio, 1 a 3 fichas técnicas de exemplo, ingredientes e unidades.
