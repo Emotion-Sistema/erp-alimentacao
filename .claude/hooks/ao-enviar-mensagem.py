@@ -66,8 +66,9 @@ def main():
             open(marca, "w").write(str(nivel))
             avisos.append(
                 f"AVISO AUTOMÁTICO: o contexto desta conversa está em cerca de {pct}%. "
-                "Responda normalmente e, ao final, use a skill `encerrar-sessao` no modo compactar: "
-                "atualize o cérebro e peça ao responsável para enviar /compact e continuar neste mesmo chat.")
+                "Continue normalmente e use a skill `encerrar-sessao` no modo compactar: atualize o cérebro "
+                "em silêncio e peça /compact só junto da próxima mensagem que já iria ao responsável "
+                "(entrega pronta ou decisão dele), nunca numa mensagem só para isso.")
     except Exception:
         pass
 
