@@ -350,8 +350,8 @@ describe("datas especiais", () => {
   it("data especial de canal e de categoria; cancelar de outra unidade não acha", async () => {
     const d = await amanha();
     const cat = await salvarCategoria(db, gerente, { nome: `Porções ${sufixo}` });
-    let v = await salvarDataDeVenda(db, gerente, { canal: "delivery", categoriaId: null, data: d, modo: "fechado", motivo: "Sem motoboy" });
-    v = await salvarDataDeVenda(db, gerente, { canal: "loja", categoriaId: cat.id, data: d, modo: "aberto", inicio: "14:00", fim: "18:00", motivo: "Degustação" });
+    await salvarDataDeVenda(db, gerente, { canal: "delivery", categoriaId: null, data: d, modo: "fechado", motivo: "Sem motoboy" });
+    let v = await salvarDataDeVenda(db, gerente, { canal: "loja", categoriaId: cat.id, data: d, modo: "aberto", inicio: "14:00", fim: "18:00", motivo: "Degustação" });
     const minhas = v.datasVenda.filter((x) => x.data === d && (x.categoriaId === cat.id || (x.canal === "delivery" && x.categoriaId === null)));
     expect(minhas).toHaveLength(2);
     // Troca a do delivery: continua uma só.
