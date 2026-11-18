@@ -73,7 +73,7 @@ export async function salvarTipoDeProducao(db: Banco, ator: Ator | null, dados: 
       let antes: TipoDeProducao | undefined;
       let s: TipoDeProducao;
       if (d.id) {
-        antes = await trx.selectFrom("tipo_producao").select(colunas).where("id", "=", d.id).forUpdate().executeTakeFirst();
+        antes = await trx.selectFrom("tipo_producao").select(colunas).where("id", "=", d.id).forNoKeyUpdate().executeTakeFirst();
         if (!antes) throw new ErroDeRegra("nao_encontrado", "Tipo de produção não encontrado.");
         s = await trx.updateTable("tipo_producao").set({ ...valores, atualizado_em: sql`now()` }).where("id", "=", d.id).returning(colunas).executeTakeFirstOrThrow();
       } else {

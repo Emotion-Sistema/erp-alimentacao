@@ -568,7 +568,7 @@ export async function salvarCategoria(db: Banco, ator: Ator | null, dados: unkno
       let antes: Categoria | undefined;
       let s: Categoria;
       if (d.id) {
-        antes = await trx.selectFrom("categoria").select(colunas).where("id", "=", d.id).forUpdate().executeTakeFirst();
+        antes = await trx.selectFrom("categoria").select(colunas).where("id", "=", d.id).forNoKeyUpdate().executeTakeFirst();
         if (!antes) throw new ErroDeRegra("nao_encontrado", "Categoria não encontrada.");
         s = await trx.updateTable("categoria").set({ ...valores, atualizado_em: sql`now()` }).where("id", "=", d.id).returning(colunas).executeTakeFirstOrThrow();
       } else {

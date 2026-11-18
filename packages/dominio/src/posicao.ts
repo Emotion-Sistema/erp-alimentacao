@@ -39,7 +39,7 @@ export function posicaoDaGravacao(d: { posicao?: number; ordem?: number }, antes
 export async function reposicionar(trx: Banco, tabela: Tabela, id: number, posicao: number): Promise<Reordenado[]> {
   conferir(tabela);
   const t = sql.table(tabela);
-  const ativos = (await sql<{ id: number; ordem: number }>`SELECT id, ordem FROM ${t} WHERE ativo ORDER BY ordem, nome, id FOR UPDATE`.execute(trx)).rows;
+  const ativos = (await sql<{ id: number; ordem: number }>`SELECT id, ordem FROM ${t} WHERE ativo ORDER BY ordem, nome, id FOR NO KEY UPDATE`.execute(trx)).rows;
   const resto = ativos.filter((a) => a.id !== id);
   const este = ativos.find((a) => a.id === id);
   if (!este) return []; // inativo: fica no fim, fora da conta
