@@ -59,6 +59,14 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - **Regra nova do responsável:** menos interrupção. Mensagem só com entrega pronta ou decisão dele (CLAUDE.md regra 2; PR 56).
 - Hipóteses da 0017: cada tipo começa com capacidade 1; porções, salgados e almoço ficam em "Pratos e grelhados" até haver tipo próprio.
 
+## 18/11/2026: posição na lista
+- O responsável não entendeu o campo "Ordem na lista" (10, 20, 30). Pediu também que **todo campo que depende do que já existe mostre a lista para comparar**.
+- Feito no PR 61 (merge 92d157d):
+  - nas janelas de Categorias e Tipos de produção, "Posição na lista" ("1º: no começo", "2º: depois de X") com a prévia de como fica;
+  - o servidor renumera de 10 em 10 (`packages/dominio/src/posicao.ts`), com trava única por tabela.
+- O revisor reprovou a 1ª versão (deadlock entre duas pessoas mudando a posição). Corrigido com `pg_advisory_xact_lock`, o primeiro comando de toda gravação. O teste com 8 rodadas de 4 gravações falha sem a trava e passa com ela. Aprovado na 2ª revisão.
+- Regra registrada no adendo de 18/11 da decisão 0012. Usar `PosicaoNaLista` em Produtos.
+
 ## O que ficou pendente
 - PR 3 (produtos: preço em centavos, categoria, tipo de produção, tempo de preparo).
 - As 11 unidades divergentes do catálogo esperam as perguntas 1 e 2 das fichas (`cerebro/empresa/fichas-tecnicas/perguntas.md`).
