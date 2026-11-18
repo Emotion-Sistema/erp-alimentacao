@@ -1,5 +1,5 @@
 /**
- * Posição na lista (categorias e tipos de produção). A pessoa escolhe "em que lugar" o item
+ * Posição na lista (categorias, tipos de produção e produtos dentro da categoria). A pessoa escolhe "em que lugar" o item
  * fica (1º, 2º...), vendo a lista que já existe; o sistema renumera a ordem dos ativos de
  * 10 em 10 (10, 20, 30...), sem a pessoa digitar número. Pedido do responsável, 17/11/2026.
  * Concorrência: toda gravação dessas tabelas chama `travarLista` como PRIMEIRO comando da
@@ -12,7 +12,7 @@ import { sql, type Banco } from "@erp/banco";
 
 export type Reordenado = { id: number; antes: number; depois: number };
 
-const TABELAS = ["categoria", "tipo_producao"] as const;
+const TABELAS = ["categoria", "tipo_producao", "produto"] as const;
 type Tabela = (typeof TABELAS)[number];
 function conferir(tabela: Tabela) {
   if (!TABELAS.includes(tabela)) throw new Error(`tabela sem posição: ${String(tabela)}`);
@@ -35,11 +35,16 @@ export function posicaoDaGravacao(d: { posicao?: number; ordem?: number }, antes
   return undefined;
 }
 
-/** Põe `id` na posição `posicao` (1 = primeiro) entre os ativos e renumera. Devolve o que mudou. */
-export async function reposicionar(trx: Banco, tabela: Tabela, id: number, posicao: number): Promise<Reordenado[]> {
+/**
+ * Põe `id` na posição `posicao` (1 = primeiro) entre os ativos e renumera. Devolve o que mudou.
+ * Produto: a lista é a da categoria dele (`categoriaId` obrigatório); cada categoria tem a sua.
+ */
+export async function reposicionar(trx: Banco, tabela: Tabela, id: number, posicao: number, categoriaId?: number): Promise<Reordenado[]> {
   conferir(tabela);
+  if ((tabela === "produto") !== (categoriaId !== undefined)) throw new Error("categoriaId só (e sempre) para produto");
   const t = sql.table(tabela);
-  const ativos = (await sql<{ id: number; ordem: number }>`SELECT id, ordem FROM ${t} WHERE ativo ORDER BY ordem, nome, id FOR NO KEY UPDATE`.execute(trx)).rows;
+  const filtro = categoriaId === undefined ? sql`` : sql` AND categoria_id = ${categoriaId}`;
+  const ativos = (await sql<{ id: number; ordem: number }>`SELECT id, ordem FROM ${t} WHERE ativo${filtro} ORDER BY ordem, nome, id FOR NO KEY UPDATE`.execute(trx)).rows;
   const resto = ativos.filter((a) => a.id !== id);
   const este = ativos.find((a) => a.id === id);
   if (!este) return []; // inativo: fica no fim, fora da conta

@@ -162,6 +162,17 @@ test.describe("telas internas do administrador", () => {
     await semEstouroDeLargura(page);
   });
 
+  test("cadastros: produtos (janela com tipo de produção)", async ({ page }) => {
+    await page.goto("/cadastros/produtos");
+    await page.getByRole("button", { name: "Novo produto" }).click();
+    const janela = page.getByRole("dialog", { name: "Novo produto" });
+    await janela.getByLabel("Categoria", { exact: true }).selectOption({ label: "Hambúrgueres" });
+    await janela.getByLabel("Passa pela produção?").selectOption({ label: "Hambúrgueres (Cozinha)" });
+    // Nome, categoria, preço, tipo, tempo, descrição e posição na categoria.
+    await conferirAjuda(page, "novo produto", 7);
+    await semEstouroDeLargura(page);
+  });
+
   test("cadastros: fornecedores", async ({ page }) => {
     await page.goto("/cadastros/fornecedores");
     await page.getByRole("button", { name: "Novo fornecedor" }).click();

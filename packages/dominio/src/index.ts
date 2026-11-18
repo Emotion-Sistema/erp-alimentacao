@@ -19,3 +19,4 @@ export * from "./embalagens";
 export * from "./lista-colada";
 export * from "./horarios";
 export * from "./tipos-producao";
+export * from "./produtos";
