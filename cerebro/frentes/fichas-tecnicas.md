@@ -18,6 +18,10 @@ Aberta em 15/11/2026 pelo responsável. Função: ler as fichas técnicas da emp
   (cada produto, preço e ficha; produtos sem ficha; 8 diferenças entre cardápio e fichas).
 - Perguntas passaram de 22 para 30 (23 a 30, do cardápio); 5, 8 e 21 ganharam pistas.
 - PDF curto `cerebro/empresa/fichas-tecnicas/analise-das-fichas.pdf` (pedido do responsável, na voz dele, para a equipe das fichas).
+- PDF refeito a pedido: sem a parte que ensinava a fazer ficha (a casa tem nutricionista); com erros que se repetem,
+  as 30 perguntas com espaço para resposta, as 59 fichas em anexo em duas colunas, o nome de Wilians Duque
+  (programador) no rodapé, título nunca sozinho no fim da página e a logo provisória (cabeçalho e rodapé).
+- Logo provisória recebida (arte de tapete): recortada, com fundo transparente, em `cerebro/empresa/fichas-tecnicas/logo-provisoria/`.
 - **O responsável só tem as respostas em 22/11/2026.** Até lá, nada a fazer nesta frente.
 
 ## Achados que importam ao chat principal
