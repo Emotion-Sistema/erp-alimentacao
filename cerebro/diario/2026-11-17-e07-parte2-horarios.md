@@ -84,6 +84,11 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - Botão **Tela cheia** no topo da gestão e na estação da cozinha (some onde o aparelho não deixa, ex.: iPhone no navegador).
 - Próxima etapa proposta: E07 parte 3 (importação de planilha .xlsx, .csv e .html com relatório de erros por linha).
 
+## 18/11/2026: gestão repaginada no celular (PR 86, merge e6f4cf6)
+- Pedido: "layout do celular cru e de acesso chato"; computador fica como está.
+- Até 640 px: topo de 64 px (símbolo, aplicativo, quem usa; sino e botão redondo da conta); gaveta da conta que sobe de baixo (trocar cargo, tela cheia, minha conta, sair); menu preso no alto; lançador em linhas compactas.
+- Testes de celular que tocam em Sair/Trocar de cargo usam `abrirConta(page)` (ajudas.ts).
+
 ## O que ficou pendente
 - Conferir com o responsável o visual novo na homologação (inclusive num Android real: letras).
 - Telas com mais de um botão cheio (Horários, Funcionários, Turnos, Estações): rever a regra "um botão forte por tela" se o responsável quiser.
