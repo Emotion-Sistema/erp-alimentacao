@@ -134,7 +134,7 @@ Sem PostgreSQL local, `pnpm dev` sobe o do `docker-compose.yml`. Os testes usam 
 
 ## Skills (em `.claude/skills/`)
 `encerrar-sessao`, `publicar`, `nova-ideia-cliente`, `checklist-pr`, `migracao-segura`,
-`teste-idempotencia-estoque`, `ensaio-restauracao`, `matriz-de-permissoes`.
+`teste-idempotencia-estoque`, `ensaio-restauracao`, `matriz-de-permissoes`, `pagina-publica`.
 
 ## Subagentes (em `.claude/agents/`)
 `construtor`, `ajudante` e `revisor`, todos no Opus 5.5 (15/11/2026).
