@@ -7,15 +7,29 @@ export const LINKS = [
   { href: "/contato", texto: "Contato" },
 ];
 
-export function Casca({ atual, children }: { atual?: string; children: ReactNode }) {
+export function Casca({
+  atual,
+  children,
+}: {
+  atual?: string;
+  children: ReactNode;
+}) {
   return (
-    <CascaPublica nome="Casa Exemplo" links={LINKS} atual={atual}>
+    <CascaPublica nome="E-MOTION" links={LINKS} atual={atual}>
       {children}
     </CascaPublica>
   );
 }
 
-export function Provisoria({ caminho, titulo, oQueVem }: { caminho: string; titulo: string; oQueVem: string }) {
+export function Provisoria({
+  caminho,
+  titulo,
+  oQueVem,
+}: {
+  caminho: string;
+  titulo: string;
+  oQueVem: string;
+}) {
   return (
     <Casca atual={caminho}>
       <EmConstrucao titulo={titulo} etapa="E25" oQueVem={oQueVem} />

@@ -57,7 +57,9 @@ const DESENHOS: Record<NomeDeIcone, ReactNode> = {
       <path d="M12 7v5l3 2" />
     </>
   ),
-  telefone: <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v3a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z" />,
+  telefone: (
+    <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v3a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z" />
+  ),
   email: (
     <>
       <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -107,7 +109,13 @@ const DESENHOS: Record<NomeDeIcone, ReactNode> = {
   desfazer: <path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" />,
 };
 
-export function Icone({ nome, className }: { nome: NomeDeIcone; className?: string }) {
+export function Icone({
+  nome,
+  className,
+}: {
+  nome: NomeDeIcone;
+  className?: string;
+}) {
   return (
     <svg
       className={["erp-icone", className].filter(Boolean).join(" ")}

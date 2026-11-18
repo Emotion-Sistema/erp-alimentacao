@@ -69,6 +69,19 @@ def main() -> None:
         icone(simbolo, 64, CREME, 0.04).save(destino / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
         print(app, "ok")
 
+    # Símbolo pequeno embutido nos ícones SVG dos aplicativos (o SVG usado como ícone não busca arquivo).
+    import base64, io
+    buf = io.BytesIO()
+    largura(simbolo, 192).save(buf, "WEBP", quality=90, method=6)
+    codigo = base64.b64encode(buf.getvalue()).decode()
+    alvo = RAIZ / "packages/interface/src/simbolo-base64.ts"
+    alvo.write_text(
+        "// Gerado por scripts/gerar-marca.py: símbolo da marca (192 px, WebP) para os ícones SVG. Não editar.\n"
+        f"export const SIMBOLO_WEBP_BASE64 = \"{codigo}\";\n"
+        f"export const SIMBOLO_PROPORCAO = {simbolo.height / simbolo.width:.4f};\n"
+    )
+    print("simbolo-base64.ts", len(codigo), "caracteres")
+
 
 if __name__ == "__main__":
     main()

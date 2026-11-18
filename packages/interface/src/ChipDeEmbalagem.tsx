@@ -21,9 +21,18 @@ export function ChipDeEmbalagem({
   equivalencia?: string | null;
   inativa?: boolean;
 }) {
-  const equivalencia = equivalenciaPronta !== undefined ? equivalenciaPronta : quantidade ? quantidadeComUnidade(quantidade, unidade) : null;
+  const equivalencia =
+    equivalenciaPronta !== undefined
+      ? equivalenciaPronta
+      : quantidade
+        ? quantidadeComUnidade(quantidade, unidade)
+        : null;
   return (
-    <li className={["erp-chip", inativa && "erp-chip--inativa"].filter(Boolean).join(" ")}>
+    <li
+      className={["erp-chip", inativa && "erp-chip--inativa"]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <span className="erp-chip__nome">{nome.trim() || "Sem nome"}</span>{" "}
       {equivalencia ? (
         <span className="erp-chip__equivalencia">= {equivalencia}</span>
