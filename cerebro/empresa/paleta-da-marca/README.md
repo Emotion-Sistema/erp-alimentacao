@@ -1,4 +1,4 @@
-# Paleta da marca E-MOTION (proposta)
+# Paleta da marca E-MOTION (aprovada em 18/11/2026)
 
 Frente `paleta-da-marca`, 18/11/2026. **Escolhido pelo responsável em 18/11/2026: clima Espuma e Brasa;
 tema claro por padrão; escuro só quando o aparelho do cliente estiver no modo escuro.** Nada disto
@@ -8,8 +8,10 @@ está no código: o que for para o sistema passa pelo chat principal (decisão 0
 | Arquivo | O que é |
 |---|---|
 | `amostra.html` | Página para ver e sentir: 3 climas, claro e escuro, papéis com contraste calculado na hora, cardápio, cartão de produto, botão de pedido, tela da cozinha e impressos. Publicada (privada) em https://claude.ai/artifact/MV92y1Eiz2pUC62z7wMZm9 |
-| `tema-proposta.css` | O clima recomendado já com os nomes de variáveis do `tema.css` atual, mais o modo escuro. Para o chat principal. |
-| `logo-emotion-fundo-escuro.png` | Logo com letras e contornos em creme (#F6EADB), para fundo escuro. Feita da logo provisória. |
+| `tema-aprovado.css` | **Fonte para o sistema.** Todas as variáveis do `tema.css` atual (inclusive os 9 selos) com as cores da marca, as novas variáveis, as letras e o modo escuro só para os apps do cliente. Contraste conferido por script: menor par 5,2:1 no claro e 7,0:1 no escuro. |
+| Logos | Todas as variações (claro, escuro, ícones, favicon) estão em `cerebro/empresa/fichas-tecnicas/logo-provisoria/` (LEIA-ME lá). Para fundo escuro: `logo-completa-para-fundo-escuro-transparente.png`. |
+| `letras/` | Arquivos das letras aprovadas (8 `.ttf`) e licenças OFL. |
+| Drive | Cópia em "Claude/07 Identidade visual/Marca E-MOTION (aprovada 18-11-2026)": LEIA-ME (Google Doc), amostra, tema e pasta Letras. A verdade é o repositório. |
 
 ## Cores da logo (fixas em todos os climas)
 âmbar #F6A52B · laranja #F7750E · laranja do texto #E77019 · vermelho-brasa #C9370C · caramelo #CA611D ·
@@ -19,7 +21,7 @@ café #351E17 · creme dourado #F6DD8C · quase-preto #131111 (só logo e impres
 **70% claros** (fundo, faixas, cartões, bordas) · **20% destaques** (botão, preço, selos, ilustração,
 faixas douradas) · **10% escuros** (texto e no máximo uma faixa escura por tela). Avisos só onde há mensagem.
 
-## Clima recomendado: Espuma e Brasa
+## Clima escolhido: Espuma e Brasa
 | Papel | Nome | Claro | Escuro ("Noite de Torra") |
 |---|---|---|---|
 | Fundo da página | Espuma de Leite / Noite de Torra | #FDF8F0 | #1B1411 |
@@ -33,7 +35,7 @@ faixas douradas) · **10% escuros** (texto e no máximo uma faixa escura por tel
 | Botão ao tocar | Brasa Funda / Âmbar Aceso | #9C3B0A | #FFB948 |
 | Preço | Caramelo Tostado / Caramelo Dourado | #9A4410 | #F6B54A |
 | Selo de destaque (fundo / letra) | Mel Claro + Melaço / Mel Escuro + Creme Dourado | #FBE6C2 / #6B3410 | #3A2A1C / #F6DD8C |
-| Faixa dourada (com letra café) | Creme Dourado | #F6DD8C / #351E17 | igual |
+| Faixa dourada (com letra café) | Creme Dourado | #F6DD8C / #351E17 | igual (letra continua café) |
 | Faixa escura (barra do app, rodapé) | Café Torrado / Carvão de Lenha | #351E17 + letra #F6DD8C | #120D0B + letra #F6DD8C |
 | Enfeite (ícone, filete; nunca letra) | Laranja E-MOTION / Laranja Chama | #E77019 | #F7750E |
 | Ilustração, barra de progresso | Mel de Laranjeira | #F6A52B | #F6A52B |
