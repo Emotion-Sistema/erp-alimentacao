@@ -22,6 +22,9 @@ Aberta em 15/11/2026 pelo responsável. Função: ler as fichas técnicas da emp
   as 30 perguntas com espaço para resposta, as 59 fichas em anexo em duas colunas, o nome de Wilians Duque
   (programador) no rodapé, título nunca sozinho no fim da página e a logo provisória (cabeçalho e rodapé).
 - Logo provisória recebida (arte de tapete): recortada, com fundo transparente, em `cerebro/empresa/fichas-tecnicas/logo-provisoria/`.
+- Desvio anotado (18/11): o responsável pediu uma paleta de cores tirada da logo, refinada e "de desejo",
+  com predomínio do claro. Não é desta frente: foi o bloco para abrir a frente `paleta-da-marca` em outro chat.
+  Cores medidas na logo, para a nova frente: #F6A52B, #F7750E, #E77019, #C9370C, #CA611D, #351E17, #F6DD8C, #131111.
 - **O responsável só tem as respostas em 22/11/2026.** Até lá, nada a fazer nesta frente.
 
 ## Achados que importam ao chat principal
