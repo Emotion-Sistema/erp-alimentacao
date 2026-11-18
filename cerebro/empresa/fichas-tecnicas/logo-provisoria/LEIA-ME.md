@@ -5,7 +5,8 @@ Recebida do responsável em 18/11/2026 como arte de tapete (PDF 150x100 cm, uma 
 
 Tratamento: fundo branco retirado (transparência suave nas bordas), sobras recortadas, nitidez leve.
 Todas as variações estão também no Drive: "Claude/07 Identidade visual/Logo provisória (variações)",
-inclusive as versões HD (aqui no repositório só as de tamanho normal, para não pesar).
+inclusive as versões HD (aqui no repositório só as de tamanho normal, para não pesar). No Drive, a completa
+sem fundo em alta está com 2400 px (`logo-completa-2400px-*.png`), por causa do limite de envio.
 
 | Arquivo | Uso |
 |---|---|
