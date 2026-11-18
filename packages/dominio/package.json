@@ -7,7 +7,8 @@
     "./catalogo": "./src/catalogo-ingredientes.ts",
     "./unidades": "./src/unidades-do-estoque.ts",
     "./horarios": "./src/horarios-comum.ts",
-    "./tipos-producao": "./src/tipos-producao-comum.ts"
+    "./tipos-producao": "./src/tipos-producao-comum.ts",
+    "./produtos": "./src/produtos-comum.ts"
   },
   "scripts": {
     "semente": "tsx src/semente.ts",

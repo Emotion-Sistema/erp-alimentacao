@@ -101,6 +101,38 @@ async function semearCadastros(db: Banco): Promise<void> {
         .execute();
     }
   }
+  await semearProdutos(db);
+}
+
+/**
+ * Produtos INVENTADOS (nada do cardápio real), nas categorias e tipos que as migrações 0010 e 0011
+ * criam. Pode rodar de novo: produto que já existe pelo nome (ativo ou não) fica como está; se a
+ * categoria ou o tipo foi renomeado ou desativado, o produto é pulado.
+ */
+async function semearProdutos(db: Banco): Promise<void> {
+  const produtos: { nome: string; categoria: string; tipo: string | null; preco: number; tempo: number | null; descricao: string | null; ordem: number }[] = [
+    { nome: "Café expresso", categoria: "Cafeteria", tipo: "Cafeteria", preco: 600, tempo: 3, descricao: "Café curto e encorpado (exemplo).", ordem: 10 },
+    { nome: "Pão de queijo", categoria: "Cafeteria", tipo: "Cafeteria", preco: 550, tempo: 5, descricao: null, ordem: 20 },
+    { nome: "Prato executivo de frango", categoria: "Almoço", tipo: "Pratos e grelhados", preco: 3290, tempo: 20, descricao: "Arroz, feijão, frango grelhado e salada (exemplo).", ordem: 10 },
+    { nome: "Porção de batata frita", categoria: "Porções", tipo: "Pratos e grelhados", preco: 3490, tempo: 15, descricao: null, ordem: 10 },
+    { nome: "X-Salada", categoria: "Hambúrgueres", tipo: "Hambúrgueres", preco: 2590, tempo: 12, descricao: "Pão, carne, queijo, alface e tomate (exemplo).", ordem: 10 },
+    { nome: "X-Bacon", categoria: "Hambúrgueres", tipo: "Hambúrgueres", preco: 2990, tempo: 14, descricao: null, ordem: 20 },
+    { nome: "Coxinha de frango", categoria: "Salgados", tipo: "Cafeteria", preco: 800, tempo: 4, descricao: null, ordem: 10 },
+    { nome: "Refrigerante lata", categoria: "Bebidas", tipo: null, preco: 650, tempo: null, descricao: "Gelado, da geladeira (exemplo).", ordem: 10 },
+    { nome: "Água mineral 500 ml", categoria: "Bebidas", tipo: null, preco: 400, tempo: null, descricao: null, ordem: 20 },
+  ];
+  for (const p of produtos) {
+    const existe = await db.selectFrom("produto").select("id").where(sql`lower(btrim(nome))`, "=", p.nome.toLowerCase()).executeTakeFirst();
+    if (existe) continue;
+    const categoria = await db.selectFrom("categoria").select("id").where("nome", "=", p.categoria).where("ativo", "=", true).executeTakeFirst();
+    const tipo = p.tipo === null ? null : await db.selectFrom("tipo_producao").select("id").where("nome", "=", p.tipo).where("ativo", "=", true).executeTakeFirst();
+    if (!categoria || tipo === undefined) continue;
+    await db
+      .insertInto("produto")
+      .values({ nome: p.nome, descricao: p.descricao, categoria_id: categoria.id, tipo_producao_id: tipo?.id ?? null, preco_centavos: p.preco, tempo_preparo_min: tipo ? p.tempo : null, ordem: p.ordem })
+      .onConflict((oc) => oc.doNothing())
+      .execute();
+  }
 }
 
 /**
