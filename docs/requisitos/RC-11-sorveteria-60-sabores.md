@@ -51,7 +51,8 @@ caixa deste sistema.
 **Não confirmada.** Pesquisa em 13/11/2026 não encontrou site, documentação pública nem
 API de um sistema chamado "Mollbyte"; o nome pode ter outra grafia. **18/11/2026:** o responsável
 informou que todo o caixa da E-MOTION usa hoje o **Mollsales**, parceiro da 60 Sabores e obrigatório
-para os sorvetes. Pergunta-chave para a franqueadora: o sorvete precisa continuar registrado no
+para os sorvetes; segundo ele, o Mollsales parece ser um sistema por assinatura da Mollbyte (a
+confirmar). Pergunta-chave para a franqueadora: o sorvete precisa continuar registrado no
 Mollsales quando o caixa da casa passar para este sistema? (sessão própria; afeta a virada). A franquia existe e
 tem site próprio (sorveteria60sabores.com.br). Não presumir que existe API.
 
