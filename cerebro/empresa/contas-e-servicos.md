@@ -9,7 +9,9 @@ Registra QUE a conta existe, para que serve e quem é o dono. **Nunca a senha ou
 | Google Drive | Material bruto do cliente | Responsável técnico | Criado | — |
 | Hostinger: VPS de homologação | Servidor de testes. Plano KVM 2 (2 vCPU, 8 GB de RAM, 100 GB). IP 187.53.114.38, Ubuntu 26.04 LTS, sem painel, sem Docker instalado, sem complementos | Conta do responsável técnico (confirmar titularidade com o dono) | **Contratada em 14/11/2026**; ainda não configurada | Senha de root com o responsável; trocar por chave SSH na etapa E06 |
 | Hostinger: VPS de produção | Servidor que vai ao ar (KVM 4 previsto) | A definir | Não contratada; só na etapa E23 | GitHub Secrets |
-| Domínio | Endereços do site | A definir | A confirmar | — |
+| Hostinger: hospedagem de sites | **Não é necessária** (confirmado em 18/11/2026): site, delivery e gestão rodam todos na VPS (KVM 2 para testes, KVM 4 previsto para produção) | — | Não contratar | — |
+| Domínio | emotionjf.com.br, para site, delivery e gestão (RC-07 seção 1) | Empresa (titular a confirmar) | A comprar (Registro.br sugerido) | Cofre de senhas do responsável |
+| E-mail com o domínio | contato@ / eventos@ (opcional) | Empresa | Não decidido; a VPS não faz e-mail: seria serviço à parte, só com confirmação | — |
 | Provedor de pagamento | Pix e cartão | Cliente | Não escolhido | GitHub Secrets |
 | Provedor fiscal | Emissão de notas | Cliente | Não escolhido | GitHub Secrets |
 | Sistema da franquia 60 Sabores | Gestão da sorveteria (da franquia) | Cliente / franqueadora | Em uso; integração não confirmada | — |
