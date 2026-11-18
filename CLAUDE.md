@@ -5,7 +5,8 @@ Foco no sistema. Assuntos comerciais (preço, honorários, contrato) estão FORA
 
 ## Comece por aqui
 1. Leia `cerebro/00-estado-atual.md` (o hook de início já o mostra) e `cerebro/para-voce-fazer.md`.
-2. Leia em `docs/` o que o estado atual indicar para o assunto da sessão.
+2. Leia em `docs/` o que o estado atual indicar para o assunto da sessão. Ao começar uma etapa,
+   confira `cerebro/agenda-de-sugestoes.md` (sugestões aprovadas que entram em cada etapa).
 3. Siga `docs/decisoes/`. O que não está no repositório não é fonte de verdade.
 
 ## O projeto em 6 linhas

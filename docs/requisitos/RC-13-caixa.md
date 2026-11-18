@@ -44,6 +44,28 @@ não tem acesso ao financeiro: vê só a movimentação do próprio dia.
 - Desconto, cortesia, cancelamento de item já lançado, estorno e reabertura de conta
   pedem **autorização do supervisor ou gerente** (código dele na hora), com motivo.
 
+## 3a. Desconto de funcionário (regra real da casa)
+**Dito pelo responsável em 18/11/2026: hoje, no dia a dia, todo funcionário da empresa tem 15% de
+desconto nos produtos da loja.** O sistema já nasce com essa regra (E17).
+- O caixa escolhe "Consumo de funcionário" e **o próprio funcionário se identifica** com o código
+  pessoal dele (o mesmo login do sistema, RC-12). Sem a identificação do funcionário, não há
+  desconto: o caixa não aplica por conta própria.
+- O desconto é calculado pelo servidor sobre os itens elegíveis, em centavos (nunca número com
+  vírgula), e fica gravado no pedido: percentual aplicado, funcionário, quem lançou e horário.
+  Mudar o percentual depois não altera pedidos antigos.
+- O percentual (hoje 15%) é configurável só por dono e administrador, com histórico.
+- Funcionário desligado ou inativo perde o desconto no mesmo dia, sozinho.
+- O caixa que compra para si chama outro caixa ou o supervisor para lançar (ninguém aplica desconto
+  na própria compra).
+- Relatório mensal na gestão: consumo e desconto por funcionário e total, para o gestor e o
+  financeiro.
+- Hipóteses (a confirmar com o responsável): vale só no salão, balcão e retirada (não no delivery
+  nem no iFood); não vale na sorveteria 60 Sabores (sistema próprio da franquia); não soma com
+  outra promoção (vale o maior desconto); é para consumo do próprio funcionário; sem limite por dia;
+  pago na hora (não é desconto em folha); arredondamento do desconto para o centavo mais próximo;
+  como aparece na nota fiscal, confirmar com o contador (E20).
+- A mesma "regra de desconto por grupo" serve depois ao convênio de empresas (S9) e ao Clube (S12).
+
 ## 4. Durante o turno
 - **Sangria** (retirada de dinheiro) e **suprimento** (entrada de troco): valor, motivo,
   quem autorizou, comprovante impresso ou digital.
@@ -96,6 +118,8 @@ não tem acesso ao financeiro: vê só a movimentação do próprio dia.
 3. Atendente não consegue marcar Pago; caixa não consegue acessar financeiro (pela tela
    e chamando o servidor).
 4. Desconto e estorno sem autorização são recusados; com autorização ficam registrados.
+   Desconto de funcionário só com a identificação do próprio funcionário ativo; o valor bate no
+   centavo com a conta manual; funcionário inativo é recusado; ninguém aplica na própria compra.
 5. Fechamento cego: valor esperado só aparece depois da contagem; diferença exige justificativa.
 6. Fechamento aprovado gera os lançamentos no financeiro uma única vez (repetir não duplica).
 7. Pagamento confirmado duas vezes pelo provedor gera um único recebimento.

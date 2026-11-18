@@ -1,8 +1,8 @@
 # RC-07: as sugestões S1 a S13 no dia a dia
 
 Complemento da seção 6 do `RC-07-site-institucional.md` (18/11/2026). Para cada sugestão: como
-funciona, como fica a rotina da casa, de que depende e o que ainda é preciso decidir. Nada disto
-está aprovado: o responsável escolhe quais entram.
+funciona, como fica a rotina da casa, de que depende e o que ainda é preciso decidir. **Todas aprovadas pelo
+responsável em 18/11/2026, na ordem do resumo final.** Quando cada uma entra: `cerebro/agenda-de-sugestoes.md`.
 
 ## S1. Alergênicos calculados da ficha técnica
 **Como funciona.** No cadastro de cada ingrediente marca-se uma vez o que ele contém (glúten, leite,

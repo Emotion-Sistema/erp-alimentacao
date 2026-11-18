@@ -4,6 +4,7 @@ O sistema é construído **por partes**. Cada etapa é pequena, tem teste que pr
 funciona e só começa quando a anterior foi aceita. Modelos: ver `05-uso-dos-modelos.md`.
 
 ## Regras da ordem
+- **Sugestões aprovadas do site (18/11/2026):** cada uma está marcada com 📌 na etapa em que entra. Ao começar ou terminar uma etapa, confira `cerebro/agenda-de-sugestoes.md`.
 1. **Uma etapa = um assunto = um PR.** Nunca duas regras críticas no mesmo PR.
 2. **Servidor antes da tela.** A regra é construída e testada no servidor; a tela vem depois.
 3. **Crítico primeiro, bonito depois.** Dinheiro, estoque e permissão são provados com
@@ -32,7 +33,7 @@ aplicativo, inclusive para quem tem um só (hoje ficam no lançador).
 | Etapa | Entrega | Modelos | Pronto quando |
 |---|---|---|---|
 | **E07** Cadastros | Produtos, tipos de pedido, ingredientes, unidades, conversões, fornecedores; importação de planilha | Sonnet; Opus revisa | Planilha de exemplo importada com os erros apontados |
-| **E08** Fichas técnicas | Receitas versionadas, rendimento, custo do prato | Opus na regra; Sonnet na tela | Custo confere com conta feita à mão |
+| **E08** Fichas técnicas | Receitas versionadas, rendimento, custo do prato · 📌 em seguida: S1 alergênicos | Opus na regra; Sonnet na tela | Custo confere com conta feita à mão |
 | **E09** Estoque | Áreas, em uso e guardado, movimentos, perda, contagem (RC-09) | Opus; revisor | Movimentos fecham em quantidade e custo |
 | **E10** Reposição | Linhas saudável e de emergência, avisos; a lista de compras é da frente lista-de-compras (LC3), que a E10 alimenta | Opus na regra; Sonnet na tela | Um aviso por cruzamento de linha |
 
@@ -44,7 +45,7 @@ aplicativo, inclusive para quem tem um só (hoje ficam no lançador).
 | **E13** Aplicativo do atendente | Mesas, comanda virtual, lançar pedido, tudo junto ou por partes, alterar pedido | Sonnet; Opus revisa | Pedido lançado no aparelho chega ao servidor uma única vez |
 | **E14** Telas de produção | Telas por tipo, fila, iniciar, pronto, temporizador com cores, sons, elevador, cafeteria (RC-10) | Sonnet nas telas; Opus no tempo real | Critérios 1 a 3, 6 e 10 do RC-10 |
 | **E15** Aviso e entrega | Aviso ao atendente, "Peguei", "Entregue", linha do tempo e busca do pedido (RC-17) | Sonnet; Opus revisa | Critérios 4 e 5 do RC-10 e os do RC-17 |
-| **E16** Estimativa de tempo | Fila, capacidade, faixa e horário previstos | Opus | Valor bate com a conta manual |
+| **E16** Estimativa de tempo | Fila, capacidade, faixa e horário previstos · 📌 S13 tempo de espera no site (após semanas de dados) | Opus | Valor bate com a conta manual |
 | **Portão 1** 🚪 | **Ensaio na loja, sem dinheiro:** uma noite com o sistema rodando em paralelo ao que existe hoje | — | 👉 Equipe usou, problemas anotados e corrigidos |
 
 Critérios da E13 vindos da E03 (decisão 0011): atendente só altera **pedido próprio**, com **motivo obrigatório** (lançado errado ou cliente trocou); o **aviso aos supervisores** é gravado na mesma transação; o gerente vê as alterações numa aba própria; alteração de pedido já liberado para produção gera movimento compensatório, nunca uma segunda baixa. Tudo com teste por cargo direto no servidor.
@@ -52,11 +53,11 @@ Critérios da E13 vindos da E03 (decisão 0011): atendente só altera **pedido p
 ## Bloco D: caixa e dinheiro
 | Etapa | Entrega | Modelos | Pronto quando |
 |---|---|---|---|
-| **E17** Caixa | Sessão, fundo de troco, painel de contas, recebimento com maquininha avulsa, Pago, sangria (RC-13) | **Opus; revisor** | Conta dividida com pagamento misto fecha no centavo |
+| **E17** Caixa | Sessão, fundo de troco, painel de contas, recebimento com maquininha avulsa, Pago, sangria (RC-13); **desconto de funcionário (15%, regra real da casa)** · 📌 em seguida: S5 QR na mesa, S6 reserva, S8 QR de avaliação | **Opus; revisor** | Conta dividida com pagamento misto fecha no centavo |
 | **E18** Fechamento | Fechamento cego, conferência, alertas ao gerente, relatório | Opus na regra; Sonnet no relatório | Critérios 5 e 6 do RC-13 |
 | **E19** Pix integrado | Pix gerado pelo sistema com confirmação automática | **Opus; revisor** | Aviso repetido do provedor gera um recebimento só |
 | **E20** Fiscal | Emissão pelo provedor, em ambiente de testes, com estados reais (RC-06) | **Opus; revisor**; contador valida | Nota rejeitada, timeout e reenvio sem duplicar |
-| **E21** Financeiro básico e sorveteria | Lançamentos vindos do fechamento; aba de potes de sorvete; lançamento do dia da sorveteria (RC-11) | Sonnet; Opus revisa | Fechamento aparece no financeiro sem digitação |
+| **E21** Financeiro básico e sorveteria | Lançamentos vindos do fechamento; aba de potes de sorvete; lançamento do dia da sorveteria (RC-11) · 📌 em seguida: S9 convênio de almoço | Sonnet; Opus revisa | Fechamento aparece no financeiro sem digitação |
 
 ## Bloco E: entrada em operação da gestão interna
 | Etapa | Entrega | Modelos | Pronto quando |
@@ -69,7 +70,7 @@ Critérios da E13 vindos da E03 (decisão 0011): atendente só altera **pedido p
 ## Bloco F: site institucional (em paralelo, a partir da E07)
 | Etapa | Entrega | Modelos | Pronto quando |
 |---|---|---|---|
-| **E25** Site | Páginas, vitrine ligada ao cadastro, área para empresas (RC-07) | Sonnet; Opus revisa a parte pública | Critérios do RC-07; 👉 "Publique tudo" |
+| **E25** Site | Páginas, vitrine ligada ao cadastro, área para empresas (RC-07) em 7 PRs · 📌 S2 e S7 na E25.5; S10 após a E25.3; S3 ao fim; S4 é do responsável | Sonnet; Opus revisa a parte pública | Critérios do RC-07; 👉 "Publique tudo" |
 
 Depende de identidade visual, textos, fotos e domínio. Não depende do restante.
 
@@ -77,8 +78,8 @@ Depende de identidade visual, textos, fotos e domínio. Não depende do restante
 | Etapa | Entrega | Modelos | Pronto quando |
 |---|---|---|---|
 | **E26** Loja online | Cardápio, carrinho, disponibilidade, área e taxa de entrega, estimativa | Sonnet; Opus nas regras | Preço e taxa calculados no servidor |
-| **E27** Pagamento online | Reserva de estoque, pagamento, liberação para a cozinha, estorno | **Opus; revisor** | Critérios 1 a 5 do RC-08 |
-| **E28** Acompanhamento e aplicativo | Etapas, itens, posição na fila, previsão; aplicativo instalável | Sonnet; Opus revisa | Critério 6 do RC-08 |
+| **E27** Pagamento online | Reserva de estoque, pagamento, liberação para a cozinha, estorno · 📌 depois: S11 vale-presente (com o contador) | **Opus; revisor** | Critérios 1 a 5 do RC-08 |
+| **E28** Acompanhamento e aplicativo | Etapas, itens, posição na fila, previsão; aplicativo instalável · 📌 em seguida: S12 Clube E-MOTION | Sonnet; Opus revisa | Critério 6 do RC-08 |
 | **E29** Entregas | Expedição no caixa, aplicativo do motoboy, código de confirmação, prestação de contas (RC-14) | Sonnet; Opus na prestação de contas | Critérios do RC-14 |
 | **Portão 3** 🚪 | Revisão de segurança da área pública, teste de carga, ensaio com pedidos reais de teste | Opus; revisor | 👉 "Publique tudo" |
 

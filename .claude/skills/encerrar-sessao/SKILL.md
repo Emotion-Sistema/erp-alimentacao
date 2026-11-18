@@ -15,8 +15,10 @@ description: Gravar a síntese da conversa no cérebro do projeto e gerar o bloc
 4. Fato novo sobre a empresa (marca, cardápio, contas, equipamentos, pessoas, regras da
    casa) vai para o arquivo certo em `cerebro/empresa/`. Decisão técnica vai para
    `docs/decisoes/`. Ideia do cliente vai para `cerebro/ideias-do-cliente.md`.
-5. Nunca grave segredo, senha, token ou dado pessoal de cliente no cérebro.
-6. Faça commit, abra PR só com `cerebro/` e `docs/` e junte na `main` (permitido sem
+5. Confira `cerebro/agenda-de-sugestoes.md`: se a etapa trabalhada liberou ou concluiu uma
+   sugestão, atualize a linha (pendente → feita, com o PR) e avise o responsável na mensagem final.
+6. Nunca grave segredo, senha, token ou dado pessoal de cliente no cérebro.
+7. Faça commit, abra PR só com `cerebro/` e `docs/` e junte na `main` (permitido sem
    perguntar). Sem isso o próximo chat não enxerga nada. Confirme que o merge aconteceu.
 
 ## 2. Modo compactar (aviso automático de contexto) ou novo chat

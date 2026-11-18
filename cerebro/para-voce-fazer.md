@@ -23,7 +23,9 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Responder às perguntas de `docs/04-pendencias.md` com o cliente (comece pelas de número 1, 5, 13 e 14).
 - [ ] 👉 Enviar cardápio, 1 a 3 fichas técnicas de exemplo, ingredientes e unidades.
 - [x] Domínio escolhido: emotionjf.com.br (18/11/2026).
-- [ ] 👉 Ler a proposta do site (`docs/requisitos/RC-07-site-institucional.md`), dizer quais sugestões S1 a S13 entram (detalhes em `docs/requisitos/RC-07-sugestoes-no-dia-a-dia.md`) e dar o "ok" para a E25 depois da E07.
+- [x] Sugestões S1 a S13 aprovadas, todas, na ordem sugerida (18/11/2026); agenda em `cerebro/agenda-de-sugestoes.md`.
+- [ ] 👉 Dar o "ok" para a E25 (site) quando a E07 terminar.
+- [ ] 👉 Confirmar as hipóteses do desconto de funcionário (RC-13 seção 3a): só salão, balcão e retirada; fora da 60 Sabores; não soma com promoção; só para o próprio funcionário; sem limite por dia; pago na hora.
 - [ ] 👉 Comprar o domínio emotionjf.com.br no Registro.br em nome da empresa (titular: o dono ou o CNPJ) e guardar a senha num cofre; não mexer no DNS ainda.
 - [ ] 👉 Juntar para o site: fotos da casa, dos pratos e de eventos feitos; texto da história; links do iFood, WhatsApp e Instagram; endereço; autorização das empresas que aparecerem no portfólio (pasta do Drive "06 Cardápio e produtos" ou nova "10 Site").
 - [ ] 👉 Pedir ao dono os textos de missão, visão e valores (pode ser rascunho; o Claude ajuda a lapidar) e os marcos da história da casa com ano.
