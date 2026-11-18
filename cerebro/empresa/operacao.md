@@ -30,7 +30,9 @@ login, mesmo no celular dividido; no fim do turno sai e o próximo entra.
 Picos, troca de turno, fechamento: a levantar.
 
 ## Regras da casa
-Descontos, cortesias, consumo de funcionário, taxa de serviço, cancelamentos: a levantar.
+- **Consumo de funcionário (responsável, 18/11/2026):** todo funcionário tem **15% de desconto** nos
+  produtos da loja; já acontece hoje. Regra no RC-13 seção 3a (E17).
+- Descontos em geral, cortesias, taxa de serviço, cancelamentos: a levantar.
 
 ## Cardápio e fichas técnicas
 Quando recebidos, converter para arquivos em `cerebro/empresa/cardapio/` (sem dados pessoais).
