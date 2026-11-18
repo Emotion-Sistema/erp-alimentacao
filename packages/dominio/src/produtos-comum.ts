@@ -26,7 +26,7 @@ export type Produto = {
 export function centavosDoTexto(texto: string): number | null {
   const t = texto.replace(/R\$/gi, "").replace(/\s+/g, "");
   let reais: string;
-  let cent = "";
+  let cent: string;
   let m: RegExpExecArray | null;
   if ((m = /^(\d+)(?:,(\d{1,2}))?$/.exec(t))) [reais, cent] = [m[1]!, m[2] ?? ""];
   else if ((m = /^(\d{1,3}(?:\.\d{3})+)(?:,(\d{1,2}))?$/.exec(t))) [reais, cent] = [m[1]!.replace(/\./g, ""), m[2] ?? ""];
