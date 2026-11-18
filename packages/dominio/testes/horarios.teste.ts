@@ -447,6 +447,13 @@ describe("categorias", () => {
     expect((await erroDe(salvarCategoria(db, gerente, { nome: "x" }))).message).toMatch(/2 letras/);
     expect((await erroDe(salvarCategoria(db, gerente, { id: 999999, nome: "Fantasma" }))).codigo).toBe("nao_encontrado");
   });
+
+  it("posição na lista: a categoria vai para o lugar escolhido e as outras são renumeradas", async () => {
+    const c = await salvarCategoria(db, gerente, { nome: `Entradas ${sufixo}`, posicao: 2 });
+    const ativas = (await listarCategorias(db, gerente)).filter((x) => x.ativo);
+    expect(ativas[1]!.id).toBe(c.id);
+    expect(ativas.map((x) => x.ordem)).toEqual(ativas.map((_, i) => (i + 1) * 10));
+  });
 });
 
 describe("texto para quem vende", () => {

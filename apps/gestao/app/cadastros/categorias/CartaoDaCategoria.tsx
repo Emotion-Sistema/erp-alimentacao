@@ -16,6 +16,7 @@ import { TC } from "./textos";
 
 export function CartaoDaCategoria({
   categoria,
+  posicao,
   horarios,
   podeGerenciar,
   gravar,
@@ -24,6 +25,8 @@ export function CartaoDaCategoria({
   aoMudarAtivo,
 }: {
   categoria: Categoria;
+  /** Lugar no cardápio (1 = primeira); nulo se desativada. */
+  posicao: number | null;
   horarios: Horarios | null;
   podeGerenciar: boolean;
   gravar: Gravar;
@@ -39,7 +42,7 @@ export function CartaoDaCategoria({
   return (
     <article className={["hor-cat", !c.ativo && "hor-cat--inativa"].filter(Boolean).join(" ")} data-testid={`categoria-${c.nome}`}>
       <header className="hor-cat__cabeca">
-        <Selo>{TC.cartao.ordem(c.ordem)}</Selo>
+        {posicao !== null && <Selo>{TC.cartao.posicao(posicao)}</Selo>}
         <h3 className="hor-cat__nome">{c.nome}</h3>
         {!c.ativo && <Selo variante="alerta">{TC.cartao.desativada}</Selo>}
       </header>

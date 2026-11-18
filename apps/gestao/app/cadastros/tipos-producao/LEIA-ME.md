@@ -10,11 +10,11 @@ Regra e motivo: `docs/decisoes/0017-tipos-de-producao.md`. Regra no servidor:
 | `page.tsx` | Página (servidor): confere `cadastros.ver` e passa `podeGerenciar` (`cadastros.gerenciar`). |
 | `ListaDeTipos.tsx` | Lista por área (Cozinha, Cafeteria, com a frase de saída), desativados no fim; novo, editar, desativar com "Desfazer". |
 | `CartaoDoTipo.tsx` | Um cartão: nome, área, "Faz N ao mesmo tempo", Editar e Desativar/Reativar. |
-| `JanelaDoTipo.tsx` | Janela de novo ou editar (nome, área, capacidade, ordem). |
+| `JanelaDoTipo.tsx` | Janela de novo ou editar (nome, área, capacidade, posição na lista com `../PosicaoNaLista.tsx`). |
 | `textos.ts` | Textos desta tela. |
 
 API: `GET /api/cadastros/tipos-producao` (lista, `cadastros.ver`) e `POST` (sem `id` cria, com `id`
-altera; `nome` e `area` obrigatórios; `capacidade` 1 a 50, `ordem` e `ativo` opcionais;
+altera; `nome` e `area` obrigatórios; `capacidade` 1 a 50, `posicao` (1 = primeiro; o servidor renumera de 10 em 10), `ordem` e `ativo` opcionais;
 `cadastros.gerenciar`). Erro volta como `{ mensagem }`, igual às categorias.
 
 O estilo vem de `../horarios/horarios.css` (`hor-tela`, `hor-secao`, `hor-cat`, `hor-escolha`).

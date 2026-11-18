@@ -45,7 +45,6 @@ export function ListaDeTipos({ podeGerenciar }: { podeGerenciar: boolean }) {
   const lista = tipos ?? [];
   const ativos = lista.filter((t) => t.ativo);
   const inativos = lista.filter((t) => !t.ativo);
-  const ordemSugerida = (Math.floor(Math.max(0, ...lista.map((t) => t.ordem)) / 10) + 1) * 10;
 
   async function mudarAtivo(t: TipoDeProducao, ativo: boolean, desfazendo = false) {
     setErroAcao("");
@@ -103,7 +102,7 @@ export function ListaDeTipos({ podeGerenciar }: { podeGerenciar: boolean }) {
       {janela && (
         <JanelaDoTipo
           tipo={janela.tipo}
-          ordemSugerida={ordemSugerida}
+          itens={ativos.map((t) => ({ id: t.id, nome: t.nome, detalhe: NOME_DA_AREA_DE_PRODUCAO[t.area] }))}
           aoFechar={() => setJanela(null)}
           aoSalvo={(t, criado) => {
             setJanela(null);

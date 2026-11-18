@@ -119,6 +119,37 @@ describe("tipos de produção", () => {
     expect(n).toHaveLength(0);
   });
 
+  it("posição na lista: escolhe o lugar e o sistema renumera de 10 em 10, com auditoria", async () => {
+    const ativos = async () => (await listarTiposDeProducao(db, gerente)).filter((x) => x.ativo);
+    const a = await salvarTipoDeProducao(db, gerente, { nome: `Primeiro ${sufixo}`, area: "cozinha", posicao: 1 });
+    let lista = await ativos();
+    expect(lista[0]!.id).toBe(a.id);
+    expect(lista.map((x) => x.ordem)).toEqual(lista.map((_, i) => (i + 1) * 10));
+    expect(a.ordem).toBe(10);
+    const auditoria = await ultimaAuditoria(a.id);
+    expect((auditoria.detalhes as { reordenados?: unknown[] }).reordenados?.length).toBeGreaterThan(0);
+
+    const b = await salvarTipoDeProducao(db, gerente, { nome: `Segundo ${sufixo}`, area: "cafeteria", posicao: 2 });
+    lista = await ativos();
+    expect(lista.slice(0, 2).map((x) => x.id)).toEqual([a.id, b.id]);
+    // Mover o primeiro para o fim (posição maior que a lista vira "último").
+    await salvarTipoDeProducao(db, gerente, { id: a.id, posicao: 9999 });
+    lista = await ativos();
+    expect(lista.at(-1)!.id).toBe(a.id);
+    expect(lista[0]!.id).toBe(b.id);
+    expect(lista.map((x) => x.ordem)).toEqual(lista.map((_, i) => (i + 1) * 10));
+    expect((await erroDe(salvarTipoDeProducao(db, gerente, { id: a.id, posicao: 0 }))).message).toMatch(/1 em diante/);
+  });
+
+  it("duas pessoas mudando a posição ao mesmo tempo: a lista fica sem número repetido", async () => {
+    const x = await salvarTipoDeProducao(db, gerente, { nome: `Corrida A ${sufixo}`, area: "cozinha" });
+    const y = await salvarTipoDeProducao(db, gerente, { nome: `Corrida B ${sufixo}`, area: "cozinha" });
+    await Promise.all([salvarTipoDeProducao(db, gerente, { id: x.id, posicao: 1 }), salvarTipoDeProducao(db, gerente, { id: y.id, posicao: 1 })]);
+    const lista = (await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo);
+    expect(lista.map((t) => t.ordem)).toEqual(lista.map((_, i) => (i + 1) * 10));
+    expect(lista.slice(0, 2).map((t) => t.id).sort()).toEqual([x.id, y.id].sort());
+  });
+
   it("duas pessoas criando o mesmo nome ao mesmo tempo: só uma consegue", async () => {
     const nome = `Grill ${sufixo}`;
     const r = await Promise.allSettled([1, 2, 3].map(() => salvarTipoDeProducao(db, gerente, { nome, area: "cozinha" })));

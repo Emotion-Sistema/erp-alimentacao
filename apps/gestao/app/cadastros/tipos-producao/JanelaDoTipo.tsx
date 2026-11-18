@@ -1,11 +1,12 @@
 "use client";
 
-/** Janela para criar ou editar um tipo de produção (nome, área, capacidade, ordem). Grava em /api/cadastros/tipos-producao. */
+/** Janela para criar ou editar um tipo de produção (nome, área, capacidade, posição na lista). Grava em /api/cadastros/tipos-producao. */
 import { useState, type FormEvent } from "react";
 import { Aviso, Botao } from "@erp/interface";
 import { AREAS_DE_PRODUCAO, CAPACIDADE_MAXIMA, NOME_DA_AREA_DE_PRODUCAO, SAIDA_DA_AREA_DE_PRODUCAO, type AreaDeProducao, type TipoDeProducao } from "@erp/dominio/tipos-producao";
 import { chamar } from "../../chamar";
 import { BotaoExemplos, Campo, Grupo, OpcaoDoGrupo } from "../../Campo";
+import { PosicaoNaLista, type ItemDaLista } from "../PosicaoNaLista";
 import { JanelaModal, usarPedirFechar } from "../JanelaModal";
 import { TT } from "./textos";
 
@@ -20,13 +21,14 @@ function BotaoCancelar() {
 
 export function JanelaDoTipo({
   tipo,
-  ordemSugerida,
+  itens,
   aoFechar,
   aoSalvo,
 }: {
   /** Sem ele, cria um novo. */
   tipo?: TipoDeProducao;
-  ordemSugerida: number;
+  /** Os tipos ativos, na ordem da lista (para escolher a posição). */
+  itens: ItemDaLista[];
   aoFechar: () => void;
   aoSalvo: (t: TipoDeProducao, criado: boolean) => void;
 }) {
@@ -34,7 +36,8 @@ export function JanelaDoTipo({
   const [nome, setNome] = useState(tipo?.nome ?? "");
   const [area, setArea] = useState<AreaDeProducao | null>(tipo?.area ?? null);
   const [capacidade, setCapacidade] = useState(String(tipo?.capacidade ?? 1));
-  const [ordem, setOrdem] = useState(String(tipo?.ordem ?? ordemSugerida));
+  const indice = tipo ? itens.findIndex((i) => i.id === tipo.id) : -1;
+  const [posicao, setPosicao] = useState(indice >= 0 ? indice + 1 : itens.filter((i) => i.id !== tipo?.id).length + 1);
   const [erro, setErro] = useState("");
   const [gravando, setGravando] = useState(false);
 
@@ -45,14 +48,13 @@ export function JanelaDoTipo({
     if (!area) return setErro(TT.janela.faltaArea);
     const cap = capacidade.trim();
     if (!/^\d{1,2}$/.test(cap) || Number(cap) < 1 || Number(cap) > CAPACIDADE_MAXIMA) return setErro(TT.janela.capacidadeInvalida(CAPACIDADE_MAXIMA));
-    if (!/^\d{1,4}$/.test(ordem.trim())) return setErro(TT.janela.ordemInvalida);
     setGravando(true);
     const r = await chamar<TipoDeProducao>("/api/cadastros/tipos-producao", "POST", {
       ...(tipo ? { id: tipo.id } : {}),
       nome: nome.trim(),
       area,
       capacidade: Number(cap),
-      ordem: Number(ordem.trim()),
+      ...(tipo && !tipo.ativo ? {} : { posicao }),
     });
     setGravando(false);
     if (!r.ok || !r.dados) return setErro(r.mensagem);
@@ -70,7 +72,7 @@ export function JanelaDoTipo({
           ))}
         </Grupo>
         <Campo rotulo={TT.janela.capacidade} explicacao={TT.janela.capacidadeAjuda} exemplo={TT.janela.capacidadeExemplo} value={capacidade} inputMode="numeric" maxLength={2} onChange={(e) => setCapacidade(e.target.value)} />
-        <Campo rotulo={TT.janela.ordem} explicacao={TT.janela.ordemAjuda} exemplo={TT.janela.ordemExemplo} value={ordem} inputMode="numeric" maxLength={4} onChange={(e) => setOrdem(e.target.value)} />
+        {(!tipo || tipo.ativo) && <PosicaoNaLista rotulo={TT.janela.posicao} itens={itens} atualId={tipo?.id} nomeDoAtual={nome.trim()} posicao={posicao} aoMudar={setPosicao} />}
         <div aria-live="polite">{erro && <Aviso tipo="perigo">{erro}</Aviso>}</div>
         <div className="cadastros__botoes">
           <Botao type="submit" disabled={gravando}>

@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { Aviso, Botao } from "@erp/interface";
 import { chamar } from "../../chamar";
 import { AreaDeTexto, BotaoExemplos, Campo } from "../../Campo";
+import { PosicaoNaLista, type ItemDaLista } from "../PosicaoNaLista";
 import { JanelaModal, usarPedirFechar } from "../JanelaModal";
 import type { Categoria } from "../horarios/contas";
 import { TC } from "./textos";
@@ -20,20 +21,22 @@ function BotaoCancelar() {
 
 export function JanelaDaCategoria({
   categoria,
-  ordemSugerida,
+  itens,
   aoFechar,
   aoSalvo,
 }: {
   /** Sem ela, cria uma nova. */
   categoria?: Categoria;
-  ordemSugerida: number;
+  /** As categorias ativas, na ordem da lista (para escolher a posição). */
+  itens: ItemDaLista[];
   aoFechar: () => void;
   aoSalvo: (c: Categoria, criada: boolean) => void;
 }) {
   const [sujo, setSujo] = useState(false);
   const [nome, setNome] = useState(categoria?.nome ?? "");
   const [descricao, setDescricao] = useState(categoria?.descricao ?? "");
-  const [ordem, setOrdem] = useState(String(categoria?.ordem ?? ordemSugerida));
+  const indice = categoria ? itens.findIndex((i) => i.id === categoria.id) : -1;
+  const [posicao, setPosicao] = useState(indice >= 0 ? indice + 1 : itens.filter((i) => i.id !== categoria?.id).length + 1);
   const [erro, setErro] = useState("");
   const [gravando, setGravando] = useState(false);
 
@@ -41,13 +44,13 @@ export function JanelaDaCategoria({
     e.preventDefault();
     setErro("");
     if (nome.trim().length < 2) return setErro(TC.janela.faltaNome);
-    if (!/^\d{1,4}$/.test(ordem.trim())) return setErro(TC.janela.ordemInvalida);
     setGravando(true);
     const r = await chamar<Categoria>("/api/cadastros/categorias", "POST", {
       ...(categoria ? { id: categoria.id } : {}),
       nome: nome.trim(),
       descricao: descricao.trim() || null,
-      ordem: Number(ordem.trim()),
+      // Categoria desativada não entra na lista: a posição só vale para as ativas.
+      ...(categoria && !categoria.ativo ? {} : { posicao }),
     });
     setGravando(false);
     if (!r.ok || !r.dados) return setErro(r.mensagem);
@@ -60,7 +63,7 @@ export function JanelaDaCategoria({
       <form className="hor-form" onSubmit={(e) => void salvar(e)} noValidate>
         <Campo rotulo={TC.janela.nome} explicacao={TC.janela.nomeAjuda} exemplo={TC.janela.nomeExemplo} value={nome} maxLength={40} onChange={(e) => setNome(e.target.value)} required autoComplete="off" />
         <AreaDeTexto rotulo={TC.janela.descricao} explicacao={TC.janela.descricaoAjuda} exemplo={TC.janela.descricaoExemplo} value={descricao} maxLength={300} rows={2} onChange={(e) => setDescricao(e.target.value)} />
-        <Campo rotulo={TC.janela.ordem} explicacao={TC.janela.ordemAjuda} exemplo={TC.janela.ordemExemplo} value={ordem} inputMode="numeric" maxLength={4} onChange={(e) => setOrdem(e.target.value)} />
+        {(!categoria || categoria.ativo) && <PosicaoNaLista rotulo={TC.janela.posicao} itens={itens} atualId={categoria?.id} nomeDoAtual={nome.trim()} posicao={posicao} aoMudar={setPosicao} />}
         <div aria-live="polite">{erro && <Aviso tipo="perigo">{erro}</Aviso>}</div>
         <div className="cadastros__botoes">
           <Botao type="submit" disabled={gravando}>

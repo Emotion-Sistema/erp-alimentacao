@@ -9,6 +9,7 @@ import { z } from "zod";
 import { sql, type Banco } from "@erp/banco";
 import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
+import { reposicionar } from "./posicao";
 import { exigir, type Ator } from "./sessao";
 import { AREAS_DE_PRODUCAO, CAPACIDADE_MAXIMA, type TipoDeProducao } from "./tipos-producao-comum";
 
@@ -30,6 +31,8 @@ const esquemaTipo = z.object({
     .max(CAPACIDADE_MAXIMA, `Capacidade de até ${CAPACIDADE_MAXIMA} itens ao mesmo tempo.`)
     .optional(),
   ordem: z.number().int().min(0).max(9999).optional(),
+  /** Lugar na lista (1 = primeiro) entre os ativos; o sistema renumera a ordem. Vence `ordem`. */
+  posicao: z.number({ error: "Posição: um número inteiro." }).int("Posição: um número inteiro.").min(1, "Posição de 1 em diante.").max(9999).optional(),
   ativo: z.boolean().optional(),
 });
 
@@ -75,13 +78,15 @@ export async function salvarTipoDeProducao(db: Banco, ator: Ator | null, dados: 
       } else {
         s = await trx.insertInto("tipo_producao").values({ ...valores, nome: d.nome!, area: d.area! }).returning(colunas).executeTakeFirstOrThrow();
       }
+      const reordenados = d.posicao === undefined ? [] : await reposicionar(trx, "tipo_producao", s.id, d.posicao);
+      if (reordenados.length) s = await trx.selectFrom("tipo_producao").select(colunas).where("id", "=", s.id).executeTakeFirstOrThrow();
       await auditar(trx, {
         usuarioId: quem.usuarioId,
         acao: "cadastros.gerenciar",
         resultado: "permitido",
         alvoTipo: "tipo_producao",
         alvoId: s.id,
-        detalhes: { operacao: d.id ? "alterar" : "criar", antes: antes ?? null, depois: s },
+        detalhes: { operacao: d.id ? "alterar" : "criar", antes: antes ?? null, depois: s, ...(reordenados.length ? { reordenados } : {}) },
         ip: quem.ip,
       });
       return s;

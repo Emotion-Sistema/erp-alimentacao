@@ -15,29 +15,34 @@ test("gerente cria uma categoria, dá um horário a ela no delivery, edita, desa
   await expect(page.getByRole("heading", { name: "Categorias", level: 1 })).toBeVisible();
   // As da semente, em ordem, com a situação agora nos dois canais.
   const almoco = page.getByTestId("categoria-Almoço");
-  await expect(almoco).toContainText("Ordem 20");
+  await expect(almoco).toContainText("2ª no cardápio");
   await expect(almoco.getByTestId("situacao-da-categoria")).toContainText("Loja:");
   await expect(almoco.getByTestId("situacao-da-categoria")).toContainText("Delivery:");
   const nomes = await page.getByTestId("lista-categorias").locator(".hor-cat__nome").allTextContents();
   expect(nomes.slice(0, 3)).toEqual(["Cafeteria", "Almoço", "Porções"]);
 
-  // Nova categoria (a ordem já vem sugerida depois da última).
+  // Nova categoria: a posição vem no fim e a janela mostra a lista que já existe.
   await page.getByRole("button", { name: "Nova categoria" }).click();
   const janela = page.getByRole("dialog", { name: "Nova categoria" });
   await janelaNoCentro(page, janela);
-  await expect(janela.getByLabel("Ordem no cardápio")).toHaveValue(/^\d+$/);
+  const previa = janela.getByRole("list", { name: "Como a lista vai ficar:" });
+  await expect(previa).toContainText("Cafeteria");
+  await expect(previa).toContainText("Bebidas");
+  await expect(janela.getByLabel("Posição no cardápio").locator("option:checked")).toContainText("(no fim)");
   await janela.getByLabel("Nome").fill("x");
   await janela.getByRole("button", { name: "Criar categoria" }).click();
   await expect(janela.getByRole("alert")).toHaveText("Escreva o nome (pelo menos 2 letras).");
   await janela.getByLabel("Nome").fill(NOME);
   await janela.getByLabel("Descrição (opcional)").fill("Doces da casa.");
-  await janela.getByLabel("Ordem no cardápio").fill("70");
+  await expect(previa.locator("li").last()).toContainText(`${NOME} ← este`);
   await janelaSemEstouro(page);
   await janela.getByRole("button", { name: "Criar categoria" }).click();
   await expect(janela).toBeHidden();
   await expect(page.getByTestId("aviso-rapido")).toContainText(`Categoria ${NOME} criada.`);
   const cartao = page.getByTestId(`categoria-${NOME}`);
-  await expect(cartao).toContainText("Ordem 70");
+  await expect(cartao).toContainText("ª no cardápio");
+  const nomes2 = await page.getByTestId("lista-categorias").locator(".hor-cat__nome").allTextContents();
+  expect(nomes2.at(-1)).toBe(NOME);
   await expect(cartao).toContainText("Doces da casa.");
   await expect(cartao.getByTestId("situacao-da-categoria")).toContainText("Delivery:");
 

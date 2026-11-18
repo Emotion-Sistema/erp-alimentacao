@@ -26,7 +26,6 @@ export function ListaDeCategorias({ podeGerenciar }: { podeGerenciar: boolean })
 
   const ativas = categorias.filter((c) => c.ativo);
   const inativas = categorias.filter((c) => !c.ativo);
-  const ordemSugerida = (Math.floor(Math.max(0, ...categorias.map((c) => c.ordem)) / 10) + 1) * 10;
 
   async function mudarAtivo(c: Categoria, ativo: boolean, desfazendo = false) {
     setErroAcao("");
@@ -42,6 +41,7 @@ export function ListaDeCategorias({ podeGerenciar }: { podeGerenciar: boolean })
     <li key={c.id} className="hor-cats__item">
       <CartaoDaCategoria
         categoria={c}
+        posicao={c.ativo ? ativas.indexOf(c) + 1 : null}
         horarios={horarios}
         podeGerenciar={podeGerenciar}
         gravar={gravar}
@@ -85,7 +85,7 @@ export function ListaDeCategorias({ podeGerenciar }: { podeGerenciar: boolean })
       {janela && (
         <JanelaDaCategoria
           categoria={janela.categoria}
-          ordemSugerida={ordemSugerida}
+          itens={ativas.map((c) => ({ id: c.id, nome: c.nome }))}
           aoFechar={() => setJanela(null)}
           aoSalvo={(c, criada) => {
             setJanela(null);

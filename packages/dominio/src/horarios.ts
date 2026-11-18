@@ -13,6 +13,7 @@ import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
 import { CANAIS, horaValida, type Canal, type MotivoFechado } from "./horarios-comum";
 import { pode } from "./permissoes";
+import { reposicionar } from "./posicao";
 import { exigir, type Ator } from "./sessao";
 
 export * from "./horarios-comum";
@@ -144,6 +145,8 @@ const esquemaCategoria = z.object({
     // Sem o campo, fica como está; nulo ou vazio limpa.
     .transform((v) => (v === undefined ? undefined : v ? v : null)),
   ordem: z.number().int().min(0).max(9999).optional(),
+  /** Lugar na lista (1 = primeiro) entre as ativas; o sistema renumera a ordem. Vence `ordem`. */
+  posicao: z.number({ error: "Posição: um número inteiro." }).int("Posição: um número inteiro.").min(1, "Posição de 1 em diante.").max(9999).optional(),
   ativo: z.boolean().optional(),
 });
 
@@ -570,13 +573,15 @@ export async function salvarCategoria(db: Banco, ator: Ator | null, dados: unkno
       } else {
         s = await trx.insertInto("categoria").values(valores).returning(colunas).executeTakeFirstOrThrow();
       }
+      const reordenados = d.posicao === undefined ? [] : await reposicionar(trx, "categoria", s.id, d.posicao);
+      if (reordenados.length) s = await trx.selectFrom("categoria").select(colunas).where("id", "=", s.id).executeTakeFirstOrThrow();
       await auditar(trx, {
         usuarioId: quem.usuarioId,
         acao: "cadastros.gerenciar",
         resultado: "permitido",
         alvoTipo: "categoria",
         alvoId: s.id,
-        detalhes: { operacao: d.id ? "alterar" : "criar", antes: antes ?? null, depois: s },
+        detalhes: { operacao: d.id ? "alterar" : "criar", antes: antes ?? null, depois: s, ...(reordenados.length ? { reordenados } : {}) },
         ip: quem.ip,
       });
       return s;

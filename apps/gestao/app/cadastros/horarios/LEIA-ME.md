@@ -10,7 +10,7 @@ A tela de Categorias fica em `../categorias/` e usa as peças desta pasta (grade
   outros dias abertos), **Canais** (abas Loja | Delivery com a grade de 7 dias), **Datas especiais**
   (lista + janela "Nova data especial", cancelar com confirmação) e **Pausas** (lista + janela
   "Pausar agora", Retomar).
-- **Categorias** (`/cadastros/categorias`): cartões com ordem, nome, descrição e a situação agora
+- **Categorias** (`/cadastros/categorias`): cartões com posição, nome, descrição e a situação agora
   ("Loja: Vendendo agora"); nova e editar na janela; desativar com "Desfazer"; cada cartão abre o
   **horário da categoria** (a mesma grade de 7 dias, por canal; "Igual ao canal" = segue).
 
