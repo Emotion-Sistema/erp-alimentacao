@@ -18,10 +18,10 @@ Registro da ideia: `cerebro/ideias-do-cliente.md`, nº 7.
 - Botão do modo claro em brasa mais funda (#B8470E) para a letra clara passar de 4,5:1.
 - Conversão para gráfica (CMYK/Pantone) não foi inventada: depende de prova de cor da gráfica.
 
-## Falta (do responsável)
-- Escolher o clima.
-- Dizer se quer modo escuro e onde (a decisão 0012 deixa o sistema interno sempre claro).
+## Escolha do responsável (18/11/2026)
+- Clima **Espuma e Brasa**; tema **claro por padrão**; escuro **só** quando o aparelho do cliente estiver
+  no modo escuro. Hipótese registrada: vale para site, delivery e app do cliente; o interno segue sempre claro (0012).
+- Recado ao chat principal no mural com o que trocar. A frente não mexe no código.
 
-## Depois da escolha
-Recado ao chat principal no mural para aplicar no `tema.css` (troca de valores, teste de contraste
-AA que já existe). A frente não mexe no código.
+## Falta
+- Chat principal aplicar no tema (quando couber no roteiro). Depois disso, a frente pode ser encerrada.

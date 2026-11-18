@@ -1,6 +1,7 @@
 # Paleta da marca E-MOTION (proposta)
 
-Frente `paleta-da-marca`, 18/11/2026. **Proposta aguardando a escolha do responsável.** Nada disto
+Frente `paleta-da-marca`, 18/11/2026. **Escolhido pelo responsável em 18/11/2026: clima Espuma e Brasa;
+tema claro por padrão; escuro só quando o aparelho do cliente estiver no modo escuro.** Nada disto
 está no código: o que for para o sistema passa pelo chat principal (decisão 0012, tema por variáveis).
 
 ## Arquivos desta pasta
@@ -74,7 +75,10 @@ gráfica (CMYK ou Pantone) precisa de prova de cor da própria gráfica; não in
 ## Fontes (só sugestão da amostra)
 Fraunces nos títulos (suave, quente) e Figtree no texto. Não é decisão; tipografia é assunto à parte.
 
-## Em aberto (do responsável)
-- Escolher o clima (recomendo Espuma e Brasa).
-- Dizer se quer modo escuro, e onde. Hoje a decisão 0012 (adendo de 15/11/2026) deixa o sistema
-  interno **sempre claro**, a pedido dele. Sugestão: escuro só no site, delivery e app do cliente.
+## Decisão do responsável (18/11/2026)
+- **Clima: Espuma e Brasa.** Os outros dois ficam só como registro.
+- **Tema claro por padrão.** O escuro "Noite de Torra" entra **só** quando o aparelho do cliente está
+  no modo escuro (`prefers-color-scheme: dark`). Sem botão para escolher; sem escuro forçado.
+- Hipótese (reversível): vale para o que o **cliente** usa: site, delivery e app do cliente. O sistema
+  interno continua **sempre claro**, como na decisão 0012 (adendo de 15/11/2026).
+- Próximo passo: o chat principal aplica no `tema.css` (recado no mural).
