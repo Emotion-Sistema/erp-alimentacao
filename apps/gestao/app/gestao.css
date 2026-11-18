@@ -1,3 +1,5 @@
+/* Equipe: sempre claro, mesmo com o celular no modo escuro (o navegador não pode escurecer sozinho). */
+:root, html { color-scheme: only light; }
 /* Layout das páginas da gestão. Só variáveis do tema: nenhuma cor fixa. */
 .pagina { max-width: 960px; margin: 0 auto; padding: var(--espaco-4, 1rem); }
 .pagina-centro {
@@ -555,3 +557,42 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
   .catalogo__bandeja { padding-inline: var(--espaco-3); }
 }
 @media (prefers-reduced-motion: reduce) { .acoes > summary::after, .tecla, .pessoa { transition: none; } }
+
+/* ---------- Menu que rola de lado: bordas esmaecidas e setas (18/11/2026) ---------- */
+.casca__menu { position: relative; }
+.casca__menu-faixa { scroll-snap-type: x proximity; }
+.casca__menu-faixa > .casca__link { scroll-snap-align: center; }
+.casca__menu[data-mais-esquerda] .casca__menu-faixa,
+.casca__menu[data-mais-direita] .casca__menu-faixa {
+  -webkit-mask-image: linear-gradient(90deg, var(--mascara-esquerda, black) 0, black 3.5rem, black calc(100% - 3.5rem), var(--mascara-direita, black) 100%);
+  mask-image: linear-gradient(90deg, var(--mascara-esquerda, black) 0, black 3.5rem, black calc(100% - 3.5rem), var(--mascara-direita, black) 100%);
+}
+.casca__menu[data-mais-esquerda] { --mascara-esquerda: transparent; }
+.casca__menu[data-mais-direita] { --mascara-direita: transparent; }
+.casca__rolar {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 1;
+  display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
+  border: 1px solid var(--cor-borda-suave); border-radius: 50%; cursor: pointer;
+  background: var(--cor-cartao); color: var(--cor-primaria); box-shadow: var(--sombra-2);
+  animation: casca-rolar-chama 1.6s ease-in-out 2;
+}
+.casca__rolar::before {
+  content: ""; width: 0.55rem; height: 0.55rem; border-top: 2.5px solid currentColor; border-right: 2.5px solid currentColor;
+}
+.casca__rolar--direita { right: var(--espaco-2); }
+.casca__rolar--direita::before { transform: translateX(-2px) rotate(45deg); }
+.casca__rolar--esquerda { left: var(--espaco-2); }
+.casca__rolar--esquerda::before { transform: translateX(2px) rotate(-135deg); }
+.casca__rolar:hover { color: var(--cor-primaria-hover); border-color: var(--cor-borda); }
+/* Um empurrãozinho para o lado nas duas primeiras vezes, para mostrar que rola. */
+@keyframes casca-rolar-chama { 50% { transform: translateY(-50%) translateX(var(--empurrao, 4px)); } }
+.casca__rolar--esquerda { --empurrao: -4px; }
+
+/* ---------- Botão de tela cheia ---------- */
+.tela-cheia { font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: var(--espaco-2); }
+.tela-cheia__icone { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+@media (max-width: 40rem) {
+  /* No celular, só o ícone (o nome continua para o leitor de tela e no toque longo). */
+  .casca__lado .tela-cheia__texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+.estacao__topo .tela-cheia { margin-left: auto; }

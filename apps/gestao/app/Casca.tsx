@@ -11,6 +11,7 @@ import {
 } from "@erp/dominio";
 import { CentralDeAvisos } from "./CentralDeAvisos";
 import { BotaoSair } from "./BotaoSair";
+import { BotaoTelaCheia } from "./BotaoTelaCheia";
 import { entradaDoAplicativo } from "./aplicativos-ui";
 import { Menu } from "./Menu";
 import { TrocarCargo } from "./TrocarCargo";
@@ -94,6 +95,7 @@ export function Casca({
             />
           )}
           <div className="casca__lado">
+            <BotaoTelaCheia className="tela-cheia casca__link" />
             <CentralDeAvisos />
             <Link href="/minha-conta" className="casca__link">
               Minha conta
