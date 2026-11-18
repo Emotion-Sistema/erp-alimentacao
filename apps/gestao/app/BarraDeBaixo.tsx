@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { IconeDoMenu } from "@erp/dominio";
 import { ICONE_INICIO, ICONE_MAIS, ICONES_DO_MENU } from "./icones-do-menu";
 
-export type ItemDaBarra = { href: string; texto: string; icone: IconeDoMenu };
+export type ItemDaBarra = { href: string; texto: string; icone: IconeDoMenu; curto?: string };
 
 /**
  * Barra de baixo do celular (decisão 0019, adendo de 18/11/2026; pedido do responsável:
@@ -38,12 +38,13 @@ export function BarraDeBaixo({
       href={i.href}
       className="barra__item"
       aria-current={atual === i.href ? "page" : undefined}
+      aria-label={i.curto ? i.texto : undefined}
       onClick={tocar}
     >
       <span className="barra__icone" aria-hidden="true">
         <Desenho d={ICONES_DO_MENU[i.icone]} />
       </span>
-      <span className="barra__texto">{i.texto}</span>
+      <span className="barra__texto">{i.curto ?? i.texto}</span>
     </Link>
   );
   const mais = temMais ? (

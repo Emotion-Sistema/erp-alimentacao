@@ -170,11 +170,7 @@ function BarraDoAplicativo({
   dosCargo: Aplicativo[];
 }) {
   const { naBarra, noMais } = itensDaBarra(app, cargo);
-  const comoItem = (i: {
-    caminho: string;
-    texto: string;
-    icone: Aplicativo["itens"][number]["icone"];
-  }) => ({ href: i.caminho, texto: i.texto, icone: i.icone });
+  const comoItem = (i: Aplicativo["itens"][number]) => ({ href: i.caminho, texto: i.texto, icone: i.icone, curto: i.curto });
   const principal =
     app.principal && pode(cargo, app.principal.acao)
       ? { href: app.principal.caminho, texto: app.principal.texto }

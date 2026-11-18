@@ -17,6 +17,8 @@ export type ItemDoMenu = {
   etapa?: string;
   /** Ícone na barra de baixo do celular (desenhos em apps/gestao/app/icones-do-menu.ts). */
   icone: IconeDoMenu;
+  /** Nome curto na barra de baixo do celular, quando o nome inteiro não cabe. */
+  curto?: string;
 };
 
 /** Ícones da barra de baixo do celular (decisão 0019, adendo de 18/11/2026). */
@@ -84,6 +86,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         acao: "caixa.operar",
         etapa: "E17",
         icone: "relogio",
+        curto: "Turno",
       },
       {
         caminho: "/caixa/mesas",
@@ -91,6 +94,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         acao: "pedidos.ver_todos",
         etapa: "E17",
         icone: "mesa",
+        curto: "Mesas",
       },
       {
         caminho: "/caixa/receber",
@@ -180,6 +184,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         acao: "compras.gerenciar",
         etapa: "E10",
         icone: "carrinho",
+        curto: "Compras",
       },
       {
         caminho: "/estoque/materiais",
@@ -187,6 +192,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         acao: "compras.materiais",
         etapa: "E10",
         icone: "ferramenta",
+        curto: "Materiais",
       },
       {
         caminho: "/estoque/custos",
@@ -194,6 +200,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         acao: "custos.ver",
         etapa: "E08",
         icone: "moeda",
+        curto: "Custos",
       },
     ],
   },
@@ -256,6 +263,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         texto: "Ingredientes",
         acao: "cadastros.ver",
         icone: "folha",
+        curto: "Insumos",
       },
       {
         caminho: "/cadastros/embalagens",
@@ -286,12 +294,14 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         texto: "Tipos de produção",
         acao: "cadastros.ver",
         icone: "chama",
+        curto: "Tipos",
       },
       {
         caminho: "/cadastros/horarios",
         texto: "Horários de venda",
         acao: "cadastros.ver",
         icone: "calendario",
+        curto: "Horários",
       },
     ],
     naBarra: [
@@ -328,6 +338,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         acao: "caixa.fechamentos_ver",
         etapa: "E21",
         icone: "dinheiro",
+        curto: "Fechamentos",
       },
       {
         caminho: "/financeiro/contabil",
@@ -335,6 +346,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         acao: "contabil.ver",
         etapa: "E21",
         icone: "documento",
+        curto: "Contábil",
       },
     ],
   },
@@ -351,6 +363,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         acao: "entregas.proprias",
         etapa: "E29",
         icone: "entrega",
+        curto: "Entregas",
       },
     ],
   },
