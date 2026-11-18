@@ -54,6 +54,8 @@ casa quiser, porque muda o fluxo do salão.
 Codes são gerados pela gestão a partir do mapa de mesas do caixa.
 **Depende de.** Cardápio do site (E25.2) e mapa de mesas (RC-13). **Decidir:** mostrar preço na
 mesa (no site não mostra).
+**Atualização (18/11/2026):** o responsável pediu mais: pela mesa o cliente **pede junto com o
+atendente** (ideia nº 11). Tudo isso está em `RC-20-comanda-compartilhada-pela-mesa.md` e entra na E13.
 
 ## S6. Reserva de mesa e do espaço
 **Como funciona.** No site, "Reservar" pede dia, horário, número de pessoas e contato. O sistema só

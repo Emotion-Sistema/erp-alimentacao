@@ -149,7 +149,8 @@ online e aplicativo) e durante o acompanhamento.
 - Posição na fila enquanto aguarda ("2 pedidos na sua frente").
 - Horário previsto e contagem regressiva, atualizados sozinhos.
 - Aviso quando muda de etapa e quando a previsão muda.
-- Cliente no salão pode acompanhar o pedido da mesa lendo um QR Code (sem instalar nada).
+- Cliente no salão pode acompanhar o pedido da mesa lendo um QR Code (sem instalar nada); é o mesmo
+  QR com que ele pede junto com o atendente (RC-20).
 - O cliente nunca vê nomes de funcionários, outros pedidos ou dados internos.
 
 ## 9. Delivery e retirada
