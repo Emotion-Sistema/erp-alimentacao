@@ -25,9 +25,8 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [x] Domínio escolhido: emotionjf.com.br (18/11/2026).
 - [x] Sugestões S1 a S13 aprovadas, todas, na ordem sugerida (18/11/2026); agenda em `cerebro/agenda-de-sugestoes.md`.
 - [ ] 👉 Dar o "ok" para a E25 (site) quando a E07 terminar.
-- [x] Desconto de funcionário respondido (18/11/2026): delivery próprio com frete, sorveteria, acumula com tudo, na hora ou na conta.
-- [ ] 👉 Confirmar como o desconto acumula (RC-13 seção 3a): em sequência (lanche de R$ 40 com 10% de promoção e mais 15% = R$ 30,60) ou somando os percentuais (25% = R$ 30,00).
-- [ ] 👉 Contar como o sorvete do funcionário é vendido hoje: no caixa da E-MOTION ou na máquina/sistema da 60 Sabores?
+- [x] Desconto de funcionário respondido (18/11/2026): delivery próprio com frete, sorveteria, não acumula (vale o maior), na hora ou na conta. Sorvete hoje no Mollsales.
+- [ ] 👉 Perguntar à franqueadora 60 Sabores: quando o caixa da E-MOTION sair do Mollsales, o sorvete precisa continuar sendo vendido no Mollsales? Mollbyte e Mollsales são a mesma empresa?
 - [ ] 👉 Conta do funcionário: fecha no fim do mês? Tem limite de valor? Alguém já desconta do salário (se sim, confirmar com o contador)?
 - [ ] 👉 Comprar o domínio emotionjf.com.br no Registro.br em nome da empresa (titular: o dono ou o CNPJ) e guardar a senha num cofre; não mexer no DNS ainda.
 - [ ] 👉 Juntar para o site: fotos da casa, dos pratos e de eventos feitos; texto da história; links do iFood, WhatsApp e Instagram; endereço; autorização das empresas que aparecerem no portfólio (pasta do Drive "06 Cardápio e produtos" ou nova "10 Site").
