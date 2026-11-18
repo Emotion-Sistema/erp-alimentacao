@@ -37,3 +37,16 @@ variáveis e as classes do tema; nada de cor escrita na tela.
 `packages/interface/testes/cores.teste.ts`: espelho `cores.ts`, contraste AA de todos os pares de leitura
 e selos no claro e no escuro, borda de campo 3:1, laranja/âmbar nunca em `color:`. `sem-cor-fixa.teste.ts`.
 Suíte de tela inteira verde; fotos das telas no PR.
+
+## Adendo de 18/11/2026: navegação no celular
+O responsável achou a faixa de menu que rola de lado ruim no dia a dia. Viu 4 protótipos (artifact
+"Navegação no celular: protótipos") e escolheu: **B no Atendimento, A nos outros**. Só no celular
+(até 640 px); o computador continua com o menu de cima.
+- **A (todos os aplicativos):** barra de baixo com até 4 seções (ícone e nome; nome curto quando não
+  cabe) e **Mais**, que abre uma gaveta com as outras seções e a troca de aplicativo. A ordem da barra
+  é por aplicativo (`naBarra` em `packages/dominio/src/aplicativos.ts`).
+- **B (Atendimento):** o mesmo, com um botão redondo grande no meio (`principal`: "Novo pedido").
+  Até a E13 ele leva às mesas.
+- Topo compacto com o sino e o botão da conta (gaveta com trocar cargo, tela cheia, minha conta, sair).
+- O teclado aberto esconde a barra. Abrir aplicativo e trocar de cargo não recarregam a página (a tela
+  cheia continua).
