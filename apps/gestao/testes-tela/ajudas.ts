@@ -27,6 +27,18 @@ export async function aguardarInicio(page: Page) {
   await expect(page.getByTestId("cargo-ativo")).toBeVisible();
 }
 
+/**
+ * No celular, trocar cargo, tela cheia, minha conta e sair ficam na gaveta da conta (18/11/2026).
+ * Abre a gaveta quando o botão da conta está à vista; no computador não faz nada.
+ */
+export async function abrirConta(page: Page) {
+  const botao = page.getByRole("button", { name: /^Conta de / });
+  if (await botao.isVisible()) {
+    await botao.click();
+    await expect(page.locator("#casca-conta")).toBeVisible();
+  }
+}
+
 /** Entra pela tela. Dono e administrador também configuram o segundo fator, como uma pessoa faria. */
 export async function entrar(page: Page, login: string, comSegundoFator = false) {
   if (comSegundoFator) zerarSegundoFator(login);

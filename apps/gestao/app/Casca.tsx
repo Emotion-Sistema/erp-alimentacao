@@ -70,6 +70,14 @@ export function Casca({
               height={72}
               className="casca__logo"
             />
+            {/* No celular, só o símbolo (xícara, fogo e raio): sobra espaço para o nome do aplicativo. */}
+            <img
+              src="/marca/simbolo.webp"
+              alt=""
+              width={256}
+              height={158}
+              className="casca__simbolo"
+            />
           </Link>
           {aplicativo && permitido && (
             <p className="casca__app" data-testid="nome-do-app">
@@ -79,28 +87,50 @@ export function Casca({
           <div className="casca__quem">
             <strong data-testid="nome-da-pessoa">{ator.nome}</strong>
             <span>
-              Cargo ativo:{" "}
+              <span className="casca__quem-rotulo">Cargo ativo: </span>
               <strong data-testid="cargo-ativo">
                 {nomeDoCargo(ator.cargoAtivo)}
               </strong>
             </span>
           </div>
-          {ator.cargos.length > 1 && (
-            <TrocarCargo
-              ativo={ator.cargoAtivo ?? ""}
-              cargos={ator.cargos.map((c) => ({
-                valor: c,
-                texto: nomeDoCargo(c),
-              }))}
-            />
-          )}
           <div className="casca__lado">
-            <BotaoTelaCheia className="tela-cheia casca__link" />
             <CentralDeAvisos />
-            <Link href="/minha-conta" className="casca__link">
-              Minha conta
-            </Link>
-            <BotaoSair />
+            {/* Celular: a conta (trocar cargo, tela cheia, minha conta, sair) abre numa gaveta de baixo.
+                Computador: os mesmos itens ficam à vista na faixa, como antes. */}
+            <button
+              type="button"
+              className="casca__conta-botao"
+              popoverTarget="casca-conta"
+              aria-label={`Conta de ${ator.nome}`}
+            >
+              <span aria-hidden="true">
+                {ator.nome.trim().charAt(0).toUpperCase()}
+              </span>
+            </button>
+            <div
+              id="casca-conta"
+              popover="auto"
+              className="casca__conta"
+              aria-label="Conta"
+            >
+              <p className="casca__conta-titulo" aria-hidden="true">
+                {ator.nome}
+              </p>
+              {ator.cargos.length > 1 && (
+                <TrocarCargo
+                  ativo={ator.cargoAtivo ?? ""}
+                  cargos={ator.cargos.map((c) => ({
+                    valor: c,
+                    texto: nomeDoCargo(c),
+                  }))}
+                />
+              )}
+              <BotaoTelaCheia className="tela-cheia casca__link" />
+              <Link href="/minha-conta" className="casca__link">
+                Minha conta
+              </Link>
+              <BotaoSair />
+            </div>
           </div>
         </div>
       </header>

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { avisoNaTela, entrar, loginDoCargo, semEstouroDeLargura } from "./ajudas";
+import { abrirConta, avisoNaTela, entrar, loginDoCargo, semEstouroDeLargura } from "./ajudas";
 
 // Resultado esperado escrito à mão (independente do código), conforme a decisão 0011.
 const TODOS = ["Caixa", "Atendimento", "Produção", "Estoque e compras", "Gestão", "Cadastros", "Financeiro"];
@@ -76,6 +76,7 @@ test("senha errada mostra a mensagem do servidor", async ({ page }) => {
 
 test("dono entra de novo com segundo fator já configurado (código na tela de entrada)", async ({ page }) => {
   await entrar(page, "dono", true);
+  await abrirConta(page);
   await page.getByRole("button", { name: "Sair" }).click();
   await expect(page).toHaveURL(/\/entrar$/);
   await page.getByLabel("Usuário").fill("dono");
