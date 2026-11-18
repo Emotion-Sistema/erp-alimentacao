@@ -98,6 +98,11 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - Escolha do responsável: B (botão Novo pedido no meio) no Atendimento, A (barra de baixo + Mais) nos outros. Adendo na decisão 0019.
 - Testes de celular leem o menu com `nomesDoMenu(page)` (barra + Mais; nome inteiro no aria-label).
 
+## 18/11/2026: ideia nº 11, comanda pela mesa (só registro, sem código)
+- QR da mesa: cliente e atendente na mesma comanda; "Encerrei"; conferência em voz alta; "Enviar para a cozinha" (só o atendente) ou "Voltar ao cardápio"; cliente não altera depois, chama o atendente; acompanha etapas e tempo.
+- Requisito RC-20, linha 11 em ideias-do-cliente, critérios na E11 (comanda, rodada, origem por item) e na E13 do roteiro; S5 absorvida; RC-07 e RC-10 apontam para o RC-20. Hipóteses no para-voce-fazer.
+- Nada para codar agora: pedido (E11) e atendente (E13) ainda não existem; o que dava para fazer agora era deixar o plano dessas etapas pronto para isso.
+
 ## O que ficou pendente
 - Conferir com o responsável o visual novo na homologação (inclusive num Android real: letras).
 - Telas com mais de um botão cheio (Horários, Funcionários, Turnos, Estações): rever a regra "um botão forte por tela" se o responsável quiser.

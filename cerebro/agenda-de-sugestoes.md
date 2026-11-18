@@ -21,7 +21,7 @@ Detalhe de cada uma: `docs/requisitos/RC-07-sugestoes-no-dia-a-dia.md`.
 | 3 | S3 | Cardápio impresso em PDF | Logo depois da E25 (precisa da foto no produto) | pendente |
 | 3 | S10 | Proposta em PDF para empresas | Logo depois da E25.3 (Para empresas) | pendente |
 | 4 | S1 | Alergênicos calculados da ficha | Logo depois da E08 (fichas técnicas) | pendente |
-| 5 | S5 | Cardápio por QR Code na mesa | Logo depois da E17 (caixa, mapa de mesas) | pendente |
+| 5 | S5 | Cardápio por QR Code na mesa | **Absorvida pela ideia nº 11 (RC-20)**: a comanda pela mesa entra na E13; a geração dos QR pelo mapa de mesas, na E17 | pendente |
 | 5 | S6 | Reserva de mesa e do espaço | Logo depois da E17 | pendente |
 | 5 | S8 | QR Code de avaliação no recibo | Logo depois da E17 (e S4 feito) | pendente |
 | 6 | S12 | Clube E-MOTION (pontos) | Logo depois da E28 (delivery próprio) | pendente |

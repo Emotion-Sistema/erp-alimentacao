@@ -48,6 +48,12 @@ aplicativo, inclusive para quem tem um só (hoje ficam no lançador).
 | **E16** Estimativa de tempo | Fila, capacidade, faixa e horário previstos · 📌 S13 tempo de espera no site (após semanas de dados) | Opus | Valor bate com a conta manual |
 | **Portão 1** 🚪 | **Ensaio na loja, sem dinheiro:** uma noite com o sistema rodando em paralelo ao que existe hoje | — | 👉 Equipe usou, problemas anotados e corrigidos |
 
+Critérios da E11 e da E13 vindos da ideia nº 11 (RC-20, 18/11/2026): o pedido nasce com **comanda** e
+**rodada**, cada item com a **origem** (cliente pelo QR da mesa ou atendente) e a rodada com estado
+(aberta, cliente encerrou, em conferência, enviada); só o atendente envia para a cozinha, depois de
+conferir em voz alta com o cliente; "Enviar" é idempotente e é a única passagem para a produção;
+depois de enviado o cliente não altera (recusado no servidor) e pode chamar o atendente.
+
 Critérios da E13 vindos da E03 (decisão 0011): atendente só altera **pedido próprio**, com **motivo obrigatório** (lançado errado ou cliente trocou); o **aviso aos supervisores** é gravado na mesma transação; o gerente vê as alterações numa aba própria; alteração de pedido já liberado para produção gera movimento compensatório, nunca uma segunda baixa. Tudo com teste por cargo direto no servidor.
 
 ## Bloco D: caixa e dinheiro
