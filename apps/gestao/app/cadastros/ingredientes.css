@@ -4,64 +4,68 @@
 /* ---------- cabeçalho da lista ---------- */
 .ingredientes__topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-3); margin-bottom: var(--espaco-4); }
 .ingredientes__topo h1 { margin: 0; }
-.ingredientes__adicionar { display: inline-flex; align-items: center; justify-content: center; gap: var(--espaco-2); font-weight: 700; }
+.ingredientes__adicionar { display: inline-flex; align-items: center; justify-content: center; gap: var(--espaco-2); font-weight: var(--peso-forte); }
 .ingredientes__topo + [aria-live] .erp-aviso { margin-top: 0; }
 .ingredientes__realce > .erp-item, .ingredientes__realce > article {
   outline: 3px solid var(--cor-primaria); outline-offset: 2px;
-  background: color-mix(in srgb, var(--cor-primaria) 8%, var(--cor-superficie));
+  background: color-mix(in srgb, var(--cor-ouro) 22%, var(--cor-cartao));
   animation: ingredientes-brilho 1.2s ease-out 1;
 }
 @keyframes ingredientes-brilho {
-  from { background: color-mix(in srgb, var(--cor-primaria) 22%, var(--cor-superficie)); }
-  to { background: color-mix(in srgb, var(--cor-primaria) 8%, var(--cor-superficie)); }
+  from { background: color-mix(in srgb, var(--cor-ouro) 60%, var(--cor-cartao)); }
+  to { background: color-mix(in srgb, var(--cor-ouro) 22%, var(--cor-cartao)); }
 }
 .ingredientes__form { display: grid; gap: var(--espaco-3); min-width: 0; }
 .ingredientes__form > * { min-width: 0; }
 .ingredientes__form .erp-aviso { margin: 0; }
 
-/* ---------- janela (popup) ---------- */
+/* ---------- janela (popup) ----------
+ * Cartão leite fresco com sombra funda, filete da marca no alto e fundo café translúcido desfocado. */
 .janela {
-  margin: auto; padding: 0; border: 2px solid var(--cor-borda); border-radius: var(--raio); overflow: hidden; overflow: clip;
+  margin: auto; padding: 0; border: 1px solid var(--cor-borda-suave); border-radius: var(--raio-grande); overflow: hidden; overflow: clip;
   width: min(60rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); max-height: min(90dvh, 60rem);
-  background: var(--cor-fundo); color: var(--cor-texto); box-shadow: 0 12px 40px color-mix(in srgb, var(--cor-texto) 25%, transparent);
+  background: var(--cor-cartao); color: var(--cor-texto); box-shadow: var(--sombra-3);
   animation: janela-entra 0.2s ease-out;
 }
 /* Sempre no centro da tela, mesmo dentro de um bloco que zera a margem dos filhos (ex.: .hor-tela > *). */
 dialog.janela { margin: auto; }
-.janela::backdrop { background: color-mix(in srgb, var(--cor-texto) 45%, transparent); }
+.janela::backdrop {
+  background: color-mix(in srgb, var(--cor-texto) 45%, transparent);
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+}
 .janela[open] { display: flex; flex-direction: column; }
 .janela__cabeca {
-  flex: none; display: grid; gap: var(--espaco-3); padding: var(--espaco-3) var(--espaco-4) 0;
-  background: var(--cor-fundo); border-bottom: 2px solid var(--cor-borda); min-width: 0;
+  flex: none; display: grid; gap: var(--espaco-3); padding: calc(var(--espaco-3) + 4px) var(--espaco-4) var(--espaco-3); min-width: 0;
+  background:
+    linear-gradient(90deg, var(--cor-ambar), var(--cor-marca) 55%, var(--cor-primaria)) top / 100% 4px no-repeat,
+    var(--cor-cartao);
+  border-bottom: 1px solid var(--cor-borda-suave);
 }
 .janela__linha { display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-3); min-width: 0; }
-.janela__linha:last-child { padding-bottom: var(--espaco-3); }
 .janela__titulo { margin: 0; font-size: var(--texto-grande); overflow-wrap: anywhere; min-width: 0; }
 .janela__fechar { display: inline-flex; align-items: center; gap: var(--espaco-2); flex: none; padding-inline: var(--espaco-4); }
-.janela__corpo { position: relative; flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--espaco-4); }
+.janela__corpo { position: relative; flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--espaco-4) var(--espaco-5) var(--espaco-5); }
 .janela__corpo > * { min-width: 0; }
-.janela__corpo .rapido__barra { margin-inline: calc(-1 * var(--espaco-4)); margin-bottom: calc(-1 * var(--espaco-4)); bottom: calc(-1 * var(--espaco-4)); }
+.janela__corpo .rapido__barra { margin-inline: calc(-1 * var(--espaco-5)); margin-bottom: calc(-1 * var(--espaco-5)); bottom: calc(-1 * var(--espaco-5)); padding-inline: var(--espaco-5); }
 
-/* Abas Rápido e Comum: nome forte e uma linha que explica. */
-.janela__abas { display: flex; gap: var(--espaco-2); min-width: 0; }
+/* Abas Rápido e Comum: pílulas (cores em gestao.css), nome forte e uma linha que explica. */
+.janela__abas { width: 100%; flex-wrap: nowrap; }
 .janela__aba {
-  flex: 1 1 0; min-width: 0; min-height: var(--alvo-toque); display: grid; gap: 2px; align-content: start; text-align: left;
-  padding: var(--espaco-2) var(--espaco-4); font: inherit; cursor: pointer;
-  background: var(--cor-superficie); color: var(--cor-texto); border: 2px solid var(--cor-borda); border-bottom: 0;
-  border-radius: var(--raio) var(--raio) 0 0;
+  flex: 1 1 0; min-width: 0; display: grid; gap: 2px; align-content: center; text-align: left;
+  padding: var(--espaco-2) var(--espaco-4);
 }
-.janela__aba-nome { font-weight: 700; }
-.janela__aba-texto { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); overflow-wrap: anywhere; }
-.janela__aba[aria-selected="true"] { background: var(--cor-primaria); color: var(--cor-primaria-texto); border-color: var(--cor-primaria); }
+.janela__aba-nome { font-weight: var(--peso-forte); }
+.janela__aba-texto { font-size: var(--texto-pequeno); font-weight: 400; color: var(--cor-texto-suave); overflow-wrap: anywhere; }
 .janela__aba[aria-selected="true"] .janela__aba-texto { color: var(--cor-primaria-texto); }
 
 /* "Descartar o que foi digitado?" */
 .janela__pergunta {
-  display: grid; gap: var(--espaco-2); padding: var(--espaco-3); margin-bottom: var(--espaco-3);
-  border: 2px solid var(--cor-atencao); border-left-width: 8px; border-radius: var(--raio); background: var(--cor-superficie);
+  display: grid; gap: var(--espaco-2); padding: var(--espaco-3) var(--espaco-4);
+  border: 1px solid color-mix(in srgb, var(--cor-atencao) 30%, transparent); border-left: 6px solid var(--cor-atencao);
+  border-radius: var(--raio); background: var(--selo-alerta-fundo);
 }
 .janela__pergunta p { margin: 0; }
-.janela__pergunta-titulo { font-weight: 700; }
+.janela__pergunta-titulo { font-weight: var(--peso-forte); color: var(--selo-alerta-texto); }
 
 /* Celular: a janela ocupa a tela inteira e sobe de baixo. */
 @media (max-width: 40rem) {
@@ -71,7 +75,7 @@ dialog.janela { margin: auto; }
   }
   .janela__cabeca { padding-inline: var(--espaco-3); }
   .janela__corpo { padding: var(--espaco-3); }
-  .janela__corpo .rapido__barra { margin-inline: calc(-1 * var(--espaco-3)); margin-bottom: calc(-1 * var(--espaco-3)); bottom: calc(-1 * var(--espaco-3)); }
+  .janela__corpo .rapido__barra { margin-inline: calc(-1 * var(--espaco-3)); margin-bottom: calc(-1 * var(--espaco-3)); bottom: calc(-1 * var(--espaco-3)); padding-inline: var(--espaco-3); }
   .janela__aba { padding-inline: var(--espaco-3); }
   .janela__aba-texto { display: none; }
   .ingredientes__adicionar { flex: 1 1 100%; }
@@ -89,8 +93,16 @@ dialog.janela { margin: auto; }
 }
 
 /* Posição na lista (PosicaoNaLista.tsx): a lista de como vai ficar, com o item destacado. */
-.posicao__titulo { margin: 0.5rem 0 0.25rem; font-weight: 600; }
-.posicao__lista { margin: 0; padding: 0.5rem 0.75rem 0.5rem 2rem; border: 1px solid var(--cor-borda); border-radius: 8px; max-height: 14rem; overflow-y: auto; }
-.posicao__lista li { padding: 0.15rem 0; }
-.posicao__este { background: var(--cor-superficie-forte); border-radius: 4px; }
-.posicao__detalhe { color: var(--cor-texto-suave); font-size: 0.9em; }
+.posicao__titulo { margin: var(--espaco-2) 0 var(--espaco-1); font-size: 0.75rem; font-weight: var(--peso-forte); letter-spacing: 0.08em; text-transform: uppercase; color: var(--cor-texto-suave); }
+.posicao__lista {
+  margin: 0; padding: var(--espaco-2) var(--espaco-3) var(--espaco-2) var(--espaco-6); max-height: 14rem; overflow-y: auto;
+  background: var(--cor-superficie); border: 1px solid var(--cor-borda-suave); border-radius: var(--raio);
+  font-variant-numeric: tabular-nums;
+}
+.posicao__lista li { padding: 0.2rem var(--espaco-2); }
+.posicao__lista li::marker { color: var(--cor-texto-suave); }
+.posicao__este {
+  background: var(--cor-cartao); border-radius: var(--raio-pequeno); font-weight: var(--peso-forte);
+  box-shadow: inset 3px 0 0 var(--cor-primaria), var(--sombra-1);
+}
+.posicao__detalhe { color: var(--cor-texto-suave); font-size: 0.9em; font-weight: 400; }
