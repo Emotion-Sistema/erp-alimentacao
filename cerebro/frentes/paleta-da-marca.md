@@ -23,5 +23,10 @@ Registro da ideia: `cerebro/ideias-do-cliente.md`, nº 7.
   no modo escuro. Hipótese registrada: vale para site, delivery e app do cliente; o interno segue sempre claro (0012).
 - Recado ao chat principal no mural com o que trocar. A frente não mexe no código.
 
+## Letras (18/11/2026)
+- Pergunta do responsável: qual letra combina. Proposta: Fraunces + Figtree para o cliente, Atkinson Hyperlegible
+  Next para a equipe (detalhe em `cerebro/empresa/paleta-da-marca/README.md`; seção "Letras" na amostra). Aguarda o "ok".
+
 ## Falta
+- "Ok" do responsável nas letras; depois, recado ao principal.
 - Chat principal aplicar no tema (quando couber no roteiro). Depois disso, a frente pode ser encerrada.
