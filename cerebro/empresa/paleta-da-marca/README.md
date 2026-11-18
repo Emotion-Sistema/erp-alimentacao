@@ -72,8 +72,21 @@ O fundo claro é o próprio papel (branco ou creme). Tinta forte só em filete, 
 áreas grandes escuras (gastam tinta e borram). Os códigos acima são de tela (RGB): a conversão para
 gráfica (CMYK ou Pantone) precisa de prova de cor da própria gráfica; não inventei esses valores.
 
-## Fontes (só sugestão da amostra)
-Fraunces nos títulos (suave, quente) e Figtree no texto. Não é decisão; tipografia é assunto à parte.
+## Letras (proposta de 18/11/2026, aguardando o "ok" do responsável)
+| Onde | Letra | Para quê | Por quê |
+|---|---|---|---|
+| Cliente (site, delivery, app, cardápio, impressos) | **Fraunces** | títulos, nome de produto, preço | serifa macia e cheia; conversa com as serifas do E-MOTION da logo; tom de cafeteria acolhedora |
+| Cliente | **Figtree** | texto, botões, rótulos (caixa alta espaçada como "COFFEE · GRILL · EXPRESS") | redonda e amigável como o subtítulo da logo; lê bem pequena no celular |
+| Equipe (todo o sistema interno: caixa, atendimento, cozinha, estoque, gestão) | **Atkinson Hyperlegible Next** | tudo | feita pelo Braille Institute para leitura difícil: I, l, 1 e O, 0 não se confundem; lida de longe na cozinha |
+
+- Conferido nos arquivos das letras (18/11/2026): as três têm os acentos do português; Figtree, Atkinson
+  e Inter têm números de largura igual (`tnum`), usar `font-variant-numeric: tabular-nums` em relógio,
+  preço em coluna e caixa. A Fraunces estática não tem `tnum`: preço em coluna usa a Figtree.
+- As três são gratuitas, licença livre (SIL Open Font License); servem para gráfica.
+- No sistema: **guardar os arquivos das letras dentro do próprio app** (não buscar no Google a cada
+  acesso): funciona sem internet na loja, carrega mais rápido e não entrega dado de visita do cliente
+  a terceiros. Só os pesos usados (Fraunces 400/600/700, Figtree 400/600/700, Atkinson 400/700).
+- Comanda em impressora térmica usa a letra da própria impressora; não depende disto.
 
 ## Decisão do responsável (18/11/2026)
 - **Clima: Espuma e Brasa.** Os outros dois ficam só como registro.
