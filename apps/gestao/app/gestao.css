@@ -3,40 +3,102 @@
 .pagina-centro {
   min-height: 100dvh; display: grid; place-items: center;
   padding: var(--espaco-4, 1rem);
+  background:
+    radial-gradient(60rem 30rem at 50% -10%, color-mix(in srgb, var(--cor-ouro) 45%, transparent), transparent 70%),
+    var(--cor-fundo);
 }
 .pagina-centro > * { width: 100%; max-width: 420px; }
+/* Entrada: logo grande sobre o cartão. */
+.entrada { display: grid; gap: var(--espaco-5); justify-items: center; }
+.entrada > .erp-cartao { width: 100%; margin: 0; padding: var(--espaco-6) var(--espaco-5) var(--espaco-5); box-shadow: var(--sombra-2); }
+.entrada__logo { width: min(15rem, 70%); height: auto; filter: drop-shadow(0 6px 14px color-mix(in srgb, var(--cor-texto) 14%, transparent)); }
 form { display: grid; gap: var(--espaco-4, 1rem); }
 
-/* ---------- Casca da gestão ---------- */
-.casca { max-width: var(--largura-conteudo, 1100px); margin: 0 auto; padding: var(--espaco-4); }
+/* ---------- Casca da gestão (marca E-MOTION, decisão 0019) ----------
+ * Topo: a única faixa escura da tela (café), com a logo para fundo escuro, o aplicativo em dourado e
+ * quem está usando. Menu: faixa de nata com abas; a aba aberta fica em brasa. Conteúdo no centro. */
+.casca { min-height: 100dvh; display: flex; flex-direction: column; }
 .casca__topo {
+  background: var(--cor-faixa-escura); color: var(--cor-faixa-escura-suave);
+  border-bottom: 3px solid var(--cor-marca);
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--cor-ambar) 35%, transparent);
+}
+.casca__faixa {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-3) var(--espaco-5);
-  padding-bottom: var(--espaco-3); border-bottom: 2px solid var(--cor-borda);
+  max-width: var(--largura-conteudo); margin: 0 auto; padding: var(--espaco-3) var(--espaco-4) calc(var(--espaco-3) + 3px);
 }
-.casca__quem { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.casca__marca { display: inline-flex; align-items: center; min-height: var(--alvo-toque); border-radius: var(--raio-pequeno); flex: none; }
+.casca__marca:focus-visible { outline-color: var(--cor-ambar); }
+.casca__logo { display: block; height: 46px; width: auto; }
+.casca__app {
+  margin: 0; padding-left: var(--espaco-5); border-left: 1px solid color-mix(in srgb, var(--cor-faixa-escura-suave) 30%, transparent);
+  font-size: var(--texto-grande); font-weight: var(--peso-forte); color: var(--cor-faixa-escura-texto); letter-spacing: 0.01em;
+}
+.casca__quem { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; line-height: 1.3; font-size: var(--texto-pequeno); }
+.casca__quem > strong { color: var(--cor-faixa-escura-texto); font-size: var(--tamanho-texto); }
+.casca__quem strong { color: var(--cor-faixa-escura-texto); }
 .casca__troca { min-width: 12rem; }
-.casca__troca .erp-campo { margin-bottom: 0; }
-.casca__lado { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-3); margin-left: auto; }
-.casca__menu { display: flex; flex-wrap: wrap; gap: var(--espaco-2); padding: var(--espaco-3) 0; }
-.casca__link {
-  display: inline-flex; align-items: center; min-height: var(--alvo-toque);
-  padding: 0 var(--espaco-4); border: 2px solid var(--cor-borda); border-radius: var(--raio);
-  color: var(--cor-texto); font-weight: 600; text-decoration: none;
+.casca__troca .erp-campo { margin-bottom: 0; gap: var(--espaco-1); }
+.casca__troca .erp-campo__rotulo { color: var(--cor-faixa-escura-texto); font-size: var(--texto-pequeno); }
+.casca__troca .ajuda__explicacao { color: var(--cor-faixa-escura-suave); }
+.casca__troca .ajuda__botao { color: var(--cor-faixa-escura-texto); }
+.casca__troca .ajuda__botao:hover { border-color: var(--cor-faixa-escura-texto); }
+.casca__troca .ajuda__exemplo { color: var(--cor-texto); }
+.casca__lado { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); margin-left: auto; }
+/* Botões da faixa escura: contorno creme, fundo transparente. */
+.casca__lado .casca__link, .casca__lado .erp-botao--secundario, .casca__lado .avisos__sino {
+  background: transparent; color: var(--cor-faixa-escura-texto); box-shadow: none;
+  border: 2px solid color-mix(in srgb, var(--cor-faixa-escura-suave) 45%, transparent);
 }
-.casca__link:hover { border-color: var(--cor-primaria); }
-.casca__app { margin: 0; font-size: var(--texto-grande); font-weight: 800; flex-basis: 100%; }
-.casca__link--apps { border-color: var(--cor-primaria); }
-.casca__link[aria-current="page"] { background: var(--cor-primaria); border-color: var(--cor-primaria); color: var(--cor-primaria-texto); }
-.casca__link { white-space: nowrap; }
+.casca__lado .casca__link:hover, .casca__lado .erp-botao--secundario:hover:not(:disabled), .casca__lado .avisos__sino:hover {
+  background: color-mix(in srgb, var(--cor-faixa-escura-texto) 12%, transparent); border-color: var(--cor-faixa-escura-texto); color: var(--cor-faixa-escura-texto);
+}
+.casca__lado .avisos__sino[aria-expanded="true"] { border-color: var(--cor-faixa-escura-texto); background: color-mix(in srgb, var(--cor-faixa-escura-texto) 16%, transparent); }
+.casca__topo :focus-visible { outline-color: var(--cor-ambar); }
+
+.casca__menu {
+  background: var(--cor-superficie); border-bottom: 1px solid var(--cor-borda-suave);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--cor-cartao) 70%, transparent) inset;
+}
+.casca__menu-faixa {
+  display: flex; flex-wrap: wrap; gap: var(--espaco-1) var(--espaco-2);
+  max-width: var(--largura-conteudo); margin: 0 auto; padding: var(--espaco-2) var(--espaco-4);
+}
+.casca__link {
+  display: inline-flex; align-items: center; gap: var(--espaco-2); min-height: var(--alvo-toque);
+  padding: 0 var(--espaco-3); border: 2px solid transparent; border-radius: var(--raio);
+  color: var(--cor-texto); font-weight: var(--peso-forte); text-decoration: none; white-space: nowrap;
+  transition: background-color var(--transicao), border-color var(--transicao), color var(--transicao), box-shadow var(--transicao);
+}
+.casca__link:hover { color: var(--cor-texto); background: var(--cor-cartao); border-color: var(--cor-borda-suave); }
+/* "Aplicativos": volta ao lançador, com seta desenhada (sem texto extra para o leitor de tela). */
+.casca__link--apps { color: var(--cor-primaria); }
+.casca__link--apps::before {
+  content: ""; width: 0.5rem; height: 0.5rem; border-left: 2.5px solid currentColor; border-bottom: 2.5px solid currentColor;
+  transform: rotate(45deg); margin-right: 2px;
+}
+.casca__link--apps:hover { color: var(--cor-primaria-hover); }
+.casca__menu .casca__link--apps { margin-right: var(--espaco-2); }
+.casca__link[aria-current="page"] {
+  background: var(--cor-primaria); border-color: var(--cor-primaria); color: var(--cor-primaria-texto);
+  box-shadow: var(--brilho-botao), 0 2px 8px -3px color-mix(in srgb, var(--cor-primaria) 70%, transparent);
+}
 /* Celular e tablet: alvos de toque maiores. */
 .casca[data-aparelho="celular"] .casca__link,
 .casca[data-aparelho="tablet"] .casca__link { min-height: var(--alvo-toque-grande); }
-/* Celular: o menu rola de lado dentro da própria faixa, nunca a página inteira. */
+/* Celular: logo menor; o menu rola de lado dentro da própria faixa, nunca a página inteira. */
 @media (max-width: 40rem) {
-  .casca__menu { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+  .casca__faixa { gap: var(--espaco-2) var(--espaco-3); padding: var(--espaco-2) var(--espaco-3) calc(var(--espaco-2) + 3px); }
+  .casca__logo { height: 32px; }
+  .casca__app { flex-basis: auto; padding-left: var(--espaco-3); font-size: var(--tamanho-texto); }
+  .casca__quem { flex-basis: 100%; order: 3; }
+  .casca__troca { order: 4; flex-basis: 100%; }
+  .casca__lado { order: 5; flex-basis: 100%; margin-left: 0; gap: var(--espaco-2); }
+  .casca__lado .casca__link, .casca__lado .erp-botao--secundario, .casca__lado .avisos__sino { min-height: 44px; padding: 0 var(--espaco-3); font-size: var(--texto-pequeno); }
+  .casca__menu-faixa { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding: var(--espaco-2) var(--espaco-3); scrollbar-width: thin; }
   .casca__menu .casca__link { flex: 0 0 auto; }
 }
-.casca__conteudo { padding-top: var(--espaco-3); min-width: 0; }
+.casca__conteudo { flex: 1; width: 100%; max-width: var(--largura-conteudo); margin: 0 auto; padding: var(--espaco-5) var(--espaco-4) var(--espaco-6); min-width: 0; }
 .lista-simples { list-style: none; margin: 0; padding: 0; }
 .lista-simples > li { margin-bottom: var(--espaco-2); }
 .passos { padding-left: var(--espaco-5); }
