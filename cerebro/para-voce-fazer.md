@@ -26,6 +26,9 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Ler a proposta do site (`docs/requisitos/RC-07-site-institucional.md`), dizer quais sugestões S1 a S13 entram e dar o "ok" para a E25 depois da E07.
 - [ ] 👉 Comprar o domínio emotionjf.com.br no Registro.br em nome da empresa (titular: o dono ou o CNPJ) e guardar a senha num cofre; não mexer no DNS ainda.
 - [ ] 👉 Juntar para o site: fotos da casa, dos pratos e de eventos feitos; texto da história; links do iFood, WhatsApp e Instagram; endereço; autorização das empresas que aparecerem no portfólio (pasta do Drive "06 Cardápio e produtos" ou nova "10 Site").
+- [ ] 👉 Pedir ao dono os textos de missão, visão e valores (pode ser rascunho; o Claude ajuda a lapidar) e os marcos da história da casa com ano.
+- [ ] 👉 Pedir ao jurídico ou ao contador da empresa um modelo de autorização de uso de imagem e nome para os funcionários assinarem (site e redes).
+- [ ] 👉 Confirmar quem edita e quem publica o site (hipótese: edita dono, administrador e gerente geral; publica só dono e administrador).
 - [ ] 👉 Perguntar ao dono, para os serviços de empresas: quantidade mínima de pessoas, antecedência, capacidade do salão para eventos e até onde entrega.
 - [ ] 👉 Levantar com o cliente: quem cuida do estoque em cada turno, quem cuida das compras, prazo de entrega dos fornecedores e os itens que não podem faltar (pendências 20, 21, 23 e 31).
 - [ ] 👉 Pedir ao cliente a lista de produtos com tempo de preparo e tipo (hambúrguer, prato/grelhado, cafeteria), e quantas pessoas trabalham em cada tipo por turno (pendências 29 e 35).
