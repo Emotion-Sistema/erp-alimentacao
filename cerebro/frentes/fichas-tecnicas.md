@@ -30,6 +30,9 @@ partir de 22/11/2026; vão vir da nutricionista, pelo PDF).
   `cerebro/empresa/fichas-tecnicas/logo-provisoria/` (guia no `LEIA-ME.md`) e 32 arquivos no Drive, em
   "07 Identidade visual/Logo provisória (variações)". Os dois PNG HD sem fundo (4 MB, acima do limite de envio)
   foram para o Drive reduzidos a 2400 px, a pedido do responsável (`logo-completa-2400px-*.png`).
+- **PDF nas cores da paleta escolhida** (Espuma e Brasa, a pedido do responsável): texto café #351E17, apoio
+  #6B4A3A, títulos brasa #B8470E, laranja da logo #E77019 só em filete, tabelas em nata #F6ECDC com linhas
+  #E9DAC4, faixa dos grupos do anexo em mel claro #FBE6C2, "Falta" #7F5300 e "Não fecha" #A3261A. Fundo é o papel.
 - **Paleta de cores:** desvio anotado; vai para a frente `paleta-da-marca` (bloco entregue ao responsável
   para outro chat). Cores medidas na logo: âmbar #F6A52B, laranja #F7750E, laranja do texto #E77019,
   vermelho-brasa #C9370C, caramelo #CA611D, café #351E17, creme dourado #F6DD8C, quase-preto #131111.
