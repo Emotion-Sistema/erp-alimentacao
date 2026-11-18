@@ -1,38 +1,186 @@
-# RC-07: site institucional
+# RC-07: site institucional (emotionjf.com.br)
 
-**Pedido do cliente:** site próprio da empresa, com áreas como apresentação de produtos e
-um espaço para empresas entrarem em contato.
+**Pedido do cliente (13/11/2026):** site próprio da empresa, com apresentação dos produtos e um
+espaço para empresas entrarem em contato.
+**Ampliado pelo responsável (18/11/2026):** o domínio será **emotionjf.com.br** (a comprar); o site
+terá o **cardápio** e uma área tipo **portfólio para empresas contratarem a E-MOTION**; o Claude
+propõe o que mais faz sentido. Versão 2 deste requisito: **proposta, aguardando o "ok" do
+responsável** (início previsto: depois da E07).
 
-## Estrutura proposta
-| Área | Conteúdo | De onde vem |
+Respostas do responsável em 18/11/2026:
+- Serviços para empresas: **coffee break e café**, **almoço corporativo** e **eventos no espaço da
+  loja**. (Salgados em quantidade não foi marcado: fica fora até ele pedir.)
+- Cardápio do site **sem preço**.
+- Botão "Peça agora": **iFood e WhatsApp** até o delivery próprio entrar no ar; depois troca sozinho.
+- Começar **depois da E07** (o cardápio do site lê os cadastros).
+
+## 1. Endereços (um domínio só)
+| Endereço | O que é | Quando |
 |---|---|---|
-| Início | Quem é a casa, destaques, botão "Peça agora" | Editável no sistema |
-| Cardápio / produtos | Vitrine por categoria (cafeteria, almoço, lanches), fotos, descrição, alergênicos | **Mesmo cadastro do sistema** (sem digitar duas vezes) |
-| Sorvetes 60 Sabores | Página de apresentação da franquia, seguindo as regras de marca dela | Editável (os sabores não vêm deste sistema, RC-11) |
-| Para empresas | Encomendas, eventos, coffee break, convênio de almoço; formulário de contato | Formulário vira oportunidade no sistema, com responsável e andamento |
-| Sobre e contato | História, endereço, mapa, horário, redes sociais | Editável |
-| Trabalhe conosco | Formulário simples | Evolução |
-| Termos e privacidade | Textos obrigatórios | Fornecidos/validados pelo cliente |
+| `emotionjf.com.br` e `www.emotionjf.com.br` | Site institucional (este requisito) | E25 |
+| `pedir.emotionjf.com.br` | Delivery e aplicativo do cliente (RC-08) | E26 a E29 |
+| `gestao.emotionjf.com.br` | Aplicativos internos | E23 |
+| `homologacao.emotionjf.com.br` | Testes (hoje no endereço sslip.io) | quando o domínio existir |
 
-"Subsites" são seções do mesmo site (ou subdomínios do mesmo domínio), não sites separados.
+O `www` redireciona para o endereço sem `www` (um endereço só para o Google). Tudo com HTTPS.
+Hipótese: domínio registrado no Registro.br, no CPF/CNPJ da empresa, com o dono como titular
+(pendência 13). E-mail com o domínio (ex. `contato@` e `eventos@`) é serviço à parte: só com
+confirmação específica do responsável.
 
-## Regras
-- Conteúdo que já existe no sistema (produtos, preços, horário, disponibilidade) é lido
-  dele. Preço mostrado no site é o do canal correspondente.
-- Textos, banners e fotos institucionais são editáveis por perfil autorizado, com
-  pré-visualização e publicação (rascunho -> publicado).
-- Rápido no celular, acessível, bom para busca (títulos, descrições, dados estruturados
-  de restaurante e cardápio, mapa do site).
-- Formulários com validação no servidor, proteção contra envio automático e consentimento
-  para uso dos dados. Nada de dado interno exposto.
-- Identidade visual por variáveis de tema (ver `cerebro/empresa/identidade-visual.md`).
-- O site continua no ar mesmo se o sistema interno estiver em manutenção (páginas geradas
-  com antecedência e cache).
+## 2. Princípio: uma fonte, várias vitrines
+O que já existe no sistema **não é digitado de novo** no site:
+| Dado | Vem de | Aparece também em |
+|---|---|---|
+| Produtos, descrição, categoria, ordem | Cadastro de produtos (E07, decisão 0018) | Delivery, TV do salão (RC-02), cardápio impresso |
+| Horário da loja e de cada categoria | Horários de venda (decisão 0016) | "Aberto agora", delivery, checklist do turno |
+| Esgotado hoje | Disponibilidade calculada (RC-09, E12) | Delivery, aplicativo do atendente |
+| Foto, selos, alergênicos | Cadastro de produtos (PR próprio, hipótese da 0018) | Delivery, impresso |
+| Pedidos de orçamento | Formulário do site | Gestão → Empresas, sino (RC-18) |
+
+## 3. Páginas
+### 3.1 Início
+- Foto grande (ou vídeo curto sem som) da casa e dos pratos, com a frase da marca.
+- **Selo ao vivo "Aberto agora · cozinha até 23h"** ou "Fechado · abre terça às 10h", calculado dos
+  horários cadastrados (segunda fechado).
+- Botões **Pedir no iFood** e **Pedir pelo WhatsApp** (mensagem pronta: "Olá, vim pelo site...").
+  Quando o delivery próprio estiver no ar, os dois viram **Peça agora** para `pedir.`, e o iFood
+  fica como opção secundária (o canal próprio não paga taxa).
+- As quatro frentes da casa em cartões: **Cafeteria**, **Almoço**, **Hambúrgueres e porções**,
+  **Salgados**, cada um levando à sua parte do cardápio.
+- Destaques da semana (produtos marcados como destaque na gestão).
+- Faixa "Para sua empresa" com os três serviços e o botão **Pedir orçamento**.
+- Faixa da sorveteria 60 Sabores (ver 3.6).
+- Depoimentos escolhidos à mão na gestão (com autorização de quem falou).
+- Endereço, mapa e horário no rodapé de todas as páginas.
+
+### 3.2 Cardápio (sem preço)
+- Por categoria, na ordem do cadastro, com foto, nome, descrição curta e selos (vegetariano,
+  picante, novidade, mais pedido).
+- Cada categoria mostra o próprio horário ("Almoço: ter a dom, 11h às 15h"), lido do cadastro.
+- Depois da E12: produto esgotado aparece como **"Acabou por hoje"** (nunca mostra quantidade).
+- Busca e filtro por selo; link direto para cada produto (bom para compartilhar no WhatsApp,
+  com imagem do produto na prévia do link).
+- **Alergênicos** de cada prato (ver sugestão S1): exibidos com o aviso "pode conter traços".
+- Botão no fim: "Gostou? Peça no iFood / WhatsApp".
+- O mesmo cardápio serve para o **QR Code da mesa** (sugestão S5). Atenção: na mesa o cliente
+  costuma querer ver preço; isso fica para decidir quando o QR for feito.
+
+### 3.3 Para empresas (portfólio)
+Página principal com os três serviços, a galeria de trabalhos feitos e um formulário de orçamento.
+
+**Serviços** (uma página para cada, com texto, fotos e perguntas frequentes):
+| Serviço | O que mostra |
+|---|---|
+| **Coffee break e café** | Formatos (ex. café da manhã de reunião, intervalo de treinamento, café da tarde), o que vai em cada um, montagem no local ou entrega, quantidade mínima de pessoas, antecedência |
+| **Almoço corporativo** | Almoço para equipes (avulso, para um dia) e **convênio mensal** (a empresa cadastra os funcionários; ver S9), cardápio da semana, entrega ou almoço na casa |
+| **Eventos no espaço da loja** | Tipos (confraternização, aniversário, lançamento, reunião), capacidade, o que a casa oferece, fotos do espaço, como reservar |
+
+Valores: **sob consulta** (coerente com o cardápio sem preço). Pacotes com preço podem vir depois,
+se o dono quiser.
+
+**Portfólio:** galeria de eventos e entregas feitos (fotos, tipo de serviço, número de pessoas,
+mês), logos de empresas atendidas **só com autorização por escrito** delas, depoimentos.
+**Como funciona** em 4 passos: pedido de orçamento → conversa e proposta → confirmação → no dia.
+**Kit para empresas** em PDF para baixar (gerado com os mesmos textos e fotos do site).
+
+**Formulário de orçamento** (curto, em etapas no celular): serviço, data e horário, número de
+pessoas, local (na casa ou na empresa, bairro), restrições alimentares, nome, empresa, CNPJ
+(opcional), telefone/WhatsApp, e-mail, observação, consentimento para uso dos dados.
+
+**No sistema (gestão):** cada envio vira uma **oportunidade** em Gestão → Empresas, com situação
+(Nova · Em conversa · Proposta enviada · Fechada · Perdida, com motivo), responsável, histórico com
+autor e horário (RC-17) e aviso no sino aos cargos escolhidos (RC-18). Nada é apagado. Botão
+"Responder pelo WhatsApp" abre a conversa com mensagem pronta (o envio é feito pela pessoa).
+Relatório simples: quantos pedidos por mês, quantos fechados, por serviço e por origem.
+
+### 3.4 Sobre a E-MOTION
+História da casa, o que a move, a equipe (fotos só com consentimento), bastidores da cozinha
+(o elevador de carga que sobe os pedidos é um bom personagem), valores, fornecedores locais de
+Juiz de Fora se houver.
+
+### 3.5 Visite / Contato
+Endereço, mapa, como chegar, estacionamento, acessibilidade, horário (do cadastro, com feriados
+e pausas), WhatsApp, Instagram, telefone, formulário de contato geral (vira mensagem na gestão).
+O mapa é uma imagem com link para o Google Maps (não carrega nada do Google até a pessoa tocar).
+
+### 3.6 Sorvetes 60 Sabores
+Página de apresentação da franquia dentro do site, seguindo o manual de marca dela. **Só com
+autorização da franqueadora** (pendências 32 a 34). Os sabores não vêm deste sistema (RC-11).
+
+### 3.7 Trabalhe conosco (evolução)
+Formulário simples com envio de currículo; os dados ficam guardados por prazo definido (hipótese:
+6 meses) e depois são anonimizados. Visível só para dono, administrador e gerente geral.
+
+### 3.8 Privacidade, termos e página "não encontrada"
+Política de privacidade e termos (texto validado pelo cliente). Sem cookies de rastreamento: não
+precisa de faixa de cookies. Página 404 com a cara da marca e atalhos para cardápio e contato.
+
+## 4. Editor do site, dentro da gestão
+- Gestão → Site: textos de cada página, fotos, destaques, depoimentos, portfólio, perguntas
+  frequentes, links (iFood, WhatsApp, Instagram), faixas de aviso ("fechado no feriado").
+- **Rascunho → pré-visualização → publicar**, com histórico de versões e voltar à anterior.
+- Fotos: envio pelo celular; o sistema reduz e gera os tamanhos certos sozinho.
+- Permissão nova `site.editar` (hipótese: dono, administrador e gerente geral) e `empresas.ver` /
+  `empresas.gerenciar` para as oportunidades (hipótese: dono, administrador, gerente geral).
+  Ligadas pela skill `matriz-de-permissoes`.
+
+## 5. Regras
+- O site **lê** do sistema por uma "vitrine" própria: só os campos públicos (nome, descrição,
+  categoria, foto, selos, horário, esgotado sim/não). Usuário do banco só de leitura, sem acesso a
+  custo, estoque, pedidos ou pessoas. Preço não sai (decisão de 18/11/2026).
+- Páginas geradas com antecedência e guardadas em cache: o site continua no ar mesmo se a gestão
+  estiver em manutenção; mudança publicada aparece em até 1 minuto.
+- Formulários: validação no servidor, limite de envios por endereço, campo-armadilha contra robôs
+  (sem captcha de terceiros), consentimento registrado, nenhum dado interno na resposta.
+- Rápido em celular comum e 4G fraco; acessível (contraste da paleta já conferido, navegação por
+  teclado, textos alternativos nas fotos).
+- Bom para busca: título e descrição por página, dados estruturados de restaurante, cardápio e
+  serviços, mapa do site, prévia bonita ao compartilhar.
+- Marca: paleta Espuma e Brasa aprovada (`cerebro/empresa/paleta-da-marca/`), claro por padrão e
+  escuro só se o aparelho do visitante estiver escuro.
+- Medição própria e sem cookies (visitas por página, cliques em iFood e WhatsApp, orçamentos
+  enviados), guardada no nosso banco e mostrada ao gestor. Nada enviado a terceiros.
+- Checklist de toda página pública: skill `pagina-publica`.
+
+## 6. Sugestões do Claude (além do pedido)
+| # | Sugestão | Por que vale | Classificação proposta |
+|---|---|---|---|
+| S1 | **Alergênicos calculados da ficha técnica**: cada ingrediente marca o que contém (glúten, leite, ovo, amendoim...) e o prato herda sozinho | Segurança do cliente; nunca fica desatualizado (mesmo princípio do RC-09) | evolução (depois da ficha técnica, E08) |
+| S2 | **"Hoje no almoço"**: o gerente marca o prato do dia na gestão e ele aparece no site e na TV | Almoço muda todo dia; hoje isso se faz em story | núcleo do site |
+| S3 | **Cardápio impresso em PDF gerado do cadastro**, com a marca | Muda o produto, o impresso já sai certo | evolução |
+| S4 | **Google Perfil da Empresa** cuidado e ligado ao site (horário igual ao do sistema) | É por onde a maioria acha restaurante na cidade | 👉 ação do responsável, sem código |
+| S5 | **Cardápio por QR Code na mesa** (mesma página) | Reaproveita tudo; já estava na lista | evolução |
+| S6 | **Reserva de mesa e do espaço** com calendário, ligada ao mapa de mesas do caixa (RC-13) | Eventos e grupos sem troca de mensagens | evolução |
+| S7 | **Agenda** (música ao vivo, festival do hambúrguer, datas especiais) | Motivo para voltar ao site e ao salão | evolução |
+| S8 | **Avalie a gente**: QR no recibo leva à avaliação no Google | Aumenta as notas e a busca | evolução |
+| S9 | **Convênio de almoço para empresas**: cadastro da empresa, funcionário pede, fatura mensal | Receita fixa e previsível | evolução grande (toca financeiro, RC-15) |
+| S10 | **Proposta em PDF montada na gestão** a partir da oportunidade (serviço, itens, data) | Responde à empresa no mesmo dia | evolução |
+| S11 | **Vale-presente** E-MOTION | Datas comemorativas e brinde de empresa | adiar (toca pagamento e financeiro) |
+| S12 | **Clube E-MOTION** (pontos) junto com o delivery próprio | Traz cliente do iFood para o canal próprio | evolução (com RC-08) |
+| S13 | Aviso de espera no salão ("agora: ~15 min") vindo da fila da cozinha (RC-10) | Cliente decide vir na hora certa | adiar (depois da E16) |
+
+## 7. Ordem de construção proposta (E25 em PRs pequenos)
+| PR | Entrega | Quem revisa |
+|---|---|---|
+| E25.1 | Casca com a marca, Início, Sobre, Visite, privacidade, 404, títulos e mapa do site; "Aberto agora" pelos horários | construtor; Opus revisa |
+| E25.2 | Cardápio sem preço lido da vitrine (usuário só de leitura), páginas por produto, cache | Opus; **revisor** (superfície pública) |
+| E25.3 | Para empresas: 3 páginas de serviço, portfólio, formulário → oportunidade, Gestão → Empresas, sino | Opus; **revisor** (dados pessoais, público) |
+| E25.4 | Editor do site na gestão (rascunho, prévia, publicar, fotos) e "Hoje no almoço" (S2) | construtor; Opus revisa |
+| E25.5 | Medição própria, dados estruturados, kit para empresas em PDF, teste de carga leve | Opus; **revisor** |
+| depois | Foto e selos no cadastro de produto (PR próprio da 0018), alergênicos (S1), 60 Sabores, Trabalhe conosco e as evoluções da seção 6 | conforme o caso |
+
+O site vai para a **homologação** primeiro (endereço de teste). Só entra no domínio real com
+**"Publique tudo"**, depois de o domínio comprado apontar para o servidor de produção (E23).
 
 ## Fora desta entrega
-Blog, loja de produtos com envio por correio, área de franquias, múltiplos idiomas.
+Blog, loja com envio por correio, área de franquias, outros idiomas, preço no site.
 
 ## Critério de aceite
-Mudar um produto no sistema reflete na vitrine; formulário de empresas cria oportunidade
-visível para o gestor; páginas carregam bem em celular comum; nenhum dado sensível nas
-respostas públicas.
+1. Mudar um produto, categoria ou horário na gestão reflete no site em até 1 minuto, sem digitar
+   de novo.
+2. O formulário de empresas cria uma oportunidade visível na gestão, com aviso no sino, e um envio
+   repetido (duplo toque) não cria duas.
+3. Nenhuma resposta pública contém preço, custo, estoque, dado de pessoa ou identificador interno
+   (teste automático confere).
+4. Páginas carregam bem em celular comum; com a gestão desligada, o site continua respondendo.
+5. Excesso de envios do mesmo endereço é recusado; robô que preenche o campo-armadilha é ignorado.

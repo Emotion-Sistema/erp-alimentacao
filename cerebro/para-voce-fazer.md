@@ -22,7 +22,11 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Enviar logo, cores e identidade visual da empresa (pode ser pelo Drive).
 - [ ] 👉 Responder às perguntas de `docs/04-pendencias.md` com o cliente (comece pelas de número 1, 5, 13 e 14).
 - [ ] 👉 Enviar cardápio, 1 a 3 fichas técnicas de exemplo, ingredientes e unidades.
-- [ ] 👉 Dizer qual domínio será usado (ou se precisa registrar um).
+- [x] Domínio escolhido: emotionjf.com.br (18/11/2026).
+- [ ] 👉 Ler a proposta do site (`docs/requisitos/RC-07-site-institucional.md`), dizer quais sugestões S1 a S13 entram e dar o "ok" para a E25 depois da E07.
+- [ ] 👉 Comprar o domínio emotionjf.com.br no Registro.br em nome da empresa (titular: o dono ou o CNPJ) e guardar a senha num cofre; não mexer no DNS ainda.
+- [ ] 👉 Juntar para o site: fotos da casa, dos pratos e de eventos feitos; texto da história; links do iFood, WhatsApp e Instagram; endereço; autorização das empresas que aparecerem no portfólio (pasta do Drive "06 Cardápio e produtos" ou nova "10 Site").
+- [ ] 👉 Perguntar ao dono, para os serviços de empresas: quantidade mínima de pessoas, antecedência, capacidade do salão para eventos e até onde entrega.
 - [ ] 👉 Levantar com o cliente: quem cuida do estoque em cada turno, quem cuida das compras, prazo de entrega dos fornecedores e os itens que não podem faltar (pendências 20, 21, 23 e 31).
 - [ ] 👉 Pedir ao cliente a lista de produtos com tempo de preparo e tipo (hambúrguer, prato/grelhado, cafeteria), e quantas pessoas trabalham em cada tipo por turno (pendências 29 e 35).
 - [ ] 👉 Perguntar à franqueadora 60 Sabores: nome exato do sistema, se exporta relatórios ou tem API, e se o contrato permite integração (pendências 32 a 34).

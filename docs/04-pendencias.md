@@ -23,12 +23,12 @@ Na coluna "Trava", os códigos F são as fases antigas; a ordem atual usa etapas
 | 10 | Cardápio, fichas técnicas, ingredientes e unidades | Cadastros e saldo inicial | Dados sintéticos de exemplo | F3 |
 | 11 | Logo, paleta e identidade autorizados | Base visual | Tema neutro configurável | F7 |
 | 12 | Quem valida cada entrega do lado do cliente | Aceite | Responsável técnico concentra | todas |
-| 13 | Domínio a usar e quem é o dono dele | Endereços do site, loja e gestão | Subdomínios de um domínio único | P/F8 |
+| 13 | **Domínio definido em 18/11/2026: emotionjf.com.br (a comprar).** Falta: quem será o titular | Endereços do site, loja e gestão | Subdomínios de um domínio único | P/F8 |
 | 14 | Área de entrega, taxa (fixa, por bairro ou por distância), pedido mínimo, entregadores próprios ou terceiros | Cálculo de frete e expedição | Entregador próprio, taxa por bairro | F9 |
 | 15 | Aceita pagamento na entrega (dinheiro/maquininha) além de Pix e cartão online? | Regra de liberação do pedido | Só pagamento online no início | F9 |
 | 16 | Provedor de pagamento online preferido (ou conta já existente) | Integração de pagamento | A escolher, com ambiente de testes | F6/F9 |
 | 17 | Horário do delivery e capacidade da cozinha no pico | Pausa e limite de pedidos | Mesmo horário da loja | F9 |
-| 18 | Conteúdo do site: textos, fotos, serviços para empresas | Estrutura do site | Estrutura do RC-07 com textos provisórios | P |
+| 18 | Conteúdo do site: textos e fotos (serviços definidos em 18/11/2026: coffee break, almoço corporativo, eventos no espaço; ver RC-07 v2) | Estrutura do site | Estrutura do RC-07 com textos provisórios | P |
 | 19 | Identidade visual (será enviada depois) | Aparência de tudo | Tema neutro configurável | P/F7/F9 |
 | 20 | **Respondida em 13/11/2026:** estoque por área: cozinha (alimentos) e supervisor (bebidas, cafeteria, potes); escalada para o gerente geral | — | — | — |
 | 21 | Prazo de entrega de cada fornecedor e dias de folga desejados | Sugestão das linhas saudável e de emergência | Linhas informadas manualmente no início | F3 |

@@ -27,6 +27,7 @@ A sessão principal roda em Opus 5.5 e coordena. Regras em `docs/05-uso-dos-mode
 | `teste-idempotencia-estoque` | Pedido, estoque, tickets |
 | `ensaio-restauracao` | Backup e recuperação |
 | `matriz-de-permissoes` | Rota nova, ação nova, mudar o que um cargo pode (criada na E03) |
+| `pagina-publica` | Toda página, formulário ou rota aberta ao público: site, delivery, QR da mesa (criada em 18/11/2026) |
 
 ## Skills recomendadas (criar quando a fase chegar)
 | Skill | Para quê | Etapa |
