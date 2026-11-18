@@ -59,11 +59,31 @@ desconto nos produtos da loja.** O sistema já nasce com essa regra (E17).
   na própria compra).
 - Relatório mensal na gestão: consumo e desconto por funcionário e total, para o gestor e o
   financeiro.
-- Hipóteses (a confirmar com o responsável): vale só no salão, balcão e retirada (não no delivery
-  nem no iFood); não vale na sorveteria 60 Sabores (sistema próprio da franquia); não soma com
-  outra promoção (vale o maior desconto); é para consumo do próprio funcionário; sem limite por dia;
-  pago na hora (não é desconto em folha); arredondamento do desconto para o centavo mais próximo;
-  como aparece na nota fiscal, confirmar com o contador (E20).
+- **Respostas do responsável (18/11/2026):**
+  - **Onde vale:** salão, balcão, retirada e **delivery próprio**. No delivery, os 15% valem sobre o
+    total **já com o frete** (produtos + frete). No iFood não (preço e pagamento são do iFood).
+  - **Vale na sorveteria 60 Sabores.** Atenção: o sorvete é vendido no sistema da franquia (RC-11).
+    O desconto só pode ser aplicado por este sistema se a venda do sorvete passar pelo nosso caixa;
+    se passar pelo sistema da franquia, o desconto é dado lá e aqui fica só o registro. Confirmar
+    como é hoje (pendência da 60 Sabores).
+  - **Soma com tudo:** acumula com qualquer promoção, cupom ou pontos do Clube.
+  - **Pagamento:** na hora **ou na conta do funcionário** (ver abaixo).
+- **Como "somar com tudo" é calculado (hipótese a confirmar):** em sequência, nunca somando os
+  percentuais. Primeiro as promoções do produto, depois o cupom, depois os 15% sobre o que sobrou
+  (com frete, no delivery). Exemplo: lanche de R$ 40,00 com promoção de 10% fica R$ 36,00; com os
+  15% do funcionário, R$ 30,60. (Somar os percentuais daria 25% e R$ 30,00.) O total nunca fica
+  abaixo de zero. Arredondamento de cada desconto para o centavo mais próximo.
+- **Conta do funcionário:** em vez de pagar na hora, o caixa escolhe a forma "Conta do
+  funcionário" (só o caixa marca, como todo Pago; o funcionário confirma com o código dele). O
+  pedido fica pago para a loja e o valor vai para o saldo devedor daquele funcionário, com extrato
+  (data, itens, desconto, valor). O funcionário vê o próprio extrato no aplicativo dele. A conta é
+  quitada no caixa (dinheiro, Pix, cartão), por inteiro ou em partes, ou na data combinada.
+  Hipóteses a confirmar: fechamento no fim do mês; sem limite de saldo, mas o gerente recebe aviso
+  acima de um valor que ele define; ao ser desligado, o saldo aberto aparece para o financeiro.
+  **Desconto em folha de pagamento**, se a casa quiser, só depois de confirmado com o contador
+  (regras trabalhistas): o sistema não decide isso sozinho.
+- Ainda hipótese: é para consumo do próprio funcionário (não de parentes ou amigos); sem limite por
+  dia; como aparece na nota fiscal, confirmar com o contador (E20).
 - A mesma "regra de desconto por grupo" serve depois ao convênio de empresas (S9) e ao Clube (S12).
 
 ## 4. Durante o turno
@@ -119,7 +139,9 @@ desconto nos produtos da loja.** O sistema já nasce com essa regra (E17).
    e chamando o servidor).
 4. Desconto e estorno sem autorização são recusados; com autorização ficam registrados.
    Desconto de funcionário só com a identificação do próprio funcionário ativo; o valor bate no
-   centavo com a conta manual; funcionário inativo é recusado; ninguém aplica na própria compra.
+   centavo com a conta manual, inclusive acumulado com promoção e com frete; funcionário inativo é
+   recusado; ninguém aplica na própria compra. Lançar na conta do funcionário e quitar em partes
+   fecha no centavo, e o extrato mostra tudo.
 5. Fechamento cego: valor esperado só aparece depois da contagem; diferença exige justificativa.
 6. Fechamento aprovado gera os lançamentos no financeiro uma única vez (repetir não duplica).
 7. Pagamento confirmado duas vezes pelo provedor gera um único recebimento.

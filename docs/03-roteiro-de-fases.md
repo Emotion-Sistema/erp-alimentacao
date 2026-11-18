@@ -57,7 +57,7 @@ Critérios da E13 vindos da E03 (decisão 0011): atendente só altera **pedido p
 | **E18** Fechamento | Fechamento cego, conferência, alertas ao gerente, relatório | Opus na regra; Sonnet no relatório | Critérios 5 e 6 do RC-13 |
 | **E19** Pix integrado | Pix gerado pelo sistema com confirmação automática | **Opus; revisor** | Aviso repetido do provedor gera um recebimento só |
 | **E20** Fiscal | Emissão pelo provedor, em ambiente de testes, com estados reais (RC-06) | **Opus; revisor**; contador valida | Nota rejeitada, timeout e reenvio sem duplicar |
-| **E21** Financeiro básico e sorveteria | Lançamentos vindos do fechamento; aba de potes de sorvete; lançamento do dia da sorveteria (RC-11) · 📌 em seguida: S9 convênio de almoço | Sonnet; Opus revisa | Fechamento aparece no financeiro sem digitação |
+| **E21** Financeiro básico e sorveteria | 📌 conta do funcionário a receber (RC-13 3a); lançamentos vindos do fechamento; aba de potes de sorvete; lançamento do dia da sorveteria (RC-11) · 📌 em seguida: S9 convênio de almoço | Sonnet; Opus revisa | Fechamento aparece no financeiro sem digitação |
 
 ## Bloco E: entrada em operação da gestão interna
 | Etapa | Entrega | Modelos | Pronto quando |
@@ -77,7 +77,7 @@ Depende de identidade visual, textos, fotos e domínio. Não depende do restante
 ## Bloco G: delivery próprio
 | Etapa | Entrega | Modelos | Pronto quando |
 |---|---|---|---|
-| **E26** Loja online | Cardápio, carrinho, disponibilidade, área e taxa de entrega, estimativa | Sonnet; Opus nas regras | Preço e taxa calculados no servidor |
+| **E26** Loja online | Cardápio, carrinho, disponibilidade, área e taxa de entrega, estimativa · 📌 desconto de funcionário de 15% sobre produtos + frete, acumulando com cupom (RC-13 3a) | Sonnet; Opus nas regras | Preço e taxa calculados no servidor |
 | **E27** Pagamento online | Reserva de estoque, pagamento, liberação para a cozinha, estorno · 📌 depois: S11 vale-presente (com o contador) | **Opus; revisor** | Critérios 1 a 5 do RC-08 |
 | **E28** Acompanhamento e aplicativo | Etapas, itens, posição na fila, previsão; aplicativo instalável · 📌 em seguida: S12 Clube E-MOTION | Sonnet; Opus revisa | Critério 6 do RC-08 |
 | **E29** Entregas | Expedição no caixa, aplicativo do motoboy, código de confirmação, prestação de contas (RC-14) | Sonnet; Opus na prestação de contas | Critérios do RC-14 |
