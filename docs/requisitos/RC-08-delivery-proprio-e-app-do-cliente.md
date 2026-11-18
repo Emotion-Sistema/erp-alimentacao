@@ -62,6 +62,11 @@ sistema (RC-11).
 Retirada com hora marcada, pedido agendado, cardápio por QR Code na mesa, cupom de
 primeira compra, pontos, avaliação pós-entrega, aviso por WhatsApp.
 
+## Desconto de funcionário no delivery (responsável, 18/11/2026)
+Funcionário ativo que pede pelo delivery próprio tem 15% sobre o total com frete, acumulando com
+cupom. Ele liga a conta de cliente ao cadastro de funcionário uma vez (confirmação pelo código
+pessoal dele) e pode pagar online ou lançar na conta do funcionário. Regra completa no RC-13 seção 3a.
+
 ## Fora da primeira entrega do delivery
 Roteirização, rastreio do entregador no mapa, entregador terceirizado por API, carteira
 digital, assinatura, integração com iFood.

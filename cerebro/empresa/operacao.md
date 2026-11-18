@@ -31,7 +31,9 @@ Picos, troca de turno, fechamento: a levantar.
 
 ## Regras da casa
 - **Consumo de funcionário (responsável, 18/11/2026):** todo funcionário tem **15% de desconto** nos
-  produtos da loja; já acontece hoje. Regra no RC-13 seção 3a (E17).
+  produtos da loja; já acontece hoje. Vale também no delivery próprio (sobre o total com frete) e
+  na sorveteria; acumula com qualquer promoção; pago na hora ou na conta do funcionário
+  (18/11/2026). Regra no RC-13 seção 3a (E17).
 - Descontos em geral, cortesias, taxa de serviço, cancelamentos: a levantar.
 
 ## Cardápio e fichas técnicas
