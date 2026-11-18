@@ -12,6 +12,7 @@
     "@erp/banco": "workspace:*",
     "@erp/dominio": "workspace:*",
     "@erp/interface": "workspace:*",
+    "@fontsource/atkinson-hyperlegible-next": "5.3.0",
     "next": "^16.4.6",
     "qrcode": "1.5.4",
     "react": "^19.3.1",

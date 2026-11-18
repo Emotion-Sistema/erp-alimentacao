@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./tema.css": "./src/tema.css"
+    "./tema.css": "./src/tema.css",
+    "./publico.css": "./src/publico.css"
   },
   "scripts": {
     "tipos": "tsc -p ."

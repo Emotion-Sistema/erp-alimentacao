@@ -13,7 +13,11 @@ export function Campo({ rotulo, erro, id, className, ...resto }: CampoProps) {
   const idCampo = id ?? idGerado;
   const idErro = `${idCampo}-erro`;
   return (
-    <div className={["erp-campo", erro ? "erp-campo--erro" : ""].filter(Boolean).join(" ")}>
+    <div
+      className={["erp-campo", erro ? "erp-campo--erro" : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <label className="erp-campo__rotulo" htmlFor={idCampo}>
         {rotulo}
       </label>
