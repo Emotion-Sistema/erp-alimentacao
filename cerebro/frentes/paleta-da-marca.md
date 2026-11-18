@@ -26,6 +26,7 @@ Registro da ideia: `cerebro/ideias-do-cliente.md`, nº 7.
 ## Letras (18/11/2026)
 - Pergunta do responsável: qual letra combina. Proposta: Fraunces + Figtree para o cliente, Atkinson Hyperlegible
   Next para a equipe (detalhe em `cerebro/empresa/paleta-da-marca/README.md`; seção "Letras" na amostra). **Aprovadas pelo responsável em 18/11/2026**; recado no mural.
+- Arquivos das letras baixados (pedido dele, para não depender do Google): `cerebro/empresa/paleta-da-marca/letras/`, com licenças.
 
 ## Falta
 - Chat principal aplicar no tema (quando couber no roteiro). Depois disso, a frente pode ser encerrada.
