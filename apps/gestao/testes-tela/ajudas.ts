@@ -55,9 +55,14 @@ export async function nomesDoMenu(page: Page): Promise<string[]> {
   const nav = page.getByRole("navigation", { name: "Menu" });
   if ((await nav.count()) === 0)
     return page.locator(".erp-ladrilho__titulo").allTextContents();
-  const nomes = (await nav.getByRole("link").allTextContents()).map((t) =>
-    t.trim(),
-  );
+  // Na barra, o nome curto aparece e o nome inteiro fica no aria-label.
+  const nomes = await nav
+    .getByRole("link")
+    .evaluateAll((els) =>
+      els.map((e) =>
+        (e.getAttribute("aria-label") ?? e.textContent ?? "").trim(),
+      ),
+    );
   const mais = page.locator('button[popovertarget="barra-mais"]');
   if (await mais.isVisible()) {
     await mais.click();
