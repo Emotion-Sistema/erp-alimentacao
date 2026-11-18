@@ -13,6 +13,7 @@ import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
 import { CANAIS, horaValida, type Canal, type MotivoFechado } from "./horarios-comum";
 import { pode } from "./permissoes";
+import { posicaoDaGravacao, reposicionar, travarLista } from "./posicao";
 import { exigir, type Ator } from "./sessao";
 
 export * from "./horarios-comum";
@@ -144,6 +145,8 @@ const esquemaCategoria = z.object({
     // Sem o campo, fica como está; nulo ou vazio limpa.
     .transform((v) => (v === undefined ? undefined : v ? v : null)),
   ordem: z.number().int().min(0).max(9999).optional(),
+  /** Lugar na lista (1 = primeiro) entre as ativas; o sistema renumera a ordem. Vence `ordem`. */
+  posicao: z.number({ error: "Posição: um número inteiro." }).int("Posição: um número inteiro.").min(1, "Posição de 1 em diante.").max(9999).optional(),
   ativo: z.boolean().optional(),
 });
 
@@ -560,23 +563,27 @@ export async function salvarCategoria(db: Banco, ator: Ator | null, dados: unkno
   const colunas = ["id", "nome", "descricao", "ordem", "ativo"] as const;
   try {
     const salvo = await db.transaction().execute(async (trx) => {
+      await travarLista(trx, "categoria");
       const valores = { nome: d.nome, ...(d.descricao === undefined ? {} : { descricao: d.descricao }), ...(d.ordem === undefined ? {} : { ordem: d.ordem }), ...(d.ativo === undefined ? {} : { ativo: d.ativo }) };
       let antes: Categoria | undefined;
       let s: Categoria;
       if (d.id) {
-        antes = await trx.selectFrom("categoria").select(colunas).where("id", "=", d.id).forUpdate().executeTakeFirst();
+        antes = await trx.selectFrom("categoria").select(colunas).where("id", "=", d.id).forNoKeyUpdate().executeTakeFirst();
         if (!antes) throw new ErroDeRegra("nao_encontrado", "Categoria não encontrada.");
         s = await trx.updateTable("categoria").set({ ...valores, atualizado_em: sql`now()` }).where("id", "=", d.id).returning(colunas).executeTakeFirstOrThrow();
       } else {
         s = await trx.insertInto("categoria").values(valores).returning(colunas).executeTakeFirstOrThrow();
       }
+      const posicao = posicaoDaGravacao(d, antes, s.ativo);
+      const reordenados = posicao === undefined ? [] : await reposicionar(trx, "categoria", s.id, posicao);
+      if (reordenados.length) s = await trx.selectFrom("categoria").select(colunas).where("id", "=", s.id).executeTakeFirstOrThrow();
       await auditar(trx, {
         usuarioId: quem.usuarioId,
         acao: "cadastros.gerenciar",
         resultado: "permitido",
         alvoTipo: "categoria",
         alvoId: s.id,
-        detalhes: { operacao: d.id ? "alterar" : "criar", antes: antes ?? null, depois: s },
+        detalhes: { operacao: d.id ? "alterar" : "criar", antes: antes ?? null, depois: s, ...(reordenados.length ? { reordenados } : {}) },
         ip: quem.ip,
       });
       return s;

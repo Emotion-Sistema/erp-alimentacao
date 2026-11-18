@@ -87,3 +87,13 @@ exemplo rápido, que dá para mostrar ou esconder. Vale para o sistema inteiro.
   `Icone`, `ChipDeEmbalagem`, `ItemDeLista`, `Faixa`, `ListaComIcone`, `BlocoDeConfirmacao`, `Citacao`.
   Números em formato brasileiro (texto/BigInt). Contraste AA dos pares de cores é testado.
   Um teste (`apps/gestao/testes/sem-resumo-corrido.teste.ts`) falha se o ponto do meio voltar a uma tela.
+
+## Adendo de 18/11/2026: mostrar o que já existe, sem número de ordem
+Pedido do responsável ao ver o campo "Ordem na lista" (não ficava claro o que era 10, 20, 30):
+1. **Campo que depende do que já está cadastrado mostra a lista do que já existe**, para a
+   pessoa comparar antes de gravar.
+2. **Nada de número de ordem para digitar.** A pessoa escolhe a posição ("1º: no começo",
+   "2º: depois de X") vendo a prévia de como a lista vai ficar; o servidor renumera a ordem
+   dos ativos de 10 em 10 (`packages/dominio/src/posicao.ts`, com trava e auditoria).
+   Componente: `apps/gestao/app/cadastros/PosicaoNaLista.tsx` (Categorias e Tipos de produção;
+   usar o mesmo nos próximos cadastros com ordem, como Produtos).

@@ -119,6 +119,66 @@ describe("tipos de produção", () => {
     expect(n).toHaveLength(0);
   });
 
+  it("posição na lista: escolhe o lugar e o sistema renumera de 10 em 10, com auditoria", async () => {
+    const ativos = async () => (await listarTiposDeProducao(db, gerente)).filter((x) => x.ativo);
+    const a = await salvarTipoDeProducao(db, gerente, { nome: `Primeiro ${sufixo}`, area: "cozinha", posicao: 1 });
+    let lista = await ativos();
+    expect(lista[0]!.id).toBe(a.id);
+    expect(lista.map((x) => x.ordem)).toEqual(lista.map((_, i) => (i + 1) * 10));
+    expect(a.ordem).toBe(10);
+    const auditoria = await ultimaAuditoria(a.id);
+    expect((auditoria.detalhes as { reordenados?: unknown[] }).reordenados?.length).toBeGreaterThan(0);
+
+    const b = await salvarTipoDeProducao(db, gerente, { nome: `Segundo ${sufixo}`, area: "cafeteria", posicao: 2 });
+    lista = await ativos();
+    expect(lista.slice(0, 2).map((x) => x.id)).toEqual([a.id, b.id]);
+    // Mover o primeiro para o fim (posição maior que a lista vira "último").
+    await salvarTipoDeProducao(db, gerente, { id: a.id, posicao: 9999 });
+    lista = await ativos();
+    expect(lista.at(-1)!.id).toBe(a.id);
+    expect(lista[0]!.id).toBe(b.id);
+    expect(lista.map((x) => x.ordem)).toEqual(lista.map((_, i) => (i + 1) * 10));
+    expect((await erroDe(salvarTipoDeProducao(db, gerente, { id: a.id, posicao: 0 }))).message).toMatch(/1 em diante/);
+  });
+
+  it("muitas pessoas criando e mudando posição ao mesmo tempo: sem deadlock e sem número repetido", async () => {
+    const semRepetido = async () => {
+      const lista = (await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo);
+      expect(lista.map((t) => t.ordem)).toEqual(lista.map((_, i) => (i + 1) * 10));
+      return lista;
+    };
+    const x = await salvarTipoDeProducao(db, gerente, { nome: `Corrida A ${sufixo}`, area: "cozinha" });
+    const y = await salvarTipoDeProducao(db, gerente, { nome: `Corrida B ${sufixo}`, area: "cozinha" });
+    for (let rodada = 0; rodada < 8; rodada++) {
+      // Duas linhas diferentes travadas e reposicionadas ao mesmo tempo (antes, dava deadlock),
+      // mais duas criações com posição (antes, uma ficava de fora da renumeração).
+      await Promise.all([
+        salvarTipoDeProducao(db, gerente, { id: x.id, posicao: 1 }),
+        salvarTipoDeProducao(db, gerente, { id: y.id, posicao: 2 }),
+        salvarTipoDeProducao(db, gerente, { nome: `Corrida C${rodada} ${sufixo}`, area: "cafeteria", posicao: 1 }),
+        salvarTipoDeProducao(db, gerente, { nome: `Corrida D${rodada} ${sufixo}`, area: "cozinha" }),
+      ]);
+      await semRepetido();
+    }
+  });
+
+  it("novo sem posição vai para o fim; reativado volta no fim; inativo não mexe na lista", async () => {
+    const novo = await salvarTipoDeProducao(db, gerente, { nome: `Fim ${sufixo}`, area: "cozinha" });
+    let lista = (await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo);
+    expect(lista.at(-1)!.id).toBe(novo.id);
+    await salvarTipoDeProducao(db, gerente, { id: novo.id, ativo: false });
+    const outro = await salvarTipoDeProducao(db, gerente, { nome: `Depois ${sufixo}`, area: "cozinha" });
+    // Inativo com posição: aceita e não renumera.
+    const antesDoInativo = (await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo).map((t) => [t.id, t.ordem]);
+    await salvarTipoDeProducao(db, gerente, { id: novo.id, posicao: 1 });
+    expect((await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo).map((t) => [t.id, t.ordem])).toEqual(antesDoInativo);
+    await salvarTipoDeProducao(db, gerente, { id: novo.id, ativo: true });
+    lista = (await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo);
+    expect(lista.at(-1)!.id).toBe(novo.id);
+    expect(lista.at(-2)!.id).toBe(outro.id);
+    expect(lista.map((t) => t.ordem)).toEqual(lista.map((_, i) => (i + 1) * 10));
+  });
+
   it("duas pessoas criando o mesmo nome ao mesmo tempo: só uma consegue", async () => {
     const nome = `Grill ${sufixo}`;
     const r = await Promise.allSettled([1, 2, 3].map(() => salvarTipoDeProducao(db, gerente, { nome, area: "cozinha" })));

@@ -29,7 +29,9 @@ test("gerente vê os tipos por área, cria um, edita a capacidade, desativa e de
   await page.getByRole("button", { name: "Novo tipo" }).click();
   const janela = page.getByRole("dialog", { name: "Novo tipo de produção" });
   await janelaNoCentro(page, janela);
-  await expect(janela.getByLabel("Ordem na lista")).toHaveValue(/^\d+$/);
+  const previa = janela.getByRole("list", { name: "Como a lista vai ficar:" });
+  await expect(previa).toContainText("Hambúrgueres");
+  await expect(previa).toContainText("Cafeteria");
   await expect(janela.getByText("Quantos itens este tipo consegue preparar ao mesmo tempo. Usado para prever o tempo de espera.")).toBeVisible();
   await janela.getByLabel("Nome").fill("x");
   await janela.getByRole("button", { name: "Criar tipo" }).click();
@@ -39,11 +41,15 @@ test("gerente vê os tipos por área, cria um, edita a capacidade, desativa e de
   await expect(janela.getByRole("alert")).toHaveText("Escolha onde é preparado: cozinha ou cafeteria.");
   await janela.getByRole("radio", { name: "Cozinha: sai pelo elevador" }).check();
   await janela.getByLabel("Quantos ao mesmo tempo").fill("3");
+  // Escolhe o 1º lugar: a prévia mostra o novo no topo, e a lista da cozinha também.
+  await janela.getByLabel("Posição na lista").selectOption({ index: 0 });
+  await expect(previa.locator("li").first()).toContainText(`${NOME} ← este`);
   await janelaSemEstouro(page);
   await janela.getByRole("button", { name: "Criar tipo" }).click();
   await expect(janela).toBeHidden();
   await expect(page.getByTestId("aviso-rapido")).toContainText(`Tipo ${NOME} criado.`);
   await expect(cozinha.getByTestId(`tipo-${NOME}`)).toContainText("Faz 3 ao mesmo tempo");
+  expect((await cozinha.locator(".hor-cat__nome").allTextContents())[0]).toBe(NOME);
 
   // Nome igual a um ativo: o servidor recusa e a mensagem aparece.
   await page.getByRole("button", { name: "Novo tipo" }).click();

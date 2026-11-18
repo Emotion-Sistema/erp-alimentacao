@@ -87,3 +87,10 @@ dialog.janela { margin: auto; }
 @media (prefers-reduced-motion: reduce) {
   .janela, .ingredientes__realce > .erp-item, .ingredientes__realce > article { animation: none; }
 }
+
+/* Posição na lista (PosicaoNaLista.tsx): a lista de como vai ficar, com o item destacado. */
+.posicao__titulo { margin: 0.5rem 0 0.25rem; font-weight: 600; }
+.posicao__lista { margin: 0; padding: 0.5rem 0.75rem 0.5rem 2rem; border: 1px solid var(--cor-borda); border-radius: 8px; max-height: 14rem; overflow-y: auto; }
+.posicao__lista li { padding: 0.15rem 0; }
+.posicao__este { background: var(--cor-superficie-forte); border-radius: 4px; }
+.posicao__detalhe { color: var(--cor-texto-suave); font-size: 0.9em; }
