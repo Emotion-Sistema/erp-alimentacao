@@ -22,7 +22,7 @@ test.describe("fundo sempre claro", () => {
       await page.evaluate(
         () => getComputedStyle(document.documentElement).colorScheme,
       ),
-    ).toBe("only light");
+    ).toBe("light only");
     // O aviso ao navegador do celular para não escurecer a página sozinho.
     await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute(
       "content",
