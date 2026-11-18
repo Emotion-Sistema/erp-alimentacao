@@ -3,10 +3,12 @@ import { Cartao } from "@erp/interface";
 import {
   aplicativoPorCodigo,
   aplicativosDoCargo,
+  itensDaBarra,
   itensVisiveis,
   NOME_DO_CARGO,
   pode,
   type Acao,
+  type Aplicativo,
   type Ator,
 } from "@erp/dominio";
 import { CentralDeAvisos } from "./CentralDeAvisos";
@@ -14,6 +16,7 @@ import { BotaoSair } from "./BotaoSair";
 import { BotaoTelaCheia } from "./BotaoTelaCheia";
 import { entradaDoAplicativo } from "./aplicativos-ui";
 import { Menu } from "./Menu";
+import { BarraDeBaixo } from "./BarraDeBaixo";
 import { TrocarCargo } from "./TrocarCargo";
 
 export function nomeDoCargo(codigo: string | null): string {
@@ -135,6 +138,13 @@ export function Casca({
         </div>
       </header>
       <Menu links={links} outros={outros} />
+      {aplicativo && permitido && (
+        <BarraDoAplicativo
+          app={aplicativo}
+          cargo={ator.cargoAtivo}
+          dosCargo={dosCargo}
+        />
+      )}
       <main className="casca__conteudo">
         {permitido ? (
           children
@@ -146,5 +156,37 @@ export function Casca({
         )}
       </main>
     </div>
+  );
+}
+
+/** Monta a barra de baixo do celular para o aplicativo aberto (só o que o cargo pode ver). */
+function BarraDoAplicativo({
+  app,
+  cargo,
+  dosCargo,
+}: {
+  app: Aplicativo;
+  cargo: string | null;
+  dosCargo: Aplicativo[];
+}) {
+  const { naBarra, noMais } = itensDaBarra(app, cargo);
+  const comoItem = (i: {
+    caminho: string;
+    texto: string;
+    icone: Aplicativo["itens"][number]["icone"];
+  }) => ({ href: i.caminho, texto: i.texto, icone: i.icone });
+  const principal =
+    app.principal && pode(cargo, app.principal.acao)
+      ? { href: app.principal.caminho, texto: app.principal.texto }
+      : undefined;
+  return (
+    <BarraDeBaixo
+      naBarra={naBarra.map(comoItem)}
+      noMais={noMais.map(comoItem)}
+      outrosApps={dosCargo
+        .filter((a) => a.codigo !== app.codigo)
+        .map((a) => ({ href: entradaDoAplicativo(a, cargo), texto: a.nome }))}
+      principal={principal}
+    />
   );
 }
