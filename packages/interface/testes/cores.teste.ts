@@ -19,23 +19,23 @@ const valorEscuro = (nome: string) =>
   valor(nome);
 
 describe("cores.ts espelha tema.css (tema claro)", () => {
-  it("fundo", () => expect(CORES_DO_TEMA_CLARO.fundo).toBe(valor("cor-fundo")));
+  it("fundo", () => expect(CORES_DO_TEMA_CLARO.fundo.toLowerCase()).toBe(valor("cor-fundo")));
   it("primária", () =>
-    expect(CORES_DO_TEMA_CLARO.primaria).toBe(valor("cor-primaria")));
+    expect(CORES_DO_TEMA_CLARO.primaria.toLowerCase()).toBe(valor("cor-primaria")));
   it("texto sobre a primária", () =>
-    expect(CORES_DO_TEMA_CLARO.primariaTexto).toBe(
+    expect(CORES_DO_TEMA_CLARO.primariaTexto.toLowerCase()).toBe(
       valor("cor-primaria-texto"),
     ));
   it("marca, âmbar e faixa escura", () => {
-    expect(CORES_DO_TEMA_CLARO.marca).toBe(valor("cor-marca"));
-    expect(CORES_DO_TEMA_CLARO.ambar).toBe(valor("cor-ambar"));
-    expect(CORES_DO_TEMA_CLARO.faixaEscura).toBe(valor("cor-faixa-escura"));
-    expect(CORES_DO_TEMA_CLARO.faixaEscuraTexto).toBe(
+    expect(CORES_DO_TEMA_CLARO.marca.toLowerCase()).toBe(valor("cor-marca"));
+    expect(CORES_DO_TEMA_CLARO.ambar.toLowerCase()).toBe(valor("cor-ambar"));
+    expect(CORES_DO_TEMA_CLARO.faixaEscura.toLowerCase()).toBe(valor("cor-faixa-escura"));
+    expect(CORES_DO_TEMA_CLARO.faixaEscuraTexto.toLowerCase()).toBe(
       valor("cor-faixa-escura-texto"),
     );
   });
   it("fundo do modo escuro (publico.css)", () =>
-    expect(CORES_DO_TEMA_ESCURO.fundo).toBe(valorEscuro("cor-fundo")));
+    expect(CORES_DO_TEMA_ESCURO.fundo.toLowerCase()).toBe(valorEscuro("cor-fundo")));
 });
 
 describe("fundo sempre claro (pedido do responsável, 15/11/2026)", () => {

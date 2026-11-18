@@ -61,7 +61,7 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
   box-shadow: 0 1px 0 color-mix(in srgb, var(--cor-cartao) 70%, transparent) inset;
 }
 .casca__menu-faixa {
-  display: flex; flex-wrap: wrap; gap: var(--espaco-1) var(--espaco-2);
+  display: flex; flex-wrap: wrap; gap: var(--espaco-1);
   max-width: var(--largura-conteudo); margin: 0 auto; padding: var(--espaco-2) var(--espaco-4);
 }
 .casca__link {
@@ -78,7 +78,7 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
   transform: rotate(45deg); margin-right: 2px;
 }
 .casca__link--apps:hover { color: var(--cor-primaria-hover); }
-.casca__menu .casca__link--apps { margin-right: var(--espaco-2); }
+.casca__menu .casca__link--apps { margin-right: var(--espaco-1); }
 .casca__link[aria-current="page"] {
   background: var(--cor-primaria); border-color: var(--cor-primaria); color: var(--cor-primaria-texto);
   box-shadow: var(--brilho-botao), 0 2px 8px -3px color-mix(in srgb, var(--cor-primaria) 70%, transparent);
@@ -86,6 +86,7 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 /* Celular e tablet: alvos de toque maiores. */
 .casca[data-aparelho="celular"] .casca__link,
 .casca[data-aparelho="tablet"] .casca__link { min-height: var(--alvo-toque-grande); }
+.casca__menu .casca__link { font-size: 1rem; padding: 0 0.625rem; }
 /* Celular: logo menor; o menu rola de lado dentro da própria faixa, nunca a página inteira. */
 @media (max-width: 40rem) {
   .casca__faixa { gap: var(--espaco-2) var(--espaco-3); padding: var(--espaco-2) var(--espaco-3) calc(var(--espaco-2) + 3px); }
