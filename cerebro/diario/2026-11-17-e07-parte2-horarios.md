@@ -94,6 +94,10 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - Tela cheia saía ao abrir um aplicativo pelo lançador (link comum recarregava a página): corrigido no PR 90 (Link do Next; trocar de cargo sem recarregar).
 - CI da main falhou uma vez (produtos.spec lia a lista antes de carregar): corrigido no PR 94 (`expect.poll`).
 
+## 18/11/2026: navegação do celular escolhida e feita (PR 97, merge 13789f7)
+- Escolha do responsável: B (botão Novo pedido no meio) no Atendimento, A (barra de baixo + Mais) nos outros. Adendo na decisão 0019.
+- Testes de celular leem o menu com `nomesDoMenu(page)` (barra + Mais; nome inteiro no aria-label).
+
 ## O que ficou pendente
 - Conferir com o responsável o visual novo na homologação (inclusive num Android real: letras).
 - Telas com mais de um botão cheio (Horários, Funcionários, Turnos, Estações): rever a regra "um botão forte por tela" se o responsável quiser.
