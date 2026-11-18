@@ -17,6 +17,7 @@ Aberta em 15/11/2026 pelo responsável. Função: ler as fichas técnicas da emp
   Lido por inteiro e cruzado com as fichas: `cerebro/empresa/fichas-tecnicas/cardapio-x-fichas.md`
   (cada produto, preço e ficha; produtos sem ficha; 8 diferenças entre cardápio e fichas).
 - Perguntas passaram de 22 para 30 (23 a 30, do cardápio); 5, 8 e 21 ganharam pistas.
+- PDF curto `cerebro/empresa/fichas-tecnicas/analise-das-fichas.pdf` (pedido do responsável, na voz dele, para a equipe das fichas).
 - **O responsável só tem as respostas em 22/11/2026.** Até lá, nada a fazer nesta frente.
 
 ## Achados que importam ao chat principal
