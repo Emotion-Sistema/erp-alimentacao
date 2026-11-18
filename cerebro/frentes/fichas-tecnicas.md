@@ -27,8 +27,9 @@ partir de 22/11/2026; vão vir da nutricionista, pelo PDF).
 - Preferências do responsável sobre PDF: curto e cirúrgico, sem textão; título ou subtítulo nunca sozinho
   no fim da página (mas sem forçar cada seção a começar em página nova).
 - **Logo provisória** recebida (arte de tapete 150x100 cm): recortada, sem fundo, 27 variações em
-  `cerebro/empresa/fichas-tecnicas/logo-provisoria/` (guia no `LEIA-ME.md`) e 30 arquivos no Drive, em
-  "07 Identidade visual/Logo provisória (variações)". Faltaram no Drive dois PNG HD de 4 MB (limite de envio).
+  `cerebro/empresa/fichas-tecnicas/logo-provisoria/` (guia no `LEIA-ME.md`) e 32 arquivos no Drive, em
+  "07 Identidade visual/Logo provisória (variações)". Os dois PNG HD sem fundo (4 MB, acima do limite de envio)
+  foram para o Drive reduzidos a 2400 px, a pedido do responsável (`logo-completa-2400px-*.png`).
 - **Paleta de cores:** desvio anotado; vai para a frente `paleta-da-marca` (bloco entregue ao responsável
   para outro chat). Cores medidas na logo: âmbar #F6A52B, laranja #F7750E, laranja do texto #E77019,
   vermelho-brasa #C9370C, caramelo #CA611D, café #351E17, creme dourado #F6DD8C, quase-preto #131111.
@@ -56,4 +57,3 @@ partir de 22/11/2026; vão vir da nutricionista, pelo PDF).
    atualizar `ingredientes.md`, `resumo-das-fichas.md`, `para-atualizar.md` e `cardapio-x-fichas.md`, avisar
    o principal no mural do que mudou no `ingredientes.md` e refazer o PDF com `gerar-pdf-analise.py`.
 2. Quando fichas corrigidas chegarem ao Drive (pasta Prontas): reler e atualizar.
-3. Pendente do responsável: dizer se quer os dois PNG HD no Drive (enviar à mão ou dividir).
