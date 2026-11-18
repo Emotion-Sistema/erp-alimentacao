@@ -180,8 +180,9 @@ esgotado e a lista de funcionários.
 - Conferência automática antes de publicar: link quebrado, foto sem descrição, texto grande demais
   para o celular, página sem título para o Google.
 - Mudança publicada aparece no site em até 1 minuto.
-- Permissões novas (hipótese, ligar pela skill `matriz-de-permissoes`): `site.editar` (dono,
-  administrador, gerente geral), `site.publicar` (dono e administrador), `empresas.ver` e
+- Permissões novas (ligar pela skill `matriz-de-permissoes`). **Confirmado pelo responsável em
+  18/11/2026:** `site.editar` (dono, administrador, gerente geral) e `site.publicar` (dono e
+  administrador). Ainda hipótese: `empresas.ver` e
   `empresas.gerenciar` (dono, administrador, gerente geral), `equipe.site` (aprovar cartões:
   dono e administrador).
 

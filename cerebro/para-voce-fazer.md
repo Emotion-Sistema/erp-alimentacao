@@ -28,7 +28,7 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Juntar para o site: fotos da casa, dos pratos e de eventos feitos; texto da história; links do iFood, WhatsApp e Instagram; endereço; autorização das empresas que aparecerem no portfólio (pasta do Drive "06 Cardápio e produtos" ou nova "10 Site").
 - [ ] 👉 Pedir ao dono os textos de missão, visão e valores (pode ser rascunho; o Claude ajuda a lapidar) e os marcos da história da casa com ano.
 - [ ] 👉 Pedir ao jurídico ou ao contador da empresa um modelo de autorização de uso de imagem e nome para os funcionários assinarem (site e redes).
-- [ ] 👉 Confirmar quem edita e quem publica o site (hipótese: edita dono, administrador e gerente geral; publica só dono e administrador).
+- [x] Quem edita e quem publica o site: edita dono, administrador e gerente geral; publica só dono e administrador (confirmado em 18/11/2026).
 - [ ] 👉 Perguntar ao dono, para os serviços de empresas: quantidade mínima de pessoas, antecedência, capacidade do salão para eventos e até onde entrega.
 - [ ] 👉 Levantar com o cliente: quem cuida do estoque em cada turno, quem cuida das compras, prazo de entrega dos fornecedores e os itens que não podem faltar (pendências 20, 21, 23 e 31).
 - [ ] 👉 Pedir ao cliente a lista de produtos com tempo de preparo e tipo (hambúrguer, prato/grelhado, cafeteria), e quantas pessoas trabalham em cada tipo por turno (pendências 29 e 35).
