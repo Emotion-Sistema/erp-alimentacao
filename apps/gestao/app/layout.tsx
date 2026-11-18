@@ -18,6 +18,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: CORES_DO_TEMA_CLARO.faixaEscura,
+  // Sempre claro, inclusive quando o navegador do celular escurece os sites sozinho
+  // (pedido do responsável, 15/11 e 18/11/2026). Gera <meta name="color-scheme" content="only light">.
+  colorScheme: "only light",
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
