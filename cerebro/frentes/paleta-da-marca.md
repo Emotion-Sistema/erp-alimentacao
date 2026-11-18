@@ -10,8 +10,9 @@ Registro da ideia: `cerebro/ideias-do-cliente.md`, nº 7.
   papel de cada cor com contraste conferido (todo texto >= 4,5:1), modo escuro "Noite de Torra",
   três climas (Espuma e Brasa, recomendado; Café com Creme; Brasa e Ouro), regras de uso e impressos.
 - Página de amostra `amostra.html` (publicada, privada: https://claude.ai/artifact/MV92y1Eiz2pUC62z7wMZm9).
-- `tema-proposta.css`: o clima recomendado já com os nomes de variáveis do `tema.css` atual.
-- `logo-emotion-fundo-escuro.png`: logo com letras e contornos em creme, para fundo escuro.
+- `tema-aprovado.css` (era `tema-proposta.css`): o clima escolhido já com os nomes de variáveis do `tema.css` atual.
+- Logo para fundo escuro: feita aqui e depois substituída pelas variações oficiais da frente fichas-tecnicas
+  (`cerebro/empresa/fichas-tecnicas/logo-provisoria/`); o arquivo daqui foi retirado para não haver duas versões.
 
 ## Decidido
 - Cores da logo ficam iguais em todos os climas; o laranja #E77019 é só enfeite (3,0:1, não serve para letra).
@@ -30,3 +31,10 @@ Registro da ideia: `cerebro/ideias-do-cliente.md`, nº 7.
 
 ## Falta
 - Chat principal aplicar no tema (quando couber no roteiro). Depois disso, a frente pode ser encerrada.
+
+## Pacote final (18/11/2026, pedido do responsável: "deixe tudo perfeito e correto para ser usado")
+- `tema-aprovado.css` completo: todas as variáveis do `tema.css` atual, os 9 selos em tons da marca (claro e
+  escuro), `--cor-ouro-texto`, letras, espelho do `cores.ts`. Contraste conferido por script em todos os pares:
+  menor 5,2:1 (claro) e 7,0:1 (escuro); borda de campo >= 3:1.
+- Amostra marcada como aprovada (Espuma e Brasa "Escolhido").
+- Cópia no Drive, pasta "07 Identidade visual" (pedido do responsável).

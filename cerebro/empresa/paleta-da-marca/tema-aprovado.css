@@ -1,0 +1,84 @@
+/*
+ * TEMA DA MARCA E-MOTION — APROVADO pelo responsável em 18/11/2026 (frente paleta-da-marca).
+ * Clima "Espuma e Brasa". Pronto para o chat principal copiar para
+ * packages/interface/src/tema.css (mesmos nomes de variáveis que já existem, decisão 0012).
+ * Todo par texto/fundo conferido: >= 4,5:1 (WCAG AA). Borda de campo >= 3:1.
+ * Este arquivo NÃO é usado pelo sistema; é a fonte para a troca.
+ */
+
+/* ===== 1. Modo claro: o padrão em TODOS os apps (gestao, loja, site) ===== */
+:root {
+  --cor-fundo: #FDF8F0;          /* Espuma de Leite */
+  --cor-superficie: #F6ECDC;     /* Nata Batida: faixas, seções */
+  --cor-texto: #351E17;          /* Café Torrado (logo)   14,7:1 no fundo */
+  --cor-texto-suave: #6B4A3A;    /* Grão Moído            7,5:1 no fundo, 6,7:1 na superfície */
+  --cor-borda: #8F7663;          /* borda de campo        4,0:1 no fundo, 3,6:1 na superfície */
+  --cor-primaria: #B8470E;       /* Brasa Acesa: botão principal */
+  --cor-primaria-texto: #FFFDF9; /*                       5,2:1 */
+  --cor-sucesso: #2F6B3A;        /* Manjericão            6,1:1 no fundo */
+  --cor-atencao: #7F5300;        /* Mel de Engenho        6,4:1 no fundo */
+  --cor-perigo: #A3261A;         /* Pimenta               7,0:1 no fundo */
+  --cor-info: #2E5E7E;           /* Louça Azul            6,6:1 no fundo */
+
+  /* Novas (a marca usa; criar no tema e no teste de contraste) */
+  --cor-cartao: #FFFDF9;          /* Leite Fresco: cartões e campos */
+  --cor-borda-suave: #E9DAC4;     /* Farinha Tostada: divisões de cartão (enfeite, não é borda de campo) */
+  --cor-primaria-hover: #9C3B0A;  /* Brasa Funda: botão ao tocar, 6,8:1 com a letra */
+  --cor-preco: #9A4410;           /* Caramelo Tostado: preço, 6,4:1 no cartão */
+  --cor-marca: #E77019;           /* Laranja E-MOTION: só ícone, filete, ilustração. NUNCA letra (3,0:1) */
+  --cor-ambar: #F6A52B;           /* Mel de Laranjeira: barra de progresso, ilustração (nunca letra) */
+  --cor-ouro: #F6DD8C;            /* Creme Dourado: faixa de destaque, sempre com --cor-ouro-texto */
+  --cor-ouro-texto: #351E17;      /* 11,6:1; igual no modo escuro */
+  --cor-faixa-escura: #351E17;    /* barra do app, rodapé (no máximo uma por tela) */
+  --cor-faixa-escura-texto: #F6DD8C; /* 11,6:1 */
+
+  /* Selos (par fundo + texto). Mesmos nomes de hoje, tons da marca. */
+  --selo-neutro-fundo: #EFE4D3;          --selo-neutro-texto: #351E17;          /* 12,4:1 */
+  --selo-info-fundo: #E1ECF3;            --selo-info-texto: #244B66;            /*  7,7:1 */
+  --selo-sucesso-fundo: #E3F0DF;         --selo-sucesso-texto: #2F6B3A;         /*  5,4:1 */
+  --selo-alerta-fundo: #FBEBC4;          --selo-alerta-texto: #7F5300;          /*  5,7:1 */
+  --selo-perigo-fundo: #FBE1DA;          --selo-perigo-texto: #A3261A;          /*  5,9:1 */
+  --selo-cozinha-fundo: #FBDCC8;         --selo-cozinha-texto: #8A3208;         /*  6,4:1 */
+  --selo-bebidas-salao-fundo: #DCEBEF;   --selo-bebidas-salao-texto: #1F5566;   /*  6,7:1 */
+  --selo-cafeteria-fundo: #EEDFCB;       --selo-cafeteria-texto: #4A2C22;       /*  9,6:1 */
+  --selo-sorvete-fundo: #F7DDE6;         --selo-sorvete-texto: #7A1D48;         /*  7,8:1 */
+
+  /* Letras (aprovadas 18/11/2026). Arquivos dentro do app, nunca do Google em tempo de execução. */
+  --fonte-titulo: "Fraunces", Georgia, "Times New Roman", serif;          /* cliente: títulos, produto, preço */
+  --fonte-texto: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; /* cliente: texto */
+  --fonte-interna: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* --fonte-base: na gestao = var(--fonte-interna); na loja e no site = var(--fonte-texto). */
+}
+
+/* ===== 2. Modo escuro "Noite de Torra": SÓ nos apps do cliente (loja, site) =====
+ * Entra sozinho quando o aparelho do cliente está no modo escuro. Sem botão.
+ * A gestao (equipe) continua sempre clara (decisão 0012, adendo de 15/11/2026).
+ * No CSS dos apps loja e site: html { color-scheme: light dark; } e o bloco abaixo.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cor-fundo: #1B1411;  --cor-superficie: #221915;  --cor-cartao: #2A201B;
+    --cor-texto: #F6EADB;  --cor-texto-suave: #CDB8A3;              /* 15,3:1 e 9,5:1 */
+    --cor-borda: #8A735F;  --cor-borda-suave: #4A382E;              /* 4,1:1 */
+    --cor-primaria: #F6A52B; --cor-primaria-texto: #2A1710; --cor-primaria-hover: #FFB948; /* 8,4:1 */
+    --cor-preco: #F6B54A;  --cor-marca: #F7750E;  --cor-ambar: #F6A52B;  --cor-ouro: #F6DD8C;
+    --cor-faixa-escura: #120D0B;  --cor-faixa-escura-texto: #F6DD8C;
+    --cor-sucesso: #8FCB98; --cor-atencao: #F2C063; --cor-perigo: #F49A86; --cor-info: #8CBBDA;
+    --selo-neutro-fundo: #3A2E28;        --selo-neutro-texto: #F6EADB;
+    --selo-info-fundo: #1C2D38;          --selo-info-texto: #9CC4DE;
+    --selo-sucesso-fundo: #1F3324;       --selo-sucesso-texto: #8FCB98;
+    --selo-alerta-fundo: #3A2E14;        --selo-alerta-texto: #F2C063;
+    --selo-perigo-fundo: #3E1E18;        --selo-perigo-texto: #F49A86;
+    --selo-cozinha-fundo: #42230F;       --selo-cozinha-texto: #F6A77A;
+    --selo-bebidas-salao-fundo: #173138; --selo-bebidas-salao-texto: #8FCFE0;
+    --selo-cafeteria-fundo: #3A2A1C;     --selo-cafeteria-texto: #E8C9A0;
+    --selo-sorvete-fundo: #3D1A2B;       --selo-sorvete-texto: #F2A6C6;
+  }
+}
+
+/* ===== 3. Espelho para packages/interface/src/cores.ts (atalho de instalação) =====
+ *   fundo: "#FDF8F0", primaria: "#B8470E", primariaTexto: "#FFFDF9"
+ * Logos: cerebro/empresa/fichas-tecnicas/logo-provisoria/ (LEIA-ME lá). Fundo escuro:
+ *       logo-completa-para-fundo-escuro-transparente.png. Ícones do app: icone-512/192-*.png.
+ * Letras: cerebro/empresa/paleta-da-marca/letras/ (ou pacotes @fontsource 5.3.0).
+ */
