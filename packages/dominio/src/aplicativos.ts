@@ -102,6 +102,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
       { caminho: "/cadastros", texto: "Ingredientes", acao: "cadastros.ver" },
       { caminho: "/cadastros/embalagens", texto: "Embalagens", acao: "cadastros.ver" },
       { caminho: "/cadastros/fornecedores", texto: "Fornecedores", acao: "cadastros.ver" },
+      { caminho: "/cadastros/produtos", texto: "Produtos", acao: "cadastros.ver" },
       { caminho: "/cadastros/categorias", texto: "Categorias", acao: "cadastros.ver" },
       { caminho: "/cadastros/tipos-producao", texto: "Tipos de produção", acao: "cadastros.ver" },
       { caminho: "/cadastros/horarios", texto: "Horários de venda", acao: "cadastros.ver" },

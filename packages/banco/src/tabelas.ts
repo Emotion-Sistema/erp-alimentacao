@@ -223,6 +223,20 @@ export interface CategoriaTabela {
   atualizado_em: Instante;
 }
 
+export interface ProdutoTabela {
+  id: Generated<number>;
+  nome: string;
+  descricao: string | null;
+  categoria_id: number;
+  tipo_producao_id: number | null;
+  preco_centavos: number;
+  tempo_preparo_min: number | null;
+  ordem: Generated<number>;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
 export interface TipoProducaoTabela {
   id: Generated<number>;
   nome: string;
@@ -319,6 +333,7 @@ export interface BancoTabelas {
   embalagem_modelo: EmbalagemModeloTabela;
   categoria: CategoriaTabela;
   tipo_producao: TipoProducaoTabela;
+  produto: ProdutoTabela;
   horario_unidade: HorarioUnidadeTabela;
   horario_unidade_data: HorarioUnidadeDataTabela;
   horario_venda: HorarioVendaTabela;
