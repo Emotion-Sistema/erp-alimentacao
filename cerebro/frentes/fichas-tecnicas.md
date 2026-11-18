@@ -12,6 +12,13 @@ Aberta em 15/11/2026 pelo responsável. Função: ler as fichas técnicas da emp
 - Criados em `cerebro/empresa/fichas-tecnicas/`: `ingredientes.md` (lista para o catálogo e a E08),
   `resumo-das-fichas.md`, `para-atualizar.md`, `perguntas.md` (22 perguntas) e `README.md`.
 
+## Feito em 18/11/2026
+- O responsável pôs o cardápio no Drive (pasta "06 Cardápio e produtos", `Catalogo_E-MOTION_Atualizado.txt`).
+  Lido por inteiro e cruzado com as fichas: `cerebro/empresa/fichas-tecnicas/cardapio-x-fichas.md`
+  (cada produto, preço e ficha; produtos sem ficha; 8 diferenças entre cardápio e fichas).
+- Perguntas passaram de 22 para 30 (23 a 30, do cardápio); 5, 8 e 21 ganharam pistas.
+- **O responsável só tem as respostas em 22/11/2026.** Até lá, nada a fazer nesta frente.
+
 ## Achados que importam ao chat principal
 - **Unidade do catálogo do cadastro rápido x fichas:** 11 itens divergem (laranja, banana, abacaxi,
   limão, alface e hambúrguer: catálogo em un, fichas em g; açaí: ml x g; leite condensado: g x ml;
@@ -28,7 +35,7 @@ Aberta em 15/11/2026 pelo responsável. Função: ler as fichas técnicas da emp
 - Unidade "sugerida" só onde a ficha usa medida caseira; marcada como sugestão.
 
 ## Falta
-- Respostas do responsável às 22 perguntas; depois, atualizar `ingredientes.md` e o resumo.
+- Respostas do responsável às 30 perguntas (a partir de 22/11/2026); depois, atualizar `ingredientes.md` e o resumo.
 - Quando o responsável atualizar fichas no Drive, reler e atualizar.
 - Lista dos produtos sem ficha ("levantamento geral", pergunta 21).
 - A tabela "Frentes abertas" do `cerebro/frentes/README.md` não foi alterada (o responsável limitou esta

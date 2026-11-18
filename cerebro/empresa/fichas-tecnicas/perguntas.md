@@ -1,6 +1,6 @@
 # Perguntas ao responsável sobre as fichas técnicas
 
-Aberto em 15/11/2026 pela frente `fichas-tecnicas`. Nada foi inventado: quando a ficha não diz,
+Aberto em 15/11/2026 pela frente `fichas-tecnicas`. **O responsável responde a partir de 22/11/2026.** Nada foi inventado: quando a ficha não diz,
 vira pergunta aqui. Respondida ganha ` ✔ resposta (data)`. As perguntas vão da que mais trava o
 cadastro para a que menos trava.
 
@@ -16,10 +16,11 @@ cadastro para a que menos trava.
 4. **Temperos da casa:** "tempero da casa" (6, 52), "tempero de alho" (8), "tempero de alho e sal" (44),
    "pasta de alho" (12) e "tempero" (9, 23) são a ficha 4 (Tempero) ou produtos comprados?
 5. **Maionese dos hambúrgueres** (19, 21, 22): é a maionese caseira da ficha 15 ou uma comprada?
+   (Pista, 18/11: o cardápio diz "maionese caseira". Só confirmar.)
 6. **Sorvete:** os sorvetes das fichas (Rafaello, Kinder, chocolate com avelã, creme) vêm da 60 Sabores?
    Se vêm, a casa compra os potes da franquia e eles entram no nosso estoque?
 7. **Gelo e água filtrada** entram no estoque ou ficam fora, como a água da torneira?
-8. **Comprados prontos ou feitos na casa?** Brownie, bife de hambúrguer, nhoque, molho ao sugo, torta
+8. **Comprados prontos ou feitos na casa?** (Pista, 18/11: o cardápio diz "bife artesanal".) Brownie, bife de hambúrguer, nhoque, molho ao sugo, torta
    da Gisele (inteira? quantas fatias?).
 9. **Embalagens de compra:** quase nenhuma ficha diz. Para os itens mais usados (arroz já diz: pacote
    5 kg), como a casa compra: lata de milho de quantos g, caixa de creme de leite de 200 g ou 200 ml,
@@ -44,5 +45,18 @@ cadastro para a que menos trava.
 20. Quais produtos vendem mais? Assim fecho primeiro as fichas que mais pesam (a prioridade "A" em
     `para-atualizar.md` é só um palpite meu).
 21. O PDF fala de um "levantamento geral atualizado" com os produtos que ainda não têm ficha. Ele está no
-    Drive? Se estiver, em qual pasta?
+    Drive? Se estiver, em qual pasta? (Parcial, 18/11: o cardápio já mostra os produtos sem ficha, em
+    `cardapio-x-fichas.md`. O levantamento ainda serve se tiver mais detalhe.)
 22. "Massa comum dos salgados" (fichas 46, 47, 48) é a massa da ficha 50 (salgado assado)?
+
+## Novas, do cardápio (18/11/2026)
+23. **Cheese Tudo:** o cardápio diz peito de peru; a ficha 22 diz presunto. Qual vale?
+24. **Batata dos hambúrgueres:** os 150 g de batata frita que acompanham cada hambúrguer são crus
+    (congelados)? Posso somar isso às fichas 19, 21 e 22?
+25. **Sucos:** o cardápio vende 300 ml e as fichas rendem 250 ml (28, 29, 30, 31). Qual está certo?
+26. **Café coado** do cardápio é o drip (ficha 55)? **Cappuccino da casa** é o "tradicional" (ficha 56)?
+27. **Pão de queijo** do cardápio (R$ 2,00) é o da ficha 43 ou o 3 queijos (42)?
+28. Fichas que não aparecem no cardápio (3, 10, 12, 17, 25, 26, 27, 30, 32, 34, 35, 37, 42, 51, 59): saíram
+    do cardápio, são de outro lugar (60 Sabores) ou são de uso interno? "Coquetel clássico" é um deles?
+29. **Adicional de feijão:** R$ 2,00 (refeições do dia) e R$ 4,00 (executivos). São dois preços mesmo?
+30. **Doses** de Cachaça Prata da Casa e Campari: quantos ml?
