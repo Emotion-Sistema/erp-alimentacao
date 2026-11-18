@@ -78,6 +78,12 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - O responsável aprovou paleta, letras e logo (frente paleta-da-marca) e pediu para aplicar a todo o ERP, "perfeito".
 - Branch `feat/identidade-visual` (worktree no scratchpad), decisão 0019: tema.css com a paleta, `publico.css` (letras do cliente e modo escuro só em loja/site), letras via @fontsource, casca da gestão com faixa café e logo, entrada com logo, ícones da marca (`scripts/gerar-marca.py`). Construtor faz o acabamento das telas internas.
 
+## 18/11/2026: ajustes vistos no celular do responsável (PR 82, merge 0872ab4)
+- O navegador do celular escurecia a gestão sozinho: agora `color-scheme: only light` e a meta `color-scheme` (gestão sempre clara).
+- Menu que rola de lado mostra que rola: bordas esmaecidas, setas e a aba aberta centrada.
+- Botão **Tela cheia** no topo da gestão e na estação da cozinha (some onde o aparelho não deixa, ex.: iPhone no navegador).
+- Próxima etapa proposta: E07 parte 3 (importação de planilha .xlsx, .csv e .html com relatório de erros por linha).
+
 ## O que ficou pendente
 - Conferir com o responsável o visual novo na homologação (inclusive num Android real: letras).
 - Telas com mais de um botão cheio (Horários, Funcionários, Turnos, Estações): rever a regra "um botão forte por tela" se o responsável quiser.
