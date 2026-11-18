@@ -67,8 +67,20 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - O revisor reprovou a 1ª versão (deadlock entre duas pessoas mudando a posição). Corrigido com `pg_advisory_xact_lock`, o primeiro comando de toda gravação. O teste com 8 rodadas de 4 gravações falha sem a trava e passa com ela. Aprovado na 2ª revisão.
 - Regra registrada no adendo de 18/11 da decisão 0012. Usar `PosicaoNaLista` em Produtos.
 
+## 18/11/2026: produtos (PR 3)
+- PR 76 juntado (merge adfa12d), no ar na homologação: migração 0012 (`produto`), decisão 0018, tela `/cadastros/produtos`.
+- Preço em centavos (R$ 0,01 a R$ 9.999,99; `centavosDoTexto` lê "12,50" sem float); tipo de produção opcional (sem tipo = não passa pela produção) e tempo de preparo junto do tipo (o banco segura); posição dentro da categoria.
+- Revisor: APROVADO; ressalvas corrigidas (id grande, caractere de controle, testes de reativar e da corrida com categoria sendo desativada).
+- Teste de horários quebrava depois das 23h30 (pausa passa da meia-noite): corrigido para esperar a data de amanhã nesse caso.
+- Hipóteses da 0018: um preço para todos os canais; foto, alergênicos, tamanhos, adicionais e combos num PR depois; preço mínimo R$ 0,01.
+
+## 18/11/2026: marca E-MOTION no sistema (em andamento)
+- O responsável aprovou paleta, letras e logo (frente paleta-da-marca) e pediu para aplicar a todo o ERP, "perfeito".
+- Branch `feat/identidade-visual` (worktree no scratchpad), decisão 0019: tema.css com a paleta, `publico.css` (letras do cliente e modo escuro só em loja/site), letras via @fontsource, casca da gestão com faixa café e logo, entrada com logo, ícones da marca (`scripts/gerar-marca.py`). Construtor faz o acabamento das telas internas.
+
 ## O que ficou pendente
-- PR 3 (produtos: preço em centavos, categoria, tipo de produção, tempo de preparo).
+- Terminar e publicar a marca na homologação (PR da `feat/identidade-visual`).
+- Foto, alergênicos, tamanhos, adicionais e combos dos produtos (PR próprio).
 - As 11 unidades divergentes do catálogo esperam as perguntas 1 e 2 das fichas (`cerebro/empresa/fichas-tecnicas/perguntas.md`).
 
 ## O que deu errado ou surpreendeu
