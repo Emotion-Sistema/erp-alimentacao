@@ -205,6 +205,7 @@ esgotado e a lista de funcionários.
 - Checklist de toda página pública: skill `pagina-publica`.
 
 ## 6. Sugestões do Claude (além do pedido)
+Como cada uma funciona no dia a dia: `RC-07-sugestoes-no-dia-a-dia.md`.
 | # | Sugestão | Por que vale | Classificação proposta |
 |---|---|---|---|
 | S1 | **Alergênicos calculados da ficha técnica**: cada ingrediente marca o que contém (glúten, leite, ovo, amendoim...) e o prato herda sozinho | Segurança do cliente; nunca fica desatualizado (mesmo princípio do RC-09) | evolução (depois da ficha técnica, E08) |
