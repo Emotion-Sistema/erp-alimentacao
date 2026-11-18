@@ -89,6 +89,11 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - Até 640 px: topo de 64 px (símbolo, aplicativo, quem usa; sino e botão redondo da conta); gaveta da conta que sobe de baixo (trocar cargo, tela cheia, minha conta, sair); menu preso no alto; lançador em linhas compactas.
 - Testes de celular que tocam em Sair/Trocar de cargo usam `abrirConta(page)` (ajudas.ts).
 
+## 18/11/2026: navegação do celular em protótipo; tela cheia
+- O responsável não gostou da faixa de menu que rola de lado. Protótipos com 4 alternativas (barra de baixo; ação principal no polegar; painel de atalhos; seletor no título) no artifact https://claude.ai/artifact/PwVVpmbMVxpXXesgEfe2E1. Aguardando a escolha dele.
+- Tela cheia saía ao abrir um aplicativo pelo lançador (link comum recarregava a página): corrigido no PR 90 (Link do Next; trocar de cargo sem recarregar).
+- CI da main falhou uma vez (produtos.spec lia a lista antes de carregar): corrigido no PR 94 (`expect.poll`).
+
 ## O que ficou pendente
 - Conferir com o responsável o visual novo na homologação (inclusive num Android real: letras).
 - Telas com mais de um botão cheio (Horários, Funcionários, Turnos, Estações): rever a regra "um botão forte por tela" se o responsável quiser.
