@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { aguardarInicio, avisoNaTela, entrar, semEstouroDeLargura } from "./ajudas";
+import { abrirConta, aguardarInicio, avisoNaTela, entrar, semEstouroDeLargura } from "./ajudas";
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -58,6 +58,7 @@ test("quem tem dois cargos vê o cargo ativo e troca de cargo", async ({ page })
   const ativo = page.getByTestId("cargo-ativo");
   const primeiro = (await ativo.textContent())!;
   const outro = primeiro === "Atendente" ? "Cozinheira" : "Atendente";
+  await abrirConta(page);
   await page.getByLabel("Trocar de cargo").selectOption({ label: outro });
   await expect(ativo).toHaveText(outro);
   // Trocar de cargo volta ao lançador: atendente (1 aplicativo) cai no Atendimento; cozinheira (2) fica no lançador.

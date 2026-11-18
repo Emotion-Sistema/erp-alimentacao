@@ -1,5 +1,9 @@
 /* Equipe: sempre claro, mesmo com o celular no modo escuro (o navegador não pode escurecer sozinho). */
 :root, html { color-scheme: only light; }
+:root {
+  /* Ícone do sino (máscara; a cor vem do texto). */
+  --icone-sino: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9'/%3E%3Cpath d='M10.3 21a1.94 1.94 0 0 0 3.4 0'/%3E%3C/svg%3E");
+}
 /* Layout das páginas da gestão. Só variáveis do tema: nenhuma cor fixa. */
 .pagina { max-width: 960px; margin: 0 auto; padding: var(--espaco-4, 1rem); }
 .pagina-centro {
@@ -89,18 +93,122 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 .casca[data-aparelho="celular"] .casca__link,
 .casca[data-aparelho="tablet"] .casca__link { min-height: var(--alvo-toque-grande); }
 .casca__menu .casca__link { font-size: 1rem; padding: 0 0.625rem; }
-/* Celular: logo menor; o menu rola de lado dentro da própria faixa, nunca a página inteira. */
-@media (max-width: 40rem) {
-  .casca__faixa { gap: var(--espaco-2) var(--espaco-3); padding: var(--espaco-2) var(--espaco-3) calc(var(--espaco-2) + 3px); }
-  .casca__logo { height: 32px; }
-  .casca__app { flex-basis: auto; padding-left: var(--espaco-3); font-size: var(--tamanho-texto); }
-  .casca__quem { flex-basis: 100%; order: 3; }
-  .casca__troca { order: 4; flex-basis: 100%; }
-  .casca__lado { order: 5; flex-basis: 100%; margin-left: 0; gap: var(--espaco-2); }
-  .casca__lado .casca__link, .casca__lado .erp-botao--secundario, .casca__lado .avisos__sino { min-height: 44px; padding: 0 var(--espaco-3); font-size: var(--texto-pequeno); }
-  .casca__menu-faixa { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding: var(--espaco-2) var(--espaco-3); scrollbar-width: thin; }
-  .casca__menu .casca__link { flex: 0 0 auto; }
+/* Conta: no computador os itens ficam na faixa, na ordem de sempre (a gaveta vira "contents"). */
+.casca__simbolo, .casca__conta-botao, .casca__conta-titulo { display: none; }
+@media (min-width: 40.0625rem) {
+  .casca__conta { display: contents; }
+  .casca__conta > .casca__troca { order: -1; margin-right: auto; }
+  .casca__lado { flex-wrap: wrap; }
+  .casca__lado > .avisos { order: 2; }
+  .casca__conta > .tela-cheia { order: 1; }
+  .casca__conta > a.casca__link { order: 3; }
+  .casca__conta > .erp-botao { order: 4; }
 }
+
+/* ---------- Celular (até 640 px): topo compacto de aplicativo, menu fixo, gaveta da conta ----------
+ * Pedido do responsável (18/11/2026): "o layout do celular está cru e de acesso chato"; o computador
+ * fica como está. Topo de 64 px: símbolo, aplicativo e quem está usando; à direita, o sino e a conta. */
+@media (max-width: 40rem) {
+  .casca__topo { border-bottom-width: 2px; box-shadow: none; padding-top: env(safe-area-inset-top); }
+  .casca__faixa {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "marca app lado" "marca quem lado";
+    align-items: center; column-gap: var(--espaco-3); row-gap: 0;
+    padding: var(--espaco-2) var(--espaco-3); min-height: 64px;
+  }
+  .casca__marca { grid-area: marca; min-height: 44px; }
+  .casca__logo { display: none; }
+  .casca__simbolo { display: block; width: 52px; height: auto; }
+  .casca__app {
+    grid-area: app; align-self: end; padding: 0; border: 0; font-size: 1.1875rem; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .casca__quem {
+    grid-area: quem; align-self: start; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 0.8125rem; line-height: 1.35; color: var(--cor-faixa-escura-suave);
+  }
+  .casca__quem > * { display: inline; }
+  .casca__quem > strong { margin-right: 0.3em; }
+  /* Sem nome de aplicativo (lançador), quem está usando ocupa as duas linhas. */
+  .casca__faixa:not(:has(.casca__app)) .casca__quem { grid-row: 1 / 3; align-self: center; white-space: normal; font-size: var(--texto-pequeno); }
+  .casca__faixa:not(:has(.casca__app)) .casca__quem > * { display: block; }
+  .casca__quem > strong { font-size: inherit; color: var(--cor-faixa-escura-suave); font-weight: 400; }
+  .casca__quem > strong::after { content: ","; }
+  .casca__faixa:not(:has(.casca__app)) .casca__quem > strong { font-size: var(--tamanho-texto); color: var(--cor-faixa-escura-texto); font-weight: var(--peso-forte); }
+  .casca__faixa:not(:has(.casca__app)) .casca__quem > strong::after { content: none; }
+  .casca__quem-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .casca__lado { grid-area: lado; flex-wrap: nowrap; margin: 0; gap: var(--espaco-2); }
+
+  /* Sino e conta: botões redondos de 44 px. */
+  .casca__lado .avisos__sino, .casca__conta-botao {
+    position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0;
+    border-radius: 50%; font: inherit; font-weight: var(--peso-forte); cursor: pointer;
+  }
+  .casca__lado .avisos__sino > span[aria-hidden="true"]:first-child { font-size: 0; }
+  .casca__lado .avisos__sino::before {
+    content: ""; width: 22px; height: 22px; background: currentColor;
+    -webkit-mask: var(--icone-sino) center / contain no-repeat; mask: var(--icone-sino) center / contain no-repeat;
+  }
+  .casca__lado .avisos__contador {
+    position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center;
+    border-radius: 999px; font-size: 0.75rem; line-height: 1; box-shadow: 0 0 0 2px var(--cor-faixa-escura);
+  }
+  .casca__conta-botao {
+    background: var(--cor-ouro); color: var(--cor-ouro-texto); border: 2px solid color-mix(in srgb, var(--cor-ouro) 60%, var(--cor-faixa-escura));
+    font-size: 1.125rem; box-shadow: var(--brilho-botao);
+  }
+  .casca__conta-botao:focus-visible { outline-color: var(--cor-ambar); }
+
+  /* Gaveta da conta: sobe de baixo, clara, com alça; toque fora fecha (popover). */
+  .casca__conta {
+    position: fixed; inset: auto 0 0 0; width: 100%; max-width: 100%; max-height: min(85dvh, 36rem); margin: 0;
+    padding: var(--espaco-3) var(--espaco-4) calc(var(--espaco-5) + env(safe-area-inset-bottom));
+    border: 0; border-top: 1px solid var(--cor-borda-suave); border-radius: 22px 22px 0 0; overflow-y: auto;
+    background: var(--cor-cartao); color: var(--cor-texto); box-shadow: var(--sombra-3);
+    flex-direction: column; gap: var(--espaco-3);
+  }
+  .casca__conta:popover-open { display: flex; animation: gaveta-sobe 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .casca__conta::backdrop { background: color-mix(in srgb, var(--cor-texto) 45%, transparent); backdrop-filter: blur(2px); }
+  .casca__conta::before {
+    content: ""; align-self: center; width: 44px; height: 5px; border-radius: 999px; margin-bottom: var(--espaco-1);
+    background: var(--cor-borda-suave);
+  }
+  .casca__conta-titulo { display: block; margin: 0 0 var(--espaco-1); font-size: var(--texto-grande); font-weight: var(--peso-forte); }
+  .casca__conta .tela-cheia { font-weight: var(--peso-forte); }
+  .casca__conta .casca__troca { min-width: 0; }
+  .casca__conta .casca__troca .erp-campo__rotulo { color: var(--cor-texto); font-size: var(--tamanho-texto); }
+  .casca__conta .casca__troca .ajuda__explicacao { color: var(--cor-texto-suave); }
+  .casca__conta .casca__troca .ajuda__botao { color: var(--cor-primaria); }
+  .casca__lado .casca__conta .casca__link, .casca__lado .casca__conta .erp-botao--secundario {
+    width: 100%; min-height: 52px; justify-content: flex-start; padding: 0 var(--espaco-4); font-size: var(--tamanho-texto);
+    background: var(--cor-cartao); color: var(--cor-texto); border: 1px solid var(--cor-borda-suave); box-shadow: var(--sombra-1);
+  }
+  .casca__lado .casca__conta .casca__link:hover, .casca__lado .casca__conta .erp-botao--secundario:hover:not(:disabled) {
+    background: var(--cor-superficie); color: var(--cor-texto); border-color: var(--cor-borda);
+  }
+  .casca__lado .casca__conta .erp-botao--secundario { color: var(--cor-perigo); }
+  .casca__conta .tela-cheia__texto { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+  .casca__conta :focus-visible { outline-color: var(--cor-primaria); }
+
+  /* Menu: fica preso no alto ao rolar a página, como as abas de um aplicativo. */
+  .casca__menu { position: sticky; top: 0; z-index: 15; background: var(--cor-superficie); box-shadow: 0 6px 14px -10px color-mix(in srgb, var(--cor-texto) 35%, transparent); }
+  .casca__menu-faixa { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding: var(--espaco-2) var(--espaco-3); scrollbar-width: none; gap: var(--espaco-1); }
+  .casca__menu-faixa::-webkit-scrollbar { display: none; }
+  .casca__menu .casca__link { flex: 0 0 auto; min-height: 48px; }
+
+  /* Conteúdo: margens de celular, títulos na medida e respiro para o polegar no fim. */
+  .casca__conteudo { padding: var(--espaco-4) var(--espaco-4) calc(var(--espaco-6) + env(safe-area-inset-bottom)); }
+  .casca__conteudo h1 { font-size: 1.625rem; }
+
+  /* Lançador: aplicativos em linhas compactas, seta no meio à direita. */
+  .erp-grade-ladrilhos { gap: var(--espaco-3); }
+  .erp-ladrilho { min-height: 0; padding: var(--espaco-4) calc(var(--espaco-6) + var(--espaco-2)) var(--espaco-4) var(--espaco-4); gap: var(--espaco-1); }
+  .erp-ladrilho::before { inset: 0 auto 0 0; width: 4px; height: auto; background: linear-gradient(180deg, var(--cor-ambar), var(--cor-marca) 55%, var(--cor-primaria)); }
+  .erp-ladrilho::after { bottom: auto; top: calc(50% - 0.3rem); right: var(--espaco-5); }
+  .erp-ladrilho:hover { transform: none; }
+  .erp-ladrilho__titulo { font-size: 1.25rem; padding-right: 0; }
+  .erp-ladrilho__descricao { padding-right: 0; }
+}
+@keyframes gaveta-sobe { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .casca__conteudo { flex: 1; width: 100%; max-width: var(--largura-conteudo); margin: 0 auto; padding: var(--espaco-5) var(--espaco-4) var(--espaco-6); min-width: 0; }
 .lista-simples { list-style: none; margin: 0; padding: 0; }
 .lista-simples > li { margin-bottom: var(--espaco-2); }
@@ -559,7 +667,7 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 @media (prefers-reduced-motion: reduce) { .acoes > summary::after, .tecla, .pessoa { transition: none; } }
 
 /* ---------- Menu que rola de lado: bordas esmaecidas e setas (18/11/2026) ---------- */
-.casca__menu { position: relative; }
+@media (min-width: 40.0625rem) { .casca__menu { position: relative; } }
 .casca__menu-faixa { scroll-snap-type: x proximity; }
 .casca__menu-faixa > .casca__link { scroll-snap-align: center; }
 .casca__menu[data-mais-esquerda] .casca__menu-faixa,
@@ -593,6 +701,5 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 .tela-cheia__icone { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 @media (max-width: 40rem) {
   /* No celular, só o ícone (o nome continua para o leitor de tela e no toque longo). */
-  .casca__lado .tela-cheia__texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 .estacao__topo .tela-cheia { margin-left: auto; }
