@@ -1,0 +1,2 @@
+/* Tela de Produtos: o resto do estilo vem de ../horarios/horarios.css (hor-tela, hor-secao, hor-cat). */
+.prod-preco { margin: 0; font-size: var(--texto-grande); font-weight: 800; }
