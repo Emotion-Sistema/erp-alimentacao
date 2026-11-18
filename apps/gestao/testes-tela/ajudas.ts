@@ -8,18 +8,25 @@ export const SENHA = "senha-de-teste-123";
 
 /** Só no teste: executa SQL no banco de teste de tela. */
 export function sql(comando: string): void {
-  execFileSync("psql", [BANCO, "-v", "ON_ERROR_STOP=1", "-c", comando], { stdio: "pipe" });
+  execFileSync("psql", [BANCO, "-v", "ON_ERROR_STOP=1", "-c", comando], {
+    stdio: "pipe",
+  });
 }
 
 /** Login da semente: o cargo com "_" trocado por ".". */
 export const loginDoCargo = (cargo: string) => cargo.replace("_", ".");
 
 export function zerarSegundoFator(login: string) {
-  sql(`UPDATE usuario SET totp_segredo = NULL, totp_pendente = NULL, totp_ultimo_passo = NULL WHERE login = '${login}'`);
+  sql(
+    `UPDATE usuario SET totp_segredo = NULL, totp_pendente = NULL, totp_ultimo_passo = NULL WHERE login = '${login}'`,
+  );
 }
 
 /** Caminhos onde a pessoa pode cair ao entrar: o lançador ("/") ou a tela do seu único aplicativo. */
-const PAGINAS_INICIAIS = new Set(["/", ...APLICATIVOS.flatMap((a) => a.itens.map((i) => i.caminho))]);
+const PAGINAS_INICIAIS = new Set([
+  "/",
+  ...APLICATIVOS.flatMap((a) => a.itens.map((i) => i.caminho)),
+]);
 
 /** Espera a pessoa chegar ao início: o lançador, ou a tela do aplicativo se o cargo tem só um. */
 export async function aguardarInicio(page: Page) {
@@ -39,8 +46,44 @@ export async function abrirConta(page: Page) {
   }
 }
 
+/**
+ * Nomes de tudo que o menu oferece. No computador, o menu de cima. No celular (18/11/2026), a barra
+ * de baixo mais a gaveta "Mais" (abre, lê e fecha); no lançador do celular não há barra: valem os
+ * cartões dos aplicativos. A ordem da barra pode ser outra (as mais usadas primeiro).
+ */
+export async function nomesDoMenu(page: Page): Promise<string[]> {
+  const nav = page.getByRole("navigation", { name: "Menu" });
+  if ((await nav.count()) === 0)
+    return page.locator(".erp-ladrilho__titulo").allTextContents();
+  // Na barra, o nome curto aparece e o nome inteiro fica no aria-label.
+  const nomes = await nav
+    .getByRole("link")
+    .evaluateAll((els) =>
+      els.map((e) =>
+        (e.getAttribute("aria-label") ?? e.textContent ?? "").trim(),
+      ),
+    );
+  const mais = page.locator('button[popovertarget="barra-mais"]');
+  if (await mais.isVisible()) {
+    await mais.click();
+    await expect(page.locator("#barra-mais")).toBeVisible();
+    nomes.push(
+      ...(
+        await page.locator("#barra-mais .barra__mais-item").allTextContents()
+      ).map((t) => t.trim()),
+    );
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#barra-mais")).toBeHidden();
+  }
+  return nomes;
+}
+
 /** Entra pela tela. Dono e administrador também configuram o segundo fator, como uma pessoa faria. */
-export async function entrar(page: Page, login: string, comSegundoFator = false) {
+export async function entrar(
+  page: Page,
+  login: string,
+  comSegundoFator = false,
+) {
   if (comSegundoFator) zerarSegundoFator(login);
   await page.goto("/entrar");
   await page.getByLabel("Usuário").fill(login);
@@ -48,7 +91,9 @@ export async function entrar(page: Page, login: string, comSegundoFator = false)
   await page.getByRole("button", { name: "Entrar" }).click();
   if (comSegundoFator) {
     await page.waitForURL("**/segundo-fator");
-    const segredo = (await page.getByTestId("segredo-2fa").textContent())!.trim();
+    const segredo = (await page
+      .getByTestId("segredo-2fa")
+      .textContent())!.trim();
     await expect(page.locator(".qr svg")).toBeVisible();
     const codigo = TOTP.generate({ secret: Secret.fromBase32(segredo) });
     await page.getByLabel("Código do aplicativo autenticador").fill(codigo);
@@ -64,18 +109,25 @@ export async function entrar(page: Page, login: string, comSegundoFator = false)
  * página do Next (`#__next-route-announcer__`), que também é role="alert" e aparece depois de
  * uma navegação: sem isso, `getByRole("alert")` acha dois e o teste falha por acaso.
  */
-export const avisoNaTela = (page: Page) => page.locator('[role="alert"]:not(#__next-route-announcer__)');
+export const avisoNaTela = (page: Page) =>
+  page.locator('[role="alert"]:not(#__next-route-announcer__)');
 
 export async function janelaNoCentro(page: Page, janela: Locator) {
   const tela = page.viewportSize()!;
   // Espera a animação de entrada terminar (ela desliza alguns pixels).
   await expect
-    .poll(async () => {
-      const c = (await janela.boundingBox())!;
-      const horizontal = Math.abs(c.x - (tela.width - c.x - c.width));
-      const vertical = c.height < tela.height - 4 ? Math.abs(c.y - (tela.height - c.y - c.height)) : 0;
-      return Math.max(horizontal, vertical);
-    }, { message: "janela centralizada na tela" })
+    .poll(
+      async () => {
+        const c = (await janela.boundingBox())!;
+        const horizontal = Math.abs(c.x - (tela.width - c.x - c.width));
+        const vertical =
+          c.height < tela.height - 4
+            ? Math.abs(c.y - (tela.height - c.y - c.height))
+            : 0;
+        return Math.max(horizontal, vertical);
+      },
+      { message: "janela centralizada na tela" },
+    )
     .toBeLessThanOrEqual(2);
 }
 
@@ -84,7 +136,10 @@ export async function semEstouroDeLargura(page: Page) {
     rolagem: document.documentElement.scrollWidth,
     largura: document.documentElement.clientWidth,
   }));
-  expect(rolagem, `largura da página ${rolagem} maior que a tela ${largura}`).toBeLessThanOrEqual(largura);
+  expect(
+    rolagem,
+    `largura da página ${rolagem} maior que a tela ${largura}`,
+  ).toBeLessThanOrEqual(largura);
 }
 
 /**
@@ -93,7 +148,9 @@ export async function semEstouroDeLargura(page: Page) {
  */
 export async function abrirAdicionar(page: Page, aba: "Rápido" | "Comum") {
   await expect(page.getByTestId("lista-ingredientes")).toBeVisible();
-  await page.getByRole("button", { name: "Adicionar ingrediente", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Adicionar ingrediente", exact: true })
+    .click();
   const janela = page.getByRole("dialog", { name: "Adicionar ingrediente" });
   await expect(janela).toBeVisible();
   await janelaNoCentro(page, janela);
@@ -110,9 +167,29 @@ export async function janelaSemEstouro(page: Page) {
     const cabeca = d.querySelector<HTMLElement>(".janela__cabeca")!;
     // Para a mensagem de erro: o elemento que passa da borda direita do corpo.
     const limite = corpo.getBoundingClientRect().right;
-    const culpado = Array.from(corpo.querySelectorAll<HTMLElement>("*")).find((e) => e.getClientRects().length && e.getBoundingClientRect().right > limite + 0.5);
+    const culpado = Array.from(corpo.querySelectorAll<HTMLElement>("*")).find(
+      (e) =>
+        e.getClientRects().length &&
+        e.getBoundingClientRect().right > limite + 0.5,
+    );
     return {
-      culpado: culpado ? `${culpado.tagName}.${culpado.className} "${(culpado.textContent ?? "").slice(0, 40)}"` + (` ${(() => { const c: string[] = []; for (let e: HTMLElement | null = culpado; e && e !== corpo; e = e.parentElement) { const r = e.getBoundingClientRect(); c.push(`${e.tagName}.${e.className}[${Math.round(r.left)}-${Math.round(r.right)} w${e.scrollWidth}/${e.clientWidth}]`); } return c.join(" < "); })()}`) : "",
+      culpado: culpado
+        ? `${culpado.tagName}.${culpado.className} "${(culpado.textContent ?? "").slice(0, 40)}"` +
+          ` ${(() => {
+            const c: string[] = [];
+            for (
+              let e: HTMLElement | null = culpado;
+              e && e !== corpo;
+              e = e.parentElement
+            ) {
+              const r = e.getBoundingClientRect();
+              c.push(
+                `${e.tagName}.${e.className}[${Math.round(r.left)}-${Math.round(r.right)} w${e.scrollWidth}/${e.clientWidth}]`,
+              );
+            }
+            return c.join(" < ");
+          })()}`
+        : "",
       corpo: [corpo.scrollWidth, corpo.clientWidth],
       cabeca: [cabeca.scrollWidth, cabeca.clientWidth],
       // A janela em si nunca rola (só o corpo): senão o cabeçalho e o Fechar sairiam da tela.
@@ -121,8 +198,17 @@ export async function janelaSemEstouro(page: Page) {
       tela: document.documentElement.clientWidth,
     };
   });
-  expect(r.corpo[0], `conteúdo da janela ${r.corpo[0]} maior que ${r.corpo[1]} (${r.culpado})`).toBeLessThanOrEqual(r.corpo[1]!);
-  expect(r.cabeca[0], `cabeçalho da janela ${r.cabeca[0]} maior que ${r.cabeca[1]}`).toBeLessThanOrEqual(r.cabeca[1]!);
-  expect(r.altura[0], `a janela rola sozinha (${r.altura[0]} > ${r.altura[1]})`).toBeLessThanOrEqual(r.altura[1]!);
+  expect(
+    r.corpo[0],
+    `conteúdo da janela ${r.corpo[0]} maior que ${r.corpo[1]} (${r.culpado})`,
+  ).toBeLessThanOrEqual(r.corpo[1]!);
+  expect(
+    r.cabeca[0],
+    `cabeçalho da janela ${r.cabeca[0]} maior que ${r.cabeca[1]}`,
+  ).toBeLessThanOrEqual(r.cabeca[1]!);
+  expect(
+    r.altura[0],
+    `a janela rola sozinha (${r.altura[0]} > ${r.altura[1]})`,
+  ).toBeLessThanOrEqual(r.altura[1]!);
   expect(r.janela).toBeLessThanOrEqual(r.tela);
 }
