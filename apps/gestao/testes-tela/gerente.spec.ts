@@ -1,9 +1,17 @@
 import { expect, test } from "@playwright/test";
-import { abrirConta, aguardarInicio, avisoNaTela, entrar, semEstouroDeLargura } from "./ajudas";
+import {
+  abrirConta,
+  aguardarInicio,
+  avisoNaTela,
+  entrar,
+  semEstouroDeLargura,
+} from "./ajudas";
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-test("gerente cria um atendente, mas não consegue dar cargo de financeiro", async ({ page }) => {
+test("gerente cria um atendente, mas não consegue dar cargo de financeiro", async ({
+  page,
+}) => {
   await entrar(page, "gerente.geral");
   await page.goto("/funcionarios");
 
@@ -20,35 +28,59 @@ test("gerente cria um atendente, mas não consegue dar cargo de financeiro", asy
   await expect(linha).toContainText("Ativo");
 
   await linha.getByText("Gerenciar Ana Atendente").click();
-  await linha.getByLabel("Dar cargo a Ana Atendente").selectOption("financeiro");
+  await linha
+    .getByLabel("Dar cargo a Ana Atendente")
+    .selectOption("financeiro");
   await linha.getByRole("button", { name: "Dar cargo", exact: true }).click();
-  await expect(avisoNaTela(page)).toBeVisible().catch(() => undefined);
+  await expect(avisoNaTela(page))
+    .toBeVisible()
+    .catch(() => undefined);
   await expect(page.getByText(/não pode/i)).toBeVisible();
-  await expect(linha.locator('[data-rotulo="Cargos"]')).not.toContainText("Financeiro");
+  await expect(linha.locator('[data-rotulo="Cargos"]')).not.toContainText(
+    "Financeiro",
+  );
   await semEstouroDeLargura(page);
 });
 
-test("código pessoal só para a cozinha: recusa e depois certo, com segundo cargo", async ({ page }) => {
+test("código pessoal só para a cozinha: recusa e depois certo, com segundo cargo", async ({
+  page,
+}) => {
   await entrar(page, "gerente.geral");
   await page.goto("/funcionarios");
   const linha = page.getByTestId("linha-ana.atendente");
   await linha.getByText("Gerenciar Ana Atendente").click();
   await linha.getByLabel("Código de 4 números de Ana Atendente").fill("2580");
   await linha.getByRole("button", { name: "Definir código" }).click();
-  await expect(page.getByText("Só quem trabalha na cozinha usa código pessoal.")).toBeVisible();
+  await expect(
+    page.getByText("Só quem trabalha na cozinha usa código pessoal."),
+  ).toBeVisible();
 
-  await linha.getByLabel("Dar cargo a Ana Atendente").selectOption("cozinheira");
+  await linha
+    .getByLabel("Dar cargo a Ana Atendente")
+    .selectOption("cozinheira");
   await linha.getByRole("button", { name: "Dar cargo", exact: true }).click();
   await expect(page.getByText("Cargo dado.")).toBeVisible();
-  await expect(page.getByTestId("linha-ana.atendente").locator('[data-rotulo="Cargos"]')).toHaveText("Atendente Cozinheira");
+  await expect(
+    page.getByTestId("linha-ana.atendente").locator('[data-rotulo="Cargos"]'),
+  ).toHaveText("Atendente Cozinheira");
 
-  await page.getByTestId("linha-ana.atendente").getByLabel("Código de 4 números de Ana Atendente").fill("2580");
-  await page.getByTestId("linha-ana.atendente").getByRole("button", { name: "Definir código" }).click();
+  await page
+    .getByTestId("linha-ana.atendente")
+    .getByLabel("Código de 4 números de Ana Atendente")
+    .fill("2580");
+  await page
+    .getByTestId("linha-ana.atendente")
+    .getByRole("button", { name: "Definir código" })
+    .click();
   await expect(page.getByText("Código definido.")).toBeVisible();
-  await expect(page.getByTestId("linha-ana.atendente")).toContainText("Definido");
+  await expect(page.getByTestId("linha-ana.atendente")).toContainText(
+    "Definido",
+  );
 });
 
-test("quem tem dois cargos vê o cargo ativo e troca de cargo", async ({ page }) => {
+test("quem tem dois cargos vê o cargo ativo e troca de cargo", async ({
+  page,
+}) => {
   // Ana foi criada com a senha escolhida no primeiro teste.
   await page.goto("/entrar");
   await page.getByLabel("Usuário").fill("ana.atendente");
@@ -58,25 +90,52 @@ test("quem tem dois cargos vê o cargo ativo e troca de cargo", async ({ page })
   const ativo = page.getByTestId("cargo-ativo");
   const primeiro = (await ativo.textContent())!;
   const outro = primeiro === "Atendente" ? "Cozinheira" : "Atendente";
+  // Trocar de cargo não recarrega a página (a tela cheia continua ligada).
+  await page.evaluate(
+    () =>
+      ((window as unknown as { __mesmaPagina: boolean }).__mesmaPagina = true),
+  );
   await abrirConta(page);
   await page.getByLabel("Trocar de cargo").selectOption({ label: outro });
   await expect(ativo).toHaveText(outro);
   // Trocar de cargo volta ao lançador: atendente (1 aplicativo) cai no Atendimento; cozinheira (2) fica no lançador.
-  await expect(page).toHaveURL(outro === "Atendente" ? /\/atendimento$/ : /\/$/);
+  await expect(page).toHaveURL(
+    outro === "Atendente" ? /\/atendimento$/ : /\/$/,
+  );
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __mesmaPagina?: boolean }).__mesmaPagina,
+    ),
+  ).toBe(true);
+  await expect(page.locator("#casca-conta")).toBeHidden();
   await semEstouroDeLargura(page);
 });
 
 test("gerente desliga com confirmação", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await page.goto("/funcionarios");
-  await page.getByTestId("linha-ana.atendente").getByText("Gerenciar Ana Atendente").click();
-  await page.getByTestId("linha-ana.atendente").getByRole("button", { name: "Desligar" }).click();
-  await expect(page.getByText("Desligar corta o acesso na hora. Confirmar?")).toBeVisible();
-  await page.getByRole("button", { name: "Sim, desligar Ana Atendente" }).click();
-  await expect(page.getByTestId("linha-ana.atendente")).toContainText("Desligado");
+  await page
+    .getByTestId("linha-ana.atendente")
+    .getByText("Gerenciar Ana Atendente")
+    .click();
+  await page
+    .getByTestId("linha-ana.atendente")
+    .getByRole("button", { name: "Desligar" })
+    .click();
+  await expect(
+    page.getByText("Desligar corta o acesso na hora. Confirmar?"),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Sim, desligar Ana Atendente" })
+    .click();
+  await expect(page.getByTestId("linha-ana.atendente")).toContainText(
+    "Desligado",
+  );
 });
 
-test("minha conta: trocar o código mostra a regra e recusa sequência", async ({ page }) => {
+test("minha conta: trocar o código mostra a regra e recusa sequência", async ({
+  page,
+}) => {
   await entrar(page, "cozinheira");
   await page.goto("/minha-conta");
   await expect(page.getByText(/sem repetir/)).toBeVisible();
@@ -88,14 +147,20 @@ test("minha conta: trocar o código mostra a regra e recusa sequência", async (
   await expect(page.getByText("Seu código foi trocado.")).toBeVisible();
 });
 
-test("auditoria mostra as recusas em destaque e filtra por resultado", async ({ page }) => {
+test("auditoria mostra as recusas em destaque e filtra por resultado", async ({
+  page,
+}) => {
   await entrar(page, "gerente.geral");
   await page.goto("/auditoria");
-  await expect(page.getByRole("table", { name: "Registros de auditoria" })).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Registros de auditoria" }),
+  ).toBeVisible();
   await page.getByLabel("Resultado").selectOption("recusado");
   await page.getByRole("button", { name: "Filtrar" }).click();
   const etiquetas = page.locator(".erp-etiqueta");
   await expect(etiquetas.first()).toHaveText("Recusado");
-  expect(await etiquetas.allTextContents()).toEqual(Array(await etiquetas.count()).fill("Recusado"));
+  expect(await etiquetas.allTextContents()).toEqual(
+    Array(await etiquetas.count()).fill("Recusado"),
+  );
   await semEstouroDeLargura(page);
 });
