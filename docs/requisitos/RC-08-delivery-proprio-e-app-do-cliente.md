@@ -63,8 +63,8 @@ Retirada com hora marcada, pedido agendado, cardápio por QR Code na mesa, cupom
 primeira compra, pontos, avaliação pós-entrega, aviso por WhatsApp.
 
 ## Desconto de funcionário no delivery (responsável, 18/11/2026)
-Funcionário ativo que pede pelo delivery próprio tem 15% sobre o total com frete, acumulando com
-cupom. Ele liga a conta de cliente ao cadastro de funcionário uma vez (confirmação pelo código
+Funcionário ativo que pede pelo delivery próprio tem 15% sobre o total com frete; não acumula com
+cupom ou promoção (vale o maior). Ele liga a conta de cliente ao cadastro de funcionário uma vez (confirmação pelo código
 pessoal dele) e pode pagar online ou lançar na conta do funcionário. Regra completa no RC-13 seção 3a.
 
 ## Fora da primeira entrega do delivery

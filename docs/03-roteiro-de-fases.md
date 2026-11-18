@@ -77,7 +77,7 @@ Depende de identidade visual, textos, fotos e domínio. Não depende do restante
 ## Bloco G: delivery próprio
 | Etapa | Entrega | Modelos | Pronto quando |
 |---|---|---|---|
-| **E26** Loja online | Cardápio, carrinho, disponibilidade, área e taxa de entrega, estimativa · 📌 desconto de funcionário de 15% sobre produtos + frete, acumulando com cupom (RC-13 3a) | Sonnet; Opus nas regras | Preço e taxa calculados no servidor |
+| **E26** Loja online | Cardápio, carrinho, disponibilidade, área e taxa de entrega, estimativa · 📌 desconto de funcionário de 15% sobre produtos + frete, sem acumular: vale o maior (RC-13 3a) | Sonnet; Opus nas regras | Preço e taxa calculados no servidor |
 | **E27** Pagamento online | Reserva de estoque, pagamento, liberação para a cozinha, estorno · 📌 depois: S11 vale-presente (com o contador) | **Opus; revisor** | Critérios 1 a 5 do RC-08 |
 | **E28** Acompanhamento e aplicativo | Etapas, itens, posição na fila, previsão; aplicativo instalável · 📌 em seguida: S12 Clube E-MOTION | Sonnet; Opus revisa | Critério 6 do RC-08 |
 | **E29** Entregas | Expedição no caixa, aplicativo do motoboy, código de confirmação, prestação de contas (RC-14) | Sonnet; Opus na prestação de contas | Critérios do RC-14 |

@@ -62,17 +62,20 @@ desconto nos produtos da loja.** O sistema já nasce com essa regra (E17).
 - **Respostas do responsável (18/11/2026):**
   - **Onde vale:** salão, balcão, retirada e **delivery próprio**. No delivery, os 15% valem sobre o
     total **já com o frete** (produtos + frete). No iFood não (preço e pagamento são do iFood).
-  - **Vale na sorveteria 60 Sabores.** Atenção: o sorvete é vendido no sistema da franquia (RC-11).
-    O desconto só pode ser aplicado por este sistema se a venda do sorvete passar pelo nosso caixa;
-    se passar pelo sistema da franquia, o desconto é dado lá e aqui fica só o registro. Confirmar
-    como é hoje (pendência da 60 Sabores).
-  - **Soma com tudo:** acumula com qualquer promoção, cupom ou pontos do Clube.
+  - **Vale na sorveteria 60 Sabores.** Hoje (18/11/2026) todo o caixa da E-MOTION usa o **Mollsales**,
+    que a 60 Sabores exige para os sorvetes. Enquanto o sorvete for vendido no Mollsales, o desconto
+    dele é dado lá. Como fica o sorvete quando o caixa passar para este sistema: RC-11 e plano de
+    virada (sessão própria).
+  - **Não acumula (corrigido pelo responsável em 18/11/2026):** não há desconto em cima de desconto.
+    **Vale sempre o maior.**
   - **Pagamento:** na hora **ou na conta do funcionário** (ver abaixo).
-- **Como "somar com tudo" é calculado (hipótese a confirmar):** em sequência, nunca somando os
-  percentuais. Primeiro as promoções do produto, depois o cupom, depois os 15% sobre o que sobrou
-  (com frete, no delivery). Exemplo: lanche de R$ 40,00 com promoção de 10% fica R$ 36,00; com os
-  15% do funcionário, R$ 30,60. (Somar os percentuais daria 25% e R$ 30,00.) O total nunca fica
-  abaixo de zero. Arredondamento de cada desconto para o centavo mais próximo.
+- **Como "vale o maior" é calculado:** o servidor calcula, em centavos, o total do pedido com cada
+  desconto possível (15% do funcionário; promoção; cupom) e aplica **só o que deixa o total menor**.
+  Exemplo: lanche de R$ 40,00 com promoção de 10%: com a promoção fica R$ 36,00; com os 15% fica
+  R$ 34,00; vale o do funcionário, R$ 34,00. No delivery a comparação inclui o frete (os 15% valem
+  sobre produtos + frete). O pedido guarda qual desconto venceu e por quê. Hipóteses a confirmar:
+  a comparação é pelo pedido inteiro (não item a item); resgate de prêmio do Clube (S12) não é
+  desconto, é prêmio, e pode ser usado junto.
 - **Conta do funcionário:** em vez de pagar na hora, o caixa escolhe a forma "Conta do
   funcionário" (só o caixa marca, como todo Pago; o funcionário confirma com o código dele). O
   pedido fica pago para a loja e o valor vai para o saldo devedor daquele funcionário, com extrato
@@ -139,7 +142,7 @@ desconto nos produtos da loja.** O sistema já nasce com essa regra (E17).
    e chamando o servidor).
 4. Desconto e estorno sem autorização são recusados; com autorização ficam registrados.
    Desconto de funcionário só com a identificação do próprio funcionário ativo; o valor bate no
-   centavo com a conta manual, inclusive acumulado com promoção e com frete; funcionário inativo é
+   centavo com a conta manual, inclusive com promoção (vale o maior) e com frete; funcionário inativo é
    recusado; ninguém aplica na própria compra. Lançar na conta do funcionário e quitar em partes
    fecha no centavo, e o extrato mostra tudo.
 5. Fechamento cego: valor esperado só aparece depois da contagem; diferença exige justificativa.

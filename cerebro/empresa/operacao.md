@@ -11,6 +11,9 @@ Tudo abaixo dito pelo responsável em 13/11/2026.
 - Cafeteria: tela própria; entrega no próprio balcão.
 - Sorveteria 60 Sabores: franquia de autoatendimento, com sistema próprio (informado como
   "Mollbyte"). Não é operada por este sistema (RC-11).
+- **Sistema atual do caixa (responsável, 18/11/2026): toda a E-MOTION usa hoje o Mollsales**, parceiro
+  da 60 Sabores e de uso obrigatório para os sorvetes. Confirmar se "Mollbyte" e "Mollsales" são o
+  mesmo fornecedor. Impacto no RC-11, no caixa (RC-13) e no plano de virada: tratar em sessão própria.
 - Delivery e retirada: hoje embalados pela cozinha e enviados pelo elevador; a casa
   pretende mudar isso.
 - Aparelhos: só Android, da empresa, usados apenas na loja. Um login por funcionário.
@@ -32,7 +35,7 @@ Picos, troca de turno, fechamento: a levantar.
 ## Regras da casa
 - **Consumo de funcionário (responsável, 18/11/2026):** todo funcionário tem **15% de desconto** nos
   produtos da loja; já acontece hoje. Vale também no delivery próprio (sobre o total com frete) e
-  na sorveteria; acumula com qualquer promoção; pago na hora ou na conta do funcionário
+  na sorveteria; **não acumula: vale sempre o maior desconto**; pago na hora ou na conta do funcionário
   (18/11/2026). Regra no RC-13 seção 3a (E17).
 - Descontos em geral, cortesias, taxa de serviço, cancelamentos: a levantar.
 
