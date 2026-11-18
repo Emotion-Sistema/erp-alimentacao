@@ -10,23 +10,54 @@ export type CascaPublicaProps = {
 };
 
 /** Moldura das páginas públicas (loja e site): topo com navegação, conteúdo e rodapé. */
-export function CascaPublica({ nome, links, atual, rodape, children }: CascaPublicaProps) {
+export function CascaPublica({
+  nome,
+  links,
+  atual,
+  rodape,
+  children,
+}: CascaPublicaProps) {
   return (
     <div className="erp-publico">
       <header className="erp-publico__topo">
-        <a href="/" className="erp-publico__marca">
-          {nome}
+        <a
+          href="/"
+          className="erp-publico__marca"
+          aria-label={`${nome}: início`}
+        >
+          {/* Logo da marca; a versão para fundo escuro só aparece no modo escuro do aparelho. */}
+          <img
+            src="/marca/logo-horizontal.webp"
+            alt=""
+            width={599}
+            height={144}
+            className="erp-publico__logo erp-logo--clara"
+          />
+          <img
+            src="/marca/logo-horizontal-fundo-escuro.webp"
+            alt=""
+            width={599}
+            height={144}
+            className="erp-publico__logo erp-logo--escura"
+          />
         </a>
         <nav aria-label="Menu" className="erp-publico__menu">
           {links.map((l) => (
-            <a key={l.href} href={l.href} className="erp-publico__link" aria-current={atual === l.href ? "page" : undefined}>
+            <a
+              key={l.href}
+              href={l.href}
+              className="erp-publico__link"
+              aria-current={atual === l.href ? "page" : undefined}
+            >
               {l.texto}
             </a>
           ))}
         </nav>
       </header>
       <main className="erp-publico__conteudo">{children}</main>
-      <footer className="erp-publico__rodape">{rodape ?? `${nome}. Em construção.`}</footer>
+      <footer className="erp-publico__rodape">
+        {rodape ?? `${nome}. Em construção.`}
+      </footer>
     </div>
   );
 }

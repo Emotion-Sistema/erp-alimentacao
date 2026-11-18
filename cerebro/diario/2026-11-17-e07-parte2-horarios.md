@@ -74,12 +74,13 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - Teste de horários quebrava depois das 23h30 (pausa passa da meia-noite): corrigido para esperar a data de amanhã nesse caso.
 - Hipóteses da 0018: um preço para todos os canais; foto, alergênicos, tamanhos, adicionais e combos num PR depois; preço mínimo R$ 0,01.
 
-## 18/11/2026: marca E-MOTION no sistema (em andamento)
+## 18/11/2026: marca E-MOTION no sistema (feita: PR 79, merge abbb7aa, na homologação)
 - O responsável aprovou paleta, letras e logo (frente paleta-da-marca) e pediu para aplicar a todo o ERP, "perfeito".
 - Branch `feat/identidade-visual` (worktree no scratchpad), decisão 0019: tema.css com a paleta, `publico.css` (letras do cliente e modo escuro só em loja/site), letras via @fontsource, casca da gestão com faixa café e logo, entrada com logo, ícones da marca (`scripts/gerar-marca.py`). Construtor faz o acabamento das telas internas.
 
 ## O que ficou pendente
-- Terminar e publicar a marca na homologação (PR da `feat/identidade-visual`).
+- Conferir com o responsável o visual novo na homologação (inclusive num Android real: letras).
+- Telas com mais de um botão cheio (Horários, Funcionários, Turnos, Estações): rever a regra "um botão forte por tela" se o responsável quiser.
 - Foto, alergênicos, tamanhos, adicionais e combos dos produtos (PR próprio).
 - As 11 unidades divergentes do catálogo esperam as perguntas 1 e 2 das fichas (`cerebro/empresa/fichas-tecnicas/perguntas.md`).
 

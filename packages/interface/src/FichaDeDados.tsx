@@ -11,15 +11,27 @@ export function FichaDeDados({
   className,
   children,
   ...resto
-}: { compacta?: boolean; children: ReactNode } & Omit<HTMLAttributes<HTMLDListElement>, "children">) {
+}: { compacta?: boolean; children: ReactNode } & Omit<
+  HTMLAttributes<HTMLDListElement>,
+  "children"
+>) {
   return (
-    <dl className={["erp-ficha", compacta && "erp-ficha--compacta", className].filter(Boolean).join(" ")} {...resto}>
+    <dl
+      className={["erp-ficha", compacta && "erp-ficha--compacta", className]
+        .filter(Boolean)
+        .join(" ")}
+      {...resto}
+    >
       {children}
     </dl>
   );
 }
 
-const semValor = (v: ReactNode) => v === null || v === undefined || v === false || (typeof v === "string" && v.trim() === "");
+const semValor = (v: ReactNode) =>
+  v === null ||
+  v === undefined ||
+  v === false ||
+  (typeof v === "string" && v.trim() === "");
 
 /**
  * Um dado da ficha. Sem valor, mostra "Não informado" discreto (nunca um texto solto).
@@ -42,9 +54,17 @@ export function Dado({
   const vazio = semValor(children);
   if (vazio && ocultarSeVazio) return null;
   return (
-    <div className={["erp-dado", largo && "erp-dado--largo"].filter(Boolean).join(" ")}>
+    <div
+      className={["erp-dado", largo && "erp-dado--largo"]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <dt className="erp-dado__rotulo">{rotulo}</dt>
-      <dd className={["erp-dado__valor", vazio && "erp-dado__valor--vazio"].filter(Boolean).join(" ")}>
+      <dd
+        className={["erp-dado__valor", vazio && "erp-dado__valor--vazio"]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {icone && !vazio && <Icone nome={icone} />}
         {vazio ? "Não informado" : children}
       </dd>

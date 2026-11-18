@@ -25,7 +25,10 @@ export function ItemDeLista({
       <header className="erp-item__cabeca">
         <h2 className="erp-item__titulo">{titulo}</h2>
         {ativo !== undefined && (
-          <Selo variante={ativo ? "sucesso" : "neutro"} icone={ativo ? "ok" : undefined}>
+          <Selo
+            variante={ativo ? "sucesso" : "neutro"}
+            icone={ativo ? "ok" : undefined}
+          >
             {ativo ? "Ativo" : "Inativo"}
           </Selo>
         )}
@@ -37,7 +40,15 @@ export function ItemDeLista({
 }
 
 /** Seção de um item (ex.: "Embalagens"): título pequeno e o conteúdo embaixo. */
-export function SecaoDoItem({ titulo, icone, children }: { titulo: string; icone?: NomeDeIcone; children: ReactNode }) {
+export function SecaoDoItem({
+  titulo,
+  icone,
+  children,
+}: {
+  titulo: string;
+  icone?: NomeDeIcone;
+  children: ReactNode;
+}) {
   return (
     <section className="erp-secao">
       <h3 className="erp-secao__titulo">
@@ -50,7 +61,13 @@ export function SecaoDoItem({ titulo, icone, children }: { titulo: string; icone
 }
 
 /** Grupo de chips ou selos, com quebra de linha (cada filho é um <li>). */
-export function GrupoDeChips({ rotulo, children }: { rotulo: string; children: ReactNode }) {
+export function GrupoDeChips({
+  rotulo,
+  children,
+}: {
+  rotulo: string;
+  children: ReactNode;
+}) {
   return (
     <ul className="erp-chips" aria-label={rotulo}>
       {children}

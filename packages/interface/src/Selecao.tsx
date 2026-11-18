@@ -8,7 +8,13 @@ export type SelecaoProps = SelectHTMLAttributes<HTMLSelectElement> & {
   opcoes: { valor: string; texto: string }[];
 };
 
-export function Selecao({ rotulo, opcoes, id, className, ...resto }: SelecaoProps) {
+export function Selecao({
+  rotulo,
+  opcoes,
+  id,
+  className,
+  ...resto
+}: SelecaoProps) {
   const idGerado = useId();
   const idCampo = id ?? idGerado;
   return (
@@ -16,7 +22,11 @@ export function Selecao({ rotulo, opcoes, id, className, ...resto }: SelecaoProp
       <label className="erp-campo__rotulo" htmlFor={idCampo}>
         {rotulo}
       </label>
-      <select id={idCampo} className={["erp-campo__entrada", className].filter(Boolean).join(" ")} {...resto}>
+      <select
+        id={idCampo}
+        className={["erp-campo__entrada", className].filter(Boolean).join(" ")}
+        {...resto}
+      >
         {opcoes.map((o) => (
           <option key={o.valor} value={o.valor}>
             {o.texto}

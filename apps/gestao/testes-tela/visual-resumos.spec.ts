@@ -13,16 +13,18 @@ test.describe("fundo sempre claro", () => {
     await page.goto("/entrar");
     await expect(page.locator("body")).toBeVisible();
     const fundo = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(await fundo()).toBe("rgb(255, 255, 255)");
+    // Espuma de Leite (#FDF8F0), o fundo claro da marca (decisão 0019).
+    expect(await fundo()).toBe("rgb(253, 248, 240)");
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe("light");
     expect(await page.evaluate(() => matchMedia("(prefers-color-scheme: dark)").matches)).toBe(true);
 
     await entrar(page, "gerente.geral");
     await page.goto("/cadastros");
     await expect(page.getByTestId("ingrediente-Ovo")).toBeVisible();
-    expect(await fundo()).toBe("rgb(255, 255, 255)");
+    expect(await fundo()).toBe("rgb(253, 248, 240)");
     const cartao = await page.getByTestId("ingrediente-Ovo").locator("article").evaluate((el) => getComputedStyle(el).backgroundColor);
-    expect(cartao).toBe("rgb(244, 245, 247)");
+    // Leite Fresco (#FFFDF9), o cartão claro da marca.
+    expect(cartao).toBe("rgb(255, 253, 249)");
   });
 });
 

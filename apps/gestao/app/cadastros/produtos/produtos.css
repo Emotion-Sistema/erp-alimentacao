@@ -1,2 +1,7 @@
 /* Tela de Produtos: o resto do estilo vem de ../horarios/horarios.css (hor-tela, hor-secao, hor-cat). */
-.prod-preco { margin: 0; font-size: var(--texto-grande); font-weight: 800; }
+/* Preço sempre no caramelo, em letra forte, com números de largura igual (regra 4 da marca). */
+.prod-preco {
+  margin: 0; font-family: var(--fonte-destaque); font-size: var(--texto-grande); font-weight: var(--peso-forte);
+  color: var(--cor-preco); font-variant-numeric: tabular-nums; letter-spacing: -0.005em;
+}
+.hor-cat--inativa .prod-preco { color: var(--cor-texto-suave); }

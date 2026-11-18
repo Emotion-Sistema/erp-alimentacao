@@ -1,0 +1,163 @@
+/*
+ * Apps do CLIENTE (loja = delivery, site): letras e modo escuro da marca E-MOTION (decisão 0019).
+ * Importar DEPOIS de tema.css. A gestão (equipe) não usa este arquivo: fica sempre clara.
+ * Fonte: cerebro/empresa/paleta-da-marca/tema-aprovado.css (bloco 2). Contraste conferido em
+ * packages/interface/testes/cores.teste.ts (todo par >= 4,5:1 também no escuro).
+ */
+:root {
+  --fonte-base: var(--fonte-texto); /* Figtree: texto, botões, rótulos */
+  --fonte-destaque: var(
+    --fonte-titulo
+  ); /* Fraunces: títulos, nome de produto, preço */
+  --peso-forte: 600;
+  color-scheme: light dark;
+}
+html {
+  color-scheme: light dark;
+}
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+h1 {
+  font-size: clamp(2rem, 1.4rem + 2.4vw, 3rem);
+  line-height: 1.1;
+}
+.erp-botao,
+.erp-campo__rotulo,
+.erp-publico__link {
+  font-weight: 600;
+}
+/* Logo: a versão para fundo escuro aparece só no modo escuro. */
+.erp-logo--escura {
+  display: none;
+}
+
+/* ===== Modo escuro "Noite de Torra": só quando o aparelho do cliente está no modo escuro ===== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cor-fundo: #1b1411;
+    --cor-superficie: #221915;
+    --cor-cartao: #2a201b;
+    --cor-texto: #f6eadb;
+    --cor-texto-suave: #cdb8a3;
+    --cor-borda: #8a735f;
+    --cor-borda-suave: #4a382e;
+    --cor-primaria: #f6a52b;
+    --cor-primaria-texto: #2a1710;
+    --cor-primaria-hover: #ffb948;
+    --cor-preco: #f6b54a;
+    --cor-marca: #f7750e;
+    --cor-ambar: #f6a52b;
+    --cor-ouro: #f6dd8c;
+    --cor-faixa-escura: #120d0b;
+    --cor-faixa-escura-texto: #f6dd8c;
+    --cor-faixa-escura-suave: #cdb8a3;
+    --cor-sucesso: #8fcb98;
+    --cor-atencao: #f2c063;
+    --cor-perigo: #f49a86;
+    --cor-info: #8cbbda;
+    --selo-neutro-fundo: #3a2e28;
+    --selo-neutro-texto: #f6eadb;
+    --selo-info-fundo: #1c2d38;
+    --selo-info-texto: #9cc4de;
+    --selo-sucesso-fundo: #1f3324;
+    --selo-sucesso-texto: #8fcb98;
+    --selo-alerta-fundo: #3a2e14;
+    --selo-alerta-texto: #f2c063;
+    --selo-perigo-fundo: #3e1e18;
+    --selo-perigo-texto: #f49a86;
+    --selo-cozinha-fundo: #42230f;
+    --selo-cozinha-texto: #f6a77a;
+    --selo-bebidas-salao-fundo: #173138;
+    --selo-bebidas-salao-texto: #8fcfe0;
+    --selo-cafeteria-fundo: #3a2a1c;
+    --selo-cafeteria-texto: #e8c9a0;
+    --selo-sorvete-fundo: #3d1a2b;
+    --selo-sorvete-texto: #f2a6c6;
+    /* Sombras no escuro: mais fundas, e um fio de luz em cima dos cartões. */
+    --sombra-1:
+      0 1px 0 color-mix(in srgb, #ffffff 4%, transparent) inset,
+      0 1px 3px color-mix(in srgb, #000000 40%, transparent);
+    --sombra-2:
+      0 1px 0 color-mix(in srgb, #ffffff 5%, transparent) inset,
+      0 8px 24px -6px color-mix(in srgb, #000000 60%, transparent);
+    --sombra-3:
+      0 1px 0 color-mix(in srgb, #ffffff 6%, transparent) inset,
+      0 24px 56px -12px color-mix(in srgb, #000000 70%, transparent);
+    --brilho-botao: inset 0 1px 0 color-mix(in srgb, #ffffff 30%, transparent);
+  }
+  .erp-logo--clara {
+    display: none;
+  }
+  .erp-logo--escura {
+    display: block;
+  }
+}
+
+/* ===== Capa (página inicial) ===== */
+.erp-capa {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: grid;
+  gap: var(--espaco-4);
+  justify-items: start;
+  margin-bottom: var(--espaco-6);
+  padding: clamp(var(--espaco-5), 5vw, 4rem);
+  border-radius: calc(var(--raio-grande) + 8px);
+  background:
+    radial-gradient(
+      40rem 22rem at 100% 0%,
+      color-mix(in srgb, var(--cor-ambar) 30%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      30rem 20rem at 0% 100%,
+      color-mix(in srgb, var(--cor-marca) 14%, transparent),
+      transparent 70%
+    ),
+    var(--cor-superficie);
+  border: 1px solid var(--cor-borda-suave);
+  box-shadow: var(--sombra-2);
+}
+.erp-capa__simbolo {
+  position: absolute;
+  right: clamp(var(--espaco-4), 4vw, 3.5rem);
+  top: 50%;
+  transform: translateY(-50%);
+  width: clamp(9rem, 24vw, 16rem);
+  height: auto;
+  z-index: -1;
+  filter: drop-shadow(
+    0 12px 24px color-mix(in srgb, var(--cor-texto) 18%, transparent)
+  );
+}
+.erp-capa__sobretitulo {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cor-texto-suave);
+}
+.erp-capa h1 {
+  margin: 0;
+  max-width: 18ch;
+}
+.erp-capa__texto {
+  margin: 0;
+  max-width: 38ch;
+  font-size: 1.1875rem;
+  color: var(--cor-texto-suave);
+}
+@media (max-width: 40rem) {
+  .erp-capa__simbolo {
+    position: static;
+    transform: none;
+    width: 7.5rem;
+    order: -1;
+  }
+}
