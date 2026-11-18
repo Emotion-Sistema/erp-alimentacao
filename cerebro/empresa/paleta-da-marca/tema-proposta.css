@@ -1,0 +1,55 @@
+/*
+ * PROPOSTA (não é código do sistema). Frente paleta-da-marca, 18/11/2026.
+ * Clima recomendado "Espuma e Brasa", modo claro, escrito com os NOMES que já existem em
+ * packages/interface/src/tema.css (decisão 0012). O chat principal decide se e quando aplicar,
+ * depois da escolha do responsável. Contrastes conferidos (WCAG, texto comum >= 4,5:1).
+ */
+:root {
+  --cor-fundo: #FDF8F0;          /* Espuma de Leite */
+  --cor-superficie: #F6ECDC;     /* Nata Batida (faixas, seções) */
+  --cor-texto: #351E17;          /* Café Torrado (logo) 14,7:1 */
+  --cor-texto-suave: #6B4A3A;    /* Grão Moído 7,5:1 */
+  --cor-borda: #8F7663;          /* Borda de campo: 4,0:1 no fundo (campo precisa de 3:1) */
+  --cor-primaria: #B8470E;       /* Brasa Acesa (botão principal) */
+  --cor-primaria-texto: #FFFDF9; /* 5,2:1 */
+  --cor-sucesso: #2F6B3A;        /* Manjericão */
+  --cor-atencao: #7F5300;        /* Mel de Engenho */
+  --cor-perigo: #A3261A;         /* Pimenta */
+  --cor-info: #2E5E7E;           /* Louça Azul */
+
+  /* Novos (sugestão): */
+  --cor-cartao: #FFFDF9;         /* Leite Fresco */
+  --cor-borda-suave: #E9DAC4;    /* Farinha Tostada: divisões e cartões (enfeite) */
+  --cor-primaria-hover: #9C3B0A; /* Brasa Funda, 6,8:1 */
+  --cor-preco: #9A4410;          /* Caramelo Tostado 6,4:1 no cartão */
+  --cor-destaque-fundo: #FBE6C2; /* Mel Claro */
+  --cor-destaque-texto: #6B3410; /* Melaço 8,1:1 */
+  --cor-marca: #E77019;          /* Laranja E-MOTION: só ícone e filete, nunca letra (3,0:1) */
+  --cor-ambar: #F6A52B;          /* Mel de Laranjeira: ilustração, barra de progresso */
+  --cor-ouro: #F6DD8C;           /* Creme Dourado: faixa de destaque, com texto café */
+  --cor-faixa-escura: #351E17;   /* barra do app, rodapé */
+  --cor-faixa-escura-texto: #F6DD8C; /* 11,6:1 */
+
+  /* Selos de aviso (par fundo + texto) */
+  --selo-sucesso-fundo: #E3F0DF; --selo-sucesso-texto: #2F6B3A;  /* 5,4:1 */
+  --selo-alerta-fundo:  #FBEBC4; --selo-alerta-texto:  #7F5300;  /* 5,7:1 */
+  --selo-perigo-fundo:  #FBE1DA; --selo-perigo-texto:  #A3261A;  /* 5,9:1 */
+  --selo-info-fundo:    #E1ECF3; --selo-info-texto:    #2E5E7E;  /* 5,8:1 */
+}
+
+/*
+ * Modo escuro "Noite de Torra" (só se o responsável quiser; a decisão 0012, adendo de 15/11,
+ * tirou o modo escuro do sistema interno). Sugestão: site, delivery e app do cliente.
+ */
+.modo-escuro-proposta {
+  --cor-fundo: #1B1411; --cor-superficie: #221915; --cor-cartao: #2A201B;
+  --cor-texto: #F6EADB; --cor-texto-suave: #CDB8A3; --cor-borda: #8A735F; --cor-borda-suave: #4A382E;
+  --cor-primaria: #F6A52B; --cor-primaria-texto: #2A1710; --cor-primaria-hover: #FFB948;
+  --cor-preco: #F6B54A; --cor-destaque-fundo: #3A2A1C; --cor-destaque-texto: #F6DD8C;
+  --cor-marca: #F7750E; --cor-faixa-escura: #120D0B; --cor-faixa-escura-texto: #F6DD8C;
+  --cor-sucesso: #8FCB98; --cor-atencao: #F2C063; --cor-perigo: #F49A86; --cor-info: #8CBBDA;
+  --selo-sucesso-fundo: #1F3324; --selo-sucesso-texto: #8FCB98;
+  --selo-alerta-fundo:  #3A2E14; --selo-alerta-texto:  #F2C063;
+  --selo-perigo-fundo:  #3E1E18; --selo-perigo-texto:  #F49A86;
+  --selo-info-fundo:    #1C2D38; --selo-info-texto:    #8CBBDA;
+}
