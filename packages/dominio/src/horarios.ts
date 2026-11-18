@@ -13,7 +13,7 @@ import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
 import { CANAIS, horaValida, type Canal, type MotivoFechado } from "./horarios-comum";
 import { pode } from "./permissoes";
-import { reposicionar } from "./posicao";
+import { posicaoDaGravacao, reposicionar, travarLista } from "./posicao";
 import { exigir, type Ator } from "./sessao";
 
 export * from "./horarios-comum";
@@ -563,6 +563,7 @@ export async function salvarCategoria(db: Banco, ator: Ator | null, dados: unkno
   const colunas = ["id", "nome", "descricao", "ordem", "ativo"] as const;
   try {
     const salvo = await db.transaction().execute(async (trx) => {
+      await travarLista(trx, "categoria");
       const valores = { nome: d.nome, ...(d.descricao === undefined ? {} : { descricao: d.descricao }), ...(d.ordem === undefined ? {} : { ordem: d.ordem }), ...(d.ativo === undefined ? {} : { ativo: d.ativo }) };
       let antes: Categoria | undefined;
       let s: Categoria;
@@ -573,7 +574,8 @@ export async function salvarCategoria(db: Banco, ator: Ator | null, dados: unkno
       } else {
         s = await trx.insertInto("categoria").values(valores).returning(colunas).executeTakeFirstOrThrow();
       }
-      const reordenados = d.posicao === undefined ? [] : await reposicionar(trx, "categoria", s.id, d.posicao);
+      const posicao = posicaoDaGravacao(d, antes, s.ativo);
+      const reordenados = posicao === undefined ? [] : await reposicionar(trx, "categoria", s.id, posicao);
       if (reordenados.length) s = await trx.selectFrom("categoria").select(colunas).where("id", "=", s.id).executeTakeFirstOrThrow();
       await auditar(trx, {
         usuarioId: quem.usuarioId,

@@ -12,6 +12,7 @@ export type ItemDaLista = { id: number; nome: string; detalhe?: string };
 
 export function PosicaoNaLista({
   rotulo,
+  feminino = false,
   itens,
   atualId,
   nomeDoAtual,
@@ -19,6 +20,8 @@ export function PosicaoNaLista({
   aoMudar,
 }: {
   rotulo: string;
+  /** "1ª" em vez de "1º" (categoria). */
+  feminino?: boolean;
   /** Os ativos, já na ordem da lista. */
   itens: ItemDaLista[];
   /** O item que está sendo editado (fica de fora das opções). Sem ele, é um novo. */
@@ -28,12 +31,13 @@ export function PosicaoNaLista({
   aoMudar: (posicao: number) => void;
 }) {
   const outros = itens.filter((i) => i.id !== atualId);
+  const o = feminino ? "ª" : "º";
   const opcoes = Array.from({ length: outros.length + 1 }, (_, i) => ({
     valor: String(i + 1),
     texto:
       i === 0
-        ? `1º: no começo${outros[0] ? ` (antes de ${outros[0].nome})` : ""}`
-        : `${i + 1}º: depois de ${outros[i - 1]!.nome}${i === outros.length ? " (no fim)" : ""}`,
+        ? `1${o}: no começo${outros[0] ? ` (antes de ${outros[0].nome})` : ""}`
+        : `${i + 1}${o}: depois de ${outros[i - 1]!.nome}${i === outros.length ? " (no fim)" : ""}`,
   }));
   const p = Math.min(Math.max(posicao, 1), outros.length + 1);
   const previa = [...outros.slice(0, p - 1).map((i) => ({ ...i, este: false })), { id: -1, nome: nomeDoAtual, detalhe: undefined, este: true }, ...outros.slice(p - 1).map((i) => ({ ...i, este: false }))];
@@ -42,7 +46,7 @@ export function PosicaoNaLista({
       <Selecao
         rotulo={rotulo}
         explicacao="Escolha em que lugar ele aparece. Abaixo, a lista de como vai ficar."
-        exemplo="2º: depois do primeiro da lista. Os outros descem um lugar sozinhos."
+        exemplo={`2${o}: logo depois do primeiro item da lista. Os outros descem um lugar sozinhos.`}
         opcoes={opcoes}
         value={String(p)}
         onChange={(e) => aoMudar(Number(e.target.value))}

@@ -453,6 +453,8 @@ describe("categorias", () => {
     const ativas = (await listarCategorias(db, gerente)).filter((x) => x.ativo);
     expect(ativas[1]!.id).toBe(c.id);
     expect(ativas.map((x) => x.ordem)).toEqual(ativas.map((_, i) => (i + 1) * 10));
+    const reg = await db.selectFrom("auditoria").select("detalhes").where("alvo_tipo", "=", "categoria").where("alvo_id", "=", String(c.id)).orderBy("id", "desc").executeTakeFirstOrThrow();
+    expect((reg.detalhes as { reordenados?: unknown[] }).reordenados?.length).toBeGreaterThan(0);
   });
 });
 

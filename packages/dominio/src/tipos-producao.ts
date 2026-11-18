@@ -9,7 +9,7 @@ import { z } from "zod";
 import { sql, type Banco } from "@erp/banco";
 import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
-import { reposicionar } from "./posicao";
+import { posicaoDaGravacao, reposicionar, travarLista } from "./posicao";
 import { exigir, type Ator } from "./sessao";
 import { AREAS_DE_PRODUCAO, CAPACIDADE_MAXIMA, type TipoDeProducao } from "./tipos-producao-comum";
 
@@ -69,6 +69,7 @@ export async function salvarTipoDeProducao(db: Banco, ator: Ator | null, dados: 
   };
   try {
     return await db.transaction().execute(async (trx) => {
+      await travarLista(trx, "tipo_producao");
       let antes: TipoDeProducao | undefined;
       let s: TipoDeProducao;
       if (d.id) {
@@ -78,7 +79,8 @@ export async function salvarTipoDeProducao(db: Banco, ator: Ator | null, dados: 
       } else {
         s = await trx.insertInto("tipo_producao").values({ ...valores, nome: d.nome!, area: d.area! }).returning(colunas).executeTakeFirstOrThrow();
       }
-      const reordenados = d.posicao === undefined ? [] : await reposicionar(trx, "tipo_producao", s.id, d.posicao);
+      const posicao = posicaoDaGravacao(d, antes, s.ativo);
+      const reordenados = posicao === undefined ? [] : await reposicionar(trx, "tipo_producao", s.id, posicao);
       if (reordenados.length) s = await trx.selectFrom("tipo_producao").select(colunas).where("id", "=", s.id).executeTakeFirstOrThrow();
       await auditar(trx, {
         usuarioId: quem.usuarioId,

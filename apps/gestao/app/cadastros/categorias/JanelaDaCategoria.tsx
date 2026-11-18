@@ -36,7 +36,8 @@ export function JanelaDaCategoria({
   const [nome, setNome] = useState(categoria?.nome ?? "");
   const [descricao, setDescricao] = useState(categoria?.descricao ?? "");
   const indice = categoria ? itens.findIndex((i) => i.id === categoria.id) : -1;
-  const [posicao, setPosicao] = useState(indice >= 0 ? indice + 1 : itens.filter((i) => i.id !== categoria?.id).length + 1);
+  const posicaoInicial = indice >= 0 ? indice + 1 : itens.filter((i) => i.id !== categoria?.id).length + 1;
+  const [posicao, setPosicao] = useState(posicaoInicial);
   const [erro, setErro] = useState("");
   const [gravando, setGravando] = useState(false);
 
@@ -50,7 +51,8 @@ export function JanelaDaCategoria({
       nome: nome.trim(),
       descricao: descricao.trim() || null,
       // Categoria desativada não entra na lista: a posição só vale para as ativas.
-      ...(categoria && !categoria.ativo ? {} : { posicao }),
+      // Só manda a posição se a pessoa mudou (ou é novo): editar o nome não desfaz a ordem que outra pessoa mudou.
+      ...(!categoria || (categoria.ativo && posicao !== posicaoInicial) ? { posicao } : {}),
     });
     setGravando(false);
     if (!r.ok || !r.dados) return setErro(r.mensagem);
@@ -63,7 +65,7 @@ export function JanelaDaCategoria({
       <form className="hor-form" onSubmit={(e) => void salvar(e)} noValidate>
         <Campo rotulo={TC.janela.nome} explicacao={TC.janela.nomeAjuda} exemplo={TC.janela.nomeExemplo} value={nome} maxLength={40} onChange={(e) => setNome(e.target.value)} required autoComplete="off" />
         <AreaDeTexto rotulo={TC.janela.descricao} explicacao={TC.janela.descricaoAjuda} exemplo={TC.janela.descricaoExemplo} value={descricao} maxLength={300} rows={2} onChange={(e) => setDescricao(e.target.value)} />
-        {(!categoria || categoria.ativo) && <PosicaoNaLista rotulo={TC.janela.posicao} itens={itens} atualId={categoria?.id} nomeDoAtual={nome.trim()} posicao={posicao} aoMudar={setPosicao} />}
+        {(!categoria || categoria.ativo) && <PosicaoNaLista feminino rotulo={TC.janela.posicao} itens={itens} atualId={categoria?.id} nomeDoAtual={nome.trim()} posicao={posicao} aoMudar={setPosicao} />}
         <div aria-live="polite">{erro && <Aviso tipo="perigo">{erro}</Aviso>}</div>
         <div className="cadastros__botoes">
           <Botao type="submit" disabled={gravando}>

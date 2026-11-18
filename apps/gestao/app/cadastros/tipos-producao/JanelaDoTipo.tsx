@@ -37,7 +37,8 @@ export function JanelaDoTipo({
   const [area, setArea] = useState<AreaDeProducao | null>(tipo?.area ?? null);
   const [capacidade, setCapacidade] = useState(String(tipo?.capacidade ?? 1));
   const indice = tipo ? itens.findIndex((i) => i.id === tipo.id) : -1;
-  const [posicao, setPosicao] = useState(indice >= 0 ? indice + 1 : itens.filter((i) => i.id !== tipo?.id).length + 1);
+  const posicaoInicial = indice >= 0 ? indice + 1 : itens.filter((i) => i.id !== tipo?.id).length + 1;
+  const [posicao, setPosicao] = useState(posicaoInicial);
   const [erro, setErro] = useState("");
   const [gravando, setGravando] = useState(false);
 
@@ -54,7 +55,8 @@ export function JanelaDoTipo({
       nome: nome.trim(),
       area,
       capacidade: Number(cap),
-      ...(tipo && !tipo.ativo ? {} : { posicao }),
+      // Só manda a posição se a pessoa mudou (ou é novo): editar o nome não desfaz a ordem que outra pessoa mudou.
+      ...(!tipo || (tipo.ativo && posicao !== posicaoInicial) ? { posicao } : {}),
     });
     setGravando(false);
     if (!r.ok || !r.dados) return setErro(r.mensagem);

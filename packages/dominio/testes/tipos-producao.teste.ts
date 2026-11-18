@@ -141,13 +141,42 @@ describe("tipos de produção", () => {
     expect((await erroDe(salvarTipoDeProducao(db, gerente, { id: a.id, posicao: 0 }))).message).toMatch(/1 em diante/);
   });
 
-  it("duas pessoas mudando a posição ao mesmo tempo: a lista fica sem número repetido", async () => {
+  it("muitas pessoas criando e mudando posição ao mesmo tempo: sem deadlock e sem número repetido", async () => {
+    const semRepetido = async () => {
+      const lista = (await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo);
+      expect(lista.map((t) => t.ordem)).toEqual(lista.map((_, i) => (i + 1) * 10));
+      return lista;
+    };
     const x = await salvarTipoDeProducao(db, gerente, { nome: `Corrida A ${sufixo}`, area: "cozinha" });
     const y = await salvarTipoDeProducao(db, gerente, { nome: `Corrida B ${sufixo}`, area: "cozinha" });
-    await Promise.all([salvarTipoDeProducao(db, gerente, { id: x.id, posicao: 1 }), salvarTipoDeProducao(db, gerente, { id: y.id, posicao: 1 })]);
-    const lista = (await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo);
+    for (let rodada = 0; rodada < 8; rodada++) {
+      // Duas linhas diferentes travadas e reposicionadas ao mesmo tempo (antes, dava deadlock),
+      // mais duas criações com posição (antes, uma ficava de fora da renumeração).
+      await Promise.all([
+        salvarTipoDeProducao(db, gerente, { id: x.id, posicao: 1 }),
+        salvarTipoDeProducao(db, gerente, { id: y.id, posicao: 2 }),
+        salvarTipoDeProducao(db, gerente, { nome: `Corrida C${rodada} ${sufixo}`, area: "cafeteria", posicao: 1 }),
+        salvarTipoDeProducao(db, gerente, { nome: `Corrida D${rodada} ${sufixo}`, area: "cozinha" }),
+      ]);
+      await semRepetido();
+    }
+  });
+
+  it("novo sem posição vai para o fim; reativado volta no fim; inativo não mexe na lista", async () => {
+    const novo = await salvarTipoDeProducao(db, gerente, { nome: `Fim ${sufixo}`, area: "cozinha" });
+    let lista = (await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo);
+    expect(lista.at(-1)!.id).toBe(novo.id);
+    await salvarTipoDeProducao(db, gerente, { id: novo.id, ativo: false });
+    const outro = await salvarTipoDeProducao(db, gerente, { nome: `Depois ${sufixo}`, area: "cozinha" });
+    // Inativo com posição: aceita e não renumera.
+    const antesDoInativo = (await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo).map((t) => [t.id, t.ordem]);
+    await salvarTipoDeProducao(db, gerente, { id: novo.id, posicao: 1 });
+    expect((await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo).map((t) => [t.id, t.ordem])).toEqual(antesDoInativo);
+    await salvarTipoDeProducao(db, gerente, { id: novo.id, ativo: true });
+    lista = (await listarTiposDeProducao(db, gerente)).filter((t) => t.ativo);
+    expect(lista.at(-1)!.id).toBe(novo.id);
+    expect(lista.at(-2)!.id).toBe(outro.id);
     expect(lista.map((t) => t.ordem)).toEqual(lista.map((_, i) => (i + 1) * 10));
-    expect(lista.slice(0, 2).map((t) => t.id).sort()).toEqual([x.id, y.id].sort());
   });
 
   it("duas pessoas criando o mesmo nome ao mesmo tempo: só uma consegue", async () => {

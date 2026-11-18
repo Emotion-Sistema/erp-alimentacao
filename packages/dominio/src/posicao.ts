@@ -2,15 +2,42 @@
  * Posição na lista (categorias e tipos de produção). A pessoa escolhe "em que lugar" o item
  * fica (1º, 2º...), vendo a lista que já existe; o sistema renumera a ordem dos ativos de
  * 10 em 10 (10, 20, 30...), sem a pessoa digitar número. Pedido do responsável, 17/11/2026.
- * Roda dentro da transação de quem grava: trava os ativos da tabela, então duas pessoas
- * mudando a posição ao mesmo tempo esperam uma pela outra.
+ * Concorrência: toda gravação dessas tabelas chama `travarLista` como PRIMEIRO comando da
+ * transação. É uma trava única por tabela (advisory lock), então duas gravações esperam uma pela
+ * outra sem deadlock e a segunda lê a lista já com a mudança da primeira.
+ * Auditoria: a renumeração fica em `detalhes.reordenados` ({id, antes, depois}) do registro do
+ * item gravado; para saber por que um item mudou de lugar, procure o id dele nesse campo.
  */
 import { sql, type Banco } from "@erp/banco";
 
 export type Reordenado = { id: number; antes: number; depois: number };
 
+const TABELAS = ["categoria", "tipo_producao"] as const;
+type Tabela = (typeof TABELAS)[number];
+function conferir(tabela: Tabela) {
+  if (!TABELAS.includes(tabela)) throw new Error(`tabela sem posição: ${String(tabela)}`);
+}
+
+/** Primeiro comando da transação de qualquer gravação de `tabela`. */
+export async function travarLista(trx: Banco, tabela: Tabela): Promise<void> {
+  conferir(tabela);
+  await sql`SELECT pg_advisory_xact_lock(hashtext(${"posicao:" + tabela}))`.execute(trx);
+}
+
+/**
+ * Posição que vale nesta gravação: a escolhida; senão, no fim para item novo ou reativado
+ * (quando não veio `ordem` explícita); senão, nenhuma (a lista não muda).
+ */
+export function posicaoDaGravacao(d: { posicao?: number; ordem?: number }, antes: { ativo: boolean } | undefined, depoisAtivo: boolean): number | undefined {
+  if (d.posicao !== undefined) return d.posicao;
+  if (d.ordem !== undefined || !depoisAtivo) return undefined;
+  if (!antes || !antes.ativo) return Number.MAX_SAFE_INTEGER;
+  return undefined;
+}
+
 /** Põe `id` na posição `posicao` (1 = primeiro) entre os ativos e renumera. Devolve o que mudou. */
-export async function reposicionar(trx: Banco, tabela: "categoria" | "tipo_producao", id: number, posicao: number): Promise<Reordenado[]> {
+export async function reposicionar(trx: Banco, tabela: Tabela, id: number, posicao: number): Promise<Reordenado[]> {
+  conferir(tabela);
   const t = sql.table(tabela);
   const ativos = (await sql<{ id: number; ordem: number }>`SELECT id, ordem FROM ${t} WHERE ativo ORDER BY ordem, nome, id FOR UPDATE`.execute(trx)).rows;
   const resto = ativos.filter((a) => a.id !== id);
