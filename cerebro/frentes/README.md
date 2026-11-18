@@ -36,6 +36,7 @@ só para uma função nova, conversando com o chat principal **pelo cérebro**.
 |---|---|---|---|
 | lista-de-compras (Central de Compras) | `lista-de-compras.md` | 15/11/2026 | Proposta aprovada em 15/11/2026 (ideia nº 3); sem código; espera a E07 para começar a LC1 |
 | fichas-tecnicas | `fichas-tecnicas.md` | 15/11/2026 | Lê as fichas do Drive e organiza no cérebro, sem código; lista de ingredientes pronta |
+| paleta-da-marca | `paleta-da-marca.md` | 18/11/2026 | Escolhido em 18/11/2026: Espuma e Brasa, claro por padrão, escuro só se o aparelho do cliente estiver escuro; aguarda o principal aplicar no tema |
 
 ## Bloco para abrir uma frente (o responsável cola no chat novo)
 O responsável não altera textos para colar (15/11/2026): o chat principal manda o bloco já

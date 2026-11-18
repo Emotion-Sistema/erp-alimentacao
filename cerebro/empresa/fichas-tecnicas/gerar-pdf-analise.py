@@ -12,11 +12,15 @@ pdfmetrics.registerFont(TTFont("DVB", "/usr/share/fonts/truetype/dejavu/DejaVuSa
 from reportlab.lib.fonts import addMapping
 addMapping("DV",0,0,"DV"); addMapping("DV",1,0,"DVB"); addMapping("DV",0,1,"DV"); addMapping("DV",1,1,"DVB")
 
-ESC = colors.HexColor("#1f2a37")
-CINZA = colors.HexColor("#6b7280")
-CLARO = colors.HexColor("#fdf0e6")
-LINHA = colors.HexColor("#d1d5db")
-DEST = colors.HexColor("#E77019")
+# Paleta da marca "Espuma e Brasa" (cerebro/empresa/paleta-da-marca/README.md, escolhida em 18/11/2026).
+# Impresso: o fundo é o papel; tinta forte só em filete, título e logo. O laranja da logo é só filete.
+ESC = colors.HexColor("#351E17")     # Café Torrado: texto principal
+CINZA = colors.HexColor("#6B4A3A")   # Grão Moído: texto de apoio
+CLARO = colors.HexColor("#F6ECDC")   # Nata Batida: cabeçalho das tabelas
+LINHA = colors.HexColor("#E9DAC4")   # Farinha Tostada: grades e linhas
+DEST = colors.HexColor("#B8470E")    # Brasa Acesa: títulos (letra)
+FILETE = colors.HexColor("#E77019")  # Laranja E-MOTION: só filete, nunca letra
+SELO = colors.HexColor("#FBE6C2")    # Mel Claro: faixa do grupo no anexo
 LOGO = "/home/user/erp-alimentacao/cerebro/empresa/fichas-tecnicas/logo-provisoria/logo-emotion-branco.jpg"
 SIMB = "/home/user/erp-alimentacao/cerebro/empresa/fichas-tecnicas/logo-provisoria/logo-emotion-simbolo-branco.jpg"
 
@@ -47,7 +51,7 @@ def lista(itens):
 
 def rodape(c, d):
     c.saveState()
-    c.setStrokeColor(DEST); c.setLineWidth(0.8); c.line(18 * mm, 14.5 * mm, A4[0] - 18 * mm, 14.5 * mm)
+    c.setStrokeColor(FILETE); c.setLineWidth(0.8); c.line(18 * mm, 14.5 * mm, A4[0] - 18 * mm, 14.5 * mm)
     c.drawImage(SIMB, 18 * mm, 7.2 * mm, width=10.5 * mm, height=10.5 * mm * 555 / 900)
     c.setFont("DV", 7.5); c.setFillColor(CINZA)
     c.drawString(31 * mm, 10 * mm, "E-MOTION · Fichas técnicas: análise e ajustes · 18/11/2026 · Wilians Duque, programador do sistema")
@@ -60,7 +64,7 @@ doc = SimpleDocTemplate(sys.argv[1], pagesize=A4, leftMargin=18 * mm, rightMargi
 W = A4[0] - 36 * mm
 s = []
 
-from reportlab.platypus import Image as RLImage
+from reportlab.platypus import Image as RLImage, HRFlowable
 _lw = 42 * mm
 _logo = RLImage(LOGO, width=_lw, height=_lw * 1389 / 1600)
 _cab = Table([[[P("Fichas técnicas: análise e ajustes", tit),
@@ -69,7 +73,7 @@ _cab = Table([[[P("Fichas técnicas: análise e ajustes", tit),
 _cab.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (1, 0), (1, 0), "RIGHT"),
                           ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                           ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))
-s += [_cab]
+s += [_cab, HRFlowable(width="100%", thickness=1.2, color=FILETE, spaceBefore=0, spaceAfter=8)]
 
 s.append(tabela([
     ["Fichas", "Completas", "Com pendência", "Fichas fora do cardápio", "Produtos do cardápio sem ficha"],
@@ -227,7 +231,7 @@ for linha in open(RESUMO, encoding="utf-8"):
 
 def limpa(t):
     t = t.replace("**", "").replace(". Está na planilha CSV junto com as prontas", "")
-    t = t.replace("✅", "").replace("⚠️", "<font color='#b45309'><b>Falta:</b></font>").replace("❗", "<font color='#b91c1c'><b>Não fecha:</b></font>")
+    t = t.replace("✅", "").replace("⚠️", "<font color='#7F5300'><b>Falta:</b></font>").replace("❗", "<font color='#A3261A'><b>Não fecha:</b></font>")
     t = t.replace("≈", "aprox. ").replace("→", "→")
     return t.strip()
 
@@ -246,13 +250,13 @@ s.append(Spacer(1, 4))
 for ni, (nome, fichas) in enumerate(grupos):
     s.append(CondPageBreak(60 * mm))
     nome = re.sub(r"\s*\(\d+\)$", "", nome)
-    linhas = [[P(f"{nome} ({len(fichas)})", ParagraphStyle("gx", parent=base, fontName="DVB", fontSize=9.5)), ""]]
+    linhas = [[P(f"{nome} ({len(fichas)})", ParagraphStyle("gx", parent=base, fontName="DVB", fontSize=9.5, textColor=colors.HexColor("#6B3410"))), ""]]
     for i in range(0, len(fichas), 2):
         par = fichas[i:i+2]
         linhas.append([bloco(par[0]), bloco(par[1]) if len(par) > 1 else ""])
     t = Table(linhas, colWidths=[W / 2, W / 2], repeatRows=1)
     t.setStyle(TableStyle([("GRID", (0, 1), (-1, -1), 0.4, LINHA), ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                           ("SPAN", (0, 0), (1, 0)), ("TOPPADDING", (0, 0), (-1, 0), 8),
+                           ("SPAN", (0, 0), (1, 0)), ("BACKGROUND", (0, 0), (-1, 0), SELO), ("TOPPADDING", (0, 0), (-1, 0), 5),
                            ("TOPPADDING", (0, 1), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
                            ("LEFTPADDING", (0, 0), (-1, -1), 4), ("RIGHTPADDING", (0, 0), (-1, -1), 4)]))
     s.append(t)
