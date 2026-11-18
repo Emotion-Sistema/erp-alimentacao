@@ -72,7 +72,7 @@ O fundo claro é o próprio papel (branco ou creme). Tinta forte só em filete, 
 áreas grandes escuras (gastam tinta e borram). Os códigos acima são de tela (RGB): a conversão para
 gráfica (CMYK ou Pantone) precisa de prova de cor da própria gráfica; não inventei esses valores.
 
-## Letras (proposta de 18/11/2026, aguardando o "ok" do responsável)
+## Letras (aprovadas pelo responsável em 18/11/2026)
 | Onde | Letra | Para quê | Por quê |
 |---|---|---|---|
 | Cliente (site, delivery, app, cardápio, impressos) | **Fraunces** | títulos, nome de produto, preço | serifa macia e cheia; conversa com as serifas do E-MOTION da logo; tom de cafeteria acolhedora |
