@@ -125,11 +125,11 @@ h1 {
 }
 .erp-capa__simbolo {
   position: absolute;
-  right: clamp(-3rem, -2vw, 0rem);
-  bottom: -1.5rem;
-  width: clamp(9rem, 28vw, 18rem);
+  right: clamp(var(--espaco-4), 4vw, 3.5rem);
+  top: 50%;
+  transform: translateY(-50%);
+  width: clamp(9rem, 24vw, 16rem);
   height: auto;
-  opacity: 0.9;
   z-index: -1;
   filter: drop-shadow(
     0 12px 24px color-mix(in srgb, var(--cor-texto) 18%, transparent)
@@ -155,6 +155,9 @@ h1 {
 }
 @media (max-width: 40rem) {
   .erp-capa__simbolo {
-    opacity: 0.22;
+    position: static;
+    transform: none;
+    width: 7.5rem;
+    order: -1;
   }
 }

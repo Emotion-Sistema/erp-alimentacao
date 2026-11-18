@@ -540,6 +540,13 @@ input[type="radio"] {
   overflow-wrap: anywhere;
   padding-right: var(--espaco-5);
 }
+.erp-ladrilho:not(:has(.erp-ladrilho__descricao)) { min-height: 6.5rem; justify-content: center; }
+.erp-ladrilho:not(:has(.erp-ladrilho__descricao))::after { bottom: auto; top: calc(50% - 0.3rem); }
+.erp-ladrilho:not(:has(.erp-ladrilho__descricao)):hover::after { transform: translateX(3px) rotate(45deg); }
+@media (max-width: 40rem) {
+  .erp-publico__menu { margin-left: 0; flex-basis: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .erp-publico__link { flex: 0 0 auto; padding: 0 var(--espaco-3); }
+}
 .erp-grade-ladrilhos {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
@@ -572,7 +579,7 @@ input[type="radio"] {
   align-items: center;
   gap: var(--espaco-2) var(--espaco-5);
   padding: var(--espaco-3)
-    max(var(--espaco-4), calc((100% - var(--largura-conteudo)) / 2));
+    max(var(--espaco-4), calc((100% - var(--largura-conteudo)) / 2 + var(--espaco-4)));
   border-bottom: 1px solid var(--cor-borda-suave);
   background: color-mix(in srgb, var(--cor-cartao) 88%, transparent);
   backdrop-filter: saturate(1.4) blur(10px);
@@ -631,7 +638,7 @@ input[type="radio"] {
 }
 .erp-publico__rodape {
   padding: var(--espaco-5)
-    max(var(--espaco-4), calc((100% - var(--largura-conteudo)) / 2));
+    max(var(--espaco-4), calc((100% - var(--largura-conteudo)) / 2 + var(--espaco-4)));
   background: var(--cor-faixa-escura);
   color: var(--cor-faixa-escura-suave);
   font-size: var(--texto-pequeno);
