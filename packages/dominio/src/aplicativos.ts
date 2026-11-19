@@ -49,7 +49,8 @@ export type IconeDoMenu =
   | "grafico"
   | "recibo"
   | "documento"
-  | "entrega";
+  | "entrega"
+  | "adicional";
 
 /** Ação principal do aplicativo: o botão redondo grande no meio da barra de baixo, no celular. */
 export type AcaoPrincipal = { texto: string; caminho: string; acao: Acao };
@@ -282,6 +283,12 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         texto: "Produtos",
         acao: "cadastros.ver",
         icone: "xicara",
+      },
+      {
+        caminho: "/cadastros/adicionais",
+        texto: "Adicionais",
+        acao: "cadastros.ver",
+        icone: "adicional",
       },
       {
         caminho: "/cadastros/categorias",

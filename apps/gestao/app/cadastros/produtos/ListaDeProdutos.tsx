@@ -9,7 +9,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Aviso, Botao, Icone } from "@erp/interface";
-import type { Produto } from "@erp/dominio/produtos";
+import type { GrupoDeAdicionais, Produto } from "@erp/dominio/produtos";
 import type { TipoDeProducao } from "@erp/dominio/tipos-producao";
 import { chamar } from "../../chamar";
 import { AvisoComDesfazer, type AvisoRapido } from "../embalagens/AvisoComDesfazer";
@@ -20,7 +20,7 @@ import { TP } from "./textos";
 
 let numeroDoAviso = 0;
 
-type Dados = { produtos: Produto[]; categorias: Categoria[]; tipos: TipoDeProducao[] };
+type Dados = { produtos: Produto[]; categorias: Categoria[]; tipos: TipoDeProducao[]; grupos: GrupoDeAdicionais[] };
 
 export function ListaDeProdutos({ podeGerenciar }: { podeGerenciar: boolean }) {
   const [dados, setDados] = useState<Dados | null>(null);
@@ -31,16 +31,17 @@ export function ListaDeProdutos({ podeGerenciar }: { podeGerenciar: boolean }) {
   const avisar = useCallback((texto: string, extra: Partial<AvisoRapido> = {}) => setAviso({ id: ++numeroDoAviso, texto, ...extra }), []);
 
   const recarregar = useCallback(async (vivo: () => boolean = () => true) => {
-    const [p, c, t] = await Promise.all([
+    const [p, c, t, g] = await Promise.all([
       chamar<Produto[]>("/api/cadastros/produtos"),
       chamar<Categoria[]>("/api/cadastros/categorias"),
       chamar<TipoDeProducao[]>("/api/cadastros/tipos-producao"),
+      chamar<GrupoDeAdicionais[]>("/api/cadastros/adicionais"),
     ]);
     if (!vivo()) return;
-    if (p.ok && p.dados && c.ok && c.dados && t.ok && t.dados) {
-      setDados({ produtos: p.dados, categorias: c.dados, tipos: t.dados });
+    if (p.ok && p.dados && c.ok && c.dados && t.ok && t.dados && g.ok && g.dados) {
+      setDados({ produtos: p.dados, categorias: c.dados, tipos: t.dados, grupos: g.dados });
       setErro("");
-    } else setErro([p, c, t].find((r) => !r.ok || !r.dados)!.mensagem);
+    } else setErro([p, c, t, g].find((r) => !r.ok || !r.dados)!.mensagem);
   }, []);
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export function ListaDeProdutos({ podeGerenciar }: { podeGerenciar: boolean }) {
   const produtos = dados?.produtos ?? [];
   const categorias = dados?.categorias ?? [];
   const tipos = dados?.tipos ?? [];
+  const gruposDeAdicionais = dados?.grupos ?? [];
   const ativos = produtos.filter((p) => p.ativo);
   const inativos = produtos.filter((p) => !p.ativo);
   const temCategoriaAtiva = categorias.some((c) => c.ativo);
@@ -138,6 +140,7 @@ export function ListaDeProdutos({ podeGerenciar }: { podeGerenciar: boolean }) {
           produtos={produtos}
           categorias={categorias}
           tipos={tipos}
+          grupos={gruposDeAdicionais}
           aoFechar={() => setJanela(null)}
           aoSalvo={(p, criado) => {
             setJanela(null);

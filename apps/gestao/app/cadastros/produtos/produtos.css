@@ -5,3 +5,20 @@
   color: var(--cor-preco); font-variant-numeric: tabular-nums; letter-spacing: -0.005em;
 }
 .hor-cat--inativa .prod-preco { color: var(--cor-texto-suave); }
+/* Delivery, tamanhos e grupos: uma linha discreta embaixo do preço (decisão 0021). */
+.prod-extras { margin: calc(-1 * var(--espaco-2)) 0 0; font-size: var(--texto-pequeno); color: var(--cor-texto-suave); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* Quadro "Quanto fica" na janela do produto: só leitura. */
+.prod-previa { display: grid; gap: var(--espaco-2); min-width: 0; padding: var(--espaco-3) var(--espaco-4); background: var(--cor-superficie); border: 1px solid var(--cor-borda-suave); border-radius: var(--raio); }
+.prod-previa > * { margin: 0; min-width: 0; }
+.prod-previa__titulo { font-weight: var(--peso-forte); }
+.prod-previa__tabela { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.prod-previa__tabela th, .prod-previa__tabela td { padding: var(--espaco-1) var(--espaco-2); text-align: left; border-bottom: 1px solid var(--cor-borda-suave); overflow-wrap: anywhere; }
+.prod-previa__tabela thead th { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
+.prod-previa__tabela tbody td { font-weight: var(--peso-forte); color: var(--cor-preco); }
+.prod-previa__tabela tbody tr:last-child > * { border-bottom: 0; }
+.prod-previa__nota { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
+@media (max-width: 40rem) {
+  .prod-previa { padding: var(--espaco-3) var(--espaco-2); }
+  .prod-previa__tabela th, .prod-previa__tabela td { padding-inline: var(--espaco-1); }
+}
