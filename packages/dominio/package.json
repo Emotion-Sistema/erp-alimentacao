@@ -9,7 +9,8 @@
     "./horarios": "./src/horarios-comum.ts",
     "./tipos-producao": "./src/tipos-producao-comum.ts",
     "./produtos": "./src/produtos-comum.ts",
-    "./importar": "./src/importar-comum.ts"
+    "./importar": "./src/importar-comum.ts",
+    "./clube": "./src/clube-comum.ts"
   },
   "scripts": {
     "semente": "tsx src/semente.ts",

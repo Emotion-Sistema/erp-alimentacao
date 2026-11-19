@@ -1,0 +1,51 @@
+/*
+ * Clube E-MOTION: o pouco que é só desta tela (o resto vem de horarios.css, adicionais.css e
+ * ingredientes.css, a mesma base visual de Cadastros, decisão 0012). Só variáveis do tema
+ * (packages/interface/src/tema.css); nenhuma cor escrita aqui. Âmbar e ouro só em fundo e borda.
+ */
+.clube__titulo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); margin-bottom: var(--espaco-2); }
+.clube__titulo h1 { margin: 0; }
+.clube__faixa {
+  margin: 0; padding: var(--espaco-3) var(--espaco-4); max-width: 60rem; overflow-wrap: anywhere;
+  background: color-mix(in srgb, var(--cor-ouro) 18%, var(--cor-cartao)); color: var(--cor-texto);
+  border: 1px solid var(--cor-borda-suave); border-left: 6px solid var(--cor-ouro); border-radius: var(--raio);
+}
+.clube__painel { display: grid; gap: var(--espaco-4); min-width: 0; }
+.clube__painel > * { min-width: 0; margin: 0; }
+.clube__lista { grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }
+.clube__nota { margin: 0; font-size: var(--texto-pequeno); color: var(--cor-texto-suave); overflow-wrap: anywhere; }
+.clube__presente--desligado { border-style: dashed; }
+
+/* Prévia do desconto e frases calculadas. */
+.clube__previa {
+  display: grid; gap: var(--espaco-2); min-width: 0; padding: var(--espaco-4);
+  background: var(--cor-cartao); border: 1px solid var(--cor-borda-suave); border-left: 6px solid var(--cor-primaria); border-radius: var(--raio);
+}
+.clube__previa > * { margin: 0; min-width: 0; }
+.clube__previa-titulo { font-size: 0.75rem; font-weight: var(--peso-forte); letter-spacing: 0.08em; text-transform: uppercase; color: var(--cor-texto-suave); }
+.clube__previa-frase { margin: 0; font-weight: var(--peso-forte); font-size: var(--texto-grande); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* Contador de letras logo abaixo do campo. */
+.clube__com-contador { display: grid; gap: var(--espaco-1); min-width: 0; }
+.clube__com-contador > * { margin: 0; min-width: 0; }
+.clube__contador { justify-self: end; font-size: var(--texto-pequeno); color: var(--cor-texto-suave); font-variant-numeric: tabular-nums; }
+
+/* Como a notificação aparece no celular (desenho simples). */
+.clube__celular {
+  margin: 0; display: grid; gap: var(--espaco-2); justify-self: center; width: min(100%, 22rem); padding: var(--espaco-4) var(--espaco-3);
+  background: var(--cor-faixa-escura); border-radius: calc(var(--raio-grande) * 2); box-shadow: var(--sombra-2);
+}
+.clube__celular-legenda { font-size: var(--texto-pequeno); color: var(--cor-faixa-escura-texto); text-align: center; }
+.clube__notificacao {
+  display: grid; gap: var(--espaco-1); padding: var(--espaco-3); min-width: 0;
+  background: var(--cor-cartao); color: var(--cor-texto); border-radius: var(--raio-grande); box-shadow: var(--sombra-1);
+}
+.clube__notificacao > p { margin: 0; overflow-wrap: anywhere; }
+.clube__notificacao-app { display: flex; justify-content: space-between; gap: var(--espaco-2); font-size: var(--texto-pequeno); color: var(--cor-texto-suave); font-weight: var(--peso-forte); }
+.clube__notificacao-titulo { font-weight: var(--peso-forte); }
+
+@media (max-width: 40rem) {
+  .clube__abas { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+  .clube__abas .hor-abas__aba { padding: 0 var(--espaco-2); }
+  .clube .hor-secao { padding: var(--espaco-3); }
+}

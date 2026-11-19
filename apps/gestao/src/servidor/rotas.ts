@@ -20,6 +20,12 @@ import {
   salvarFotoDoProduto,
   FOTO_BYTES_MAXIMO,
   listarGruposDeAdicionais,
+  verClube,
+  salvarRegrasDoClube,
+  salvarPremio,
+  salvarPresente,
+  agendarCampanha,
+  cancelarCampanha,
   salvarGrupoDeAdicionais,
   salvarProduto,
   salvarTipoDeProducao,
@@ -329,6 +335,14 @@ export const gravarProduto = seguro(async (req) => json(await salvarProduto(obte
 // Grupos de adicionais (decisão 0021).
 export const verGruposDeAdicionais = seguro(async (req) => json(await listarGruposDeAdicionais(obterBanco(), await ator(req))));
 export const gravarGrupoDeAdicionais = seguro(async (req) => json(await salvarGrupoDeAdicionais(obterBanco(), await ator(req), await corpoJson(req))));
+
+// Clube E-MOTION (RC-21, decisão 0024): só as regras; nada de dado de cliente.
+export const verPainelDoClube = seguro(async (req) => json(await verClube(obterBanco(), await ator(req))));
+export const gravarRegrasDoClube = seguro(async (req) => json(await salvarRegrasDoClube(obterBanco(), await ator(req), await corpoJson(req))));
+export const gravarPremioDoClube = seguro(async (req) => json(await salvarPremio(obterBanco(), await ator(req), await corpoJson(req))));
+export const gravarPresenteDoClube = seguro(async (req) => json(await salvarPresente(obterBanco(), await ator(req), await corpoJson(req))));
+export const gravarCampanhaDoClube = seguro(async (req) => json(await agendarCampanha(obterBanco(), await ator(req), await corpoJson(req))));
+export const cancelarCampanhaDoClube = seguro(async (req) => json(await cancelarCampanha(obterBanco(), await ator(req), await corpoJson(req))));
 
 // Foto do produto (decisão 0022). Confere a permissão ANTES de ler o arquivo.
 const LIMITE_DA_FOTO = Math.ceil(FOTO_BYTES_MAXIMO / 3) * 4 + 16 * 1024;

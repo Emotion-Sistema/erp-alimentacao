@@ -36,6 +36,7 @@ export const ICONES_DO_MENU: Record<IconeDoMenu, string> = {
   documento: "M7 3h8l4 4v14H7zM15 3v4h4M10 12h6M10 16h6",
   entrega: "M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10M7.5 5l9 4",
   adicional: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v8M8 12h8",
+  estrela: "M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z",
 };
 
 export const ICONE_MAIS = "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z";
