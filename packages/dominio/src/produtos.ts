@@ -149,6 +149,20 @@ export async function salvarProduto(
   const quem = await exigir(db, ator, "cadastros.gerenciar", {
     tipo: "produto",
   });
+  const d = validarDadosDoProduto(dados);
+  try {
+    return await db
+      .transaction()
+      .execute((trx) => gravarProdutoNaTransacao(trx, quem, d));
+  } catch (e) {
+    traduzirErroDoProduto(e);
+  }
+}
+
+export type DadosDoProduto = z.output<typeof esquemaProduto>;
+
+/** Valida os dados de um produto (sem id: nome, categoria e preço obrigatórios). Erro vira ErroDeRegra. */
+export function validarDadosDoProduto(dados: unknown): DadosDoProduto {
   const d = validar(esquemaProduto, dados);
   if (!d.id) {
     const faltam = [
@@ -159,159 +173,173 @@ export async function salvarProduto(
     if (faltam.length)
       throw new ErroDeRegra("dados_invalidos", faltam.join(" "));
   }
-  try {
-    return await db.transaction().execute(async (trx) => {
-      await travarLista(trx, "produto");
-      let antes: Produto | undefined;
-      if (d.id) {
-        antes = await trx
-          .selectFrom("produto")
-          .select(colunas)
-          .where("id", "=", d.id)
-          .forNoKeyUpdate()
-          .executeTakeFirst();
-        if (!antes)
-          throw new ErroDeRegra("nao_encontrado", "Produto não encontrado.");
-      }
-      // Como fica depois, para conferir tipo e tempo juntos.
-      const tipoDepois =
-        d.tipoProducaoId !== undefined
-          ? d.tipoProducaoId
-          : (antes?.tipoProducaoId ?? null);
-      const tempoDepois =
-        tipoDepois === null
-          ? null
-          : d.tempoPreparoMin !== undefined
-            ? d.tempoPreparoMin
-            : (antes?.tempoPreparoMin ?? null);
-      if (tipoDepois !== null && tempoDepois === null)
-        throw new ErroDeRegra(
-          "dados_invalidos",
-          "Informe o tempo de preparo (o produto passa pela produção).",
-        );
-      if (tipoDepois === null && d.tempoPreparoMin != null)
-        throw new ErroDeRegra(
-          "dados_invalidos",
-          "Sem tipo de produção não há tempo de preparo. Escolha o tipo ou deixe o tempo vazio.",
-        );
+  return d;
+}
 
-      // Categoria e tipo escolhidos agora (ou de um produto que volta a ser vendido) precisam estar ativos.
-      const reativando =
-        antes !== undefined && !antes.ativo && d.ativo === true;
-      const categoriaDepois = d.categoriaId ?? antes!.categoriaId;
-      if (categoriaDepois !== antes?.categoriaId || reativando) {
-        const c = await trx
-          .selectFrom("categoria")
-          .select("ativo")
-          .where("id", "=", categoriaDepois)
-          .forShare()
-          .executeTakeFirst();
-        if (!c?.ativo)
-          throw new ErroDeRegra(
-            "dados_invalidos",
-            "Categoria não encontrada ou desativada. Escolha outra.",
-          );
-      }
-      if (
-        tipoDepois !== null &&
-        (tipoDepois !== antes?.tipoProducaoId || reativando)
-      ) {
-        const t = await trx
-          .selectFrom("tipo_producao")
-          .select("ativo")
-          .where("id", "=", tipoDepois)
-          .forShare()
-          .executeTakeFirst();
-        if (!t?.ativo)
-          throw new ErroDeRegra(
-            "dados_invalidos",
-            "Tipo de produção não encontrado ou desativado. Escolha outro.",
-          );
-      }
+/** Recusa do banco vira mensagem de regra (nome repetido, categoria sumida, campo fora do limite). */
+export function traduzirErroDoProduto(e: unknown): never {
+  if (e instanceof ErroDeRegra) throw e;
+  const code = (e as { code?: string }).code;
+  if (code === "23505")
+    throw new ErroDeRegra(
+      "conflito",
+      "Já existe um produto ativo com esse nome.",
+    );
+  if (code === "23503")
+    throw new ErroDeRegra(
+      "dados_invalidos",
+      "Categoria ou tipo de produção não encontrado.",
+    );
+  if (code === "23514")
+    throw new ErroDeRegra(
+      "dados_invalidos",
+      "Algum campo está fora do permitido. Confira os campos.",
+    );
+  throw e;
+}
 
-      const valores = {
-        ...(d.nome === undefined ? {} : { nome: d.nome }),
-        ...(d.descricao === undefined ? {} : { descricao: d.descricao }),
-        ...(d.categoriaId === undefined ? {} : { categoria_id: d.categoriaId }),
-        ...(d.precoCentavos === undefined
-          ? {}
-          : { preco_centavos: d.precoCentavos }),
-        ...(d.ativo === undefined ? {} : { ativo: d.ativo }),
-        tipo_producao_id: tipoDepois,
-        tempo_preparo_min: tempoDepois,
-      };
-      let s: Produto;
-      if (antes) {
-        s = await trx
-          .updateTable("produto")
-          .set({ ...valores, atualizado_em: sql`now()` })
-          .where("id", "=", antes.id)
-          .returning(colunas)
-          .executeTakeFirstOrThrow();
-      } else {
-        s = await trx
-          .insertInto("produto")
-          .values({
-            ...valores,
-            nome: d.nome!,
-            categoria_id: d.categoriaId!,
-            preco_centavos: d.precoCentavos!,
-          })
-          .returning(colunas)
-          .executeTakeFirstOrThrow();
-      }
-      // Mudou de categoria sem escolher lugar: vai para o fim da categoria nova.
-      const mudouDeCategoria =
-        antes !== undefined && antes.categoriaId !== s.categoriaId && s.ativo;
-      const posicao =
-        d.posicao ??
-        (mudouDeCategoria
-          ? Number.MAX_SAFE_INTEGER
-          : posicaoDaGravacao(d, antes, s.ativo));
-      const reordenados =
-        posicao === undefined
-          ? []
-          : await reposicionar(trx, "produto", s.id, posicao, s.categoriaId);
-      if (reordenados.length)
-        s = await trx
-          .selectFrom("produto")
-          .select(colunas)
-          .where("id", "=", s.id)
-          .executeTakeFirstOrThrow();
-      await auditar(trx, {
-        usuarioId: quem.usuarioId,
-        acao: "cadastros.gerenciar",
-        resultado: "permitido",
-        alvoTipo: "produto",
-        alvoId: s.id,
-        detalhes: {
-          operacao: antes ? "alterar" : "criar",
-          antes: antes ?? null,
-          depois: s,
-          ...(reordenados.length ? { reordenados } : {}),
-        },
-        ip: quem.ip,
-      });
-      return s;
-    });
-  } catch (e) {
-    if (e instanceof ErroDeRegra) throw e;
-    const code = (e as { code?: string }).code;
-    if (code === "23505")
-      throw new ErroDeRegra(
-        "conflito",
-        "Já existe um produto ativo com esse nome.",
-      );
-    if (code === "23503")
-      throw new ErroDeRegra(
-        "dados_invalidos",
-        "Categoria ou tipo de produção não encontrado.",
-      );
-    if (code === "23514")
-      throw new ErroDeRegra(
-        "dados_invalidos",
-        "Algum campo está fora do permitido. Confira os campos.",
-      );
-    throw e;
+/**
+ * O miolo da gravação, DENTRO de uma transação que já existe (quem chama já conferiu a permissão
+ * e validou com `validarDadosDoProduto`). Usado por salvarProduto e pela importação de planilha
+ * (decisão 0020), que grava tudo numa transação só. `operacao` vai para a auditoria.
+ */
+export async function gravarProdutoNaTransacao(
+  trx: Banco,
+  quem: { usuarioId: number; ip: string | null },
+  d: DadosDoProduto,
+  extra: { operacao?: string; detalhes?: Record<string, unknown> } = {},
+): Promise<Produto> {
+  await travarLista(trx, "produto");
+  let antes: Produto | undefined;
+  if (d.id) {
+    antes = await trx
+      .selectFrom("produto")
+      .select(colunas)
+      .where("id", "=", d.id)
+      .forNoKeyUpdate()
+      .executeTakeFirst();
+    if (!antes)
+      throw new ErroDeRegra("nao_encontrado", "Produto não encontrado.");
   }
+  // Como fica depois, para conferir tipo e tempo juntos.
+  const tipoDepois =
+    d.tipoProducaoId !== undefined
+      ? d.tipoProducaoId
+      : (antes?.tipoProducaoId ?? null);
+  const tempoDepois =
+    tipoDepois === null
+      ? null
+      : d.tempoPreparoMin !== undefined
+        ? d.tempoPreparoMin
+        : (antes?.tempoPreparoMin ?? null);
+  if (tipoDepois !== null && tempoDepois === null)
+    throw new ErroDeRegra(
+      "dados_invalidos",
+      "Informe o tempo de preparo (o produto passa pela produção).",
+    );
+  if (tipoDepois === null && d.tempoPreparoMin != null)
+    throw new ErroDeRegra(
+      "dados_invalidos",
+      "Sem tipo de produção não há tempo de preparo. Escolha o tipo ou deixe o tempo vazio.",
+    );
+
+  // Categoria e tipo escolhidos agora (ou de um produto que volta a ser vendido) precisam estar ativos.
+  const reativando =
+    antes !== undefined && !antes.ativo && d.ativo === true;
+  const categoriaDepois = d.categoriaId ?? antes!.categoriaId;
+  if (categoriaDepois !== antes?.categoriaId || reativando) {
+    const c = await trx
+      .selectFrom("categoria")
+      .select("ativo")
+      .where("id", "=", categoriaDepois)
+      .forShare()
+      .executeTakeFirst();
+    if (!c?.ativo)
+      throw new ErroDeRegra(
+        "dados_invalidos",
+        "Categoria não encontrada ou desativada. Escolha outra.",
+      );
+  }
+  if (
+    tipoDepois !== null &&
+    (tipoDepois !== antes?.tipoProducaoId || reativando)
+  ) {
+    const t = await trx
+      .selectFrom("tipo_producao")
+      .select("ativo")
+      .where("id", "=", tipoDepois)
+      .forShare()
+      .executeTakeFirst();
+    if (!t?.ativo)
+      throw new ErroDeRegra(
+        "dados_invalidos",
+        "Tipo de produção não encontrado ou desativado. Escolha outro.",
+      );
+  }
+
+  const valores = {
+    ...(d.nome === undefined ? {} : { nome: d.nome }),
+    ...(d.descricao === undefined ? {} : { descricao: d.descricao }),
+    ...(d.categoriaId === undefined ? {} : { categoria_id: d.categoriaId }),
+    ...(d.precoCentavos === undefined
+      ? {}
+      : { preco_centavos: d.precoCentavos }),
+    ...(d.ativo === undefined ? {} : { ativo: d.ativo }),
+    tipo_producao_id: tipoDepois,
+    tempo_preparo_min: tempoDepois,
+  };
+  let s: Produto;
+  if (antes) {
+    s = await trx
+      .updateTable("produto")
+      .set({ ...valores, atualizado_em: sql`now()` })
+      .where("id", "=", antes.id)
+      .returning(colunas)
+      .executeTakeFirstOrThrow();
+  } else {
+    s = await trx
+      .insertInto("produto")
+      .values({
+        ...valores,
+        nome: d.nome!,
+        categoria_id: d.categoriaId!,
+        preco_centavos: d.precoCentavos!,
+      })
+      .returning(colunas)
+      .executeTakeFirstOrThrow();
+  }
+  // Mudou de categoria sem escolher lugar: vai para o fim da categoria nova.
+  const mudouDeCategoria =
+    antes !== undefined && antes.categoriaId !== s.categoriaId && s.ativo;
+  const posicao =
+    d.posicao ??
+    (mudouDeCategoria
+      ? Number.MAX_SAFE_INTEGER
+      : posicaoDaGravacao(d, antes, s.ativo));
+  const reordenados =
+    posicao === undefined
+      ? []
+      : await reposicionar(trx, "produto", s.id, posicao, s.categoriaId);
+  if (reordenados.length)
+    s = await trx
+      .selectFrom("produto")
+      .select(colunas)
+      .where("id", "=", s.id)
+      .executeTakeFirstOrThrow();
+  await auditar(trx, {
+    usuarioId: quem.usuarioId,
+    acao: "cadastros.gerenciar",
+    resultado: "permitido",
+    alvoTipo: "produto",
+    alvoId: s.id,
+    detalhes: {
+      operacao: extra.operacao ?? (antes ? "alterar" : "criar"),
+      antes: antes ?? null,
+      depois: s,
+      ...(reordenados.length ? { reordenados } : {}),
+      ...extra.detalhes,
+    },
+    ip: quem.ip,
+  });
+  return s;
 }

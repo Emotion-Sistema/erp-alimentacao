@@ -472,25 +472,26 @@ export async function converterParaBase(db: Banco, ingredienteId: number, quanti
 // ---------- cadastro rápido (ideia nº 4) ----------
 
 const MAXIMO_POR_LOTE = 300;
+/** Um item do lote (catálogo, lista colada ou planilha). */
+export const itemDoLote = z.object({
+  nome: nome("do ingrediente"),
+  unidadeBase: z.enum(UNIDADES_BASE, { error: "Escolha a unidade do estoque: kg, g, L, ml, un ou dz." }),
+  unidadeExibicao: z.enum(UNIDADES_PARA_MOSTRAR, { error: "Escolha a unidade: kg, g, L, ml, un ou dz." }).optional(),
+  area: z.enum(AREAS_ESTOQUE, { error: "Escolha a área de estoque." }),
+  fornecedorId: z.number().int().positive().nullish().transform((v) => v ?? null),
+  embalagens: z
+    .array(
+      dadosConversao
+        .pick({ nome: true, quantidadeBase: true })
+        // De que modelo do catálogo veio (ideia nº 6); o banco só mantém se o nome bater.
+        .extend({ modeloId: z.number().int().positive().nullish().transform((v) => v ?? null) }),
+    )
+    .max(10)
+    .default([]),
+});
+export type ItemDoLote = z.output<typeof itemDoLote>;
 const dadosDoLote = z
-  .array(
-    z.object({
-      nome: nome("do ingrediente"),
-      unidadeBase: z.enum(UNIDADES_BASE, { error: "Escolha a unidade do estoque: kg, g, L, ml, un ou dz." }),
-      unidadeExibicao: z.enum(UNIDADES_PARA_MOSTRAR, { error: "Escolha a unidade: kg, g, L, ml, un ou dz." }).optional(),
-      area: z.enum(AREAS_ESTOQUE, { error: "Escolha a área de estoque." }),
-      fornecedorId: z.number().int().positive().nullish().transform((v) => v ?? null),
-      embalagens: z
-        .array(
-          dadosConversao
-            .pick({ nome: true, quantidadeBase: true })
-            // De que modelo do catálogo veio (ideia nº 6); o banco só mantém se o nome bater.
-            .extend({ modeloId: z.number().int().positive().nullish().transform((v) => v ?? null) }),
-        )
-        .max(10)
-        .default([]),
-    }),
-  )
+  .array(itemDoLote)
   .min(1, "Marque pelo menos um item.")
   .max(MAXIMO_POR_LOTE, `No máximo ${MAXIMO_POR_LOTE} itens por vez.`);
 
@@ -503,6 +504,22 @@ const dadosDoLote = z
 export async function cadastrarEmLote(db: Banco, ator: Ator | null, dados: unknown): Promise<{ criados: number; ids: number[] }> {
   const quem = await exigir(db, ator, "cadastros.gerenciar", { tipo: "ingrediente" });
   const itens = validar(dadosDoLote, dados);
+  const ids = await db.transaction().execute((trx) => gravarLoteDeIngredientes(trx, quem, itens));
+  return { criados: ids.length, ids };
+}
+
+/**
+ * O miolo do lote, DENTRO de uma transação que já existe (quem chama já conferiu a permissão e
+ * validou os itens com `itemDoLote`). Usado pelo cadastro rápido e pela importação de planilha
+ * (decisão 0020), que grava tudo na mesma transação da importação. Qualquer erro sobe como
+ * ErroDeRegra e a transação de quem chamou desfaz tudo.
+ */
+export async function gravarLoteDeIngredientes(
+  trx: Banco,
+  quem: { usuarioId: number; ip: string | null },
+  itens: readonly ItemDoLote[],
+  extra: { operacao?: string; detalhes?: Record<string, unknown> } = {},
+): Promise<number[]> {
   const chaves = new Map<string, string>();
   for (const it of itens) {
     const k = it.nome.toLowerCase().replace(/\s+/g, " ");
@@ -521,59 +538,57 @@ export async function cadastrarEmLote(db: Banco, ator: Ator | null, dados: unkno
       embs.add(ke);
     }
   }
-  return db.transaction().execute(async (trx) => {
-    const ids: number[] = [];
-    for (const it of itens) {
-      // Tudo ou nada pela própria transação: qualquer erro desfaz o lote inteiro.
-      try {
-        if (it.fornecedorId) {
-          const f = await trx.selectFrom("fornecedor").select("ativo").where("id", "=", it.fornecedorId).forShare().executeTakeFirst();
-          if (!f?.ativo) throw new ErroDeRegra("dados_invalidos", "Fornecedor não encontrado ou desativado.");
-        }
-        const salvo = await trx
-          .insertInto("ingrediente")
-          .values({ nome: it.nome, unidade_base: it.unidadeBase, unidade_exibicao: it.unidadeExibicao ?? it.unidadeBase, area_estoque: it.area, fornecedor_id: it.fornecedorId })
-          .returning(["id", "nome", "unidade_base", "unidade_exibicao", "area_estoque", "fornecedor_id", "ativo"])
-          .executeTakeFirstOrThrow();
-        const conversoes = [];
-        for (const e of it.embalagens) {
-          conversoes.push(
-            await trx
-              .insertInto("ingrediente_conversao")
-              .values({ ingrediente_id: salvo.id, nome: e.nome, quantidade_base: e.quantidadeBase, modelo_id: e.modeloId })
-              .returning(["id", "nome", "quantidade_base", "modelo_id"])
-              .executeTakeFirstOrThrow(),
-          );
-        }
-        await auditar(trx, {
-          usuarioId: quem.usuarioId,
-          acao: "cadastros.gerenciar",
-          resultado: "permitido",
-          alvoTipo: "ingrediente",
-          alvoId: salvo.id,
-          detalhes: { operacao: "criar_em_lote", antes: null, depois: { ...salvo, conversoes } },
-          ip: quem.ip,
-        });
-        ids.push(salvo.id);
-      } catch (e) {
-        const motivo =
-          e instanceof ErroDeRegra
-            ? e.message
-            : (e as { code?: string }).code === "23505"
-              ? (e as { constraint?: string }).constraint === "ingrediente_conversao_nome"
-                ? "duas embalagens com o mesmo nome (ex.: \"1 saco\" e \"saco\" são a mesma)."
-                : "já existe um ingrediente ativo com esse nome."
-              : (e as { code?: string }).code === "23514"
-                ? (e as { constraint?: string }).constraint
-                  ? "algum valor está fora do permitido."
-                  : (e as Error).message
-                : null;
-        if (motivo === null) throw e;
-        throw new ErroDeRegra("dados_invalidos", `"${it.nome}": ${motivo} Nada foi gravado; corrija e tente de novo.`);
+  const ids: number[] = [];
+  for (const it of itens) {
+    // Tudo ou nada pela própria transação: qualquer erro desfaz o lote inteiro.
+    try {
+      if (it.fornecedorId) {
+        const f = await trx.selectFrom("fornecedor").select("ativo").where("id", "=", it.fornecedorId).forShare().executeTakeFirst();
+        if (!f?.ativo) throw new ErroDeRegra("dados_invalidos", "Fornecedor não encontrado ou desativado.");
       }
+      const salvo = await trx
+        .insertInto("ingrediente")
+        .values({ nome: it.nome, unidade_base: it.unidadeBase, unidade_exibicao: it.unidadeExibicao ?? it.unidadeBase, area_estoque: it.area, fornecedor_id: it.fornecedorId })
+        .returning(["id", "nome", "unidade_base", "unidade_exibicao", "area_estoque", "fornecedor_id", "ativo"])
+        .executeTakeFirstOrThrow();
+      const conversoes = [];
+      for (const e of it.embalagens) {
+        conversoes.push(
+          await trx
+            .insertInto("ingrediente_conversao")
+            .values({ ingrediente_id: salvo.id, nome: e.nome, quantidade_base: e.quantidadeBase, modelo_id: e.modeloId })
+            .returning(["id", "nome", "quantidade_base", "modelo_id"])
+            .executeTakeFirstOrThrow(),
+        );
+      }
+      await auditar(trx, {
+        usuarioId: quem.usuarioId,
+        acao: "cadastros.gerenciar",
+        resultado: "permitido",
+        alvoTipo: "ingrediente",
+        alvoId: salvo.id,
+        detalhes: { operacao: extra.operacao ?? "criar_em_lote", antes: null, depois: { ...salvo, conversoes }, ...extra.detalhes },
+        ip: quem.ip,
+      });
+      ids.push(salvo.id);
+    } catch (e) {
+      const motivo =
+        e instanceof ErroDeRegra
+          ? e.message
+          : (e as { code?: string }).code === "23505"
+            ? (e as { constraint?: string }).constraint === "ingrediente_conversao_nome"
+              ? "duas embalagens com o mesmo nome (ex.: \"1 saco\" e \"saco\" são a mesma)."
+              : "já existe um ingrediente ativo com esse nome."
+            : (e as { code?: string }).code === "23514"
+              ? (e as { constraint?: string }).constraint
+                ? "algum valor está fora do permitido."
+                : (e as Error).message
+              : null;
+      if (motivo === null) throw e;
+      throw new ErroDeRegra("dados_invalidos", `"${it.nome}": ${motivo} Nada foi gravado; corrija e tente de novo.`);
     }
-    return { criados: ids.length, ids };
-  });
+  }
+  return ids;
 }
 
 /** Catálogo pronto para a tela, marcando o que já está cadastrado (ativo). */

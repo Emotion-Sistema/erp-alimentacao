@@ -8,7 +8,8 @@
     "./unidades": "./src/unidades-do-estoque.ts",
     "./horarios": "./src/horarios-comum.ts",
     "./tipos-producao": "./src/tipos-producao-comum.ts",
-    "./produtos": "./src/produtos-comum.ts"
+    "./produtos": "./src/produtos-comum.ts",
+    "./importar": "./src/importar-comum.ts"
   },
   "scripts": {
     "semente": "tsx src/semente.ts",
@@ -17,7 +18,9 @@
   "dependencies": {
     "@erp/banco": "workspace:*",
     "@node-rs/argon2": "^2.2.2",
+    "exceljs": "4.4.0",
     "otpauth": "9.5.2",
+    "parse5": "8.1.1",
     "zod": "^4.6.7"
   }
 }

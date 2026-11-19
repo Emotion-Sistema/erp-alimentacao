@@ -4,6 +4,7 @@ export const TP = {
     titulo: "Produtos",
     intro: "O cardápio da casa: cada produto fica numa categoria, tem preço e, se passa pela produção, um tipo e o tempo de preparo.",
     novo: "Novo produto",
+    importar: "Importar planilha",
     carregando: "Carregando os produtos...",
     nenhum: "Nenhum produto cadastrado.",
     nenhumNaCategoria: "Nenhum produto ativo nesta categoria.",

@@ -162,6 +162,63 @@ function linhaDeErro(numero: number, texto: string, erro: string): LinhaLida {
   return { numero, texto, nome: texto.slice(0, 120), unidadeBase: null, area: "cozinha", embalagens: [], catalogo: null, situacao: "erro", avisos: [], erros: [erro] };
 }
 
+export type EmbalagemDoTexto = {
+  /** Unidade do estoque depois da leitura (a embalagem pode dizer qual é, quando ainda não se sabia). */
+  unidadeBase: UnidadeBase | null;
+  embalagem: EmbalagemLida | null;
+  erros: string[];
+  avisos: string[];
+};
+
+/**
+ * Lê UMA embalagem escrita como texto ("saco 25 kg", "caixa com 30", "fardo 12 latas") para um
+ * ingrediente que conta em `unidadeBase` (ou ainda sem unidade: a embalagem diz). É a mesma regra
+ * da lista colada; a importação de planilha (decisão 0020) usa esta função para a coluna Embalagens.
+ * O texto precisa vir curto (até MAXIMO_POR_LINHA) e com espaços já juntados.
+ */
+export function lerEmbalagemDoTexto(resto: string, unidadeInicial: UnidadeBase | null, nome: string): EmbalagemDoTexto {
+  let unidadeBase = unidadeInicial;
+  let embalagem: EmbalagemLida | null = null;
+  const erros: string[] = [];
+  const avisos: string[] = [];
+  const t = lerTamanho(resto);
+  if (!t) {
+    erros.push(`Não entendi "${resto}". Escreva assim: saco 25 kg, caixa com 30, fardo 12 latas.`);
+  } else if ("erro" in t) {
+    erros.push(t.erro);
+  } else {
+    const u = unidadePorJeito(t.palavra);
+    // Número sem unidade só é contagem com "com"/"c/" ("caixa com 30") ou se o item já é contado em un.
+    if (!u && t.palavra === "" && !t.com && unidadeBase !== "un") {
+      erros.push(`Diga a unidade de "${resto}" (ex.: ${resto} kg, ${resto} un ou "com ${t.numero.replace(".", ",")}").`);
+    } else if (!u && !PALAVRAS_DE_CONTAGEM.has(t.palavra)) {
+      erros.push(`Não conheço a unidade "${t.palavra}". Use g, kg, ml, l, un ou dz (ex.: saco 25 kg).`);
+    } else {
+      const grandeza: Grandeza = u?.grandeza ?? "contagem";
+      const curta = u?.codigo ?? "un";
+      if (!unidadeBase) unidadeBase = BASE_DA_GRANDEZA[grandeza];
+      const nomeEmb = `${t.tipo ? `${t.tipo} ` : ""}${t.numero.replace(".", ",")} ${curta}`;
+      if (GRANDEZA_DA_BASE[unidadeBase] === grandeza) {
+        const q = multiplicar(t.numero, u?.fator ?? "1");
+        if (!q) erros.push(`Quantidade inválida em "${resto}".`);
+        else if (q.split(".")[0]!.length > 10) erros.push(`Quantidade grande demais em "${resto}".`);
+        else if (t.tipo) embalagem = { nome: nomeEmb, quantidadeBase: q, doCatalogo: false };
+        // Sem tipo de embalagem e na mesma grandeza ("Sal 1 kg", "Leite 1 l"): o sistema já
+        // converte sozinho; só serviu para dizer a unidade do estoque.
+      } else {
+        embalagem = {
+          nome: nomeEmb,
+          quantidadeBase: null,
+          doCatalogo: false,
+          problema: `Quanto ${nomeEmb} dá em ${unidadeBase}? Preencha antes de gravar.`,
+        };
+        avisos.push(`"${nome}" é contado em ${unidadeBase}: diga quanto ${nomeEmb} dá em ${unidadeBase}.`);
+      }
+    }
+  }
+  return { unidadeBase, embalagem, erros, avisos };
+}
+
 /**
  * Lê o texto colado. `jaCadastrados`: nomes de ingredientes ATIVOS que já existem (a tela
  * recebe do servidor), para avisar repetido antes de gravar.
@@ -209,41 +266,11 @@ export function lerListaColada(texto: string, jaCadastrados: readonly string[] =
     const embalagens: EmbalagemLida[] = [];
 
     if (resto) {
-      const t = lerTamanho(resto);
-      if (!t) {
-        erros.push(`Não entendi "${resto}". Escreva assim: saco 25 kg, caixa com 30, fardo 12 latas.`);
-      } else if ("erro" in t) {
-        erros.push(t.erro);
-      } else {
-        const u = unidadePorJeito(t.palavra);
-        // Número sem unidade só é contagem com "com"/"c/" ("caixa com 30") ou se o item já é contado em un.
-        if (!u && t.palavra === "" && !t.com && unidadeBase !== "un") {
-          erros.push(`Diga a unidade de "${resto}" (ex.: ${resto} kg, ${resto} un ou "com ${t.numero.replace(".", ",")}").`);
-        } else if (!u && !PALAVRAS_DE_CONTAGEM.has(t.palavra)) {
-          erros.push(`Não conheço a unidade "${t.palavra}". Use g, kg, ml, l, un ou dz (ex.: saco 25 kg).`);
-        } else {
-          const grandeza: Grandeza = u?.grandeza ?? "contagem";
-          const curta = u?.codigo ?? "un";
-          if (!unidadeBase) unidadeBase = BASE_DA_GRANDEZA[grandeza];
-          const nomeEmb = `${t.tipo ? `${t.tipo} ` : ""}${t.numero.replace(".", ",")} ${curta}`;
-          if (GRANDEZA_DA_BASE[unidadeBase] === grandeza) {
-            const q = multiplicar(t.numero, u?.fator ?? "1");
-            if (!q) erros.push(`Quantidade inválida em "${resto}".`);
-            else if (q.split(".")[0]!.length > 10) erros.push(`Quantidade grande demais em "${resto}".`);
-            else if (t.tipo) embalagens.push({ nome: nomeEmb, quantidadeBase: q, doCatalogo: false });
-            // Sem tipo de embalagem e na mesma grandeza ("Sal 1 kg", "Leite 1 l"): o sistema já
-            // converte sozinho; só serviu para dizer a unidade do estoque.
-          } else {
-            embalagens.push({
-              nome: nomeEmb,
-              quantidadeBase: null,
-              doCatalogo: false,
-              problema: `Quanto ${nomeEmb} dá em ${unidadeBase}? Preencha antes de gravar.`,
-            });
-            avisos.push(`"${nome}" é contado em ${unidadeBase}: diga quanto ${nomeEmb} dá em ${unidadeBase}.`);
-          }
-        }
-      }
+      const r = lerEmbalagemDoTexto(resto, unidadeBase, nome);
+      unidadeBase = r.unidadeBase;
+      if (r.embalagem) embalagens.push(r.embalagem);
+      erros.push(...r.erros);
+      avisos.push(...r.avisos);
     }
     if (cat) {
       for (const [n, q] of cat.embalagens) {
