@@ -64,6 +64,8 @@ export type FichaDaPlanilha = {
   /** Linha da planilha onde a ficha começa. */
   linha: number;
   acao: "criar" | "nova_versao" | "sem_mudanca" | "erro";
+  /** Versão atual da ficha no banco (para mandar de volta ao gravar); nulo se ainda não existe. */
+  versaoAtual: number | null;
   itens: number;
   pendencias: number;
   erros: { linha: number; texto: string }[];
@@ -84,6 +86,8 @@ const esquemaPedido = z.object(
     criarIngredientes: z.boolean({ error: "Criar ingredientes: sim ou não." }).optional(),
     /** Gravar as fichas sem erro e deixar de fora as com erro (e as que usam um preparo com erro). */
     pularComErro: z.boolean({ error: "Pular fichas com erro: sim ou não." }).optional(),
+    /** Versão de cada ficha vista na conferência (nome -> número; nulo = não existia). */
+    versoes: z.record(z.string().max(200), z.number().int().min(1).nullable()).optional(),
   },
   { error: "Pedido em formato inválido." },
 );
@@ -198,17 +202,20 @@ async function contexto(db: Banco): Promise<Contexto> {
 }
 
 const decimalOk = (t: string) => /^\d{1,10}([.,]\d{1,4})?$/.test(t.trim()) && /[1-9]/.test(t);
+/** "1.000" numa planilha brasileira costuma ser mil: ambíguo, pede para escrever sem ponto. */
+const milharAmbiguo = (t: string) => /^\d{1,3}(\.\d{3})+$/.test(t.trim());
 const decimal = (t: string) => t.trim().replace(",", ".");
 
-type Montada = { planejada: Planejada; dados: DadosDaFicha | null; fichaId: number | null; preparoDaPlanilha: string[] };
+type Montada = { planejada: Planejada; dados: DadosDaFicha | null; fichaId: number | null; preparoDaPlanilha: string[]; versaoAtual?: number | null };
 
 /** Confere cada ficha contra o banco e monta os dados para `gravarFichaNaTransacao`. */
 function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean, arquivo: string) {
   const novos = new Map<string, { nome: string; unidade: UnidadeDaFicha }>();
   const preparosDaPlanilha = new Map<string, Planejada>();
   // Unidade de cada preparo ANTES de conferir os itens (um produto pode vir antes do preparo).
+  // Todos os preparos da planilha (até os com erro): um nome de preparo nunca vira ingrediente.
   for (const f of fichas) {
-    if (f.tipo !== "preparo" || f.erros.length) continue;
+    if (f.tipo !== "preparo") continue;
     const ja = ctx.preparos.get(nomeComparavel(f.nome));
     const u = f.campos.unidadeRendimento ? unidadeDoTexto(f.campos.unidadeRendimento) : null;
     f.unidadeRendimento = ja?.unidade ?? (u ? FATOR[u]!.base : null);
@@ -247,6 +254,10 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
     const num = (c: Coluna, rotulo: string) => {
       const v = f.campos[c];
       if (!v) return null;
+      if (milharAmbiguo(v)) {
+        erros.push({ linha: f.linha, texto: `${rotulo} "${v}": escreva sem ponto de milhar (ex.: 1000 ou 1,5).` });
+        return null;
+      }
       if (!decimalOk(v)) {
         erros.push({ linha: f.linha, texto: `${rotulo} "${v}" não é um número maior que zero.` });
         return null;
@@ -278,7 +289,7 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
       const chave = nomeComparavel(i.ingrediente);
       const prep = ctx.preparos.get(chave) ?? (preparosDaPlanilha.has(chave) ? { id: null, unidade: preparosDaPlanilha.get(chave)!.unidadeRendimento } : undefined);
       let alvo: { ingredienteId?: number; preparoId?: number; unidade: UnidadeDaFicha | null; novo?: string } | undefined;
-      if (prep && chave !== nomeComparavel(f.nome)) {
+      if (prep && !(f.tipo === "preparo" && chave === nomeComparavel(f.nome))) {
         alvo = { preparoId: prep.id ?? -1, unidade: prep.unidade };
         if (prep.id === null) usados.push(chave);
       } else {
@@ -292,6 +303,11 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
             erros.push({ linha: i.linha, texto: `Ingrediente "${i.ingrediente}" não existe; para criar, informe a unidade (g, kg, ml, l, un).` });
             return [];
           }
+          const n = i.ingrediente.replace(/\s+/g, " ").trim();
+          if (n.length < 2 || n.length > 120 || /\p{Cc}/u.test(n)) {
+            erros.push({ linha: i.linha, texto: `Nome de ingrediente "${n.slice(0, 40)}" inválido para criar (2 a 120 letras).` });
+            return [];
+          }
           novos.set(chave, { nome: i.ingrediente, unidade: FATOR[u]!.base });
           alvo = { ingredienteId: -1, unidade: FATOR[u]!.base, novo: chave };
         } else {
@@ -303,7 +319,8 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
       let quantidade: string | null = null;
       if (i.quantidade) {
         const u = i.unidade ? unidadeDoTexto(i.unidade) : null;
-        if (!decimalOk(i.quantidade)) erros.push({ linha: i.linha, texto: `Quantidade "${i.quantidade}" não é um número maior que zero (até 4 casas).` });
+        if (milharAmbiguo(i.quantidade)) erros.push({ linha: i.linha, texto: `Quantidade "${i.quantidade}": escreva sem ponto de milhar (ex.: 1000 ou 1,5).` });
+        else if (!decimalOk(i.quantidade)) erros.push({ linha: i.linha, texto: `Quantidade "${i.quantidade}" não é um número maior que zero (até 4 casas).` });
         else if (!u) erros.push({ linha: i.linha, texto: `Unidade "${i.unidade ?? ""}" desconhecida: use g, kg, ml, l, un ou dz.` });
         else if (!alvo.unidade) erros.push({ linha: i.linha, texto: `O preparo "${i.ingrediente}" está sem a unidade do rendimento.` });
         else if (FATOR[u]!.base !== alvo.unidade)
@@ -311,14 +328,15 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
         else {
           quantidade = Fracao.decimal(decimal(i.quantidade)).vezes(Fracao.decimal(FATOR[u]!.fator)).texto(4);
           if (!decimalOk(quantidade)) {
-            erros.push({ linha: i.linha, texto: `Quantidade de "${i.ingrediente}" pequena demais.` });
+            erros.push({ linha: i.linha, texto: `Quantidade de "${i.ingrediente}" fora do permitido depois de converter (muito pequena ou muito grande).` });
             quantidade = null;
           }
         }
       }
       return [
         {
-          ...(alvo.ingredienteId !== undefined ? { ingredienteId: alvo.ingredienteId } : { preparoId: alvo.preparoId }),
+          ingredienteId: alvo.ingredienteId,
+          preparoId: alvo.ingredienteId === undefined ? alvo.preparoId : undefined,
           quantidade,
           opcional: i.opcional,
           medidaCaseira: i.medidaCaseira?.slice(0, 60) ?? null,
@@ -327,6 +345,22 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
         },
       ];
     });
+
+    // O mesmo item em duas linhas: soma quando dá (as duas com quantidade e iguais no resto).
+    const juntos: typeof itens = [];
+    for (const it of itens) {
+      const k = it.ingredienteId !== undefined ? `i${it.ingredienteId}:${it._chave ?? ""}` : `p${it.preparoId}:${it._chave ?? ""}`;
+      const ja = juntos.find((x) => (x.ingredienteId !== undefined ? `i${x.ingredienteId}:${x._chave ?? ""}` : `p${x.preparoId}:${x._chave ?? ""}`) === k);
+      if (!ja) {
+        juntos.push(it);
+        continue;
+      }
+      if (ja.quantidade && it.quantidade && ja.opcional === it.opcional && !ja.medidaCaseira && !it.medidaCaseira)
+        ja.quantidade = Fracao.decimal(ja.quantidade).mais(Fracao.decimal(it.quantidade)).texto(4);
+      else erros.push({ linha: f.linha, texto: "O mesmo ingrediente aparece em duas linhas que não dá para somar; junte numa linha só." });
+    }
+    itens.length = 0;
+    itens.push(...juntos);
 
     const receita = {
       rende,
@@ -339,6 +373,23 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
       motivo: `Importada da planilha ${arquivo}`.slice(0, 200),
       itens,
     };
+    // Confere já agora com as mesmas regras da gravação (ids ainda por criar viram um número válido).
+    if (!erros.length) {
+      try {
+        const provisorios = { ...receita, itens: itens.map(({ _chave, ...x }) => ({ ...x, ...(x.ingredienteId === -1 ? { ingredienteId: 2_147_483_647 } : {}), ...(x.preparoId === -1 ? { preparoId: 2_147_483_647 } : {}), _: _chave })).map(({ _, ...x }) => x) };
+        validarDadosDaFicha(fichaId ? { id: fichaId, versaoBase: 1, receita: provisorios } : { ...base, receita: provisorios });
+        const dup = new Set<string>();
+        for (const x of provisorios.itens) {
+          const k = x.ingredienteId !== undefined ? `i${x.ingredienteId}` : `p${x.preparoId}`;
+          if (k.endsWith("2147483647")) continue;
+          if (dup.has(k)) throw new ErroDeRegra("dados_invalidos", "O mesmo ingrediente ou preparo veio duas vezes.");
+          dup.add(k);
+        }
+      } catch (e) {
+        if (!(e instanceof ErroDeRegra)) throw e;
+        erros.push({ linha: f.linha, texto: e.message });
+      }
+    }
     return { planejada: f, dados: erros.length ? null : ({ ...base, receita } as unknown as DadosDaFicha), fichaId, preparoDaPlanilha: usados };
   });
   return { montadas, novos };
@@ -380,6 +431,7 @@ export async function importarFichas(db: Banco, ator: Ator | null, dados: unknow
       tipo: m.planejada.tipo,
       linha: m.planejada.linha,
       acao: m.planejada.erros.length ? "erro" : (acoes.get(m.planejada) ?? (m.fichaId ? "nova_versao" : "criar")),
+      versaoAtual: m.versaoAtual ?? null,
       itens: m.planejada.itens.length,
       pendencias: m.planejada.pendencias.length,
       erros: m.planejada.erros,
@@ -391,6 +443,19 @@ export async function importarFichas(db: Banco, ator: Ator | null, dados: unknow
     const ctx = await contexto(trx);
     const { montadas, novos } = conferir(fichas, ctx, p.data.criarIngredientes ?? false, nomeArq);
     const pular = p.data.pularComErro ?? false;
+    // Versão atual de cada ficha que já existe; ao gravar, tem de ser a mesma vista na conferência.
+    const ids = montadas.flatMap((m) => (m.fichaId ? [m.fichaId] : []));
+    const atuais = ids.length
+      ? await trx.selectFrom("ficha as f").innerJoin("ficha_versao as v", "v.id", "f.versao_atual_id").select(["f.id", "v.numero"]).where("f.id", "in", ids).execute()
+      : [];
+    for (const m of montadas) {
+      m.versaoAtual = m.fichaId ? (atuais.find((a) => a.id === m.fichaId)?.numero ?? null) : null;
+      const vista = p.data.versoes?.[m.planejada.nome];
+      if (aplicar && p.data.versoes && vista !== undefined && vista !== m.versaoAtual && !m.planejada.erros.length) {
+        m.planejada.erros.push({ linha: m.planejada.linha, texto: "Esta ficha mudou depois da conferência. Confira de novo." });
+        m.dados = null;
+      }
+    }
     if (pular) {
       // Quem usa um preparo da planilha que ficou de fora também fica de fora.
       let mudou = true;
@@ -415,6 +480,11 @@ export async function importarFichas(db: Banco, ator: Ator | null, dados: unknow
     if (!aplicar || temErro || typeof ordem === "string") return { r: resultado(false, montadas, novos), temErro };
 
     // Gravar: ingredientes novos, depois as fichas na ordem.
+    // Só os ingredientes novos usados pelas fichas que vão ser gravadas.
+    const usadosNovos = new Set(
+      ordem.flatMap((m) => ((m.dados as unknown as { receita: { itens: { _chave: string | null }[] } } | null)?.receita.itens ?? []).flatMap((i) => (i._chave && !i._chave.startsWith("p:") ? [i._chave] : []))),
+    );
+    for (const k of [...novos.keys()]) if (!usadosNovos.has(k)) novos.delete(k);
     const idsNovos = new Map<string, number>();
     for (const [chave, n] of novos) {
       const id = (await trx.insertInto("ingrediente").values({ nome: n.nome, unidade_base: n.unidade, area_estoque: "cozinha" }).returning("id").executeTakeFirstOrThrow()).id;
@@ -444,7 +514,15 @@ export async function importarFichas(db: Banco, ator: Ator | null, dados: unknow
           if (m.planejada.tipo === "preparo") idsPreparos.set(nomeComparavel(m.planejada.nome), fichaId);
           continue;
         }
-        const dadosFinais = validarDadosDaFicha({ id: fichaId, ...(atual ? { versaoBase: atual.numero } : {}), receita });
+        // A planilha não tem observações nem equipamentos: ficam os da versão atual.
+        const herdado = atual
+          ? await trx.selectFrom("ficha_versao").select(["observacoes", "equipamentos"]).where("id", "=", atual.id).executeTakeFirstOrThrow()
+          : null;
+        const dadosFinais = validarDadosDaFicha({
+          id: fichaId,
+          ...(atual ? { versaoBase: atual.numero } : {}),
+          receita: { ...receita, observacoes: herdado?.observacoes ?? null, equipamentos: herdado?.equipamentos ?? [] },
+        });
         await gravarFichaNaTransacao(trx, quem, dadosFinais);
         acoes.set(m.planejada, "nova_versao");
       } else {
@@ -455,6 +533,8 @@ export async function importarFichas(db: Banco, ator: Ator | null, dados: unknow
       }
       if (m.planejada.tipo === "preparo") idsPreparos.set(nomeComparavel(m.planejada.nome), fichaId);
     }
+    const gravou = novos.size > 0 || [...acoes.values()].some((a) => a === "criar" || a === "nova_versao");
+    if (!gravou) return { r: resultado(false, montadas, novos, acoes), temErro: false };
     await auditar(trx, {
       usuarioId: quem.usuarioId,
       acao: "cadastros.gerenciar",

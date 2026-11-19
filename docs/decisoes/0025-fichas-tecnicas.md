@@ -36,30 +36,30 @@ comparar versões.
      a do produto. Adicional soma a ficha dele. Produto com ficha em todos os tamanhos ativos não
      aparece como "sem ficha".
    - Ficha desligada ou de item fora do cardápio não dá consumo.
-5. **Regra única de custo** (antes item 4) (`analisarFichas`, em `fichas-comum`): abre os preparos pela
+5. **Regra única de custo** (`analisarFichas`, em `fichas-comum`): abre os preparos pela
    versão atual (até 8 níveis, julgados a partir de cada ficha; ao gravar, a ficha e todas as que a
    usam são conferidas contra receita circular e profundidade, sob a trava das fichas),
    soma por ingrediente e divide pelo rendimento. Conta com **frações exatas** (BigInt); o custo só é
    arredondado no fim, para centavos (meio para cima). A perda fica na própria receita (bacon: 291 g
    cru rendem 138 g), aplicada uma vez.
-5. **Pendências:** automáticas (sem itens, sem rendimento, item sem quantidade, ingrediente ou preparo
+6. **Pendências:** automáticas (sem itens, sem rendimento, item sem quantidade, ingrediente ou preparo
    desativado, preparo incompleto) e anotadas pela equipe. **Ficha com pendência não baixa estoque**
    (`consumoDaFicha` recusa). Ingrediente sem preço não é pendência da receita: deixa o custo
    **parcial**.
-6. **Custo de referência** no ingrediente (centavos por quantidade na unidade do estoque, ex.: R$ 45,90
+7. **Custo de referência** no ingrediente (centavos por quantidade na unidade do estoque, ex.: R$ 45,90
    por 1000 g) até as compras trazerem o preço real (E09/E10). **Margem:** custo sobre o preço na loja
    e no delivery (produto; tamanho = preço + acréscimo; adicional = preço dele), com alerta acima de um
    limite editável (padrão 35%).
-7. **Permissões:** ver a receita = `cadastros.ver` (a cozinha também); custo, margem e custo de
+8. **Permissões:** ver a receita = `cadastros.ver` (a cozinha também); custo, margem e custo de
    referência só para `custos.ver` (o servidor tira); gravar = `cadastros.gerenciar`; custo de
    referência pede as duas. Auditoria em tudo.
-8. **Importar por planilha:** uma linha por item, colunas fixas (ficha, tipo, rende, unidade do
+9. **Importar por planilha:** uma linha por item, colunas fixas (ficha, tipo, rende, unidade do
    rendimento, porção, tempo, validade, ingrediente, quantidade, unidade, opcional, medida caseira,
    observação, pendência, etapa). Confere antes (nada gravado), grava tudo numa transação só
    (ingredientes novos se pedido, preparos em ordem de dependência, depois produtos); ficha igual à
    atual não ganha versão nova. Opção "pular as com erro": grava as boas e deixa de fora as com erro
    e as que usam um preparo com erro. As receitas reais da casa **não entram no repositório** (público
-   desde 19/11/2026): a planilha fica no Drive e é importada pela tela.
+   desde 19/11/2026): a planilha fica no Drive e é importada pela tela Cadastros → Fichas técnicas → Importar. Na conferência, cada ficha volta com a versão atual; ao gravar, a tela manda essas versões e a ficha que mudou nesse meio-tempo é recusada. Linhas repetidas do mesmo item somam; "1.000" é recusado como ambíguo (escreva 1000); nome de preparo nunca vira ingrediente; a nova versão herda observações e equipamentos (a planilha não tem essas colunas).
 
 ## Hipóteses (reversíveis)
 - Opcional conta no consumo (baixa como se fosse); a E11 pode passar a perguntar.
@@ -68,6 +68,9 @@ comparar versões.
 - Produto que vira combo precisa desligar a ficha antes; religar ficha confere o alvo de novo.
 - Ficha de tamanho é a receita inteira daquele tamanho (não um acréscimo).
 - Limite de alerta do custo: 35% do preço.
+- Renomear um preparo vale para todas as versões (o nome é da ficha, fica na auditoria).
+- O custo de cada item, quando o preparo dele tem custo parcial, aparece sem marca própria (o
+  custo da ficha já sai marcado como parcial).
 
 ## Alternativas descartadas
 - Custo em float ou arredondado a cada passo: erro de centavos que se acumula em preparos.

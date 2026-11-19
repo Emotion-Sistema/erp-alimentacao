@@ -174,3 +174,74 @@ describe("importar fichas", () => {
     expect((await erroDe(importar([], false, false, cozinheira))).codigo).toBe("sem_permissao");
   });
 });
+
+describe("ajustes da revisão (importação)", () => {
+  it("preparo com erro nunca vira ingrediente falso; quem o usa fica de fora", async () => {
+    const r = await importarFichas(db, gerente, {
+      arquivo: csv([
+        `Molho R ${s};preparo;100;ml;;;;;Agua R ${s};10;ml;;;;;`,
+        `;;200;;;;;;;;;;;;;`, // rende diferente na mesma ficha: erro de montagem
+        `Prato R ${s};produto;1;;;;;;Molho R ${s};10;ml;;;;;`,
+      ]),
+      aplicar: true,
+      criarIngredientes: true,
+      pularComErro: true,
+    });
+    expect(r.fichas.map((f) => f.acao)).toEqual(["erro", "erro"]);
+    expect(r.aplicado).toBe(false); // nada gravado
+    expect(await db.selectFrom("ingrediente").select("id").where("nome", "=", `Molho R ${s}`).executeTakeFirst()).toBeUndefined();
+    expect(await db.selectFrom("ingrediente").select("id").where("nome", "=", `Agua R ${s}`).executeTakeFirst()).toBeUndefined();
+  });
+
+  it("produto com o mesmo nome de um preparo usa o preparo; linhas repetidas somam; 1.000 é ambíguo; nome curto não cria", async () => {
+    await salvarIngrediente(db, gerente, { nome: `Tomate V ${s}`, unidadeBase: "g", area: "cozinha" });
+    await salvarProduto(db, gerente, { nome: `Vinagrete ${s}`, categoriaId: cat, precoCentavos: 500 });
+    const r = await importarFichas(db, gerente, {
+      arquivo: csv([
+        `Vinagrete ${s};preparo;500;g;;;;;Tomate V ${s};300;g;;;;;`,
+        `;;;;;;;;Tomate V ${s};100;g;;;;;`,
+        `Vinagrete ${s};produto;1;;;;;;Vinagrete ${s};50;g;;;;;`,
+      ]),
+      aplicar: true,
+    });
+    expect(r.fichas.map((f) => [f.tipo, f.acao])).toEqual([
+      ["preparo", "criar"],
+      ["produto", "criar"],
+    ]);
+    const prep = await db.selectFrom("ficha").select(["id", "versao_atual_id"]).where("nome", "=", `Vinagrete ${s}`).executeTakeFirstOrThrow();
+    const f = await verFicha(db, gerente, prep.id);
+    expect(f.versao!.itens.map((i) => i.quantidade)).toEqual(["400"]); // 300 + 100
+    const prod = await db.selectFrom("ficha as f").innerJoin("produto as p", "p.id", "f.produto_id").select("f.id").where("p.nome", "=", `Vinagrete ${s}`).executeTakeFirstOrThrow();
+    expect((await verFicha(db, gerente, prod.id)).versao!.itens[0]!.preparoId).toBe(prep.id);
+    const amb = await importar([`Mil ${s};preparo;1.000;g;;;;;Tomate V ${s};1.000;g;;;;;`], false);
+    expect(amb.fichas[0]!.erros.map((e) => e.texto).join(" ")).toContain("ponto de milhar");
+    const curto = await importar([`Curto ${s};preparo;10;g;;;;;Z;1;g;;;;;`], false, true);
+    expect(curto.fichas[0]!.erros.map((e) => e.texto).join(" ")).toContain("inválido para criar");
+  });
+
+  it("limites conferidos já na conferência; reimportar mantém observações e equipamentos; versão mudada é recusada", async () => {
+    await salvarIngrediente(db, gerente, { nome: `Farinha L ${s}`, unidadeBase: "g", area: "cozinha" });
+    const muitas = [`Massa L ${s};preparo;100;g;;;;;Farinha L ${s};10;g;;;;;Etapa 0`, ...Array.from({ length: 41 }, (_, k) => `;;;;;;;;;;;;;;;Etapa ${k + 1}`)];
+    const m = await importar(muitas, false);
+    expect(m.fichas[0]!.erros.map((e) => e.texto).join(" ")).toContain("40 etapas");
+    const base = [`Massa M ${s};preparo;100;g;;;;;Farinha L ${s};10;g;;;;;`];
+    await importar(base, true);
+    const id = (await db.selectFrom("ficha").select("id").where("nome", "=", `Massa M ${s}`).executeTakeFirstOrThrow()).id;
+    const { salvarFicha } = await import("../src/index");
+    const atual = await verFicha(db, gerente, id);
+    await salvarFicha(db, gerente, {
+      id,
+      versaoBase: 1,
+      receita: { rende: "100", itens: [{ ingredienteId: atual.versao!.itens[0]!.ingredienteId!, quantidade: "10" }], observacoes: "Servir quente", equipamentos: ["Forno"] },
+    });
+    const conf = await importar([`Massa M ${s};preparo;100;g;;;;;Farinha L ${s};12;g;;;;;`], false);
+    expect(conf.fichas[0]!.versaoAtual).toBe(2);
+    const g = await importarFichas(db, gerente, { arquivo: csv([`Massa M ${s};preparo;100;g;;;;;Farinha L ${s};12;g;;;;;`]), aplicar: true, versoes: { [`Massa M ${s}`]: 2 } });
+    expect(g.fichas[0]!.acao).toBe("nova_versao");
+    const v3 = await verFicha(db, gerente, id);
+    expect(v3.versao).toMatchObject({ numero: 3, observacoes: "Servir quente", equipamentos: ["Forno"] });
+    const velha = await importarFichas(db, gerente, { arquivo: csv([`Massa M ${s};preparo;100;g;;;;;Farinha L ${s};13;g;;;;;`]), aplicar: true, versoes: { [`Massa M ${s}`]: 2 } });
+    expect(velha.aplicado).toBe(false);
+    expect(velha.fichas[0]!.erros[0]!.texto).toContain("mudou depois da conferência");
+  });
+});
