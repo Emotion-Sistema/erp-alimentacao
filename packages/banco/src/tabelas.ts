@@ -329,6 +329,21 @@ export interface ImportacaoPlanilhaTabela {
   criado_em: ColumnType<Date, never, never>;
 }
 
+/** Foto do produto (migração 0016): WebP refeito pelo servidor; uma ativa por produto. */
+export interface ProdutoFotoTabela {
+  id: Generated<number>;
+  produto_id: number;
+  tipo: Generated<"image/webp">;
+  conteudo: Buffer;
+  largura: number;
+  altura: number;
+  sha256: string;
+  ativa: Generated<boolean>;
+  enviada_por: number;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
 export interface BancoTabelas {
   empresa: EmpresaTabela;
   unidade: UnidadeTabela;
@@ -351,6 +366,7 @@ export interface BancoTabelas {
   categoria: CategoriaTabela;
   tipo_producao: TipoProducaoTabela;
   produto: ProdutoTabela;
+  produto_foto: ProdutoFotoTabela;
   horario_unidade: HorarioUnidadeTabela;
   horario_unidade_data: HorarioUnidadeDataTabela;
   horario_venda: HorarioVendaTabela;
