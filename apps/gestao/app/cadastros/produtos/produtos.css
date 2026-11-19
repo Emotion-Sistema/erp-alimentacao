@@ -49,3 +49,18 @@
   .prod-foto__quadro { max-width: none; }
   .prod-foto__botoes > .erp-botao { flex: 1 1 100%; }
 }
+
+/* Partes do combo (decisão 0023): cada parte é um cartão com o nome em cima, as opções e "Adicionar opção". */
+.linha-editavel__linha.prod-combo__parte { display: grid; align-items: stretch; gap: var(--espaco-3); }
+.prod-combo__parte > * { min-width: 0; margin: 0; }
+.prod-combo__cabeca { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--espaco-2) var(--espaco-3); min-width: 0; }
+/* Opção dentro da parte: cartão mais leve, para não confundir com a parte. */
+.linha-editavel__linha.prod-combo__opcao { border-left-color: var(--cor-borda); background: var(--cor-superficie); box-shadow: none; }
+.prod-combo__produto { width: 16rem; max-width: 100%; }
+.prod-combo__tamanho { width: 12rem; max-width: 100%; }
+@media (max-width: 40rem) {
+  .linha-editavel__linha.prod-combo__parte { padding: var(--espaco-3) var(--espaco-2); }
+  .prod-combo__cabeca { display: grid; }
+  .prod-combo__cabeca .linha-editavel__campos { display: grid; grid-template-columns: 1fr; }
+  .prod-combo__produto, .prod-combo__tamanho { width: 100%; }
+}

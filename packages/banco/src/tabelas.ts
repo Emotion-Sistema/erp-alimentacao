@@ -233,6 +233,32 @@ export interface ProdutoTabela {
   tempo_preparo_min: number | null;
   /** Nulo: igual ao preço da loja (migração 0015). */
   preco_delivery_centavos: Generated<number | null>;
+  /** Combo montado por partes (migração 0017). */
+  combo: Generated<boolean>;
+  ordem: Generated<number>;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+/** Parte de um combo (migração 0017): o cliente escolhe uma opção em cada parte. */
+export interface ComboParteTabela {
+  id: Generated<number>;
+  combo_id: number;
+  nome: string;
+  ordem: Generated<number>;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface ComboOpcaoTabela {
+  id: Generated<number>;
+  parte_id: number;
+  produto_id: number;
+  tamanho_id: number | null;
+  acrescimo_centavos: Generated<number>;
+  acrescimo_delivery_centavos: Generated<number | null>;
   ordem: Generated<number>;
   ativo: Generated<boolean>;
   criado_em: Instante;
@@ -415,6 +441,8 @@ export interface BancoTabelas {
   tipo_producao: TipoProducaoTabela;
   produto: ProdutoTabela;
   produto_foto: ProdutoFotoTabela;
+  combo_parte: ComboParteTabela;
+  combo_opcao: ComboOpcaoTabela;
   produto_tamanho: ProdutoTamanhoTabela;
   grupo_adicional: GrupoAdicionalTabela;
   adicional: AdicionalTabela;

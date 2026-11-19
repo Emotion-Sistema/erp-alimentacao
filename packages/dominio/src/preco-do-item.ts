@@ -9,7 +9,7 @@ import { gruposDeAdicionaisPorId } from "./adicionais";
 import { ErroDeRegra } from "./erros";
 import { type Canal } from "./horarios-comum";
 import { precoDoItem, type EscolhaDoItem, type PrecoDoItem } from "./produtos-comum";
-import { produtoPorId } from "./produtos";
+import { produtoPorId, produtosPorIds } from "./produtos";
 
 export async function calcularPrecoDoItem(
   trx: Banco,
@@ -20,7 +20,10 @@ export async function calcularPrecoDoItem(
   const produto = await produtoPorId(trx, produtoId);
   if (!produto) throw new ErroDeRegra("nao_encontrado", "Produto não encontrado.");
   const grupos = await gruposDeAdicionaisPorId(trx, produto.gruposAdicionais);
-  const r = precoDoItem(produto, grupos, canal, escolha);
+  // Combo: os produtos das opções, como estão agora (fora de venda = opção indisponível).
+  const ids = produto.combo ? [...new Set(produto.combo.partes.flatMap((p) => p.opcoes.map((o) => o.produtoId)))] : [];
+  const opcoes = await produtosPorIds(trx, ids);
+  const r = precoDoItem(produto, grupos, canal, escolha, opcoes);
   if (!r.ok) throw new ErroDeRegra("dados_invalidos", r.motivo);
   return r;
 }

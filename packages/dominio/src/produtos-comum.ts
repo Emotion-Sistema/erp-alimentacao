@@ -27,6 +27,25 @@ export type Produto = {
   gruposAdicionais: number[];
   /** Foto ativa (id em /api/cadastros/produtos/foto/[id]); nulo = sem foto (decisão 0022). */
   fotoId: number | null;
+  /** Nulo: produto comum. Com partes: combo (decisão 0023); só partes e opções ativas, na ordem. */
+  combo: { partes: ParteDoCombo[] } | null;
+};
+
+export const PARTES_POR_COMBO = 6;
+export const OPCOES_POR_PARTE = 20;
+
+/** Parte do combo ("Lanche", "Bebida"): o cliente escolhe uma opção. */
+export type ParteDoCombo = { id: number; nome: string; ordem: number; opcoes: OpcaoDoCombo[] };
+
+/** Opção de uma parte: um produto do cardápio (tamanho fixo, se tiver) e um acréscimo opcional. */
+export type OpcaoDoCombo = {
+  id: number;
+  produtoId: number;
+  tamanhoId: number | null;
+  acrescimoCentavos: number;
+  /** Nulo = igual ao acréscimo da loja. */
+  acrescimoDeliveryCentavos: number | null;
+  ordem: number;
 };
 
 
@@ -100,6 +119,8 @@ export const precoDoAdicionalNoCanal = (a: Pick<Adicional, "precoCentavos" | "pr
 export type EscolhaDoItem = {
   tamanhoId?: number | null;
   adicionais?: { id: number; quantidade: number }[];
+  /** Combo: uma opção em cada parte. */
+  combo?: { parteId: number; opcaoId: number }[];
 };
 
 export type PrecoDoItem =
@@ -118,6 +139,17 @@ export type PrecoDoItem =
         unitarioCentavos: number;
         totalCentavos: number;
       }[];
+      /** Combo: o produto escolhido em cada parte (cada um vai para a tela do seu tipo, RC-01). */
+      combo: {
+        parteId: number;
+        parte: string;
+        opcaoId: number;
+        produtoId: number;
+        produto: string;
+        tamanhoId: number | null;
+        tamanho: string | null;
+        acrescimoCentavos: number;
+      }[];
     }
   | { ok: false; motivo: string };
 
@@ -130,7 +162,14 @@ const inteiroPositivo = (v: unknown): v is number => typeof v === "number" && Nu
  * máximo de escolhas; cada adicional, o máximo por item. Tudo em centavos inteiros.
  * `grupos`: os grupos de adicionais (pode vir a lista inteira; só os do produto contam).
  */
-export function precoDoItem(produto: Produto, grupos: readonly GrupoDeAdicionais[], canal: Canal, escolha: EscolhaDoItem): PrecoDoItem {
+export function precoDoItem(
+  produto: Produto,
+  grupos: readonly GrupoDeAdicionais[],
+  canal: Canal,
+  escolha: EscolhaDoItem,
+  /** Combo: os produtos das opções (como estão agora); opção sem o produto aqui fica indisponível. */
+  produtosDasOpcoes: readonly Produto[] = [],
+): PrecoDoItem {
   const erro = (motivo: string): PrecoDoItem => ({ ok: false, motivo });
   if (!escolha || typeof escolha !== "object" || Array.isArray(escolha)) return erro("Escolha em formato inválido.");
   if (!CANAIS.includes(canal)) return erro("Canal desconhecido.");
@@ -174,9 +213,49 @@ export function precoDoItem(produto: Produto, grupos: readonly GrupoDeAdicionais
     if (n > g.maximo) return erro(g.maximo === 1 ? `${g.nome}: escolha só uma opção.` : `${g.nome}: escolha no máximo ${g.maximo}.`);
   }
 
+  // Combo: uma opção válida em cada parte.
+  const escolhidas = escolha.combo ?? [];
+  if (!Array.isArray(escolhidas)) return erro("Escolhas do combo em formato inválido.");
+  const comboLinhas: Extract<PrecoDoItem, { ok: true }>["combo"] = [];
+  if (!produto.combo) {
+    if (escolhidas.length) return erro(`${produto.nome}: este produto não é combo.`);
+  } else {
+    const porParte = new Map<number, number>();
+    for (const e of escolhidas) {
+      if (!e || !inteiroPositivo(e.parteId) || !inteiroPositivo(e.opcaoId)) return erro("Escolha do combo em formato inválido.");
+      if (porParte.has(e.parteId)) return erro("A mesma parte do combo veio duas vezes.");
+      porParte.set(e.parteId, e.opcaoId);
+    }
+    const partesIds = new Set(produto.combo.partes.map((p) => p.id));
+    if ([...porParte.keys()].some((id) => !partesIds.has(id))) return erro(`${produto.nome}: parte do combo não encontrada.`);
+    const produtos = new Map(produtosDasOpcoes.map((p) => [p.id, p]));
+    for (const parte of produto.combo.partes) {
+      const opcaoId = porParte.get(parte.id);
+      if (opcaoId === undefined) return erro(`${parte.nome}: escolha uma opção.`);
+      const opcao = parte.opcoes.find((o) => o.id === opcaoId);
+      if (!opcao) return erro(`${parte.nome}: opção não encontrada.`);
+      const p = produtos.get(opcao.produtoId);
+      const t = p && opcao.tamanhoId !== null ? p.tamanhos.find((x) => x.id === opcao.tamanhoId) : undefined;
+      const disponivel =
+        p && p.ativo && !p.combo && p.id !== produto.id && (opcao.tamanhoId === null ? p.tamanhos.length === 0 : t !== undefined);
+      if (!p || !disponivel) return erro(`${parte.nome}: esta opção não está disponível. Escolha outra.`);
+      comboLinhas.push({
+        parteId: parte.id,
+        parte: parte.nome,
+        opcaoId: opcao.id,
+        produtoId: p.id,
+        produto: p.nome,
+        tamanhoId: t?.id ?? null,
+        tamanho: t?.nome ?? null,
+        acrescimoCentavos: acrescimoNoCanal(opcao, canal),
+      });
+    }
+  }
+
   const base = precoNoCanal(produto, canal);
   const acrescimo = tamanho ? acrescimoNoCanal(tamanho, canal) : 0;
-  const unitario = base + acrescimo + linhas.reduce((s, l) => s + l.totalCentavos, 0);
+  const unitario =
+    base + acrescimo + linhas.reduce((s, l) => s + l.totalCentavos, 0) + comboLinhas.reduce((s, l) => s + l.acrescimoCentavos, 0);
   return {
     ok: true,
     canal,
@@ -184,6 +263,7 @@ export function precoDoItem(produto: Produto, grupos: readonly GrupoDeAdicionais
     baseCentavos: base,
     tamanho: tamanho ? { id: tamanho.id, nome: tamanho.nome, acrescimoCentavos: acrescimo } : null,
     adicionais: linhas,
+    combo: comboLinhas,
   };
 }
 
