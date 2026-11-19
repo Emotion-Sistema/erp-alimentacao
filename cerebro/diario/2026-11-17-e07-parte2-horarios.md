@@ -112,6 +112,10 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - Item (ex.: porção de dois amigos) ou conta inteira, por partes iguais, porcentagem ou valor; misturar; juntar. Cliente divide pelo celular só com aceite do outro; atendente e caixa direto.
 - Centavos inteiros, resto um centavo por vez numa ordem fixa (R$ 29,99/2 = 15,00 + 14,99); soma conferida pelo banco; parte paga não muda; cancelamento por movimento compensatório; trava da mesa e idempotência.
 
+## 19/11/2026: cadastro do cliente e campanhas (RC-21 seções 2 e 5a)
+- Cadastro: nome, CPF (dígitos conferidos, um por conta, criptografado com chave no cofre e hash para busca, mascarado na tela), CEP com endereço automático (serviço público a escolher na construção), nascimento (Clube a partir de 18, a confirmar), alergias (dado sensível, aceite próprio, só alerta na comanda). Aceites separados e versionados; código de entrada com prazo e limite de tentativas.
+- Campanhas só por notificação do app (e "Novidades" dentro dele), nunca WhatsApp, SMS ou e-mail; opt-in, horário da casa e limite de frequência.
+
 ## O que ficou pendente
 - Conferir com o responsável o visual novo na homologação (inclusive num Android real: letras).
 - Telas com mais de um botão cheio (Horários, Funcionários, Turnos, Estações): rever a regra "um botão forte por tela" se o responsável quiser.
