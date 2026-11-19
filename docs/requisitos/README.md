@@ -11,6 +11,7 @@
 | `RC-17-historico-e-busca-de-pedidos.md` | Registro completo, Entregue x Pago, busca e linha do tempo | **Primeira versão** |
 | `RC-18-comunicacao-e-notificacoes.md` | Aviso no aparelho e central interna em todos os aplicativos | **Primeira versão (básico)** |
 | `RC-20-comanda-compartilhada-pela-mesa.md` | QR Code da mesa: cliente e atendente na mesma comanda, "Encerrei", conferência em voz alta, envio à cozinha, acompanhamento | **Primeira versão, na E13** (dados na E11) |
+| `RC-21-app-do-cliente-e-clube.md` | Aplicativo do cliente (mesa, delivery, acompanhamento) e Clube de benefícios com desconto pelo app | Conta do cliente na E26; Clube logo depois |
 | `RC-14-entregas-e-motoboy.md` | Aplicativo do motoboy, código de confirmação, prestação de contas | Com o delivery |
 | `RC-15-financeiro-e-contabilidade.md` | Financeiro completo e pacote para a contabilidade externa | Depois do caixa |
 | `RC-16-calculadoras-e-indicadores.md` | CMV, custo do prato, preço, mercadoria e outras | Depois de estoque e financeiro |

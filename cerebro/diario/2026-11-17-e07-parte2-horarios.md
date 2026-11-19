@@ -103,6 +103,11 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - Requisito RC-20, linha 11 em ideias-do-cliente, critérios na E11 (comanda, rodada, origem por item) e na E13 do roteiro; S5 absorvida; RC-07 e RC-10 apontam para o RC-20. Hipóteses no para-voce-fazer.
 - Nada para codar agora: pedido (E11) e atendente (E13) ainda não existem; o que dava para fazer agora era deixar o plano dessas etapas pronto para isso.
 
+## 19/11/2026: ideia nº 12, app do cliente e Clube (só registro)
+- Pago no caixa: todos os aparelhos da comanda saem da mesa na hora (RC-20 item 9 e critério 9); a conta do Clube continua logada.
+- App único do cliente (o `loja`, PWA): mesa, delivery, acompanhamento e Clube; cadastro rápido na primeira mira do QR, nunca obrigatório; desconto nos itens que o membro marca, regras do gerente, não acumula (vale o maior); pontos, presentes, campanhas (mensagem fora do app só com confirmação específica).
+- RC-21 criado; S12 antecipado para logo depois da E26; roteiro, RC-07, RC-08, README, ideias e para-você-fazer atualizados.
+
 ## O que ficou pendente
 - Conferir com o responsável o visual novo na homologação (inclusive num Android real: letras).
 - Telas com mais de um botão cheio (Horários, Funcionários, Turnos, Estações): rever a regra "um botão forte por tela" se o responsável quiser.

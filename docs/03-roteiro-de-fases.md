@@ -54,6 +54,11 @@ Critérios da E11 e da E13 vindos da ideia nº 11 (RC-20, 18/11/2026): o pedido 
 conferir em voz alta com o cliente; "Enviar" é idempotente e é a única passagem para a produção;
 depois de enviado o cliente não altera (recusado no servidor) e pode chamar o atendente.
 
+Ideia nº 12 (RC-21, 19/11/2026): quando o caixa marca Pago a conta da mesa, todos os aparelhos da
+comanda saem da mesa na hora (sessão encerrada no servidor). A conta do cliente (cadastro na primeira
+vez que mira o QR, login sem senha, app instalável) entra na E26; o Clube de benefícios (desconto
+pelo aplicativo, pontos, presentes), logo depois da E26.
+
 Critérios da E13 vindos da E03 (decisão 0011): atendente só altera **pedido próprio**, com **motivo obrigatório** (lançado errado ou cliente trocou); o **aviso aos supervisores** é gravado na mesma transação; o gerente vê as alterações numa aba própria; alteração de pedido já liberado para produção gera movimento compensatório, nunca uma segunda baixa. Tudo com teste por cargo direto no servidor.
 
 ## Bloco D: caixa e dinheiro

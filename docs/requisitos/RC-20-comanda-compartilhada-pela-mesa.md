@@ -47,8 +47,15 @@ atendente) e o modelo de dados nasce na **E11** (pedido).
 8. **Acompanhar pelo celular** (RC-10 seção 8): por item, a etapa (Recebido, Na fila, Em preparo,
    Pronto, Entregue), o tempo previsto com contagem regressiva e o aviso quando fica pronto. Atualiza
    sozinho. O cliente nunca vê nome de funcionário, outra mesa nem dado interno.
-9. **Mesa fechada** (conta paga no caixa, RC-13): a página do QR mostra "Esta mesa foi encerrada.
-   Obrigado!" e o link da comanda deixa de valer.
+9. **Pagou, saiu da mesa (responsável, 19/11/2026):** assim que o caixa marca Pago a conta da mesa
+   (RC-13), **todos os aparelhos daquela comanda são desconectados dela na hora**: a tela mostra
+   "Conta paga. Obrigado pela visita!" (com os pontos do Clube, se a pessoa for membro, e o convite
+   para avaliar), a sessão da mesa acaba no servidor e o link daquela comanda não aceita mais nada.
+   O mesmo vale quando o atendente fecha ou transfere a mesa. Sair da mesa não desloga a conta do
+   Clube (RC-21).
+10. **Entrar com o aplicativo E-MOTION:** na primeira vez, a página da mesa oferece "Entrar no Clube
+   E-MOTION" (cadastro rápido, nunca obrigatório) e o desconto do aplicativo nos itens que o membro
+   marca. Tudo no RC-21.
 
 ## 2. Regras que não mudam
 - **Só o atendente envia para a cozinha.** O cliente sugere; quem libera é sempre uma pessoa da casa,
@@ -115,3 +122,5 @@ atendente) e o modelo de dados nasce na **E11** (pedido).
 6. Item que acabou ou fora de horário não entra (servidor), com o motivo na tela.
 7. O cliente vê etapas e tempo do seu pedido, e nada de outra mesa.
 8. Tudo registrado com origem e horário.
+9. Pago no caixa: todos os aparelhos da comanda saem da mesa em até 5 segundos e o link deixa de
+   aceitar ação (recusado no servidor).
