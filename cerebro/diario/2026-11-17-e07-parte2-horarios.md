@@ -122,6 +122,11 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - Pergunta 2 (tipos, 0017) respondida depois da explicação: capacidade ajustável pelos gerentes; porções, salgados e almoço viram tipos próprios (criar no PR 1 do plano, migração só se não existirem). Aguardando o "ok" do plano.
 - Plano proposto (ordem): (1) unidades do catálogo + escolher sempre; (2) importação de planilha (E07 parte 3); (3) produtos completos (preço por canal, foto, tamanhos, adicionais, combos); (4) base do Clube na gestão.
 
+## 19/11/2026: plano em andamento
+- Passo 1 feito: PR 107 (merge 7bf0f77): catálogo com unidades confirmadas, hambúrguer em dois itens, unidade escolhível no cadastro rápido, lista "a confirmar" removida, migração 0013 (tipos Porções, Salgados, Almoço).
+- Passo 2 feito: PR 108 (merge 89acda5): importar planilha (decisão 0020). Revisor reprovou a 1ª versão (zip que mente o tamanho: 1,7 GB de memória), corrigido com descompactação limitada por bytes reais; aprovado na 2ª.
+- Próximos: passo 3 (produtos completos) e passo 4 (base do Clube).
+
 ## O que ficou pendente
 - Conferir com o responsável o visual novo na homologação (inclusive num Android real: letras).
 - Telas com mais de um botão cheio (Horários, Funcionários, Turnos, Estações): rever a regra "um botão forte por tela" se o responsável quiser.
