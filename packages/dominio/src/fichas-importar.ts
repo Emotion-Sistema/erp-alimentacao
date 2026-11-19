@@ -495,7 +495,19 @@ export async function importarFichas(db: Banco, ator: Ator | null, dados: unknow
     const ordem = ordenar(validas);
     if (typeof ordem === "string") erros.push(ordem);
     const temErro = erros.length > 0 || (!pular && montadas.some((m) => m.planejada.erros.length));
-    if (!aplicar || temErro || typeof ordem === "string") return { r: resultado(false, montadas, novos), temErro };
+    if (!aplicar || temErro || typeof ordem === "string") {
+      // Na conferência, já diz "sem mudança" para a ficha igual à versão atual (quando todos os
+      // itens já existem no banco; com ingrediente ou preparo por criar, é versão nova de certo).
+      const acoesPrevia = new Map<Planejada, FichaDaPlanilha["acao"]>();
+      for (const m of montadas) {
+        if (!m.fichaId || !m.dados || m.planejada.erros.length) continue;
+        const d = m.dados as unknown as { receita: { itens: { _chave: string | null }[] } & Record<string, unknown> };
+        if (d.receita.itens.some((i) => i._chave)) continue;
+        const atual = await trx.selectFrom("ficha").select("versao_atual_id").where("id", "=", m.fichaId).executeTakeFirst();
+        if (atual?.versao_atual_id && (await mesmaReceita(trx, atual.versao_atual_id, d.receita))) acoesPrevia.set(m.planejada, "sem_mudanca");
+      }
+      return { r: resultado(false, montadas, novos, acoesPrevia), temErro };
+    }
 
     // Gravar: ingredientes novos, depois as fichas na ordem.
     // Só os ingredientes novos usados pelas fichas que vão ser gravadas.

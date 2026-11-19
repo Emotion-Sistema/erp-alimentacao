@@ -107,6 +107,8 @@ describe("importar fichas", () => {
     expect(b.versao!.itens[0]).toMatchObject({ ingredienteId: leite, quantidade: "1000" });
     expect(b.versao!.validadeDias).toBe(3);
     void sal;
+    // A conferência já avisa que nada mudou.
+    expect((await importar(linhas, false, true)).fichas.map((x) => x.acao)).toEqual(["sem_mudanca", "sem_mudanca"]);
     // De novo, o mesmo arquivo: nada muda.
     const de_novo = await importar(linhas, true, true);
     expect(de_novo.fichas.map((x) => x.acao)).toEqual(["sem_mudanca", "sem_mudanca"]);
