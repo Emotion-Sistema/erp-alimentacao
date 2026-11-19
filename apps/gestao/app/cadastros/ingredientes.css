@@ -4,6 +4,7 @@
 /* ---------- cabeçalho da lista ---------- */
 .ingredientes__topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-3); margin-bottom: var(--espaco-4); }
 .ingredientes__topo h1 { margin: 0; }
+.ingredientes__acoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); }
 .ingredientes__adicionar { display: inline-flex; align-items: center; justify-content: center; gap: var(--espaco-2); font-weight: var(--peso-forte); }
 .ingredientes__topo + [aria-live] .erp-aviso { margin-top: 0; }
 .ingredientes__realce > .erp-item, .ingredientes__realce > article {
@@ -78,7 +79,8 @@ dialog.janela { margin: auto; }
   .janela__corpo .rapido__barra { margin-inline: calc(-1 * var(--espaco-3)); margin-bottom: calc(-1 * var(--espaco-3)); bottom: calc(-1 * var(--espaco-3)); padding-inline: var(--espaco-3); }
   .janela__aba { padding-inline: var(--espaco-3); }
   .janela__aba-texto { display: none; }
-  .ingredientes__adicionar { flex: 1 1 100%; }
+  .ingredientes__acoes { flex: 1 1 100%; }
+  .ingredientes__acoes > * { flex: 1 1 100%; }
 }
 @keyframes janela-entra {
   from { transform: translateY(1rem); opacity: 0; }

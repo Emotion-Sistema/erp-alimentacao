@@ -103,3 +103,31 @@ export async function corpoJson(req: Request): Promise<unknown> {
     throw new ErroDeRegra("dados_invalidos", "Corpo da requisição inválido.");
   }
 }
+
+/**
+ * Corpo JSON com tamanho máximo (importação de planilha, decisão 0020). Recusa pelo cabeçalho
+ * Content-Length e, se ele mentir ou faltar, conta os bytes enquanto lê e para no limite.
+ */
+export async function corpoJsonLimitado(req: Request, maximo: number, mensagem: string): Promise<unknown> {
+  const declarado = Number(req.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declarado) && declarado > maximo) throw new ErroDeRegra("dados_invalidos", mensagem);
+  if (!req.body) throw new ErroDeRegra("dados_invalidos", "Corpo da requisição inválido.");
+  const leitor = req.body.getReader();
+  const pedacos: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await leitor.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maximo) {
+      await leitor.cancel().catch(() => undefined);
+      throw new ErroDeRegra("dados_invalidos", mensagem);
+    }
+    pedacos.push(value);
+  }
+  try {
+    return JSON.parse(new TextDecoder().decode(Buffer.concat(pedacos)));
+  } catch {
+    throw new ErroDeRegra("dados_invalidos", "Corpo da requisição inválido.");
+  }
+}

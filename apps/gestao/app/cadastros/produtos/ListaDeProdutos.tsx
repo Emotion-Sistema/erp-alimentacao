@@ -92,10 +92,16 @@ export function ListaDeProdutos({ podeGerenciar }: { podeGerenciar: boolean }) {
           <p className="hor-tela__intro">{TP.pagina.intro}</p>
         </div>
         {podeGerenciar && temCategoriaAtiva && (
-          <Botao onClick={() => setJanela({})} className="hor-secao__acao">
-            <Icone nome="mais" />
-            {TP.pagina.novo}
-          </Botao>
+          <div className="hor-secao__botoes">
+            <Link className="erp-botao erp-botao--secundario hor-secao__acao" href="/cadastros/importar?tipo=produtos">
+              <Icone nome="documento" />
+              {TP.pagina.importar}
+            </Link>
+            <Botao onClick={() => setJanela({})} className="hor-secao__acao">
+              <Icone nome="mais" />
+              {TP.pagina.novo}
+            </Botao>
+          </div>
         )}
       </header>
       {erro && <Aviso tipo="perigo">{erro}</Aviso>}

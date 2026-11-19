@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { abrirAdicionar, entrar, semEstouroDeLargura, SENHA, zerarSegundoFator } from "./ajudas";
 
@@ -118,6 +119,16 @@ test.describe("telas internas do administrador", () => {
     await page.getByRole("button", { name: /^Mostrar Embalagens/ }).click();
     await page.getByRole("button", { name: "Escolher do catálogo" }).click();
     await conferirAjuda(page, "novo ingrediente com embalagem sugerida", 8);
+  });
+
+  test("cadastros: importar planilha (arquivo, mapa de colunas e resultado)", async ({ page }) => {
+    await page.goto("/cadastros/importar?tipo=produtos");
+    await expect(page.getByLabel("Arquivo da planilha")).toBeVisible();
+    await conferirAjuda(page, "importar planilha (antes do arquivo)", 3);
+    await page.getByLabel("Arquivo da planilha").setInputFiles(join(import.meta.dirname, "arquivos", "produtos-com-erros.csv"));
+    await expect(page.getByTestId("resumo-da-conferencia")).toBeVisible();
+    await conferirAjuda(page, "importar planilha (mapa de colunas e resultado)", 15);
+    await semEstouroDeLargura(page);
   });
 
   test("cadastros: aba Embalagens e o painel de editar", async ({ page }) => {

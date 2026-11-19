@@ -67,6 +67,11 @@ import {
   telaDaEstacao,
   tirarCargo,
   trocarCargoAtivo,
+  conferirPlanilha,
+  exigir,
+  gravarPlanilha,
+  LIMITE_DE_BYTES,
+  modeloDePlanilha,
   type Ator,
 } from "@erp/dominio";
 import QRCode from "qrcode";
@@ -76,6 +81,7 @@ import {
   cookieEstacao,
   cookieSessao,
   corpoJson,
+  corpoJsonLimitado,
   ipDaRequisicao,
   json,
   respostaDeErro,
@@ -368,3 +374,41 @@ export const lerLista = seguro(async (req) => {
   return json({ linhas: lerListaColada(corpo.texto, cat.jaCadastrados) });
 });
 export const verCnpj = seguroComId(async (req, p) => json(await consultarCnpj(obterBanco(), await ator(req), p.cnpj ?? "")));
+
+// ---------- importar planilha (E07 parte 3, decisão 0020) ----------
+
+/** O arquivo vai em base64 dentro do JSON: 2 MB viram cerca de 2,7 MB, mais folga para o resto. */
+const LIMITE_DO_PEDIDO = Math.ceil(LIMITE_DE_BYTES / 3) * 4 + 64 * 1024;
+const MENSAGEM_DO_LIMITE = `Arquivo grande demais: o máximo é ${LIMITE_DE_BYTES / 1024 / 1024} MB. Divida a planilha em partes.`;
+/** Confere a permissão ANTES de ler o arquivo (não lê 2 MB de quem não pode importar). */
+async function pedidoDeImportacao(req: Request) {
+  const db = obterBanco();
+  const a = await ator(req);
+  await exigir(db, a, "cadastros.gerenciar", { tipo: "importacao_planilha" });
+  return { db, a, corpo: await corpoJsonLimitado(req, LIMITE_DO_PEDIDO, MENSAGEM_DO_LIMITE) };
+}
+/** Passo 1: lê e confere; não grava nada. */
+export const conferirImportacao = seguro(async (req) => {
+  const { db, a, corpo } = await pedidoDeImportacao(req);
+  return json(await conferirPlanilha(db, a, corpo));
+});
+/** Passo 2: grava tudo ou nada (a mesma chave não importa duas vezes). */
+export const gravarImportacao = seguro(async (req) => {
+  const { db, a, corpo } = await pedidoDeImportacao(req);
+  const r = await gravarPlanilha(db, a, corpo);
+  return json(r, r.repetida ? 200 : 201);
+});
+/** Modelo de planilha para baixar (?tipo=ingredientes|produtos&formato=xlsx|csv). */
+export const baixarModeloDePlanilha = seguro(async (req) => {
+  const u = new URL(req.url);
+  const m = await modeloDePlanilha(obterBanco(), await ator(req), u.searchParams.get("tipo"), u.searchParams.get("formato"));
+  return new Response(Buffer.from(m.bytes), {
+    status: 200,
+    headers: {
+      "content-type": m.tipoDeConteudo,
+      "content-disposition": `attachment; filename="${m.nome}"`,
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    },
+  });
+});

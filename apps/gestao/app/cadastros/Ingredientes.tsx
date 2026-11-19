@@ -8,6 +8,7 @@
  * Ao gravar, a lista atualiza e os ingredientes novos ou salvos ficam em destaque.
  * A tela só esconde botões: o servidor confere a permissão em cada chamada.
  */
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Aviso, Botao, Cartao, ChipDeEmbalagem, GrupoDeChips, Icone, ItemDeLista } from "@erp/interface";
 import { ResumoDoItem } from "./ResumoDoItem";
@@ -221,10 +222,16 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
       <div className="ingredientes__topo">
         <h1>Ingredientes</h1>
         {podeGerenciar && (
-          <Botao className="ingredientes__adicionar" aria-keyshortcuts="A" title="Atalho: tecla A" onClick={abrirNovo}>
-            <Icone nome="mais" />
-            Adicionar ingrediente
-          </Botao>
+          <div className="ingredientes__acoes">
+            <Link className="erp-botao erp-botao--secundario" href="/cadastros/importar?tipo=ingredientes">
+              <Icone nome="documento" />
+              Importar planilha
+            </Link>
+            <Botao className="ingredientes__adicionar" aria-keyshortcuts="A" title="Atalho: tecla A" onClick={abrirNovo}>
+              <Icone nome="mais" />
+              Adicionar ingrediente
+            </Botao>
+          </div>
         )}
       </div>
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>

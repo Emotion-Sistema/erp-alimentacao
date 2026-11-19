@@ -312,6 +312,23 @@ export interface PausaVendaTabela {
   encerrada_por: number | null;
 }
 
+/** Importação de planilha gravada (migração 0014, decisão 0020). Só inserção. */
+export interface ImportacaoPlanilhaTabela {
+  id: Generated<number>;
+  chave: string;
+  assinatura: string;
+  tipo: "ingredientes" | "produtos";
+  arquivo: string;
+  formato: "xlsx" | "csv" | "html";
+  linhas_lidas: number;
+  criados: number;
+  ja_existiam: number;
+  puladas: number;
+  ids: ColumnType<number[], number[] | undefined, never>;
+  usuario_id: number;
+  criado_em: ColumnType<Date, never, never>;
+}
+
 export interface BancoTabelas {
   empresa: EmpresaTabela;
   unidade: UnidadeTabela;
@@ -339,4 +356,5 @@ export interface BancoTabelas {
   horario_venda: HorarioVendaTabela;
   horario_venda_data: HorarioVendaDataTabela;
   pausa_venda: PausaVendaTabela;
+  importacao_planilha: ImportacaoPlanilhaTabela;
 }
