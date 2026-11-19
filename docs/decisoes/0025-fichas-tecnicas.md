@@ -25,8 +25,20 @@ comparar versões.
 3. **Item:** ingrediente OU preparo, quantidade na unidade do estoque (decimal exato, até 4 casas),
    opcional, medida caseira e observação. **Quantidade vazia = pendência.** Rende: porções (produto,
    tamanho, adicional; lote "5 kg = 80 pratos" = rende 80) ou quantidade do preparo.
-4. **Regra única de consumo e custo** (`analisarFichas`, em `fichas-comum`): abre os preparos pela
-   versão atual (até 8 níveis; receita circular é recusada ao gravar, sob a trava das fichas),
+4. **Dois consumos, de propósito (RC-01: "a venda consome o molho, nunca os ingredientes de novo"):**
+   - **Direto** (`consumoDaFicha`, é o que a E11 baixa): ingredientes E preparos da receita, sem abrir
+     os preparos, em **fração exata** (a E11 multiplica pela quantidade vendida e só então arredonda).
+     O preparo tem estoque próprio: produzir o lote baixa os ingredientes dele (pela ficha do preparo);
+     vender o prato baixa o preparo.
+   - **Expandido** (ingredientes crus): abre os preparos pela versão atual; serve ao custo, aos
+     alergênicos (S1) e para mostrar. Nunca baixa estoque.
+   - Item com tamanho: vale a ficha do tamanho, se houver (receita inteira daquele tamanho); senão,
+     a do produto. Adicional soma a ficha dele. Produto com ficha em todos os tamanhos ativos não
+     aparece como "sem ficha".
+   - Ficha desligada ou de item fora do cardápio não dá consumo.
+5. **Regra única de custo** (antes item 4) (`analisarFichas`, em `fichas-comum`): abre os preparos pela
+   versão atual (até 8 níveis, julgados a partir de cada ficha; ao gravar, a ficha e todas as que a
+   usam são conferidas contra receita circular e profundidade, sob a trava das fichas),
    soma por ingrediente e divide pelo rendimento. Conta com **frações exatas** (BigInt); o custo só é
    arredondado no fim, para centavos (meio para cima). A perda fica na própria receita (bacon: 291 g
    cru rendem 138 g), aplicada uma vez.
@@ -45,11 +57,15 @@ comparar versões.
    rendimento, porção, tempo, validade, ingrediente, quantidade, unidade, opcional, medida caseira,
    observação, pendência, etapa). Confere antes (nada gravado), grava tudo numa transação só
    (ingredientes novos se pedido, preparos em ordem de dependência, depois produtos); ficha igual à
-   atual não ganha versão nova. As receitas reais da casa **não entram no repositório** (público
+   atual não ganha versão nova. Opção "pular as com erro": grava as boas e deixa de fora as com erro
+   e as que usam um preparo com erro. As receitas reais da casa **não entram no repositório** (público
    desde 19/11/2026): a planilha fica no Drive e é importada pela tela.
 
 ## Hipóteses (reversíveis)
 - Opcional conta no consumo (baixa como se fosse); a E11 pode passar a perguntar.
+- Todo preparo tem estoque próprio (feito em lote). Preparo feito na hora, item a item, entra como
+  ingredientes na ficha do produto.
+- Produto que vira combo precisa desligar a ficha antes; religar ficha confere o alvo de novo.
 - Ficha de tamanho é a receita inteira daquele tamanho (não um acréscimo).
 - Limite de alerta do custo: 35% do preço.
 

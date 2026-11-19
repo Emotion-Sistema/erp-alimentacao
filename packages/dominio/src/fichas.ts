@@ -52,8 +52,8 @@ const texto = (rotulo: string, min: number, max: number) =>
         .max(max, `${rotulo} com no máximo ${max} letras.`)
         .refine((v) => !/\p{Cc}/u.test(v), `${rotulo} com caractere inválido.`),
     );
-/** Texto opcional: vazio vira nulo. */
-const opcional = (rotulo: string, max: number) =>
+/** Texto opcional: vazio vira nulo. Quebra de linha só onde `variasLinhas` (observações). */
+const opcional = (rotulo: string, max: number, variasLinhas = false) =>
   z
     .string({ error: `${rotulo} em formato inválido.` })
     .trim()
@@ -62,7 +62,7 @@ const opcional = (rotulo: string, max: number) =>
       z
         .string()
         .max(max, `${rotulo} com no máximo ${max} letras.`)
-        .refine((v) => !/[\u0000-\u0009\u000b-\u001f\u007f]/.test(v), `${rotulo} com caractere inválido.`),
+        .refine((v) => !/\p{Cc}/u.test(variasLinhas ? v.replace(/\r?\n/g, "") : v), `${rotulo} com caractere inválido.`),
     )
     .transform((v) => (v === "" ? null : v))
     .nullable()
@@ -116,7 +116,7 @@ const esquemaFicha = z.object(
             .array(texto("Equipamento", 2, 60))
             .max(EQUIPAMENTOS_POR_FICHA, `No máximo ${EQUIPAMENTOS_POR_FICHA} equipamentos.`)
             .optional(),
-          observacoes: opcional("Observações", 2000),
+          observacoes: opcional("Observações", 2000, true),
           motivo: opcional("O que mudou", 200),
           itens: z.array(esquemaItem).max(ITENS_POR_FICHA, `No máximo ${ITENS_POR_FICHA} itens.`),
           pendencias: z
@@ -513,6 +513,24 @@ export async function painelDeFichas(db: Banco, ator: Ator | null): Promise<Pain
       .where("p.ativo", "=", true)
       .where("p.combo", "=", false)
       .where((w) => w.not(w.exists(w.selectFrom("ficha as f").select("f.id").whereRef("f.produto_id", "=", "p.id").where("f.ativo", "=", true))))
+      // Produto com tamanhos: ter ficha em TODOS os tamanhos ativos também vale (decisão 0025).
+      .where((w) =>
+        w.not(
+          w.and([
+            w.exists(w.selectFrom("produto_tamanho as t").select("t.id").whereRef("t.produto_id", "=", "p.id").where("t.ativo", "=", true)),
+            w.not(
+              w.exists(
+                w
+                  .selectFrom("produto_tamanho as t")
+                  .select("t.id")
+                  .whereRef("t.produto_id", "=", "p.id")
+                  .where("t.ativo", "=", true)
+                  .where((x) => x.not(x.exists(x.selectFrom("ficha as f").select("f.id").whereRef("f.tamanho_id", "=", "t.id").where("f.ativo", "=", true)))),
+              ),
+            ),
+          ]),
+        ),
+      )
       .orderBy("c.nome")
       .orderBy("p.nome")
       .execute(),
@@ -731,6 +749,8 @@ export async function gravarFichaNaTransacao(trx: Banco, quem: Ator, d: DadosDaF
           ...(d.ativo === undefined ? {} : { ativo: d.ativo }),
         };
         if (d.ativo === false && atual.ativo) await conferirDesativar(trx, atual);
+        // Religar confere o alvo de novo (pode ter virado combo ou saído do cardápio).
+        if (d.ativo === true && !atual.ativo) await conferirAlvoAtivo(trx, atual);
         if (Object.keys(mudancas).length)
           await trx
             .updateTable("ficha")
@@ -814,12 +834,26 @@ export async function gravarFichaNaTransacao(trx: Banco, quem: Ator, d: DadosDaF
           .where("id", "=", id)
           .execute();
 
-        // Receita circular: confere com tudo já gravado (dentro da trava).
-        if (tipo === "preparo") {
-          const { fichas, ingredientes } = await carregarParaConta(trx, [id]);
-          const a = analisarFichas(fichas, ingredientes, [id]).get(id)!;
-          const circular = a.pendencias.find((p) => p.tipo === "receita_circular" || p.tipo === "profunda_demais");
-          if (circular) throw new ErroDeRegra("dados_invalidos", circular.texto);
+        // Receita circular e profundidade: confere esta ficha e TODAS as que a usam (de qualquer
+        // altura), com tudo já gravado, dentro da trava.
+        const acima = await sql<{ id: number }>`
+          WITH RECURSIVE sobe(id) AS (
+            SELECT ${id}::int
+            UNION
+            SELECT f.id FROM sobe s
+              JOIN ficha_item i ON i.preparo_id = s.id
+              JOIN ficha f ON f.versao_atual_id = i.versao_id AND f.ativo
+          ) SELECT id FROM sobe LIMIT 500`.execute(trx);
+        const ids = acima.rows.map((r) => r.id);
+        const { fichas, ingredientes } = await carregarParaConta(trx, ids);
+        const analise = analisarFichas(fichas, ingredientes, ids);
+        for (const fid of ids) {
+          const ruim = analise.get(fid)!.pendencias.find((p) => p.tipo === "receita_circular" || p.tipo === "profunda_demais");
+          if (ruim)
+            throw new ErroDeRegra(
+              "dados_invalidos",
+              fid === id ? ruim.texto : `Assim a ficha "${fichas.get(fid)?.nome ?? "?"}" fica com problema: ${ruim.texto}`,
+            );
         }
       }
 
@@ -901,6 +935,17 @@ async function conferirAlvo(trx: Banco, tipo: TipoDeFicha, d: z.output<typeof es
   } else {
     so("preparo");
     if (!d.nome || !d.unidadeRendimento) throw new ErroDeRegra("dados_invalidos", "O preparo precisa de nome e da unidade em que rende (g, ml ou un).");
+  }
+}
+
+/** Ao religar: o alvo ainda existe, está no cardápio e (produto) não virou combo. */
+async function conferirAlvoAtivo(trx: Banco, f: LinhaDaFicha): Promise<void> {
+  if (f.tipo === "preparo") return;
+  const { fora } = await precosDosAlvos(trx, [f]);
+  if (fora.has(f.id)) throw new ErroDeRegra("conflito", "O item desta ficha saiu do cardápio; reative-o antes.");
+  if (f.tipo === "produto") {
+    const p = await trx.selectFrom("produto").select("combo").where("id", "=", f.produtoId!).forShare().executeTakeFirstOrThrow();
+    if (p.combo) throw new ErroDeRegra("dados_invalidos", "Este produto virou combo: combo não tem ficha própria.");
   }
 }
 
@@ -1006,19 +1051,22 @@ export async function salvarLimiteDeCusto(db: Banco, ator: Ator | null, dados: u
 }
 
 /**
- * Consumo de uma ficha por unidade do rendimento, com as versões usadas (para a E11 gravar no
- * pedido). Recusa ficha com pendência. Quem chama já conferiu a permissão.
+ * O que UMA unidade do rendimento tira do estoque (ingredientes e preparos, sem abrir os
+ * preparos: RC-01), em fração exata, com a versão usada (para a E11 gravar no pedido e só
+ * arredondar depois de multiplicar pela quantidade vendida). Recusa ficha desligada, alvo fora do
+ * cardápio e ficha com pendência. Quem chama já conferiu a permissão.
  */
 export async function consumoDaFicha(
   db: Banco,
   fichaId: number,
-): Promise<{ consumo: AnaliseDaFicha["consumo"]; versoes: { fichaId: number; versaoId: number }[] }> {
+): Promise<{ fichaId: number; versaoId: number; consumo: AnaliseDaFicha["consumoDireto"] }> {
   const { fichas, ingredientes, linhas } = await carregarParaConta(db, [fichaId]);
-  if (!linhas.has(fichaId)) throw new ErroDeRegra("nao_encontrado", "Ficha não encontrada.");
+  const l = linhas.get(fichaId);
+  if (!l) throw new ErroDeRegra("nao_encontrado", "Ficha não encontrada.");
+  if (!l.ativo) throw new ErroDeRegra("conflito", "A ficha está desligada.");
+  if (l.tipo !== "preparo" && (await precosDosAlvos(db, [l])).fora.has(l.id))
+    throw new ErroDeRegra("conflito", "O item desta ficha saiu do cardápio.");
   const a = analisarFichas(fichas, ingredientes, [fichaId]).get(fichaId)!;
-  if (!a.completa) throw new ErroDeRegra("conflito", `A ficha tem pendências: ${a.pendencias.map((p) => p.texto).join(" ")}`);
-  return {
-    consumo: a.consumo,
-    versoes: [...linhas.values()].flatMap((l) => (l.versaoAtualId ? [{ fichaId: l.id, versaoId: l.versaoAtualId }] : [])),
-  };
+  if (!a.completa || !l.versaoAtualId) throw new ErroDeRegra("conflito", `A ficha tem pendências: ${a.pendencias.map((p) => p.texto).join(" ")}`);
+  return { fichaId, versaoId: l.versaoAtualId, consumo: a.consumoDireto };
 }

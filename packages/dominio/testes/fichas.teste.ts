@@ -179,8 +179,17 @@ describe("custo e consumo conferidos à mão", () => {
     expect(bacon.resumo.custoCentavos).toBe(10); // 9,6789 c por grama, arredondado
     const consumo = Object.fromEntries(cheese.consumo.map((c) => [c.ingredienteId, c.quantidade]));
     expect(consumo).toEqual({ [pao]: "1", [queijo]: "20", [baconCru]: "59.0435" }); // 28 x 291 / 138
+    // O estoque baixa o PREPARO (bacon fatiado), nunca o bacon cru de novo (RC-01), em fração exata.
     const c = await consumoDaFicha(db, cheese.resumo.id);
-    expect(c.versoes.map((v) => v.fichaId).sort()).toEqual([cheese.resumo.id, bacon.resumo.id].sort());
+    expect(c.versaoId).toBe(cheese.versao!.id);
+    expect(c.consumo.map((x) => [x.ingredienteId, x.preparoId, x.exata])).toEqual([
+      [pao, null, "1/1"],
+      [queijo, null, "20/1"],
+      [null, bacon.resumo.id, "28/1"],
+    ]);
+    const cb = await consumoDaFicha(db, bacon.resumo.id); // produzir 1 g de bacon pronto tira 291/138 g de cru
+    expect(cb.consumo).toEqual([{ ingredienteId: baconCru, preparoId: null, nome: expect.any(String), quantidade: "2.1087", exata: "97/46" }]);
+    expect(cheese.consumo.find((x) => x.ingredienteId === baconCru)!.exata).toBe("1358/23"); // 28 x 291 / 138
     expect(bacon.usadoEm).toEqual([]);
     expect((await verFicha(db, gerente, bacon.resumo.id)).usadoEm.map((u) => u.id)).toEqual([cheese.resumo.id]);
   });
@@ -416,9 +425,11 @@ describe("concorrência", () => {
     const a = await salvarFicha(db, gerente, { tipo: "preparo", nome: nome("Mix A"), unidadeRendimento: "g", receita: receita([{ ingredienteId: x, quantidade: "10" }], "10") });
     const b = await salvarFicha(db, gerente, { tipo: "preparo", nome: nome("Mix B"), unidadeRendimento: "g", receita: receita([{ ingredienteId: x, quantidade: "10" }], "10") });
     const outra = bancoDeTeste();
+    let soltarNoFim: (() => void) | undefined;
     try {
       let soltar!: () => void;
       const solto = new Promise<void>((r) => (soltar = r));
+      soltarNoFim = () => soltar();
       let travou!: () => void;
       const travado = new Promise<void>((r) => (travou = r));
       // Outra gravação em andamento: segura a trava e faz B usar A.
@@ -444,8 +455,75 @@ describe("concorrência", () => {
       const e = await erroDe(grava);
       expect(e.message).toContain("a si mesmo");
       expect((await verFicha(db, gerente, a.resumo.id)).resumo.versao).toBe(1);
+      soltarNoFim = soltar;
     } finally {
+      soltarNoFim?.();
       await outra.destroy();
     }
+  });
+});
+
+describe("ajustes da revisão", () => {
+  it("profundidade: o resultado não depende da ordem; gravar o preparo de baixo que estoura um de cima é recusado", async () => {
+    const x = await ingrediente("Base", "g", [100, "100"]);
+    // Cadeia P1 <- P2 <- ... <- P8 (P8 usa P7 ... P2 usa P1): 8 níveis no limite.
+    const ids: number[] = [];
+    for (let k = 0; k < 8; k++) {
+      const itens = k === 0 ? [{ ingredienteId: x, quantidade: "1" }] : [{ preparoId: ids[k - 1]!, quantidade: "1" }];
+      ids.push((await salvarFicha(db, gerente, { tipo: "preparo", nome: nome(`Nivel ${k}`), unidadeRendimento: "g", receita: receita(itens, "1") })).resumo.id);
+    }
+    // P9 usaria P8: 9 níveis -> recusado ao gravar.
+    const e = await erroDe(salvarFicha(db, gerente, { tipo: "preparo", nome: nome("Nivel 9"), unidadeRendimento: "g", receita: receita([{ preparoId: ids[7]!, quantidade: "1" }], "1") }));
+    expect(e.message).toContain("níveis");
+    // O painel e a ficha sozinha concordam.
+    const painel = await painelDeFichas(db, gerente);
+    for (const id of ids) expect(painel.fichas.find((f) => f.id === id)!.completa).toBe((await verFicha(db, gerente, id)).resumo.completa);
+    // Pôr um nível a mais lá embaixo (P1 passa a usar um preparo novo) estoura P8: recusado.
+    const fundo = await salvarFicha(db, gerente, { tipo: "preparo", nome: nome("Fundo"), unidadeRendimento: "g", receita: receita([{ ingredienteId: x, quantidade: "1" }], "1") });
+    const e2 = await erroDe(salvarFicha(db, gerente, { id: ids[0]!, versaoBase: 1, receita: receita([{ preparoId: fundo.resumo.id, quantidade: "1" }], "1") }));
+    expect(e2.message).toContain("fica com problema");
+  });
+
+  it("produto com ficha não vira combo; ficha não religa em produto fora do cardápio; consumo recusa ficha desligada", async () => {
+    const x = await ingrediente("Presunto", "g", [3000, "1000"]);
+    const p = await produto();
+    const outro = await produto();
+    const f = await salvarFicha(db, gerente, { tipo: "produto", produtoId: p.id, receita: receita([{ ingredienteId: x, quantidade: "20" }]) });
+    const e = await erroDe(salvarProduto(db, gerente, { id: p.id, combo: { partes: [{ nome: "Lanche", opcoes: [{ produtoId: outro.id, acrescimoCentavos: 0 }] }] } }));
+    expect(e.message).toContain("ficha técnica ativa");
+    await salvarFicha(db, gerente, { id: f.resumo.id, ativo: false });
+    expect((await erroDe(consumoDaFicha(db, f.resumo.id))).message).toContain("desligada");
+    await salvarProduto(db, gerente, { id: p.id, ativo: false });
+    expect((await erroDe(salvarFicha(db, gerente, { id: f.resumo.id, ativo: true }))).message).toContain("saiu do cardápio");
+    await salvarProduto(db, gerente, { id: p.id, ativo: true });
+    expect((await salvarFicha(db, gerente, { id: f.resumo.id, ativo: true })).resumo.ativo).toBe(true);
+    expect((await consumoDaFicha(db, f.resumo.id)).consumo).toHaveLength(1);
+  });
+
+  it("ingrediente desativado depois deixa a ficha incompleta; quem vê custo: financeiro sim, supervisor não", async () => {
+    const nomeIng = nome("Rúcula");
+    const x = (await salvarIngrediente(db, gerente, { nome: nomeIng, unidadeBase: "g", area: "cozinha" })).id;
+    await salvarCustoDeReferencia(db, gerente, { ingredienteId: x, custoCentavos: 2000, quantidade: "1000" });
+    const p = await produto();
+    const f = await salvarFicha(db, gerente, { tipo: "produto", produtoId: p.id, receita: receita([{ ingredienteId: x, quantidade: "30" }]) });
+    expect(f.resumo.completa).toBe(true);
+    expect((await verFicha(db, financeiro, f.resumo.id)).resumo.custoCentavos).toBe(60);
+    const supervisor = await atorDoCargo(db, "supervisor");
+    expect((await verFicha(db, supervisor, f.resumo.id)).resumo.custoCentavos).toBeNull();
+    await salvarIngrediente(db, gerente, { id: x, nome: nomeIng, area: "cozinha", ativo: false });
+    const g = await verFicha(db, gerente, f.resumo.id);
+    expect(g.resumo.completa).toBe(false);
+    expect(g.pendencias.map((p) => p.tipo)).toEqual(["ingrediente_inativo"]);
+  });
+
+  it("quebra de linha: aceita nas observações, recusada na medida caseira; produto com ficha em todos os tamanhos sai de 'sem ficha'", async () => {
+    const x = await ingrediente("Batata palha", "g", [1500, "1000"]);
+    const p = await produto(1500, { tamanhos: [{ nome: "P", acrescimoCentavos: 0 }, { nome: "G", acrescimoCentavos: 500 }] });
+    expect((await erroDe(salvarFicha(db, gerente, { tipo: "tamanho", tamanhoId: p.tamanhos[0]!.id, receita: receita([{ ingredienteId: x, quantidade: null, medidaCaseira: "um\npunhado" }]) }))).codigo).toBe("dados_invalidos");
+    const a = await salvarFicha(db, gerente, { tipo: "tamanho", tamanhoId: p.tamanhos[0]!.id, receita: receita([{ ingredienteId: x, quantidade: "50" }], "1", { observacoes: "Linha 1\nLinha 2" }) });
+    expect(a.versao!.observacoes).toBe("Linha 1\nLinha 2");
+    expect((await painelDeFichas(db, gerente)).semFicha.some((s) => s.id === p.id)).toBe(true);
+    await salvarFicha(db, gerente, { tipo: "tamanho", tamanhoId: p.tamanhos[1]!.id, receita: receita([{ ingredienteId: x, quantidade: "100" }]) });
+    expect((await painelDeFichas(db, gerente)).semFicha.some((s) => s.id === p.id)).toBe(false);
   });
 });

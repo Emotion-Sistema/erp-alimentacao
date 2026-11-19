@@ -139,6 +139,26 @@ describe("importar fichas", () => {
     expect(erros).toContain("é contado em ml");
     expect(erros).toContain('"abc"');
     expect(await db.selectFrom("ficha").select("id").where("nome", "=", `Preparo certo ${s}`).executeTakeFirst()).toBeUndefined();
+    // Pulando as com erro: grava só as boas; quem usa preparo com erro fica de fora junto.
+    const prod = await salvarProduto(db, gerente, { nome: `Torta ${s}`, categoriaId: cat, precoCentavos: 900 });
+    void prod;
+    const parcial = await importarFichas(db, gerente, {
+      arquivo: csv([
+        `Preparo certo ${s};preparo;100;ml;;;;;Creme ${s};10;ml;;;;;`,
+        `Preparo ruim ${s};preparo;100;ml;;;;;Creme ${s};abc;ml;;;;;`,
+        `Torta ${s};produto;1;;;;;;Preparo ruim ${s};10;ml;;;;;`,
+      ]),
+      aplicar: true,
+      pularComErro: true,
+    });
+    expect(parcial.aplicado).toBe(true);
+    expect(parcial.fichas.map((f) => [f.nome, f.acao])).toEqual([
+      [`Preparo certo ${s}`, "criar"],
+      [`Preparo ruim ${s}`, "erro"],
+      [`Torta ${s}`, "erro"],
+    ]);
+    expect(await db.selectFrom("ficha").select("id").where("nome", "=", `Preparo certo ${s}`).executeTakeFirst()).toBeDefined();
+    expect(await db.selectFrom("ficha").select("id").where("nome", "=", `Preparo ruim ${s}`).executeTakeFirst()).toBeUndefined();
   });
 
   it("colunas faltando, preparos em círculo e permissão", async () => {

@@ -389,6 +389,10 @@ export async function gravarProdutoNaTransacao(
         "dados_invalidos",
         `Este produto é opção do combo ${usos.map((u) => u.nome).join(", ")}; combo dentro de combo não pode. Tire-o de lá antes.`,
       );
+    // Combo não tem ficha própria (decisão 0025): a ficha ativa precisa sair antes.
+    const ficha = await trx.selectFrom("ficha").select("id").where("produto_id", "=", antes.id).where("ativo", "=", true).executeTakeFirst();
+    if (ficha)
+      throw new ErroDeRegra("dados_invalidos", "Este produto tem ficha técnica ativa; combo não tem ficha própria. Desligue a ficha antes.");
   }
   const tamanhosDepois = d.tamanhos !== undefined ? d.tamanhos.length : (antes?.tamanhos.length ?? 0);
   if (comboDepois && tamanhosDepois > 0)

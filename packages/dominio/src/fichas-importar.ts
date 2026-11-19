@@ -82,6 +82,8 @@ const esquemaPedido = z.object(
     arquivo: z.object({ nome: z.string().min(1).max(200), conteudo: z.string().min(1) }, { error: "Arquivo em formato inválido." }),
     aplicar: z.boolean({ error: "Aplicar: sim ou não." }),
     criarIngredientes: z.boolean({ error: "Criar ingredientes: sim ou não." }).optional(),
+    /** Gravar as fichas sem erro e deixar de fora as com erro (e as que usam um preparo com erro). */
+    pularComErro: z.boolean({ error: "Pular fichas com erro: sim ou não." }).optional(),
   },
   { error: "Pedido em formato inválido." },
 );
@@ -275,7 +277,7 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
     const itens = f.itens.flatMap((i) => {
       const chave = nomeComparavel(i.ingrediente);
       const prep = ctx.preparos.get(chave) ?? (preparosDaPlanilha.has(chave) ? { id: null, unidade: preparosDaPlanilha.get(chave)!.unidadeRendimento } : undefined);
-      let alvo: { ingredienteId?: number; preparoId?: number; unidade: UnidadeDaFicha | null; novo?: string } | null = null;
+      let alvo: { ingredienteId?: number; preparoId?: number; unidade: UnidadeDaFicha | null; novo?: string } | undefined;
       if (prep && chave !== nomeComparavel(f.nome)) {
         alvo = { preparoId: prep.id ?? -1, unidade: prep.unidade };
         if (prep.id === null) usados.push(chave);
@@ -388,9 +390,28 @@ export async function importarFichas(db: Banco, ator: Ator | null, dados: unknow
   const run = async (trx: Banco, aplicar: boolean) => {
     const ctx = await contexto(trx);
     const { montadas, novos } = conferir(fichas, ctx, p.data.criarIngredientes ?? false, nomeArq);
-    const ordem = ordenar(montadas);
+    const pular = p.data.pularComErro ?? false;
+    if (pular) {
+      // Quem usa um preparo da planilha que ficou de fora também fica de fora.
+      let mudou = true;
+      while (mudou) {
+        mudou = false;
+        const comErro = new Set(montadas.filter((m) => m.planejada.tipo === "preparo" && m.planejada.erros.length).map((m) => nomeComparavel(m.planejada.nome)));
+        for (const m of montadas) {
+          if (m.planejada.erros.length) continue;
+          const ruim = m.preparoDaPlanilha.find((c) => comErro.has(c));
+          if (ruim) {
+            m.planejada.erros.push({ linha: m.planejada.linha, texto: "Usa um preparo da planilha que tem erro; fica de fora junto." });
+            m.dados = null;
+            mudou = true;
+          }
+        }
+      }
+    }
+    const validas = pular ? montadas.filter((m) => !m.planejada.erros.length) : montadas;
+    const ordem = ordenar(validas);
     if (typeof ordem === "string") erros.push(ordem);
-    const temErro = erros.length > 0 || montadas.some((m) => m.planejada.erros.length);
+    const temErro = erros.length > 0 || (!pular && montadas.some((m) => m.planejada.erros.length));
     if (!aplicar || temErro || typeof ordem === "string") return { r: resultado(false, montadas, novos), temErro };
 
     // Gravar: ingredientes novos, depois as fichas na ordem.
