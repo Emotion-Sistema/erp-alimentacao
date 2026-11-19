@@ -7,6 +7,9 @@
  * O preço é digitado em reais ("12,50") e vai em centavos inteiros (`centavosDoTexto`, nunca float).
  * Tamanhos e grupos vão SEMPRE com a lista completa, na ordem (o que não vier fica inativo), e os
  * tamanhos que já existiam levam o `id` (decisão 0021).
+ * A foto (decisão 0022) fica em `FotoDoProduto.tsx`: no produto que já existe vai na hora; no novo,
+ * vai logo depois de criar. Se a foto falhar, o produto fica criado e a janela continua aberta,
+ * com o erro e "Tentar de novo" (salvar de novo altera o mesmo produto, não cria outro).
  */
 import { useState, type FormEvent } from "react";
 import { Aviso, Botao } from "@erp/interface";
@@ -26,6 +29,7 @@ import { PosicaoNaLista } from "../PosicaoNaLista";
 import { JanelaModal, usarPedirFechar } from "../JanelaModal";
 import type { Categoria } from "../horarios/contas";
 import { AdicionaisDoProduto } from "./AdicionaisDoProduto";
+import { FotoDoProduto } from "./FotoDoProduto";
 import { PreviaDoPreco } from "./PreviaDoPreco";
 import { nomeDoTamanho, novaChaveDeTamanho, TamanhosDoProduto, type LinhaDoTamanho } from "./TamanhosDoProduto";
 import { TP } from "./textos";
@@ -56,8 +60,10 @@ export function JanelaDoProduto({
   categorias,
   tipos,
   grupos,
+  podeGerenciar,
   aoFechar,
   aoSalvo,
+  aoMudouSemFechar,
 }: {
   /** Sem ele, cria um novo. */
   produto?: Produto;
@@ -69,8 +75,12 @@ export function JanelaDoProduto({
   tipos: TipoDeProducao[];
   /** Todos os grupos de adicionais (para escolher e para a prévia do preço). */
   grupos: GrupoDeAdicionais[];
+  /** `cadastros.gerenciar`: sem ela, a foto aparece sem botões (o servidor confere de novo). */
+  podeGerenciar: boolean;
   aoFechar: () => void;
   aoSalvo: (p: Produto, criado: boolean) => void;
+  /** Algo foi gravado e a janela continua aberta (foto trocada, ou produto criado com a foto falhando). */
+  aoMudouSemFechar: () => void;
 }) {
   const [sujo, setSujo] = useState(false);
   const [nome, setNome] = useState(produto?.nome ?? "");
@@ -93,9 +103,15 @@ export function JanelaDoProduto({
   const [acrescimoDiferente, setAcrescimoDiferente] = useState((produto?.tamanhos ?? []).some((t) => t.acrescimoDeliveryCentavos !== null));
   const [gruposLigados, setGruposLigados] = useState<number[]>(produto?.gruposAdicionais ?? []);
 
+  // Produto novo já criado, esperando a foto ir (ou tendo falhado).
+  const [criado, setCriado] = useState<Produto | null>(null);
+  const [temFotoPendente, setTemFotoPendente] = useState(false);
+  const [pedidoDeEnvio, setPedidoDeEnvio] = useState(0);
+  const idGravado = produto?.id ?? criado?.id ?? null;
+
   // Os produtos ativos de uma categoria, na ordem (para escolher a posição).
   const daCategoria = (id: number | null) => (id === null ? [] : produtos.filter((p) => p.ativo && p.categoriaId === id).map((p) => ({ id: p.id, nome: p.nome })));
-  const fimDa = (id: number | null) => daCategoria(id).filter((i) => i.id !== produto?.id).length + 1;
+  const fimDa = (id: number | null) => daCategoria(id).filter((i) => i.id !== idGravado).length + 1;
   const indice = produto ? daCategoria(produto.categoriaId).findIndex((i) => i.id === produto.id) : -1;
   const posicaoInicial = indice >= 0 ? indice + 1 : fimDa(produto?.categoriaId ?? null);
   const [posicao, setPosicao] = useState(posicaoInicial);
@@ -207,7 +223,7 @@ export function JanelaDoProduto({
     const mudouDeCategoria = !!produto && categoriaId !== produto.categoriaId;
     setGravando(true);
     const r = await chamar<Produto>("/api/cadastros/produtos", "POST", {
-      ...(produto ? { id: produto.id } : {}),
+      ...(idGravado !== null ? { id: idGravado } : {}),
       nome: nome.trim(),
       categoriaId,
       precoCentavos: centavos,
@@ -226,7 +242,21 @@ export function JanelaDoProduto({
     });
     setGravando(false);
     if (!r.ok || !r.dados) return setErro(r.mensagem);
+    if (!produto && temFotoPendente) {
+      // Produto criado: agora a foto vai. Fechar a janela daqui em diante não perde o produto.
+      setCriado(r.dados);
+      setSujo(false);
+      setPedidoDeEnvio((n) => n + 1);
+      aoMudouSemFechar();
+      return;
+    }
     aoSalvo(r.dados, !produto);
+  }
+
+  function fotoGravada() {
+    // Produto novo: a foto foi, agora sim fecha. Produto que já existe: a lista atualiza a miniatura.
+    if (criado) return aoSalvo(criado, true);
+    aoMudouSemFechar();
   }
 
   return (
@@ -234,6 +264,18 @@ export function JanelaDoProduto({
       <BotaoExemplos />
       <form className="hor-form" onSubmit={(e) => void salvar(e)} noValidate>
         <Campo rotulo={TP.janela.nome} explicacao={TP.janela.nomeAjuda} exemplo={TP.janela.nomeExemplo} value={nome} maxLength={60} onChange={(e) => setNome(e.target.value)} required autoComplete="off" />
+        <FotoDoProduto
+          nomeDoProduto={nome}
+          produtoId={idGravado}
+          fotoId={produto?.fotoId ?? null}
+          podeGerenciar={podeGerenciar}
+          pedidoDeEnvio={pedidoDeEnvio}
+          aoMudarPendente={(tem) => {
+            setTemFotoPendente(tem);
+            if (tem && idGravado === null) setSujo(true);
+          }}
+          aoGravada={fotoGravada}
+        />
         <Selecao rotulo={TP.janela.categoria} explicacao={TP.janela.categoriaAjuda} exemplo={TP.janela.categoriaExemplo} opcoes={opcoesDeCategoria} value={categoriaId === null ? "" : String(categoriaId)} onChange={(e) => mudarCategoria(e.target.value)} />
         <Campo rotulo={TP.janela.preco} explicacao={TP.janela.precoAjuda} exemplo={TP.janela.precoExemplo} value={preco} inputMode="decimal" maxLength={14} onChange={(e) => setPreco(e.target.value)} autoComplete="off" />
         <Grupo legenda={TP.janela.delivery} explicacao={TP.janela.deliveryAjuda} exemplo={TP.janela.deliveryExemplo} className="linha-editavel" ajudaNoTopo>
@@ -251,7 +293,7 @@ export function JanelaDoProduto({
         )}
         <AreaDeTexto rotulo={TP.janela.descricao} explicacao={TP.janela.descricaoAjuda} exemplo={TP.janela.descricaoExemplo} value={descricao} maxLength={300} rows={2} onChange={(e) => setDescricao(e.target.value)} />
         {categoriaId !== null && (!produto || produto.ativo) && (
-          <PosicaoNaLista key={categoriaId} rotulo={TP.janela.posicao} itens={daCategoria(categoriaId)} atualId={produto?.id} nomeDoAtual={nome.trim()} posicao={posicao} aoMudar={setPosicao} />
+          <PosicaoNaLista key={categoriaId} rotulo={TP.janela.posicao} itens={daCategoria(categoriaId)} atualId={idGravado ?? undefined} nomeDoAtual={nome.trim()} posicao={posicao} aoMudar={setPosicao} />
         )}
         <div aria-live="polite">{erro && <Aviso tipo="perigo">{erro}</Aviso>}</div>
         <div className="cadastros__botoes">

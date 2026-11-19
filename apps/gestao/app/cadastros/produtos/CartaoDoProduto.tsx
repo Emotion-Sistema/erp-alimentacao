@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * Cartão de um produto: lugar na categoria, nome, preço (e, discreto, o do delivery se for outro,
+ * Cartão de um produto: miniatura da foto (só se tiver), lugar na categoria, nome, preço (e, discreto, o do delivery se for outro,
  * quantos tamanhos e grupos de adicionais), tipo de produção (ou "Não passa pela produção"), tempo
  * de preparo, descrição e, para quem gerencia, Editar e Desativar/Reativar.
  */
 import { Botao, Selo } from "@erp/interface";
 import { acrescimoNoCanal, precoNoCanal, textoDosCentavos, type Produto } from "@erp/dominio/produtos";
 import { NOME_DA_AREA_DE_PRODUCAO, type TipoDeProducao } from "@erp/dominio/tipos-producao";
+import { enderecoDaFoto } from "./FotoDoProduto";
 import { TP } from "./textos";
 
 export function CartaoDoProduto({
@@ -39,6 +40,8 @@ export function CartaoDoProduto({
   return (
     <article className={["hor-cat", !p.ativo && "hor-cat--inativa"].filter(Boolean).join(" ")} data-testid={`produto-${p.nome}`}>
       <header className="hor-cat__cabeca">
+        {/* Decorativa (alt vazio): o nome está logo ao lado. Sem foto, nada ocupa espaço. */}
+        {p.fotoId !== null && <img src={enderecoDaFoto(p.fotoId)} alt="" className="prod-miniatura" width={56} height={56} loading="lazy" decoding="async" data-testid="miniatura-do-produto" />}
         {posicao !== null && <Selo>{TP.cartao.posicao(posicao)}</Selo>}
         <h3 className="hor-cat__nome">{p.nome}</h3>
         {!p.ativo && <Selo variante="alerta">{TP.cartao.desativado}</Selo>}

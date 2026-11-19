@@ -141,7 +141,9 @@ export function ListaDeProdutos({ podeGerenciar }: { podeGerenciar: boolean }) {
           categorias={categorias}
           tipos={tipos}
           grupos={gruposDeAdicionais}
+          podeGerenciar={podeGerenciar}
           aoFechar={() => setJanela(null)}
+          aoMudouSemFechar={() => void recarregar()}
           aoSalvo={(p, criado) => {
             setJanela(null);
             void recarregar();
