@@ -342,7 +342,7 @@ export const enviarFotoDoProduto = seguro(async (req) => {
 export const tirarFotoDoProduto = seguro(async (req) => json(await removerFotoDoProduto(obterBanco(), await ator(req), await corpoJson(req))));
 /** O arquivo da foto. A foto de um id nunca muda (trocar cria outra), então pode ficar no cache do aparelho. */
 export const verFotoDoProduto = seguroComId(async (req, p) => {
-  const f = await arquivoDaFoto(obterBanco(), await ator(req), idDe(p));
+  const f = await arquivoDaFoto(obterBanco(), await ator(req), p.id);
   return new Response(new Uint8Array(f.conteudo), {
     status: 200,
     headers: {

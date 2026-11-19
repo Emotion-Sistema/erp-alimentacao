@@ -17,15 +17,20 @@ ter 3 a 8 MB e leva dados escondidos (localização, modelo do aparelho).
    que é JPEG, PNG ou WebP (nunca pelo nome), abre com limite de 40 milhões de pixels (contra
    "bomba" de imagem), endireita pela orientação da câmera, reduz para no máximo 1200 px,
    transparência vira fundo branco e grava **WebP novo sem metadados** (sem localização). Lado
-   menor abaixo de 200 px é recusado. Arquivo até 8 MB; a tela já reduz antes de enviar (e assim
-   converte a foto HEIC do iPhone).
+   menor abaixo de 200 px e foto mais comprida que 4 por 1 são recusados. Se o WebP passar de 1 MB
+   (foto com muito detalhe fino), é refeito com qualidade menor (82, 70, 55, 40); se ainda passar,
+   recusa com mensagem clara. No máximo 2 fotos são refeitas ao mesmo tempo (as outras esperam a
+   vez), e a biblioteca não guarda cache. Arquivo até 8 MB; a tela já reduz antes de enviar (e
+   assim converte a foto HEIC do iPhone).
 3. Uma foto ativa por produto (índice único no banco). Trocar ou tirar deixa a anterior inativa
    (nada se apaga); a auditoria guarda quem, quando e a impressão (sha256), nunca o conteúdo.
 4. A foto é servida por id (`/api/cadastros/produtos/foto/[id]`) com permissão `cadastros.ver`,
    tipo `image/webp`, `nosniff`, CSP `sandbox` e cache imutável (trocar a foto cria outro id).
    O cardápio público (E26) terá a sua rota própria, só da foto ativa de produto à venda.
 5. Envio e troca: `cadastros.gerenciar`, com a permissão conferida antes de ler o arquivo.
-   Envios ao mesmo tempo para o mesmo produto são enfileirados pela trava do produto (testado).
+   Envios ao mesmo tempo para o mesmo produto são enfileirados pela trava do produto (teste
+   determinístico que falha sem a trava). O id da foto só aceita dígitos e é conferido depois da
+   permissão.
 
 ## Alternativas descartadas
 - Pasta no disco do servidor: fica fora do backup do banco e some se o contêiner for recriado.

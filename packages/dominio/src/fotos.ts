@@ -7,7 +7,7 @@
  * Nada se apaga: a foto anterior fica inativa; tudo na auditoria (sem o conteúdo).
  */
 import { createHash } from "node:crypto";
-import sharp, { type Metadata } from "sharp";
+import sharp, { type Metadata, type OutputInfo } from "sharp";
 import { z } from "zod";
 import { sql, type Banco } from "@erp/banco";
 import { auditar } from "./auditoria";
@@ -22,6 +22,36 @@ export const FOTO_LADO_MAXIMO = 1200;
 export const FOTO_LADO_MINIMO = 200;
 /** Limite de pixels ao abrir (contra imagem pequena no arquivo e gigante aberta). */
 const PIXELS_MAXIMO = 40_000_000;
+/** Proporção máxima entre os lados (uma tira fina viraria 1200 x 6 e ficaria inútil no cardápio). */
+export const FOTO_PROPORCAO_MAXIMA = 4;
+/** Maior foto gravada (o banco também confere). */
+export const FOTO_GRAVADA_MAXIMO = 1024 * 1024;
+/** Qualidades tentadas em ordem até a foto caber em 1 MB (foto com muito detalhe fino). */
+export const QUALIDADES = [82, 70, 55, 40] as const;
+
+// Não segurar arquivos de 8 MB no cache da biblioteca; no máximo 2 fotos sendo refeitas ao mesmo
+// tempo (cada uma pode usar ~120 MB de memória), as demais esperam a vez.
+sharp.cache(false);
+const VAGAS = 2;
+/** Quantos podem esperar a vez (cada um segura o arquivo na memória); o resto é recusado. */
+const ESPERA_MAXIMA = 10;
+let ocupadas = 0;
+const fila: (() => void)[] = [];
+async function naVez<T>(trabalho: () => Promise<T>): Promise<T> {
+  if (ocupadas >= VAGAS) {
+    if (fila.length >= ESPERA_MAXIMA)
+      throw new ErroDeRegra("conflito", "Muitas fotos sendo enviadas agora. Tente de novo em instantes.");
+    await new Promise<void>((r) => fila.push(r));
+  }
+  else ocupadas++;
+  try {
+    return await trabalho();
+  } finally {
+    const proximo = fila.shift();
+    if (proximo) proximo();
+    else ocupadas--;
+  }
+}
 
 const MAIOR_ID = 2_147_483_647;
 const id = (msg: string) => z.number({ error: msg }).int(msg).positive(msg).max(MAIOR_ID, msg);
@@ -63,7 +93,15 @@ export function formatoPelosBytes(b: Uint8Array): "jpeg" | "png" | "webp" | null
 }
 
 /** Refaz a imagem: confere, endireita, reduz e grava WebP novo sem metadados. */
-export async function refazerFoto(original: Buffer): Promise<{ conteudo: Buffer; largura: number; altura: number }> {
+export function refazerFoto(
+  original: Buffer,
+  /** Só para teste: as qualidades tentadas (padrão: QUALIDADES). */
+  qualidades: readonly number[] = QUALIDADES,
+): Promise<{ conteudo: Buffer; largura: number; altura: number }> {
+  return naVez(() => refazer(original, qualidades));
+}
+
+async function refazer(original: Buffer, qualidades: readonly number[]): Promise<{ conteudo: Buffer; largura: number; altura: number }> {
   if (!original.length) throw new ErroDeRegra("dados_invalidos", "Envie o arquivo da foto.");
   if (original.length > FOTO_BYTES_MAXIMO) throw new ErroDeRegra("dados_invalidos", "Foto grande demais: o máximo é 8 MB.");
   const formato = formatoPelosBytes(original);
@@ -81,17 +119,23 @@ export async function refazerFoto(original: Buffer): Promise<{ conteudo: Buffer;
   if (!w || !h || w * h > PIXELS_MAXIMO) throw new ErroDeRegra("dados_invalidos", "Foto grande demais em pixels.");
   if (Math.min(w, h) < FOTO_LADO_MINIMO)
     throw new ErroDeRegra("dados_invalidos", `Foto pequena demais: o lado menor precisa de pelo menos ${FOTO_LADO_MINIMO} pixels.`);
-  try {
-    const { data, info: saida } = await abrir()
-      .rotate() // orientação da câmera (EXIF)
-      .resize({ width: FOTO_LADO_MAXIMO, height: FOTO_LADO_MAXIMO, fit: "inside", withoutEnlargement: true })
-      .flatten({ background: "#ffffff" }) // transparência vira fundo branco
-      .webp({ quality: 82, effort: 4 }) // sem keepMetadata: a saída não leva EXIF, GPS nem ICC
-      .toBuffer({ resolveWithObject: true });
-    return { conteudo: data, largura: saida.width, altura: saida.height };
-  } catch {
-    throw new ErroDeRegra("dados_invalidos", "Não foi possível abrir a foto. Tente outro arquivo.");
+  if (Math.max(w, h) > FOTO_PROPORCAO_MAXIMA * Math.min(w, h))
+    throw new ErroDeRegra("dados_invalidos", "Foto comprida demais: um lado pode ter no máximo 4 vezes o outro. Recorte a foto.");
+  for (const qualidade of qualidades) {
+    let r: { data: Buffer; info: OutputInfo };
+    try {
+      r = await abrir()
+        .rotate() // orientação da câmera (EXIF)
+        .resize({ width: FOTO_LADO_MAXIMO, height: FOTO_LADO_MAXIMO, fit: "inside", withoutEnlargement: true })
+        .flatten({ background: "#ffffff" }) // transparência vira fundo branco
+        .webp({ quality: qualidade, effort: 4 }) // sem keepMetadata: a saída não leva EXIF, GPS nem ICC
+        .toBuffer({ resolveWithObject: true });
+    } catch {
+      throw new ErroDeRegra("dados_invalidos", "Não foi possível abrir a foto. Tente outro arquivo.");
+    }
+    if (r.data.length <= FOTO_GRAVADA_MAXIMO) return { conteudo: r.data, largura: r.info.width, altura: r.info.height };
   }
+  throw new ErroDeRegra("dados_invalidos", "Foto com detalhe demais para o cardápio. Tente outra foto.");
 }
 
 /** Envia (ou troca) a foto do produto. A anterior fica inativa. */
@@ -159,9 +203,12 @@ export async function removerFotoDoProduto(db: Banco, ator: Ator | null, dados: 
 }
 
 /** O arquivo de uma foto (ativa ou do histórico), para a equipe ver. */
-export async function arquivoDaFoto(db: Banco, ator: Ator | null, fotoId: number): Promise<{ conteudo: Buffer; tipo: "image/webp"; sha256: string }> {
+export async function arquivoDaFoto(db: Banco, ator: Ator | null, idDaFoto: unknown): Promise<{ conteudo: Buffer; tipo: "image/webp"; sha256: string }> {
+  // Permissão primeiro; depois o id (só dígitos: nada de "0x1", " 1" ou "1e3").
   await exigir(db, ator, "cadastros.ver", { tipo: "produto_foto" });
-  if (!Number.isSafeInteger(fotoId) || fotoId <= 0 || fotoId > MAIOR_ID) throw new ErroDeRegra("nao_encontrado", "Foto não encontrada.");
+  const texto = typeof idDaFoto === "number" ? String(idDaFoto) : idDaFoto;
+  const fotoId = typeof texto === "string" && /^[1-9][0-9]{0,9}$/.test(texto) ? Number(texto) : 0;
+  if (!fotoId || fotoId > MAIOR_ID) throw new ErroDeRegra("nao_encontrado", "Foto não encontrada.");
   const f = await db.selectFrom("produto_foto").select(["conteudo", "tipo", "sha256"]).where("id", "=", fotoId).executeTakeFirst();
   if (!f) throw new ErroDeRegra("nao_encontrado", "Foto não encontrada.");
   return f;

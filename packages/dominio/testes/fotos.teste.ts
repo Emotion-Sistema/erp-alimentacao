@@ -1,14 +1,16 @@
 /**
  * Foto do produto (migração 0016; decisão 0022). Contra PostgreSQL real; imagens geradas no teste.
  */
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Banco } from "@erp/banco";
+import { sql, type Banco } from "@erp/banco";
 import {
   arquivoDaFoto,
   ErroDeRegra,
   formatoPelosBytes,
+  FOTO_GRAVADA_MAXIMO,
+  QUALIDADES,
   listarProdutos,
   refazerFoto,
   removerFotoDoProduto,
@@ -99,6 +101,36 @@ describe("refazer a foto", () => {
   });
 });
 
+describe("ajustes da revisão", () => {
+  it("foto com muito detalhe fino: passa de 1 MB na qualidade 82, é refeita até caber; sem tentativas menores, recusa clara", async () => {
+    // Ruído de verdade: cada canal de cada pixel 0 ou 255 ao acaso.
+    const bruto = randomBytes(1200 * 1200 * 3).map((b) => (b & 1 ? 255 : 0));
+    const ruido = await sharp(Buffer.from(bruto), { raw: { width: 1200, height: 1200, channels: 3 } }).png({ compressionLevel: 1 }).toBuffer();
+    // Confere que o teste continua tendo sentido: na primeira qualidade passa de 1 MB.
+    const primeira = await sharp(ruido).webp({ quality: QUALIDADES[0] }).toBuffer();
+    expect(primeira.length).toBeGreaterThan(FOTO_GRAVADA_MAXIMO);
+    const r = await refazerFoto(ruido);
+    expect(r.conteudo.length).toBeLessThanOrEqual(FOTO_GRAVADA_MAXIMO);
+    expect((await erroDe(refazerFoto(ruido, [QUALIDADES[0]]))).message).toContain("detalhe demais");
+    const p = await produto();
+    const f = await salvarFotoDoProduto(db, gerente, { produtoId: p, arquivo: b64(ruido) });
+    expect(f.bytes).toBeLessThanOrEqual(FOTO_GRAVADA_MAXIMO);
+  });
+  it("recusa foto comprida demais (mais de 4 por 1), TIFF e AVIF", async () => {
+    expect((await erroDe(refazerFoto(await imagem(200, 900)))).message).toContain("comprida");
+    expect((await erroDe(refazerFoto(await imagem(2000, 300, "png")))).message).toContain("comprida");
+    expect((await refazerFoto(await imagem(800, 200))).largura).toBe(800);
+    const tiff = await sharp({ create: { width: 400, height: 400, channels: 3, background: "#fff" } }).tiff().toBuffer();
+    expect((await erroDe(refazerFoto(tiff))).message).toContain("JPG, PNG ou WebP");
+    const avif = await sharp({ create: { width: 400, height: 400, channels: 3, background: "#fff" } }).avif().toBuffer();
+    expect((await erroDe(refazerFoto(avif))).message).toContain("JPG, PNG ou WebP");
+  });
+  it("id da foto só com dígitos, conferido depois da permissão", async () => {
+    for (const id of ["0x1", " 1", "1e3", "abc", "-1", "", "99999999999"]) expect((await erroDe(arquivoDaFoto(db, gerente, id))).codigo).toBe("nao_encontrado");
+    expect((await erroDe(arquivoDaFoto(db, null, "abc"))).codigo).toBe("nao_autenticado");
+  });
+});
+
 describe("foto do produto", () => {
   it("envia, troca (a anterior fica inativa), tira e audita; quem vê e quem não envia", async () => {
     const p = await produto();
@@ -140,11 +172,40 @@ describe("foto do produto", () => {
     expect(await db.selectFrom("produto_foto").select("id").where("produto_id", "=", p).execute()).toEqual([]);
   });
 
-  it("concorrência: vários envios ao mesmo tempo deixam uma foto ativa só", async () => {
+  it("concorrência: dois envios presos juntos na gravação deixam uma foto ativa só, sem erro", async () => {
+    // Outra conexão segura a tabela de fotos; os dois envios chegam à gravação e ficam esperando.
+    // Com a trava do produto, um espera o outro; sem ela, os dois inserem juntos e o banco recusa.
     const p = await produto();
-    const fotos = await Promise.all([300, 400, 500, 600, 700].map((w) => imagem(w, w)));
-    const r = await Promise.allSettled(fotos.map((f) => salvarFotoDoProduto(db, gerente, { produtoId: p, arquivo: b64(f) })));
-    expect(r.every((x) => x.status === "fulfilled")).toBe(true);
+    const foto = b64(await imagem(400, 400));
+    const outra = bancoDeTeste();
+    try {
+      let soltar!: () => void;
+      const solto = new Promise<void>((r) => (soltar = r));
+      let travou!: () => void;
+      const travado = new Promise<void>((r) => (travou = r));
+      const segura = outra.transaction().execute(async (trx) => {
+        await sql`LOCK TABLE produto_foto IN SHARE ROW EXCLUSIVE MODE`.execute(trx);
+        travou();
+        await solto;
+      });
+      await travado;
+      const envios = [1, 2].map(() => salvarFotoDoProduto(db, gerente, { produtoId: p, arquivo: foto }));
+      envios.forEach((e) => e.catch(() => undefined));
+      // Espera os dois ficarem presos em alguma trava.
+      for (let k = 0; k < 100; k++) {
+        const r = await sql<{ n: number }>`SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`.execute(db);
+        if (r.rows[0]!.n >= 2) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      const presos = await sql<{ n: number }>`SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`.execute(db);
+      expect(presos.rows[0]!.n).toBeGreaterThanOrEqual(2);
+      soltar();
+      await segura;
+      const r = await Promise.allSettled(envios);
+      expect(r.map((x) => x.status)).toEqual(["fulfilled", "fulfilled"]);
+    } finally {
+      await outra.destroy();
+    }
     const ativas = await db.selectFrom("produto_foto").select("id").where("produto_id", "=", p).where("ativa", "=", true).execute();
     expect(ativas).toHaveLength(1);
   });
