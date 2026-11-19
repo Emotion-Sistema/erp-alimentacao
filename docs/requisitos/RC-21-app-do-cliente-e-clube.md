@@ -23,11 +23,13 @@ RC-06 (fiscal).
 1. O cliente mira o QR Code da mesa. Abre a página da mesa (RC-20) com uma faixa:
    **"Entre no Clube E-MOTION e ganhe X% neste pedido"** com dois botões: **Entrar no Clube** e
    **Agora não** (pedir como convidado). **Nunca obrigar:** o convidado pede normalmente, sem desconto.
-2. **Cadastro em menos de 1 minuto:** nome, celular e, se quiser, data de aniversário (para o
-   presente do mês) e alergias (para o cardápio avisar). Aceite claro do uso dos dados (LGPD),
-   com link para a política de privacidade. Nada de senha.
-3. **Confirmação do celular** com um código de 6 números (ver hipótese sobre o meio de envio). Sem
-   confirmar, a pessoa pede como convidado e confirma depois.
+2. **Cadastro com segurança total (responsável, 19/11/2026):** nome completo, **CPF**, **CEP** (o
+   endereço se preenche sozinho: rua, bairro, cidade e estado; a pessoa completa número e
+   complemento), **data de nascimento** e **alergias**. Mais um contato para entrar na conta e
+   receber o código (celular ou e-mail, ver seção 6). Aceites claros e separados (seção 5a), com link
+   para a política de privacidade. Nada de senha. Regras de cada campo na seção 5a.
+3. **Confirmação** com um código de 6 números enviado ao contato. Sem confirmar, a pessoa pede como
+   convidado e confirma depois.
 4. **Instalar o aplicativo:** logo depois, um convite "Instale o app E-MOTION" com o passo a passo
    do aparelho (Android: botão Instalar; iPhone: Compartilhar > Adicionar à Tela de Início). Quem
    não instala continua no navegador, logado.
@@ -42,9 +44,15 @@ RC-06 (fiscal).
 - **Níveis** (evolução): Bronze, Prata, Ouro pelo gasto dos últimos 90 dias, com benefícios maiores.
 - **Presentes automáticos:** boas-vindas (no primeiro pedido), aniversário (no mês) e "sentimos sua
   falta" (cupom depois de N dias sem pedir), todos configuráveis e desligáveis.
-- **Campanhas:** "pontos em dobro na terça", "café do Clube a R$ 5 antes das 10h". Aviso dentro do
-  aplicativo à vontade; **mensagem fora dele (WhatsApp, e-mail) só com confirmação específica do
-  responsável** (regra do projeto) e só para quem aceitou receber.
+- **Campanhas só pelo aplicativo, por notificação (responsável, 19/11/2026):** "pontos em dobro na
+  terça", "café do Clube a R$ 5 antes das 10h". Toda campanha chega como **notificação do aplicativo**
+  (e fica guardada em "Novidades" dentro dele); **nada por WhatsApp, SMS ou e-mail**. Só recebe quem
+  aceitou receber ofertas e ligou as notificações; dá para desligar a qualquer hora, em um toque.
+  No Android funciona no navegador ou instalado; no iPhone, só com o aplicativo instalado na tela
+  inicial (limite do iPhone): quem não instalar vê as campanhas em "Novidades" ao abrir o app.
+  O gerente cria a campanha na gestão (texto, público, dia e hora); envio só nos horários da casa,
+  com limite de frequência (ex.: no máximo 2 por semana) para não incomodar. Cada envio fica
+  registrado (quem criou, para quantos, quando).
 - **Indique um amigo** (evolução): os dois ganham quando o amigo faz o primeiro pedido.
 - **Não acumula:** desconto do Clube, cupom, promoção e desconto de funcionário não se somam;
   vale o maior (mesma regra do RC-13 seção 3a). O cálculo é sempre no servidor.
@@ -68,6 +76,37 @@ RC-06 (fiscal).
 - A mesa também encerra a sessão dos aparelhos quando o atendente **fecha ou transfere** a mesa, e
   depois de um tempo sem uso com a conta paga ou a mesa vazia.
 
+## 5a. O cadastro, campo a campo (segurança total)
+- **Nome completo:** obrigatório.
+- **CPF:** obrigatório para o Clube; conferido pelos dígitos verificadores no servidor; **um CPF por
+  conta** (não dá para criar outra conta para repetir presente). Guardado **criptografado** no banco,
+  com a chave no cofre (nunca no código, no Git ou em log); para achar a conta pelo CPF o banco guarda
+  só uma impressão irreversível (hash com segredo). Na tela aparece mascarado (***.456.789-**). Serve
+  também para o **CPF na nota**, se o cliente quiser (RC-06).
+- **CEP com endereço automático:** o CEP busca rua, bairro, cidade e estado num serviço público de
+  CEP (ver seção 6); a pessoa só completa número e complemento. Se o serviço não responder, ela
+  digita à mão; o servidor confere o formato. O endereço serve para o delivery (RC-08) e pode ter
+  mais de um (casa, trabalho).
+- **Data de nascimento:** obrigatória; mostra o presente do mês de aniversário. **Menor de 18 anos**
+  não entra no Clube sozinho (hipótese a confirmar com o jurídico; a lei pede cuidado extra com
+  dado de criança e adolescente).
+- **Alergias:** opcional, por lista (glúten, lactose, amendoim, frutos do mar, ovo, soja e "outra"),
+  para o cardápio avisar e o atendente ver um alerta na comanda. Pela lei, informação de saúde é
+  **dado sensível**: pede um aceite próprio e destacado, só serve para avisar sobre alergia, nunca
+  para campanha, e aparece para a equipe só como alerta na comanda (nunca numa lista de clientes).
+- **Contato para o código:** celular ou e-mail (seção 6).
+- **Aceites separados:** (1) uso dos dados para a conta e o Clube; (2) alergias; (3) receber
+  ofertas por notificação. Só o (1) é obrigatório. Cada aceite guarda data, hora e versão do texto.
+- **Segurança da conta:** sem senha; entra com código de 6 números que vale poucos minutos, com
+  limite de tentativas (bloqueio temporário depois de errar); a sessão fica presa ao aparelho e
+  pode ser encerrada de todos os aparelhos em "Minha conta". Trocar CPF ou contato exige novo
+  código. Toda mudança de dado fica registrada (sem gravar o dado em claro no registro).
+- **Quem na equipe vê o quê:** caixa e atendente veem só o nome e o alerta de alergia da comanda; o
+  CPF completo nunca aparece na gestão (só os 3 últimos dígitos, para conferência); relatórios do
+  Clube usam números totais, sem lista de pessoas, salvo para quem o dono autorizar.
+- **Direitos do cliente:** ver os próprios dados, corrigir, baixar uma cópia e **apagar a conta**
+  (ficam só os registros que a lei e o fiscal exigem, sem identificar a pessoa).
+
 ## 5. Segurança, dados e regras
 - Conta de cliente separada das contas da equipe: o cliente nunca entra na gestão.
 - Dado pessoal mínimo, finalidade clara, consentimento separado para receber ofertas, exclusão a
@@ -80,9 +119,12 @@ RC-06 (fiscal).
 
 ## 6. Hipóteses e decisões do responsável
 - **Percentual do desconto do aplicativo** e se vale para tudo ou só para algumas categorias.
-- **Como chega o código de confirmação do celular:** SMS ou WhatsApp são **serviços pagos**
-  (precisam de contratação, confirmação específica); a alternativa sem custo é o código por
-  e-mail. Proposta: começar por e-mail e ligar SMS ou WhatsApp quando contratar.
+- **Como chega o código de entrada:** por **e-mail** não tem custo; por **SMS** é serviço pago
+  (contratação, confirmação específica). Proposta: começar por e-mail e ligar SMS se quiser.
+  (Isto é só o código de entrar; campanha nunca vai por esses meios.)
+- **Serviço público de CEP:** escolher na construção um serviço gratuito e conhecido, conferido na
+  hora (não inventar API); o CEP sai do servidor, nunca com o nome ou o CPF junto.
+- **Idade mínima do Clube** (proposta: 18 anos) e o texto dos aceites: com o jurídico.
 - **Pontos:** quanto vale cada real e o catálogo de prêmios.
 - **Texto de privacidade e de aceite:** revisar com o jurídico ou o contador da empresa.
 - **Fiscal:** como o desconto aparece na nota (desconto no item) a confirmar com o contador; não
