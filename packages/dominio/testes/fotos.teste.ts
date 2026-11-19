@@ -9,6 +9,7 @@ import {
   arquivoDaFoto,
   ErroDeRegra,
   formatoPelosBytes,
+  listarProdutos,
   refazerFoto,
   removerFotoDoProduto,
   salvarCategoria,
@@ -107,6 +108,7 @@ describe("foto do produto", () => {
     expect(arq.tipo).toBe("image/webp");
     expect(formatoPelosBytes(arq.conteudo)).toBe("webp");
     expect(arq.sha256).toBe(f1.sha256);
+    expect((await listarProdutos(db, gerente)).find((x) => x.id === p)!.fotoId).toBe(f1.id);
     const f2 = await salvarFotoDoProduto(db, gerente, { produtoId: p, arquivo: b64(await imagem(600, 600, "webp")) });
     const linhas = await db.selectFrom("produto_foto").select(["id", "ativa"]).where("produto_id", "=", p).orderBy("id").execute();
     expect(linhas).toEqual([
@@ -116,6 +118,7 @@ describe("foto do produto", () => {
     // A do histórico continua visível para a equipe.
     expect((await arquivoDaFoto(db, gerente, f1.id)).sha256).toBe(f1.sha256);
     expect(await removerFotoDoProduto(db, gerente, { produtoId: p })).toEqual({ removida: true });
+    expect((await listarProdutos(db, gerente)).find((x) => x.id === p)!.fotoId).toBeNull();
     expect(await removerFotoDoProduto(db, gerente, { produtoId: p })).toEqual({ removida: false });
     const aud = await db.selectFrom("auditoria").select("detalhes").where("alvo_tipo", "=", "produto").where("alvo_id", "=", String(p)).orderBy("id").execute();
     const ops = aud.map((a) => (a.detalhes as { operacao: string }).operacao);

@@ -25,6 +25,8 @@ export type Produto = {
   tamanhos: Tamanho[];
   /** Grupos de adicionais que o produto oferece, na ordem (ids; ligações ativas). */
   gruposAdicionais: number[];
+  /** Foto ativa (id em /api/cadastros/produtos/foto/[id]); nulo = sem foto (decisão 0022). */
+  fotoId: number | null;
 };
 
 
