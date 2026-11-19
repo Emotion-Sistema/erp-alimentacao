@@ -116,6 +116,12 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - Cadastro: nome, CPF (dígitos conferidos, um por conta, criptografado com chave no cofre e hash para busca, mascarado na tela), CEP com endereço automático (serviço público a escolher na construção), nascimento (Clube a partir de 18, a confirmar), alergias (dado sensível, aceite próprio, só alerta na comanda). Aceites separados e versionados; código de entrada com prazo e limite de tentativas.
 - Campanhas só por notificação do app (e "Novidades" dentro dele), nunca WhatsApp, SMS ou e-mail; opt-in, horário da casa e limite de frequência.
 
+## 19/11/2026: respostas do responsável e próximo plano
+- Fichas 1 e 2 respondidas (perguntas.md): fruta/alface em un; bife moído em g e bife pronto em disco em un; cremes e molhos em ml; **sempre poder escolher a unidade**.
+- Horário de venda = funcionamento (0016 confirmada). Produtos: **preço por canal** (loja e delivery diferentes), cortesia confirmada, **base de foto, tamanhos, adicionais e combos já agora** (0018). Clube: campos **totalmente personalizáveis** pela equipe, já agora.
+- Pergunta 2 (tipos de produção, 0017) não foi entendida: reexplicar com exemplo.
+- Plano proposto (ordem): (1) unidades do catálogo + escolher sempre; (2) importação de planilha (E07 parte 3); (3) produtos completos (preço por canal, foto, tamanhos, adicionais, combos); (4) base do Clube na gestão.
+
 ## O que ficou pendente
 - Conferir com o responsável o visual novo na homologação (inclusive num Android real: letras).
 - Telas com mais de um botão cheio (Horários, Funcionários, Turnos, Estações): rever a regra "um botão forte por tela" se o responsável quiser.

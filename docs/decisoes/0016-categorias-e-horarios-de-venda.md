@@ -46,6 +46,7 @@ Só o gerente geral, o dono e o administrador mudam horários. A E12 (disponibil
    certo.
 8. **Hipóteses (a confirmar com o responsável):**
    - Uma janela por dia em cada canal ou categoria (não há "café das 9h às 11h e das 15h às 18h").
+     ✔ Confirmado em 19/11/2026: o horário de venda é o de funcionamento já informado.
    - Nenhum horário passa da meia-noite (a loja fecha às 23h30).
    - A pausa manual é do mesmo grupo que muda horários. O "acabou" de um produto pelo estoque é
      outra coisa e fica na E12.

@@ -15,11 +15,11 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Em claude.ai/code, conectar o GitHub e instalar o app do Claude neste repositório.
 
 ## Assim que possível (destrava o trabalho)
-- [ ] 👉 Responder às perguntas 1 e 2 das fichas (fruta, alface e bife em gramas? açaí, leite condensado, chantilly, creme de leite e molho de tomate em g ou ml?) — destrava a correção das 11 unidades do cadastro rápido. Resposta prevista para 22/11 (lembrete agendado); até lá, não cadastrar os itens com asterisco.
-- [ ] 👉 Clube E-MOTION (RC-21, ideia nº 12), sem pressa (entra depois da E26): (1) percentual do desconto de quem pede pelo app e se vale para tudo; ✔ 19/11/2026: código de entrada por **e-mail**; Clube a partir de **18 anos**; (3) quanto vale cada real em pontos e quais prêmios; (4) pedir ao jurídico ou contador o texto de privacidade e como o desconto aparece na nota.
+- [x] 👉 Perguntas 1 e 2 das fichas ✔ 19/11/2026: fruta e alface em unidade; bife moído em g e bife pronto em disco em unidade; açaí, leite condensado, chantilly, creme de leite e molho de tomate em ml; sempre poder escolher a unidade no cadastro.
+- [ ] 👉 Clube E-MOTION (RC-21, ideia nº 12): **19/11/2026: sem respostas ainda; o responsável pediu os campos já criados e totalmente personalizáveis pela equipe** (percentual, categorias, pontos, prêmios). (1) percentual do desconto de quem pede pelo app e se vale para tudo; ✔ 19/11/2026: código de entrada por **e-mail**; Clube a partir de **18 anos**; (3) quanto vale cada real em pontos e quais prêmios; (4) pedir ao jurídico ou contador o texto de privacidade e como o desconto aparece na nota.
 - [x] 👉 Comanda pela mesa (RC-20): ✔ 19/11/2026 preço na mesa sim; cada celular é um cliente com o próprio pedido, enviado junto ou separado, e conta paga só a sua, juntando ou a mesa toda; QR opcional.
 - [ ] 👉 Confirmar as hipóteses da decisão 0017: cada tipo de produção começa fazendo 1 item por vez; porções, salgados e almoço ficam em "Pratos e grelhados" até ter tipo próprio.
-- [ ] 👉 Confirmar as hipóteses de horário da decisão 0016 (uma janela por dia; nada passa da meia-noite; pausa só por gerente geral, dono e administrador). ✔ Às 23h em ponto não aceita pedido (17/11/2026).
+- [x] 👉 Horários da decisão 0016 ✔ 19/11/2026: o horário de venda é o de funcionamento já passado (uma janela por dia, nada passa da meia-noite).
 - [ ] 👉 Testar na homologação Cadastros → Horários de venda e Cadastros → Categorias.
 - [x] 👉 Enviar logo, cores e identidade visual da empresa ✔ 18/11/2026 (aplicadas: decisão 0019).
 - [ ] 👉 Responder às perguntas de `docs/04-pendencias.md` com o cliente (comece pelas de número 1, 5, 13 e 14).
