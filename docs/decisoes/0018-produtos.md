@@ -30,6 +30,13 @@ RC-07: o site lê o mesmo cadastro (descrição para a vitrine). Dinheiro sempre
 6. A tela digita o preço em reais ("12,50"); a conversão para centavos é feita pelos dígitos
    (`centavosDoTexto`, `@erp/dominio/produtos`), nunca com número de vírgula (float).
 
+## Respostas do responsável (19/11/2026)
+- **Preço por canal: SIM, preços diferentes** na loja e no delivery (a ideia é juntar no futuro).
+  Substitui a hipótese "um preço só".
+- **Cortesia = desconto no pedido** (nada de produto a R$ 0,00): confirmado.
+- **Foto, tamanhos, adicionais e combos:** criar já toda a base e as telas, para a equipe só
+  cadastrar depois.
+
 ## Hipóteses (a confirmar com o responsável)
 - Um preço só para todos os canais por enquanto (o preço por canal do módulo de cadastros fica para
   quando o delivery chegar, E26).

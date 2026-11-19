@@ -8,8 +8,12 @@ cadastro para a que menos trava.
 1. **Fruta, alface e bife em gramas?** As fichas pesam laranja, banana, abacaxi, limão, alface e o bife
    de hambúrguer em g. O catálogo do cadastro rápido sugere "unidade". Posso propor que fiquem em g,
    com a unidade como embalagem de peso médio (ex.: 1 laranja ≈ 169 g)?
+   ✔ (19/11/2026) **Fruta e alface: unidade.** **Bife: depende do bife**: o hambúrguer de carne moída
+   feito na casa conta em g; o hambúrguer já pronto, em disco, conta em unidade (são dois itens).
+   E sempre deixar a pessoa **escolher a unidade** no cadastro, mesmo quando o catálogo sugere uma.
 2. **Açaí, leite condensado, chantilly, creme de leite e molho de tomate:** as fichas medem em g ou ml
    (às vezes os dois). Em qual unidade a casa quer controlar cada um?
+   ✔ (19/11/2026) **Em ml**, com a opção de escolher outra unidade no cadastro.
 3. **Mesmo item ou itens diferentes?** "frango" e "peito de frango"; "bacon fatiado" e "bacon em
    cubos"; "muçarela ralada" e "muçarela fatiada"; "batata pequena" e "batata"; "licor de laranja"
    (Margarita) e Cointreau; "óleo" e "óleo de algodão" (só na ficha 17).
