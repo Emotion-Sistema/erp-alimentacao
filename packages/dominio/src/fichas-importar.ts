@@ -86,7 +86,7 @@ const esquemaPedido = z.object(
     criarIngredientes: z.boolean({ error: "Criar ingredientes: sim ou não." }).optional(),
     /** Gravar as fichas sem erro e deixar de fora as com erro (e as que usam um preparo com erro). */
     pularComErro: z.boolean({ error: "Pular fichas com erro: sim ou não." }).optional(),
-    /** Versão de cada ficha vista na conferência (nome -> número; nulo = não existia). */
+    /** Versão de cada ficha vista na conferência ("tipo:nome" -> número; nulo = não existia). */
     versoes: z.record(z.string().max(200), z.number().int().min(1).nullable()).optional(),
   },
   { error: "Pedido em formato inválido." },
@@ -212,6 +212,8 @@ type Montada = { planejada: Planejada; dados: DadosDaFicha | null; fichaId: numb
 function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean, arquivo: string) {
   const novos = new Map<string, { nome: string; unidade: UnidadeDaFicha }>();
   const preparosDaPlanilha = new Map<string, Planejada>();
+  // Fichas com tipo desconhecido (digitado errado) também bloqueiam o nome: pode ser um preparo.
+  const nomesComTipoErrado = new Set(fichas.filter((f) => f.chave.startsWith("?")).map((f) => nomeComparavel(f.nome)));
   // Unidade de cada preparo ANTES de conferir os itens (um produto pode vir antes do preparo).
   // Todos os preparos da planilha (até os com erro): um nome de preparo nunca vira ingrediente.
   for (const f of fichas) {
@@ -287,6 +289,10 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
     const usados: string[] = [];
     const itens = f.itens.flatMap((i) => {
       const chave = nomeComparavel(i.ingrediente);
+      if (nomesComTipoErrado.has(chave) && !ctx.preparos.has(chave) && !preparosDaPlanilha.has(chave)) {
+        erros.push({ linha: i.linha, texto: `"${i.ingrediente}" tem ficha na planilha com tipo errado; corrija o tipo dela antes.` });
+        return [];
+      }
       const prep = ctx.preparos.get(chave) ?? (preparosDaPlanilha.has(chave) ? { id: null, unidade: preparosDaPlanilha.get(chave)!.unidadeRendimento } : undefined);
       let alvo: { ingredienteId?: number; preparoId?: number; unidade: UnidadeDaFicha | null; novo?: string } | undefined;
       if (prep && !(f.tipo === "preparo" && chave === nomeComparavel(f.nome))) {
@@ -308,7 +314,7 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
             erros.push({ linha: i.linha, texto: `Nome de ingrediente "${n.slice(0, 40)}" inválido para criar (2 a 120 letras).` });
             return [];
           }
-          novos.set(chave, { nome: i.ingrediente, unidade: FATOR[u]!.base });
+          novos.set(chave, { nome: n, unidade: FATOR[u]!.base });
           alvo = { ingredienteId: -1, unidade: FATOR[u]!.base, novo: chave };
         } else {
           erros.push({ linha: i.linha, texto: `Ingrediente "${i.ingrediente}" não está cadastrado.` });
@@ -450,7 +456,7 @@ export async function importarFichas(db: Banco, ator: Ator | null, dados: unknow
       : [];
     for (const m of montadas) {
       m.versaoAtual = m.fichaId ? (atuais.find((a) => a.id === m.fichaId)?.numero ?? null) : null;
-      const vista = p.data.versoes?.[m.planejada.nome];
+      const vista = p.data.versoes?.[`${m.planejada.tipo}:${m.planejada.nome}`];
       if (aplicar && p.data.versoes && vista !== undefined && vista !== m.versaoAtual && !m.planejada.erros.length) {
         m.planejada.erros.push({ linha: m.planejada.linha, texto: "Esta ficha mudou depois da conferência. Confira de novo." });
         m.dados = null;
