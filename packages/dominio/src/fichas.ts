@@ -65,6 +65,8 @@ const opcional = (rotulo: string, max: number) =>
       z
         .string()
         .max(max, `${rotulo} com no máximo ${max} letras.`)
+        // Recusa caractere de controle de propósito (a quebra de linha, \n, passa).
+        // eslint-disable-next-line no-control-regex
         .refine((v) => !/[\u0000-\u0009\u000b-\u001f\u007f]/.test(v), `${rotulo} com caractere inválido.`),
     )
     .transform((v) => (v === "" ? null : v))
