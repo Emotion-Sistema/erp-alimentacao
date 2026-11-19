@@ -23,6 +23,13 @@ Telas citadas no RC-10: Geral, Hambúrgueres, Pratos e grelhados, Elevador e Caf
    capacidade por turno e o tempo de espera ajustável (E14). Produto sem tipo = não passa
    pela produção (ex.: bebida da geladeira, RC-10 seção 6).
 
+## Respostas do responsável (19/11/2026)
+- A capacidade de cada tipo pode ser mudada a qualquer hora pelos gerentes, na tela Tipos de
+  produção (já funciona assim); começa em 1.
+- **Porções, salgados e almoço são feitos na mesma cozinha, mas em locais diferentes:** cada um
+  vira um **tipo de produção próprio** (área cozinha), com a sua tela. A casa cria ou ajusta pela tela;
+  o próximo PR de código já deixa os três criados (migração, só se ainda não existirem).
+
 ## Hipóteses (a confirmar com o responsável)
 - Capacidade inicial 1 em cada tipo (o responsável ajusta na tela).
 - Porções, salgados e almoço entram em "Pratos e grelhados" até o responsável criar tipos
