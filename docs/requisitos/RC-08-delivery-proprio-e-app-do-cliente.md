@@ -46,6 +46,7 @@ Não há um segundo sistema. O pedido online entra no mesmo fluxo do RC-01.
 - Painel do gestor: pedidos em andamento, atrasos, pausar loja, área e taxa de entrega.
 
 ## Aplicativo do cliente (instalável)
+O mesmo aplicativo serve para pedir na mesa (RC-20) e tem o Clube de benefícios (RC-21, 19/11/2026).
 - Ícone, tela cheia, abertura rápida, último endereço e "pedir de novo".
 - Funciona como site para quem não instalar.
 - Avisos por notificação a cada mudança de etapa e quando a previsão muda. No Android

@@ -47,8 +47,15 @@ atendente) e o modelo de dados nasce na **E11** (pedido).
 8. **Acompanhar pelo celular** (RC-10 seção 8): por item, a etapa (Recebido, Na fila, Em preparo,
    Pronto, Entregue), o tempo previsto com contagem regressiva e o aviso quando fica pronto. Atualiza
    sozinho. O cliente nunca vê nome de funcionário, outra mesa nem dado interno.
-9. **Mesa fechada** (conta paga no caixa, RC-13): a página do QR mostra "Esta mesa foi encerrada.
-   Obrigado!" e o link da comanda deixa de valer.
+9. **Pagou, saiu da mesa (responsável, 19/11/2026):** assim que o caixa marca Pago a conta de um
+   cliente (ou da mesa toda), **os aparelhos de quem pagou são desconectados da mesa na hora**: a tela mostra
+   "Conta paga. Obrigado pela visita!" (com os pontos do Clube, se a pessoa for membro, e o convite
+   para avaliar), a sessão da mesa acaba no servidor e o link daquela comanda não aceita mais nada.
+   O mesmo vale quando o atendente fecha ou transfere a mesa. Sair da mesa não desloga a conta do
+   Clube (RC-21).
+10. **Entrar com o aplicativo E-MOTION:** na primeira vez, a página da mesa oferece "Entrar no Clube
+   E-MOTION" (cadastro rápido, nunca obrigatório) e o desconto do aplicativo nos itens que o membro
+   marca. Tudo no RC-21.
 
 ## 2. Regras que não mudam
 - **Só o atendente envia para a cozinha.** O cliente sugere; quem libera é sempre uma pessoa da casa,
@@ -81,15 +88,30 @@ atendente) e o modelo de dados nasce na **E11** (pedido).
   cliente" e "do atendente"; selo "Cliente encerrou"; tela **Conferir com o cliente** em letra grande;
   **Enviar para a cozinha** (o botão cheio da tela) e **Voltar ao cardápio**; aviso de chamado.
 
-## 5. Hipóteses (a confirmar com o responsável)
-- **Preço na mesa:** mostrar o preço para o cliente da mesa (no site institucional não mostra). Sem
-  preço, o cliente não sabe o total do que marcou; proposta: **mostrar**.
-- **Várias pessoas na mesma mesa:** cada celular que entra marca os seus itens ("Pessoa 1", "Pessoa 2",
-  ou o nome que a pessoa digitar). Ajuda a dividir a conta no caixa. O **Encerrei** vale por aparelho;
-  a conferência fica liberada quando todos encerram ou quando o atendente decide conferir assim mesmo.
-- **Sem QR (cliente sem celular ou que prefere falar):** o atendente lança tudo, como hoje; o fluxo
-  com QR é opcional por mesa.
-- **Balcão e viagem:** fora deste requisito por enquanto (são outro fluxo da E13).
+## 5. Decisões do responsável (19/11/2026)
+- **Preço na mesa: SIM.** O cliente vê o preço de cada item e o total do que marcou (no site
+  institucional continua sem preço).
+- **Cada celular é "um cliente" naquela mesa.** Cada pessoa que mira o QR faz o **seu próprio
+  pedido** no seu celular (aparece com o nome que digitar, ou "Cliente 1", "Cliente 2"; membro do
+  Clube aparece com o nome do cadastro).
+  - Todos os pedidos chegam ao atendente, separados por cliente, na mesma mesa.
+  - **Juntos ou separados:** cada cliente toca **Encerrei** quando termina. O atendente confere e
+    envia para a cozinha **cada cliente separado** (quem já decidiu não espera os outros) ou **todos
+    juntos** (a mesa toda sai junto da cozinha; com o "terminar juntos" do RC-10, nada esfria).
+    O atendente escolhe na conferência; o padrão é juntos quando todos já encerraram.
+  - **Na hora de fechar a conta, cada um escolhe:** pagar **só o seu**, **juntar** com outros clientes
+    da mesa (ex.: um casal) ou **a mesa toda junta**. O caixa (RC-13) já recebe a conta dividida por
+    cliente, sem conta de cabeça; item dividido entre pessoas (ex.: porção para a mesa) pode ser
+    rateado na conferência ou no caixa.
+  - Quem paga a sua parte **sai da mesa** naquele celular (item 9); os outros continuam até pagar.
+    Quando todos pagaram, a mesa fecha.
+  - Os itens lançados pelo atendente para quem não usa o QR entram como "cliente sem celular" (ou o
+    nome dito ao atendente) e seguem a mesma divisão.
+- **QR opcional: SIM.** Em qualquer mesa o cliente pode só falar com o atendente, que lança tudo como
+  hoje; dá para misturar (uma pessoa pelo celular, outra falando).
+
+## 5a. Fora deste requisito por enquanto
+- **Balcão e viagem:** outro fluxo da E13.
 - **Delivery próprio** (RC-08) continua com pagamento online e não usa a conferência do atendente.
 
 ## 6. Impacto técnico e onde entra
@@ -105,8 +127,9 @@ atendente) e o modelo de dados nasce na **E11** (pedido).
 
 ## 7. Critérios de aceite
 1. Cliente e atendente marcam itens na mesma comanda e cada um vê o do outro em até 2 segundos.
-2. Só com "Encerrei" de todos (ou decisão do atendente) a conferência fica disponível; "Voltar ao
-   cardápio" destrava os dois.
+2. Cada celular é um cliente com o próprio pedido; a conferência de um cliente abre com o "Encerrei"
+   dele; o atendente envia separado (por cliente) ou junto (a mesa toda); "Voltar ao cardápio"
+   destrava só o cliente conferido.
 3. "Enviar para a cozinha" gera **um** ticket e **uma** baixa, mesmo com dois toques, dois aparelhos
    ou internet caindo (teste de concorrência e idempotência contra PostgreSQL real).
 4. Depois de enviado, o aparelho do cliente não consegue tirar nem mudar item (recusado no servidor,
@@ -115,3 +138,7 @@ atendente) e o modelo de dados nasce na **E11** (pedido).
 6. Item que acabou ou fora de horário não entra (servidor), com o motivo na tela.
 7. O cliente vê etapas e tempo do seu pedido, e nada de outra mesa.
 8. Tudo registrado com origem e horário.
+9. Pago no caixa: os aparelhos de quem pagou saem da mesa em até 5 segundos e o link deixa de
+   aceitar ação para eles (recusado no servidor); com tudo pago, a mesa fecha e todos saem.
+10. Na conta, cada cliente escolhe pagar só o seu, juntar com outros clientes da mesa ou a mesa toda;
+   o total confere com a soma dos itens, sem item cobrado duas vezes nem esquecido.

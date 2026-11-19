@@ -123,6 +123,9 @@ no iFood: é o motivo para o cliente trocar de canal.
 aplicativo; o gerente cria campanhas (pontos em dobro na terça).
 **Depende de.** Delivery próprio (E26 a E28) e caixa (E17). Mensagem de campanha a clientes só com
 confirmação específica do responsável.
+**Atualização (19/11/2026):** ampliado pelo responsável (ideia nº 12): desconto para quem pede pelo
+aplicativo, cadastro na primeira vez que mira o QR da mesa, presentes de boas-vindas e aniversário.
+Tudo em `RC-21-app-do-cliente-e-clube.md`; entra logo depois da E26.
 
 ## S13. Tempo de espera no salão mostrado no site
 **Como funciona.** A fila da cozinha (RC-10) já calcula a previsão de cada pedido. O site mostra uma

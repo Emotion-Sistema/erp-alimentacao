@@ -24,7 +24,7 @@ Detalhe de cada uma: `docs/requisitos/RC-07-sugestoes-no-dia-a-dia.md`.
 | 5 | S5 | Cardápio por QR Code na mesa | **Absorvida pela ideia nº 11 (RC-20)**: a comanda pela mesa entra na E13; a geração dos QR pelo mapa de mesas, na E17 | pendente |
 | 5 | S6 | Reserva de mesa e do espaço | Logo depois da E17 | pendente |
 | 5 | S8 | QR Code de avaliação no recibo | Logo depois da E17 (e S4 feito) | pendente |
-| 6 | S12 | Clube E-MOTION (pontos) | Logo depois da E28 (delivery próprio) | pendente |
+| 6 | S12 | Clube E-MOTION (pontos) | **Antecipado e ampliado pela ideia nº 12 (RC-21):** conta do cliente na E26; Clube (desconto pelo app, pontos, presentes) logo depois da E26 | pendente |
 | 7 | S9 | Convênio de almoço para empresas | Logo depois da E21 (financeiro); reaproveita o desconto de funcionário da E17 | pendente |
 | 8 | S11 | Vale-presente | Depois da E27 (pagamento online) e com o contador | pendente |
 | 8 | S13 | Tempo de espera no site | Depois da E16 e de algumas semanas de dados reais | pendente |
