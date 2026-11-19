@@ -10,11 +10,11 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Aviso, Botao, Citacao, Faixa, Icone, ListaComIcone, Selo, varianteDaArea } from "@erp/interface";
 import type { LinhaLida } from "@erp/dominio";
-import { aConfirmar, AVISO_A_CONFIRMAR, buscarNoCatalogo, chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
+import { buscarNoCatalogo, chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
 import { AreaDeTexto, Campo, Grupo, OpcaoDoGrupo, Selecao } from "../Campo";
 import { chamar } from "../chamar";
 import { unidadePorExtenso, type UnidadePadrao } from "./auxiliares";
-import { EditorDeItem, embalagensDe, faltaNasEmbalagens, faltaNoItem, itemParaServidor, ResumoDoItemEditavel, type ItemEditavel, type Opcao } from "./Embalagens";
+import { CampoUnidadeDoEstoque, EditorDeItem, embalagensDe, faltaNasEmbalagens, faltaNoItem, itemParaServidor, ResumoDoItemEditavel, type ItemEditavel, type Opcao } from "./Embalagens";
 
 type ItemDaApi = ItemDoCatalogo & { jaCadastrado: boolean };
 type CatalogoApi = { grupos: string[]; itens: ItemDaApi[]; jaCadastrados: string[] };
@@ -150,7 +150,7 @@ function AbaCatalogo({
     setMensagem(null);
     setMarcados((m) => {
       const novo = { ...m };
-      for (const i of itens) if (!i.jaCadastrado && !aConfirmar(i) && !novo[i.nome]) novo[i.nome] = doCatalogo(i);
+      for (const i of itens) if (!i.jaCadastrado && !novo[i.nome]) novo[i.nome] = doCatalogo(i);
       return novo;
     });
   }
@@ -180,11 +180,6 @@ function AbaCatalogo({
   return (
     <div className="rapido__painel">
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
-      {visiveis.some((i) => aConfirmar(i)) && (
-        <Aviso tipo="atencao" data-testid="aviso-a-confirmar">
-          * {AVISO_A_CONFIRMAR}
-        </Aviso>
-      )}
       <div className="cadastros__filtros catalogo__busca">
         <Campo
           rotulo="Procurar no catálogo"
@@ -215,14 +210,14 @@ function AbaCatalogo({
           legenda="Corredores do catálogo"
           className="rapido__grupo catalogo"
           ajudaNoTopo
-          explicacao="Abra um corredor e marque o que a casa usa. Os já cadastrados ficam de fora. Os itens marcados aparecem em Selecionados, onde você pode ajustar unidade, área ou embalagens."
+          explicacao="Abra um corredor e marque o que a casa usa. Os já cadastrados ficam de fora. Os itens marcados aparecem em Selecionados, já com a unidade sugerida, que você pode trocar; em Ajustar mudam área e embalagens."
           exemplo="Abra Hortifrúti, marque Tomate e Cebola e aperte Gravar para cadastrar os dois de uma vez."
         >
           {secoes.map((s, n) => {
             const aberta = estaAberta(s.grupo);
             const idPainel = `${idDaSecao}-${n}`;
             const doCorredor = s.itens.filter((i) => marcados[i.nome]).length;
-            const faltaMarcar = s.itens.some((i) => !i.jaCadastrado && !aConfirmar(i) && !marcados[i.nome]);
+            const faltaMarcar = s.itens.some((i) => !i.jaCadastrado && !marcados[i.nome]);
             return (
               <section key={s.grupo} className="catalogo__secao" data-testid={`corredor-${s.grupo}`}>
                 <div className="catalogo__cabeca">
@@ -277,7 +272,8 @@ function AbaCatalogo({
                 <li key={nome} className="rapido__item" data-testid={`catalogo-${nome}`}>
                   <div className="rapido__mini" aria-label={`Resumo de ${nome}`} role="group">
                     <h4 className="rapido__nome">{marcado.nome || nome}</h4>
-                    <ResumoDoItemEditavel item={marcado} nomeDaArea={nomeDaArea} />
+                    <CampoUnidadeDoEstoque item={marcado} unidades={unidades} aoMudar={(novo) => setMarcados((m) => ({ ...m, [nome]: novo }))} />
+                    <ResumoDoItemEditavel item={marcado} nomeDaArea={nomeDaArea} semUnidade />
                     <div className="cadastros__botoes">
                       <Botao
                         variante="secundario"
@@ -292,7 +288,7 @@ function AbaCatalogo({
                       </Botao>
                     </div>
                     {abertos[nome] && (
-                      <EditorDeItem item={marcado} areas={areas} unidades={unidades} aoMudar={(novo) => setMarcados((m) => ({ ...m, [nome]: novo }))} />
+                      <EditorDeItem item={marcado} areas={areas} unidades={unidades} comUnidade={false} aoMudar={(novo) => setMarcados((m) => ({ ...m, [nome]: novo }))} />
                     )}
                   </div>
                 </li>
@@ -313,30 +309,21 @@ function AbaCatalogo({
 
 /** Cartão selecionável de um item do catálogo: checkbox de verdade dentro de um label que cobre o cartão. */
 function CartaoDoItem({ item, marcado, nomeDaArea, aoMarcar }: { item: ItemDaApi; marcado: boolean; nomeDaArea: (a: string) => string; aoMarcar: (ligado: boolean) => void }) {
-  const duvida = !item.jaCadastrado && aConfirmar(item);
   return (
     <OpcaoDoGrupo
-      className={`cartao-sel${marcado ? " cartao-sel--marcado" : ""}${item.jaCadastrado || duvida ? " cartao-sel--ja" : ""}`}
-      rotulo={item.jaCadastrado ? `${item.nome} (já cadastrado)` : duvida ? `${item.nome} * (unidade a confirmar, não cadastre ainda)` : item.nome}
+      className={`cartao-sel${marcado ? " cartao-sel--marcado" : ""}${item.jaCadastrado ? " cartao-sel--ja" : ""}`}
+      rotulo={item.jaCadastrado ? `${item.nome} (já cadastrado)` : item.nome}
       checked={marcado}
-      disabled={item.jaCadastrado || duvida}
+      disabled={item.jaCadastrado}
       onChange={(e) => aoMarcar(e.target.checked)}
       conteudo={
         <>
           <span className="cartao-sel__topo">
-            <span className="cartao-sel__nome">
-              {item.nome}
-              {duvida && " *"}
-            </span>
+            <span className="cartao-sel__nome">{item.nome}</span>
             {marcado && <Icone nome="ok" />}
           </span>
           <span className="cartao-sel__selos">
             {item.jaCadastrado && <Selo icone="info">Já cadastrado</Selo>}
-            {duvida && (
-              <Selo variante="alerta" title={AVISO_A_CONFIRMAR}>
-                * A confirmar
-              </Selo>
-            )}
             <Selo variante={varianteDaArea(item.area)}>{nomeDaArea(item.area)}</Selo>
             <span className="erp-chip erp-chip--mini">{unidadePorExtenso(item.unidadeBase)}</span>
           </span>
@@ -512,12 +499,11 @@ function AbaLista({
                   />
                   <h3 className="rapido__nome">
                     {l.item.nome || "Sem nome"}
-                    {aConfirmar(l.item.nome) && " *"}
                   </h3>
                   <Citacao>{l.original.texto}</Citacao>
                   <ResumoDoItemEditavel item={l.item} nomeDaArea={nomeDaArea} />
                   <ListaComIcone tipo="perigo" itens={erros} aria-label="Erros desta linha" />
-                  {erros.length === 0 && <ListaComIcone tipo="alerta" itens={[...(aConfirmar(l.item.nome) ? [`* ${AVISO_A_CONFIRMAR}`] : []), ...(l.tocada ? [] : l.original.avisos), ...faltas]} aria-label="Avisos desta linha" />}
+                  {erros.length === 0 && <ListaComIcone tipo="alerta" itens={[...(l.tocada ? [] : l.original.avisos), ...faltas]} aria-label="Avisos desta linha" />}
                   <Botao
                     variante="secundario"
                     aria-expanded={l.aberta}

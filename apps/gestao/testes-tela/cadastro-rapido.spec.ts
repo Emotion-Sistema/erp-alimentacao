@@ -118,17 +118,34 @@ test("catálogo pronto: corredores recolhíveis, cartões selecionáveis e bande
   await semEstouroDeLargura(page);
 });
 
-test("itens com unidade a confirmar: asterisco, aviso e não dá para marcar (nem pelo marcar todos)", async ({ page }) => {
+test("item marcado vem com a unidade sugerida já escolhida e a pessoa pode trocar (resposta de 19/11/2026)", async ({ page }) => {
   await entrar(page, "gerente.geral");
   await abrirRapido(page);
   await page.getByLabel("Corredor").selectOption("Hortifrúti");
-  await expect(page.getByTestId("aviso-a-confirmar")).toContainText("22/11");
-  const laranja = page.getByRole("checkbox", { name: "Laranja * (unidade a confirmar, não cadastre ainda)" });
-  await expect(laranja).toBeDisabled();
+  // Fruta não tem mais asterisco nem bloqueio: marca como qualquer outro item.
+  await expect(page.getByText(/a confirmar/i)).toHaveCount(0);
+  await page.getByRole("checkbox", { name: "Laranja", exact: true }).check();
+  const item = page.getByTestId("catalogo-Laranja");
+  const unidade = item.getByLabel("Unidade do estoque");
+  await expect(unidade).toHaveValue("un");
+  // O campo tem a ajuda do padrão (explicação sempre à vista e exemplo).
+  await expect(item.getByText(/Por dentro o sistema conta em gramas/)).toBeVisible();
+  await unidade.selectOption("kg");
+  await expect(unidade).toHaveValue("kg");
+  // No Ajustar não aparece outro campo de unidade (um só por item).
+  await page.getByRole("button", { name: "Ajustar Laranja" }).click();
+  await expect(item.getByLabel("Unidade do estoque")).toHaveCount(1);
+  await item.getByRole("button", { name: /^Mostrar Embalagens/ }).click();
+  await item.getByRole("button", { name: "Tirar embalagem saco 3 kg" }).click();
+  await page.getByRole("button", { name: "Gravar 1 item" }).click();
+  await expect(page.getByText("1 ingrediente gravado.")).toBeVisible();
+  await expect(page.getByTestId("ingrediente-Laranja")).toContainText("Quilos (kg)");
+
+  // Marcar todos também leva os itens que antes estavam em dúvida.
   await page.getByRole("button", { name: "Marcar todos de Hortifrúti" }).click();
-  await expect(laranja).not.toBeChecked();
-  await expect(page.getByRole("button", { name: "Desmarcar Tomate" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Desmarcar Laranja" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Desmarcar Banana" })).toBeVisible();
+  await expect(page.getByTestId("catalogo-Banana").getByLabel("Unidade do estoque")).toHaveValue("un");
+  await page.getByRole("button", { name: "Desmarcar tudo" }).click();
 });
 
 test("catálogo pronto: marcar todos do corredor pula o que já existe; servidor recusa com a mensagem do item", async ({ page }) => {

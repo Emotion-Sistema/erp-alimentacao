@@ -49,7 +49,8 @@ const i = (
 ): ItemDoCatalogo => ({ grupo, nome, unidadeBase, area, embalagens, ...(sinonimos ? { sinonimos } : {}) });
 
 export const CATALOGO_INGREDIENTES: readonly ItemDoCatalogo[] = [
-  // Hortifrúti
+  // Hortifrúti. Fruta (laranja, banana, abacaxi, limão) e alface contam em unidade (resposta do
+  // responsável, 19/11/2026); a pessoa pode trocar a unidade no cadastro.
   i("Hortifrúti", "Tomate", g, "cozinha", [["caixa 20 kg", "20000"], ["unidade", "120"]]),
   i("Hortifrúti", "Cebola", g, "cozinha", [["saco 20 kg", "20000"], ["unidade", "150"]]),
   i("Hortifrúti", "Alho", g, "cozinha", [["pacote 1 kg", "1000"], ["cabeça", "40"]]),
@@ -71,7 +72,10 @@ export const CATALOGO_INGREDIENTES: readonly ItemDoCatalogo[] = [
   i("Hortifrúti", "Mandioca", g, "cozinha", [["saco 20 kg", "20000"]], ["aipim", "macaxeira"]),
   // Carnes e frios
   i("Carnes e frios", "Carne moída", g, "cozinha", [["pacote 1 kg", "1000"]], ["patinho moído"]),
-  i("Carnes e frios", "Hambúrguer bovino", un, "cozinha", [["caixa 36 un", "36"]], ["blend", "burger"]),
+  // Bife de hambúrguer: são dois itens (resposta do responsável, 19/11/2026). O feito na casa, de
+  // carne moída, conta em g (a ficha pesa 100 g por bife); o comprado pronto, em disco, conta em un.
+  i("Carnes e frios", "Carne moída para hambúrguer", g, "cozinha", [["pacote 1 kg", "1000"]], ["blend", "bife de hambúrguer", "hambúrguer artesanal", "carne de hambúrguer"]),
+  i("Carnes e frios", "Hambúrguer bovino pronto (disco)", un, "cozinha", [["caixa 36 un", "36"]], ["hambúrguer bovino", "burger", "disco de hambúrguer", "hambúrguer congelado"]),
   i("Carnes e frios", "Peito de frango", g, "cozinha", [["pacote 1 kg", "1000"], ["caixa 20 kg", "20000"]], ["filé de frango"]),
   i("Carnes e frios", "Coxa e sobrecoxa", g, "cozinha", [["caixa 20 kg", "20000"]]),
   i("Carnes e frios", "Contrafilé", g, "cozinha", [["peça", "4000"]]),
@@ -102,8 +106,11 @@ export const CATALOGO_INGREDIENTES: readonly ItemDoCatalogo[] = [
   i("Laticínios e ovos", "Cream cheese", g, "cozinha", [["pote 1,2 kg", "1200"]]),
   i("Laticínios e ovos", "Manteiga", g, "cozinha", [["pote 500 g", "500"], ["tablete 200 g", "200"]]),
   i("Laticínios e ovos", "Margarina", g, "cozinha", [["pote 500 g", "500"], ["balde 3 kg", "3000"]]),
-  i("Laticínios e ovos", "Creme de leite", g, "cozinha", [["caixa 200 g", "200"], ["caixa 1,01 kg", "1010"]]),
-  i("Laticínios e ovos", "Leite condensado", g, "cafeteria", [["caixa 395 g", "395"], ["lata 395 g", "395"], ["bag 2,5 kg", "2500"]]),
+  // Creme de leite, leite condensado e molho de tomate em ml (resposta do responsável, 19/11/2026).
+  // Embalagem vendida em g não entra aqui: passar g para ml pede o peso de cada produto (pergunta 9
+  // das fichas). A caixa de 200 ml do creme de leite é a citada na ficha 2.
+  i("Laticínios e ovos", "Creme de leite", ml, "cozinha", [["caixa 200 ml", "200"]]),
+  i("Laticínios e ovos", "Leite condensado", ml, "cafeteria", []),
   i("Laticínios e ovos", "Chantilly", ml, "cafeteria", [["caixa 1 l", "1000"]]),
   i("Laticínios e ovos", "Iogurte natural", g, "cafeteria", [["pote 170 g", "170"]]),
   // Mercearia
@@ -149,7 +156,7 @@ export const CATALOGO_INGREDIENTES: readonly ItemDoCatalogo[] = [
   i("Molhos e temperos", "Ketchup", g, "cozinha", [["galão 3,2 kg", "3200"], ["sachê", "7"]], ["catchup"]),
   i("Molhos e temperos", "Mostarda", g, "cozinha", [["galão 3 kg", "3000"], ["sachê", "7"]]),
   i("Molhos e temperos", "Molho barbecue", g, "cozinha", [["galão 3 kg", "3000"]], ["barbecue", "bbq"]),
-  i("Molhos e temperos", "Molho de tomate", g, "cozinha", [["sachê 340 g", "340"], ["bag 2 kg", "2000"]], ["extrato de tomate"]),
+  i("Molhos e temperos", "Molho de tomate", ml, "cozinha", [], ["extrato de tomate"]),
   i("Molhos e temperos", "Molho shoyu", ml, "cozinha", [["garrafa 1 l", "1000"]], ["shoyu"]),
   i("Molhos e temperos", "Molho inglês", ml, "cozinha", [["garrafa 150 ml", "150"]]),
   i("Molhos e temperos", "Pimenta-do-reino", g, "cozinha", [["pacote 500 g", "500"]]),
@@ -205,35 +212,6 @@ export const CATALOGO_INGREDIENTES: readonly ItemDoCatalogo[] = [
 ];
 
 /** Texto para comparar: minúsculas, sem acento, espaços juntados. */
-/**
- * Itens com a unidade em dúvida: o catálogo e as fichas técnicas não batem (perguntas 1 e 2 em
- * `cerebro/empresa/fichas-tecnicas/perguntas.md`; resposta do responsável prevista para 22/11/2026).
- * Saem do cadastro rápido com asterisco e não podem ser marcados; no cadastro comum, aviso.
- * Quando a resposta chegar: corrigir a unidade de cada um aqui e esvaziar esta lista.
- */
-export const NOMES_A_CONFIRMAR: readonly string[] = [
-  "Laranja",
-  "Banana",
-  "Abacaxi",
-  "Limão",
-  "Alface",
-  "Hambúrguer bovino",
-  "Açaí",
-  "Leite condensado",
-  "Chantilly",
-  "Creme de leite",
-  "Molho de tomate",
-];
-export const AVISO_A_CONFIRMAR = "Unidade a confirmar com o responsável (resposta das fichas técnicas prevista para 22/11). Não cadastre ainda.";
-
-/** O item (ou o nome digitado, inclusive apelido) está entre os de unidade a confirmar? */
-export function aConfirmar(item: string | ItemDoCatalogo): boolean {
-  const chaves = new Set(
-    CATALOGO_INGREDIENTES.filter((c) => NOMES_A_CONFIRMAR.includes(c.nome)).flatMap((c) => [c.nome, ...(c.sinonimos ?? [])].map(chaveDeBusca)),
-  );
-  return chaves.has(chaveDeBusca(typeof item === "string" ? item : item.nome));
-}
-
 export function chaveDeBusca(t: string): string {
   return t
     .normalize("NFD")

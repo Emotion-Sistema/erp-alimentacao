@@ -351,14 +351,17 @@ describe("lista colada: ressalvas da 2ª revisão", () => {
   });
 });
 
-describe("itens com unidade a confirmar (perguntas das fichas, 22/11/2026)", () => {
-  it("cada nome da lista existe no catálogo; nome e apelido são reconhecidos", async () => {
-    const { CATALOGO_INGREDIENTES, NOMES_A_CONFIRMAR, aConfirmar } = await import("../src/catalogo-ingredientes");
-    for (const n of NOMES_A_CONFIRMAR) expect(CATALOGO_INGREDIENTES.some((c) => c.nome === n), n).toBe(true);
-    expect(NOMES_A_CONFIRMAR).toHaveLength(11);
-    expect(aConfirmar("limao taiti")).toBe(true);
-    expect(aConfirmar("  LARANJA ")).toBe(true);
-    expect(aConfirmar("Tomate")).toBe(false);
-    expect(aConfirmar("Pão de hambúrguer")).toBe(false);
+describe("unidades confirmadas pelo responsável (perguntas 1 e 2 das fichas, 19/11/2026)", () => {
+  it("fruta e alface em un; açaí, leite condensado, chantilly, creme de leite e molho de tomate em ml; bife em dois itens", async () => {
+    const { CATALOGO_INGREDIENTES, buscarNoCatalogo } = await import("../src/catalogo-ingredientes");
+    const unidade = (nome: string) => CATALOGO_INGREDIENTES.find((c) => c.nome === nome)?.unidadeBase;
+    for (const n of ["Laranja", "Banana", "Abacaxi", "Limão", "Alface"]) expect(unidade(n), n).toBe("un");
+    for (const n of ["Açaí", "Leite condensado", "Chantilly", "Creme de leite", "Molho de tomate"]) expect(unidade(n), n).toBe("ml");
+    expect(unidade("Carne moída para hambúrguer")).toBe("g");
+    expect(unidade("Hambúrguer bovino pronto (disco)")).toBe("un");
+    expect(unidade("Hambúrguer bovino")).toBeUndefined();
+    // Quem procura pelo nome antigo acha o disco; "blend" acha a carne moída.
+    expect(buscarNoCatalogo("hamburguer bovino")[0]!.nome).toBe("Hambúrguer bovino pronto (disco)");
+    expect(buscarNoCatalogo("blend")[0]!.nome).toBe("Carne moída para hambúrguer");
   });
 });

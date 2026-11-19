@@ -70,14 +70,40 @@ export const itemParaServidor = (i: ItemEditavel, fornecedorId: number | null = 
 });
 
 /** Resumo visual de um item em edição (unidade, área e chips das embalagens). */
-export function ResumoDoItemEditavel({ item, nomeDaArea }: { item: ItemEditavel; nomeDaArea: (a: string) => string }) {
+export function ResumoDoItemEditavel({ item, nomeDaArea, semUnidade = false }: { item: ItemEditavel; nomeDaArea: (a: string) => string; semUnidade?: boolean }) {
   return (
     <ResumoDoItem
+      semUnidade={semUnidade}
       unidadeBase={item.unidadeBase}
       unidadeExibicao={item.unidadeExibicao}
       area={item.area}
       nomeDaArea={nomeDaArea}
       embalagens={item.embalagens.map((e) => ({ chave: e.chave, nome: e.nome, quantidade: e.quantidade.trim() || null }))}
+    />
+  );
+}
+
+/**
+ * Campo "Unidade do estoque" de um item ainda não gravado. Vem com a unidade sugerida (catálogo ou
+ * lista lida) já escolhida, e a pessoa pode trocar por qualquer uma das 6 (resposta do responsável,
+ * 19/11/2026: sempre poder escolher). Trocar de família (g para un) refaz as embalagens.
+ */
+export function CampoUnidadeDoEstoque({ item, unidades, aoMudar }: { item: ItemEditavel; unidades: UnidadePadrao[]; aoMudar: (novo: ItemEditavel) => void }) {
+  const base = (item.unidadeBase || "un") as UnidadeBase;
+  return (
+    <Selecao
+      rotulo="Unidade do estoque"
+      explicacao={EXPLICACAO_DA_UNIDADE}
+      exemplo={EXEMPLO_DA_UNIDADE}
+      value={item.unidadeExibicao}
+      onChange={(e) => {
+        const codigo = e.target.value;
+        const novaBase = (baseDaUnidade(codigo) ?? "") as UnidadeBase | "";
+        // Trocou de família (kg para un): as quantidades que saem do nome são refeitas; as digitadas pedem de novo.
+        const embalagens = novaBase ? ajustarLinhasParaBase(item.embalagens, base, novaBase, unidades) : item.embalagens;
+        aoMudar({ ...item, unidadeExibicao: codigo, unidadeBase: novaBase, embalagens });
+      }}
+      opcoes={item.unidadeExibicao ? OPCOES_DA_UNIDADE : [{ valor: "", texto: "Escolha a unidade" }, ...OPCOES_DA_UNIDADE]}
     />
   );
 }
@@ -89,6 +115,7 @@ export function EditorDeItem({
   unidades,
   aoMudar,
   comNome = true,
+  comUnidade = true,
   fornecedorId = null,
 }: {
   item: ItemEditavel;
@@ -96,6 +123,8 @@ export function EditorDeItem({
   unidades: UnidadePadrao[];
   aoMudar: (novo: ItemEditavel) => void;
   comNome?: boolean;
+  /** Falso quando o campo da unidade já aparece fora do editor (bandeja do catálogo). */
+  comUnidade?: boolean;
   /** Fornecedor do lote (quando houver): as embalagens padrão dele aparecem primeiro. */
   fornecedorId?: number | null;
 }) {
@@ -113,20 +142,7 @@ export function EditorDeItem({
             autoComplete="off"
           />
         )}
-        <Selecao
-          rotulo="Unidade do estoque"
-          explicacao={EXPLICACAO_DA_UNIDADE}
-          exemplo={EXEMPLO_DA_UNIDADE}
-          value={item.unidadeExibicao}
-          onChange={(e) => {
-            const codigo = e.target.value;
-            const novaBase = (baseDaUnidade(codigo) ?? "") as UnidadeBase | "";
-            // Trocou de família (kg para un): as quantidades que saem do nome são refeitas; as digitadas pedem de novo.
-            const embalagens = novaBase ? ajustarLinhasParaBase(item.embalagens, base, novaBase, unidades) : item.embalagens;
-            aoMudar({ ...item, unidadeExibicao: codigo, unidadeBase: novaBase, embalagens });
-          }}
-          opcoes={item.unidadeExibicao ? OPCOES_DA_UNIDADE : [{ valor: "", texto: "Escolha a unidade" }, ...OPCOES_DA_UNIDADE]}
-        />
+        {comUnidade && <CampoUnidadeDoEstoque item={item} unidades={unidades} aoMudar={aoMudar} />}
         <Selecao
           rotulo="Área do estoque"
           explicacao="O setor onde o ingrediente é usado e guardado."

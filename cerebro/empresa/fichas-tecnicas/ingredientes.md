@@ -16,28 +16,26 @@ virou pergunta em `perguntas.md`.
   As fichas quase nunca falam da embalagem de compra; quando ficar em branco, a casa informa.
 - **Nº:** número das fichas que usam o ingrediente (resumo de cada uma em `resumo-das-fichas.md`).
 
-## ⚠️ Conflitos com o catálogo do cadastro rápido (ler antes de cadastrar)
-A unidade do estoque é fixa depois de criada (decisão 0015). Nos itens abaixo, o catálogo sugere uma
-unidade e as fichas gastam em outra. Se o ingrediente for cadastrado como no catálogo, a ficha não
-consegue baixar o estoque sem uma conversão por peso médio.
+## ✔ Conflitos com o catálogo do cadastro rápido (resolvidos em 19/11/2026)
+O responsável respondeu às perguntas 1 e 2 (`perguntas.md`) e o catálogo foi corrigido (PR da
+branch `feat/unidades-e-tipos`). Em todo cadastro a pessoa pode trocar a unidade sugerida.
 
-| Ingrediente | Catálogo diz | Fichas gastam em | Fichas |
-|---|---|---|---|
-| Laranja | un | g (5 un = 845 g) | 31 |
-| Banana | un | g (2 un = 136 g) | 24 |
-| Abacaxi | un | g (270 g = 8 pedaços) | 30 |
-| Limão | un | g (1 un = 60 g), ml de suco e un | 10, 15, 28, 29, 32, 33, 36, 38, 6 |
-| Alface | un | g (1 folha = 12 g) | 19, 21, 22 |
-| Hambúrguer bovino | un | g (bife de 100 g) | 19, 21, 22 |
-| Açaí | ml | g (200 g congelado) | 24 |
-| Leite condensado | g | ml (120 ml) | 29 |
-| Chantilly | ml | g ("pesar por porção") | 56, 57 |
-| Creme de leite | g | ml (purê: caixa 200 ml) e g (creme triplo: caixa 200 g) | 2, 6, 44, 45 |
-| Molho de tomate | g | ml (2.000 ml) e "unidades" | 6, 52 |
+| Ingrediente | Catálogo dizia | Fichas gastam em | Fichas | Resolvido (19/11/2026) |
+|---|---|---|---|---|
+| Laranja | un | g (5 un = 845 g) | 31 | **un** |
+| Banana | un | g (2 un = 136 g) | 24 | **un** |
+| Abacaxi | un | g (270 g = 8 pedaços) | 30 | **un** |
+| Limão | un | g (1 un = 60 g), ml de suco e un | 10, 15, 28, 29, 32, 33, 36, 38, 6 | **un** |
+| Alface | un | g (1 folha = 12 g) | 19, 21, 22 | **un** |
+| Hambúrguer bovino | un | g (bife de 100 g) | 19, 21, 22 | **dois itens:** "Carne moída para hambúrguer" (feita na casa, **g**) e "Hambúrguer bovino pronto (disco)" (comprado, **un**) |
+| Açaí | ml | g (200 g congelado) | 24 | **ml** |
+| Leite condensado | g | ml (120 ml) | 29 | **ml** (sem embalagem sugerida: a de 395 g pede o peso, pergunta 9) |
+| Chantilly | ml | g ("pesar por porção") | 56, 57 | **ml** |
+| Creme de leite | g | ml (purê: caixa 200 ml) e g (creme triplo: caixa 200 g) | 2, 6, 44, 45 | **ml** (embalagem sugerida: caixa 200 ml) |
+| Molho de tomate | g | ml (2.000 ml) e "unidades" | 6, 52 | **ml** (sem embalagem sugerida, pergunta 9) |
 
-Sugestão (a confirmar com o responsável, pergunta 1): fruta, alface e bife em **g**, com a
-"unidade" como embalagem de peso médio, porque é assim que as fichas pesam. Os peso médios que as
-próprias fichas trazem estão na coluna "Embalagem/peso citado".
+Ao passar as fichas para o sistema: onde a ficha pesa em g um item que conta em un ou ml (laranja,
+alface, açaí...), a quantidade da ficha precisa ser convertida para a unidade do estoque.
 
 ## Hortifrúti
 | Ingrediente | Unidade na receita | Nº | Embalagem/peso citado | Atenção |
@@ -48,7 +46,7 @@ próprias fichas trazem estão na coluna "Embalagem/peso citado".
 | Cebolinha | g (sugestão) | 20 | | "A gosto" |
 | Pimenta biquinho | g (sugestão) | 20 | | "A gosto" |
 | Hortelã | g (sugestão) | 30, 33, 38 | contada em folhas (5 e 3 folhas) | Folha não tem peso |
-| Limão-taiti | g ou ml de suco | 6, 10, 15, 28, 29, 32, 33, 36, 38 | 1 un = 60 g (28, 29); ½ un = 25 ml de suco (15) | Ver conflito acima |
+| Limão-taiti | g ou ml de suco | 6, 10, 15, 28, 29, 32, 33, 36, 38 | 1 un = 60 g (28, 29); ½ un = 25 ml de suco (15) | No estoque: un (resolvido acima) |
 | Limão-siciliano | ml de suco | 34, 37 | | Comprado à parte do taiti? |
 | Laranja | g | 31 | 5 un = 845 g (≈169 g cada) | |
 | Banana | g | 24 | 2 un = 136 g (68 g cada) | |
@@ -89,7 +87,7 @@ próprias fichas trazem estão na coluna "Embalagem/peso citado".
 | Leite integral | ml | 2, 5, 15, 24, 44, 49, 50, 51, 54, 56, 57 | | 51: "300" sem unidade |
 | Manteiga | g | 5, 13, 19, 21, 22, 44 | 4 colheres = 100 g (44) | 19 e 21: "ponta de faca"; 22: 10 g |
 | Margarina | g | 49 | | 2 colheres sem peso |
-| Creme de leite | ml ou g | 2, 6, 44, 45 | caixa 200 ml (44); caixa 200 g (45) | Ver conflito acima |
+| Creme de leite | ml ou g | 2, 6, 44, 45 | caixa 200 ml (44); caixa 200 g (45) | No estoque: un (resolvido acima) |
 | Leite condensado | ml | 29 | 1 copo medidor = 120 ml | |
 | Muçarela | g | 17, 18, 19, 22, 45, 46, 47, 48, 52 | 1 fatia = 20 g; ½ xícara ralada = 75 g | Ralada e fatiada: o mesmo item? |
 | Queijo coalho | g | 14 | 14 cubos = 120 g | |
@@ -133,7 +131,7 @@ próprias fichas trazem estão na coluna "Embalagem/peso citado".
 | Goiabada | g | 14 | | Sem peso |
 | Fermento químico | g | 2, 51 | | 2: "pó Royal", uma pitada; 51: tipo não dito |
 | Fermento biológico seco | g | 50 | 10 g (ou 30 g) | |
-| Molho de tomate | ml | 6, 52 | "4 unidades" (6) | Ver conflito acima |
+| Molho de tomate | ml | 6, 52 | "4 unidades" (6) | No estoque: un (resolvido acima) |
 | Molho ao sugo | não informado | 54 | | Comprado ou feito? |
 | Mostarda | g | 10 | | |
 
