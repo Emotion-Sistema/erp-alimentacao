@@ -132,6 +132,7 @@ export function JanelaDoProduto({
       produto: {
         id: produto?.id ?? 0,
         fotoId: null,
+        combo: null,
         nome: nome.trim() || TP.janela.novo,
         descricao: null,
         categoriaId: categoriaId ?? 0,

@@ -415,6 +415,7 @@ describe("precoDoItem (regra pura, a mesma da tela)", () => {
     ],
     gruposAdicionais: [7, 8],
     fotoId: null,
+    combo: null,
   };
   const grupos: GrupoDeAdicionais[] = [
     { id: 7, nome: "Coberturas", minimo: 0, maximo: 2, ativo: true, itens: [{ id: 70, nome: "Granola", precoCentavos: 200, precoDeliveryCentavos: null, maximoPorItem: 2, ordem: 10, ativo: true }] },

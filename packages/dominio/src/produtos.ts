@@ -10,6 +10,7 @@ import { z } from "zod";
 import { sql, type Banco } from "@erp/banco";
 import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
+import { esquemaCombo, gravarCombo, partesDosCombos } from "./combos";
 import { fotosAtivas } from "./fotos";
 import { posicaoDaGravacao, reposicionar, travarLista } from "./posicao";
 import {
@@ -105,6 +106,8 @@ const esquemaProduto = z.object(
       .max(TAMANHOS_POR_PRODUTO, `No máximo ${TAMANHOS_POR_PRODUTO} tamanhos por produto.`)
       .optional(),
     /** Grupos de adicionais oferecidos, na ordem: o que não vier sai do produto. Ausente: fica como está. */
+    /** Combo montado por partes (lista completa); null desmonta; ausente: fica como está. */
+    combo: esquemaCombo.optional(),
     gruposAdicionais: z
       .array(id("Grupo de adicionais não encontrado."), { error: "Grupos de adicionais em formato inválido." })
       .max(GRUPOS_POR_PRODUTO, `No máximo ${GRUPOS_POR_PRODUTO} grupos de adicionais por produto.`)
@@ -152,11 +155,12 @@ const colunas = [
   "preco_centavos as precoCentavos",
   "tempo_preparo_min as tempoPreparoMin",
   "preco_delivery_centavos as precoDeliveryCentavos",
+  "combo as eCombo",
   "ordem",
   "ativo",
 ] as const;
 
-type ProdutoSimples = Omit<Produto, "tamanhos" | "gruposAdicionais" | "fotoId">;
+type ProdutoSimples = Omit<Produto, "tamanhos" | "gruposAdicionais" | "fotoId" | "combo"> & { eCombo: boolean };
 
 /** Tamanhos ativos e grupos ligados (ativos) de cada produto pedido, na ordem. */
 async function extrasDosProdutos(
@@ -197,7 +201,13 @@ async function comExtras(db: Banco, produtos: ProdutoSimples[]): Promise<Produto
   const ids = produtos.map((p) => p.id);
   const extras = await extrasDosProdutos(db, ids);
   const fotos = await fotosAtivas(db, ids);
-  return produtos.map((p) => ({ ...p, ...extras.get(p.id)!, fotoId: fotos.get(p.id) ?? null }));
+  const partes = await partesDosCombos(db, produtos.filter((p) => p.eCombo).map((p) => p.id));
+  return produtos.map(({ eCombo, ...p }) => ({
+    ...p,
+    ...extras.get(p.id)!,
+    fotoId: fotos.get(p.id) ?? null,
+    combo: eCombo ? { partes: partes.get(p.id) ?? [] } : null,
+  }));
 }
 
 /** Todos os produtos: ativos primeiro, na ordem do cardápio (categoria, depois o lugar na categoria). */
@@ -218,6 +228,7 @@ export async function listarProdutos(
       "p.preco_centavos as precoCentavos",
       "p.tempo_preparo_min as tempoPreparoMin",
       "p.preco_delivery_centavos as precoDeliveryCentavos",
+      "p.combo as eCombo",
       "p.ordem",
       "p.ativo",
     ])
@@ -229,6 +240,13 @@ export async function listarProdutos(
     .orderBy("p.id")
     .execute();
   return comExtras(db, lista);
+}
+
+/** Vários produtos com tamanhos e grupos (sem conferir permissão: uso interno). */
+export async function produtosPorIds(db: Banco, ids: number[]): Promise<Produto[]> {
+  const validos = ids.filter((i) => Number.isSafeInteger(i) && i > 0 && i <= MAIOR_ID);
+  if (!validos.length) return [];
+  return comExtras(db, await db.selectFrom("produto").select(colunas).where("id", "in", validos).execute());
 }
 
 /** Um produto com tamanhos e grupos (sem conferir permissão: uso interno, ex.: preço do item). */
@@ -343,6 +361,16 @@ export async function gravarProdutoNaTransacao(
       "dados_invalidos",
       "Informe o tempo de preparo (o produto passa pela produção).",
     );
+  // Combo: não passa pela produção como um todo (cada produto escolhido vai para a sua tela) e não tem tamanho.
+  const comboDepois = d.combo !== undefined ? d.combo !== null : antes?.combo != null;
+  if (comboDepois && tipoDepois !== null)
+    throw new ErroDeRegra(
+      "dados_invalidos",
+      "Combo não passa pela produção como um todo: cada produto escolhido vai para a tela dele. Deixe o combo sem tipo de produção.",
+    );
+  const tamanhosDepois = d.tamanhos !== undefined ? d.tamanhos.length : (antes?.tamanhos.length ?? 0);
+  if (comboDepois && tamanhosDepois > 0)
+    throw new ErroDeRegra("dados_invalidos", "Combo não tem tamanhos: o tamanho fica em cada opção do combo.");
   if (tipoDepois === null && d.tempoPreparoMin != null)
     throw new ErroDeRegra(
       "dados_invalidos",
@@ -395,6 +423,7 @@ export async function gravarProdutoNaTransacao(
       : { preco_delivery_centavos: d.precoDeliveryCentavos }),
     ...(d.ativo === undefined ? {} : { ativo: d.ativo }),
     tipo_producao_id: tipoDepois,
+    combo: comboDepois,
     tempo_preparo_min: tempoDepois,
   };
   let s: ProdutoSimples;
@@ -436,6 +465,7 @@ export async function gravarProdutoNaTransacao(
       .where("id", "=", s.id)
       .executeTakeFirstOrThrow();
   if (d.tamanhos !== undefined) await gravarTamanhos(trx, s.id, d.tamanhos);
+  if (d.combo !== undefined) await gravarCombo(trx, s.id, d.combo);
   if (d.gruposAdicionais !== undefined)
     await gravarGruposDoProduto(trx, s.id, d.gruposAdicionais);
   const [depois] = await comExtras(trx, [s]);

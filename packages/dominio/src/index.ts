@@ -23,4 +23,5 @@ export * from "./produtos";
 export * from "./fotos";
 export * from "./adicionais";
 export * from "./preco-do-item";
+export * from "./combos";
 export * from "./importar";
