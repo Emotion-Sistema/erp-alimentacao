@@ -287,6 +287,8 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
 
     // Itens.
     const usados: string[] = [];
+    const alvoUnidade = new Map<object, string>();
+    const nomeDoItem = new Map<object, string>();
     const itens = f.itens.flatMap((i) => {
       const chave = nomeComparavel(i.ingrediente);
       if (nomesComTipoErrado.has(chave) && !ctx.preparos.has(chave) && !preparosDaPlanilha.has(chave)) {
@@ -339,8 +341,7 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
           }
         }
       }
-      return [
-        {
+      const linhaItem = {
           ingredienteId: alvo.ingredienteId,
           preparoId: alvo.ingredienteId === undefined ? alvo.preparoId : undefined,
           quantidade,
@@ -348,8 +349,10 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
           medidaCaseira: i.medidaCaseira?.slice(0, 60) ?? null,
           observacao: i.observacao?.slice(0, 120) ?? null,
           _chave: alvo.novo ?? (alvo.preparoId === -1 ? `p:${chave}` : null),
-        },
-      ];
+        };
+      alvoUnidade.set(linhaItem, alvo.unidade ?? "");
+      nomeDoItem.set(linhaItem, i.ingrediente);
+      return [linhaItem];
     });
 
     // O mesmo item em duas linhas: soma quando dá (as duas com quantidade e iguais no resto).
@@ -363,7 +366,16 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
       }
       if (ja.quantidade && it.quantidade && ja.opcional === it.opcional && !ja.medidaCaseira && !it.medidaCaseira)
         ja.quantidade = Fracao.decimal(ja.quantidade).mais(Fracao.decimal(it.quantidade)).texto(4);
-      else erros.push({ linha: f.linha, texto: "O mesmo ingrediente aparece em duas linhas que não dá para somar; junte numa linha só." });
+      else {
+        // Não dá para somar (medida caseira, sem quantidade, opcional diferente): vira UMA linha sem
+        // quantidade, com as duas descrições, e a ficha fica com pendência. Nada se inventa.
+        const descreve = (x: typeof it) => [x.quantidade ? `${x.quantidade} ${alvoUnidade.get(x) ?? ""}`.trim() : null, x.medidaCaseira].filter(Boolean).join(" ");
+        ja.medidaCaseira = [descreve(ja), descreve(it)].filter(Boolean).join("; ").slice(0, 60) || null;
+        ja.quantidade = null;
+        ja.opcional = ja.opcional && it.opcional;
+        ja.observacao = [ja.observacao, it.observacao].filter(Boolean).join("; ").slice(0, 120) || null;
+        f.pendencias.push(`${nomeDoItem.get(it) ?? "Item"} aparece em mais de uma linha: confirmar a quantidade total`);
+      }
     }
     itens.length = 0;
     itens.push(...juntos);

@@ -258,4 +258,15 @@ describe("ajustes da revisão (importação)", () => {
     expect(r.fichas.every((f) => f.acao === "erro")).toBe(true);
     expect(await db.selectFrom("ingrediente").select("id").where("nome", "=", `Molho T ${s}`).executeTakeFirst()).toBeUndefined();
   });
+
+  it("mesmo item em duas linhas que não somam vira uma linha sem quantidade, com as duas descrições e pendência", async () => {
+    await salvarIngrediente(db, gerente, { nome: `Gelo G ${s}`, unidadeBase: "g", area: "cozinha" });
+    const r = await importar([`Calda G ${s};preparo;250;ml;;;;;Gelo G ${s};40;g;;;;;`, `;;;;;;;;Gelo G ${s};;;;4 pedras;;;`], true);
+    expect(r.fichas[0]!.acao).toBe("criar");
+    const id = (await db.selectFrom("ficha").select("id").where("nome", "=", `Calda G ${s}`).executeTakeFirstOrThrow()).id;
+    const f = await verFicha(db, gerente, id);
+    expect(f.versao!.itens).toHaveLength(1);
+    expect(f.versao!.itens[0]).toMatchObject({ quantidade: null, medidaCaseira: "40 g; 4 pedras" });
+    expect(f.versao!.pendencias.join(" ")).toContain("mais de uma linha");
+  });
 });
