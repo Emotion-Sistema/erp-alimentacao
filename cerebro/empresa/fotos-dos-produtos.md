@@ -5,6 +5,16 @@ Conferido em 19/11/2026. Pasta compartilhada com o responsável, dona: conta de 
 `fichas-tecnicas/cardapio-x-fichas.md` (cardápio de 18/11/2026) e `resumo-das-fichas.md`.
 Nenhuma foto entrou no repositório ainda.
 
+## Respostas do responsável (19/11/2026)
+1. **Fotos feitas com IA são aceitas** no sistema, site e delivery.
+2. As fotos que divergem do prato **ficam assim mesmo** (não precisa corrigir).
+3. O marketing vai renomear as 16 "IMG_" com o nome do produto (inclusive o sabor dos sucos).
+4. **Preço do prato do dia é o da arte** (strogonoff R$ 23,00). O cardápio de 18/11 está
+   desatualizado nos pratos do dia; valem os preços das artes até nova lista.
+5. **Executivos do dia não têm escala fixa**: são escolhidos à mão no sistema, dia a dia
+   (é a sugestão S2 "Hoje no almoço", já aprovada). A divisão por dia da semana do cardápio e das
+   artes não é regra; as artes por dia servem só de exemplo.
+
 ## O que tem
 - 67 imagens de produto (PNG, 941 a 1755 px de largura, 2 a 6 MB cada, 175 MB no total).
   Formatos misturados: maioria vertical 9:16 (stories), algumas 4:5, 1:1, 2:3 e 16:9.

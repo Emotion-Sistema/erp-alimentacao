@@ -15,7 +15,7 @@ Atualizado em: 18/11/2026
 - Regra do responsável: nunca ignorar falha (CLAUDE.md); testes rodam em ordem embaralhada.
 - **Regra do responsável (15/11/2026): ele nunca altera textos para colar.** Todo texto ou script que ele deve
   colar (chat novo, terminal) vai inteiro e pronto; se mudar, reenviar inteiro na sequência.
-- **Fotos dos produtos** (pasta "E-MOTION" do marketing, 19/11/2026): 67 fotos, quase todas feitas com IA (selo C2PA ChatGPT), várias diferentes do cardápio. Conferência em `cerebro/empresa/fotos-dos-produtos.md`; nada no repositório ainda.
+- **Fotos dos produtos** (pasta "E-MOTION" do marketing, 19/11/2026): 67 fotos feitas com IA, **aceitas** pelo responsável, mesmo as que divergem do prato. Preço do prato do dia = o da arte (cardápio de 18/11 desatualizado nisso); executivos do dia escolhidos à mão (S2), sem escala fixa. Detalhe em `cerebro/empresa/fotos-dos-produtos.md`; nada no repositório ainda.
 - **Drive** (pasta "Claude"): 00 Referências, 01 Cliente, 02 Fiscal e contador, 03 Equipamentos, 04 Exportações,
   05 Fichas técnicas (Prontas, Para atualizar), 06 Cardápio e produtos, 07 Identidade visual, 08 Compras e notas,
   09 Planilhas para importar, e o documento LEIA-ME (criados em 15/11/2026). Caixa de entrada; a verdade é o repositório.

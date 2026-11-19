@@ -25,6 +25,8 @@ montar a semana inteira de uma vez.
 minutos. De manhã a cozinha confirma. Se um prato acabar (RC-09), aparece "acabou por hoje" sem
 ninguém mexer. O mesmo conteúdo pode virar imagem pronta para o story.
 **Depende de.** Produtos e horários (E07); "acabou" depende da E12.
+**Confirmado em 19/11/2026:** não há escala fixa por dia da semana; os executivos do dia são
+sempre escolhidos à mão no sistema, cada um com foto e preço do cadastro.
 
 ## S3. Cardápio impresso em PDF gerado do cadastro
 **Como funciona.** Botão "Gerar cardápio para impressão" na gestão: monta um PDF com a marca, nas

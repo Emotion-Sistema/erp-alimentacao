@@ -9,6 +9,9 @@ Marcas: ✅ tem ficha · 🟡 tem ficha parcial (só parte do produto) · ❌ se
 (produto comprado pronto: a "ficha" é 1 unidade do próprio item, não precisa de receita).
 
 ## Refeições do dia (11h às 14h30)
+> **19/11/2026:** esta tabela está desatualizada. Os pratos do dia não têm dia fixo (o gerente
+> escolhe à mão, sugestão S2) e o preço que vale é o das artes "Executivo do dia" (R$ 23,00; feijoada
+> R$ 29,90). Detalhe em `cerebro/empresa/fotos-dos-produtos.md`.
 | Dia | Produto | Preço | Acompanhamentos | Ficha |
 |---|---|---|---|---|
 | Terça | Frango com quiabo | R$ 19,90 | arroz, angu | ❌ (arroz: 1) |
