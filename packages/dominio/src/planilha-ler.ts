@@ -4,8 +4,8 @@
  * aqui conhece o banco. Roda só no servidor.
  *
  * Formatos (decididos pelo CONTEÚDO, não só pelo nome do arquivo):
- *  - .xlsx (Excel novo): lido com a biblioteca exceljs. Antes, o índice do zip é conferido para
- *    recusar arquivo que "incha" ao abrir (muito maior por dentro do que por fora).
+ *  - .xlsx (Excel novo): o zip é aberto aqui, parte por parte, contando os bytes reais e parando
+ *    no limite (recusa arquivo que "incha"); a biblioteca exceljs só recebe as partes conferidas.
  *  - .csv / .txt: separador ; , ou tabulação, descoberto pela primeira linha; acentos em UTF-8,
  *    UTF-16 (o "Texto Unicode" do Excel) ou Windows-1252 (o .csv do Excel antigo).
  *  - .html / .htm (e o ".xls" que muitos sistemas exportam e que é HTML por dentro): lido como
@@ -13,6 +13,7 @@
  *    mostrado como HTML.
  * O .xls antigo de verdade (binário) é recusado com a instrução de salvar como .xlsx.
  */
+import { crc32, inflateRawSync } from "node:zlib";
 import ExcelJS from "exceljs";
 import { parse } from "parse5";
 import { ErroDeRegra } from "./erros";
@@ -29,8 +30,12 @@ export type TabelaLida = {
 };
 
 const EXTENSOES = ["xlsx", "csv", "txt", "html", "htm", "xls"] as const;
-/** Tamanho máximo do .xlsx aberto (por dentro). Um .xlsx de 2 MB com 2.000 linhas fica bem abaixo disto. */
-const LIMITE_ABERTO = 40 * 1024 * 1024;
+/**
+ * Tamanho máximo do .xlsx aberto (por dentro), contando os bytes DE VERDADE ao descompactar (o
+ * tamanho escrito no índice do zip pode ser mentira). Um .xlsx de 2.000 linhas fica bem abaixo.
+ */
+export const LIMITE_ABERTO = 10 * 1024 * 1024;
+export const LIMITE_ABERTO_POR_PARTE = 6 * 1024 * 1024;
 const LIMITE_DE_ENTRADAS_DO_ZIP = 1000;
 
 const recusar = (texto: string): never => {
@@ -197,35 +202,55 @@ type No = { nodeName: string; tagName?: string; value?: string; childNodes?: No[
 const SEM_TEXTO = new Set(["script", "style", "template", "noscript", "head", "title", "select", "button", "iframe", "object"]);
 const QUEBRA = new Set(["br", "p", "div", "li", "tr"]);
 
-function textoDoNo(n: No): string {
-  if (n.nodeName === "#text") return n.value ?? "";
-  if (n.tagName && SEM_TEXTO.has(n.tagName)) return "";
-  if (n.tagName === "br") return "\n";
-  const dentro = (n.childNodes ?? []).map(textoDoNo).join("");
-  return n.tagName && QUEBRA.has(n.tagName) ? `${dentro}\n` : dentro;
+// Os três passeios abaixo usam pilha própria (sem recursão): HTML com 300 mil níveis de
+// aninhamento não estoura a pilha do servidor.
+
+function textoDoNo(raiz: No): string {
+  const partes: string[] = [];
+  const pilha: (No | string)[] = [raiz];
+  while (pilha.length) {
+    const n = pilha.pop()!;
+    if (typeof n === "string") {
+      partes.push(n);
+      continue;
+    }
+    if (n.nodeName === "#text") partes.push(n.value ?? "");
+    else if (n.tagName && SEM_TEXTO.has(n.tagName)) continue;
+    else if (n.tagName === "br") partes.push("\n");
+    else {
+      if (n !== raiz && n.tagName && QUEBRA.has(n.tagName)) pilha.push("\n");
+      const filhos = n.childNodes ?? [];
+      for (let i = filhos.length - 1; i >= 0; i--) pilha.push(filhos[i]!);
+    }
+  }
+  return partes.join("");
 }
 
-/** Linhas (tr) de uma tabela, sem entrar em tabela de dentro. */
+/** Linhas (tr) de uma tabela, na ordem, sem entrar em tabela de dentro. */
 function linhasDaTabela(tabela: No): No[] {
   const saida: No[] = [];
-  const andar = (n: No) => {
-    for (const f of n.childNodes ?? []) {
-      if (f.tagName === "tr") saida.push(f);
-      else if (f.tagName !== "table") andar(f);
+  const pilha: No[] = [...(tabela.childNodes ?? [])].reverse();
+  while (pilha.length) {
+    const f = pilha.pop()!;
+    if (f.tagName === "tr") saida.push(f);
+    else if (f.tagName !== "table") {
+      const filhos = f.childNodes ?? [];
+      for (let i = filhos.length - 1; i >= 0; i--) pilha.push(filhos[i]!);
     }
-  };
-  andar(tabela);
+  }
   return saida;
 }
 
 function tabelasDe(raiz: No): No[] {
   const saida: No[] = [];
-  const andar = (n: No) => {
-    if (n.tagName && SEM_TEXTO.has(n.tagName)) return;
+  const pilha: No[] = [raiz];
+  while (pilha.length) {
+    const n = pilha.pop()!;
+    if (n.tagName && SEM_TEXTO.has(n.tagName)) continue;
     if (n.tagName === "table") saida.push(n);
-    for (const f of n.childNodes ?? []) andar(f);
-  };
-  andar(raiz);
+    const filhos = n.childNodes ?? [];
+    for (let i = filhos.length - 1; i >= 0; i--) pilha.push(filhos[i]!);
+  }
   return saida;
 }
 
@@ -255,11 +280,18 @@ export function lerHtml(texto: string): TabelaLida {
 
 // ---------- XLSX ----------
 
+type ParteDoZip = { nome: Uint8Array; dados: Uint8Array };
+const danificado = () => recusar("O arquivo .xlsx está danificado (não deu para abrir). Salve de novo no Excel.");
+const inchado = () => recusar("O arquivo .xlsx é grande demais por dentro (muito mais do que parece). Salve de novo só com a planilha.");
+
 /**
- * Confere o índice do zip ANTES de abrir: soma o tamanho aberto de cada parte. Recusa o que
- * passar do limite (arquivo que "incha") e o zip64 (não é preciso para 2 MB).
+ * Abre o zip do .xlsx com as próprias mãos, parte por parte, CONTANDO os bytes reais ao
+ * descompactar e parando no limite (o tamanho escrito no índice pode ser mentira: um arquivo de
+ * 1 MB pode ter 1,5 GB dentro). Recusa: índice que não bate com o cabeçalho de cada parte, parte
+ * que abre com tamanho diferente do declarado, senha, compressão desconhecida e zip64.
+ * Devolve as partes já abertas; o exceljs só recebe um zip novo montado com elas (sem compressão).
  */
-export function conferirZip(b: Uint8Array): void {
+export function abrirZip(b: Uint8Array): ParteDoZip[] {
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
   let fim = -1;
   for (let i = b.length - 22; i >= Math.max(0, b.length - 22 - 65535); i--) {
@@ -268,30 +300,119 @@ export function conferirZip(b: Uint8Array): void {
       break;
     }
   }
-  if (fim < 0) recusar("O arquivo .xlsx está danificado (não deu para abrir). Salve de novo no Excel.");
+  if (fim < 0) return danificado();
   const entradas = v.getUint16(fim + 10, true);
   const inicio = v.getUint32(fim + 16, true);
-  if (entradas === 0xffff || inicio === 0xffffffff) recusar("O arquivo .xlsx é grande demais por dentro.");
+  if (entradas === 0xffff || inicio === 0xffffffff) return inchado();
   if (entradas > LIMITE_DE_ENTRADAS_DO_ZIP) recusar("O arquivo .xlsx tem partes demais por dentro. Salve de novo só com a planilha.");
+  const partes: ParteDoZip[] = [];
   let p = inicio;
   let total = 0;
   for (let k = 0; k < entradas; k++) {
-    if (p + 46 > b.length || v.getUint32(p, true) !== 0x02014b50) recusar("O arquivo .xlsx está danificado (não deu para abrir). Salve de novo no Excel.");
+    if (p + 46 > b.length || v.getUint32(p, true) !== 0x02014b50) return danificado();
+    const marcas = v.getUint16(p + 8, true);
+    const metodo = v.getUint16(p + 10, true);
+    const compactado = v.getUint32(p + 20, true);
     const aberto = v.getUint32(p + 24, true);
-    if (aberto === 0xffffffff) recusar("O arquivo .xlsx é grande demais por dentro.");
-    total += aberto;
-    if (total > LIMITE_ABERTO) recusar("O arquivo .xlsx é grande demais por dentro (muito mais do que parece). Salve de novo só com a planilha.");
-    p += 46 + v.getUint16(p + 28, true) + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
+    const tamNome = v.getUint16(p + 28, true);
+    const local = v.getUint32(p + 42, true);
+    const nome = b.subarray(p + 46, p + 46 + tamNome);
+    p += 46 + tamNome + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
+    if (marcas & 1) recusar("O arquivo .xlsx está protegido por senha. Salve de novo no Excel, sem senha.");
+    if (metodo !== 0 && metodo !== 8) return danificado();
+    if (compactado === 0xffffffff || aberto === 0xffffffff) return inchado();
+    if (aberto > LIMITE_ABERTO_POR_PARTE || total + aberto > LIMITE_ABERTO) return inchado();
+    // Cabeçalho local da parte: tem de bater com o índice.
+    if (local + 30 > b.length || v.getUint32(local, true) !== 0x04034b50) return danificado();
+    const tamNomeLocal = v.getUint16(local + 26, true);
+    const nomeLocal = b.subarray(local + 30, local + 30 + tamNomeLocal);
+    if (v.getUint16(local + 8, true) !== metodo || Buffer.compare(Buffer.from(nomeLocal), Buffer.from(nome)) !== 0) return danificado();
+    // Sem "descritor de dados" (bit 3), os tamanhos do cabeçalho local também têm de bater.
+    if (!(v.getUint16(local + 6, true) & 8) && (v.getUint32(local + 18, true) !== compactado || v.getUint32(local + 22, true) !== aberto)) return danificado();
+    const comeco = local + 30 + tamNomeLocal + v.getUint16(local + 28, true);
+    if (comeco + compactado > b.length) return danificado();
+    const bruto = b.subarray(comeco, comeco + compactado);
+    let dados: Uint8Array;
+    if (metodo === 0) dados = bruto;
+    else {
+      try {
+        // Para de descompactar no tamanho declarado: passou disso, é mentira (e não gasta memória).
+        dados = inflateRawSync(bruto, { maxOutputLength: Math.max(aberto, 1) });
+      } catch (e) {
+        if ((e as { code?: string }).code === "ERR_BUFFER_TOO_LARGE") return inchado();
+        return danificado();
+      }
+    }
+    if (dados.length !== aberto) return danificado();
+    total += dados.length;
+    partes.push({ nome, dados });
   }
+  return partes;
+}
+
+/** Monta um zip novo, sem compressão, só com as partes já abertas e conferidas. */
+function zipGuardado(partes: readonly ParteDoZip[]): Buffer {
+  const locais: Buffer[] = [];
+  const indice: Buffer[] = [];
+  let pos = 0;
+  for (const { nome, dados } of partes) {
+    const crc = crc32(dados);
+    const l = Buffer.alloc(30);
+    l.writeUInt32LE(0x04034b50, 0);
+    l.writeUInt16LE(20, 4);
+    l.writeUInt32LE(crc, 14);
+    l.writeUInt32LE(dados.length, 18);
+    l.writeUInt32LE(dados.length, 22);
+    l.writeUInt16LE(nome.length, 26);
+    const c = Buffer.alloc(46);
+    c.writeUInt32LE(0x02014b50, 0);
+    c.writeUInt16LE(20, 4);
+    c.writeUInt16LE(20, 6);
+    c.writeUInt32LE(crc, 16);
+    c.writeUInt32LE(dados.length, 20);
+    c.writeUInt32LE(dados.length, 24);
+    c.writeUInt16LE(nome.length, 28);
+    c.writeUInt32LE(pos, 42);
+    locais.push(l, Buffer.from(nome), Buffer.from(dados.buffer, dados.byteOffset, dados.byteLength));
+    indice.push(c, Buffer.from(nome));
+    pos += 30 + nome.length + dados.length;
+  }
+  const tamIndice = indice.reduce((s, x) => s + x.length, 0);
+  const e = Buffer.alloc(22);
+  e.writeUInt32LE(0x06054b50, 0);
+  e.writeUInt16LE(partes.length, 8);
+  e.writeUInt16LE(partes.length, 10);
+  e.writeUInt32LE(tamIndice, 12);
+  e.writeUInt32LE(pos, 16);
+  return Buffer.concat([...locais, ...indice, e]);
 }
 
 const doisDigitos = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * Número de célula do Excel como texto com vírgula. O Excel guarda número "quebrado" com
+ * imprecisão de conta (32,99 pode vir 32.989999999999995): quando a diferença para os centavos é só
+ * isso (menos de um milionésimo de centavo), sai com 2 casas ("32,99"). Se tiver mais casas de
+ * verdade (1,234), sai como está e o campo de preço diz que passou de 2 casas. A conta é só para
+ * escrever o texto; o valor gravado continua vindo de centavosDoTexto (inteiro).
+ */
+export function textoDoNumero(v: number): string {
+  if (!Number.isFinite(v)) return "";
+  if (Number.isInteger(v)) return String(v);
+  const centavos = v * 100;
+  const inteiro = Math.round(centavos);
+  if (Math.abs(v) < 1e12 && Math.abs(centavos - inteiro) < 1e-6) {
+    const a = Math.abs(inteiro);
+    return `${inteiro < 0 ? "-" : ""}${Math.trunc(a / 100)},${String(a % 100).padStart(2, "0")}`;
+  }
+  return String(v).replace(".", ",");
+}
 
 /** Valor de uma célula do Excel como texto. Número sai com vírgula decimal ("12,5"), como a pessoa escreve. */
 export function textoDoValor(v: unknown): string {
   if (v === null || v === undefined) return "";
   if (typeof v === "string") return v;
-  if (typeof v === "number") return Number.isFinite(v) ? String(v).replace(".", ",") : "";
+  if (typeof v === "number") return textoDoNumero(v);
   if (typeof v === "boolean") return v ? "VERDADEIRO" : "FALSO";
   if (v instanceof Date) return Number.isNaN(v.getTime()) ? "" : `${doisDigitos(v.getUTCDate())}/${doisDigitos(v.getUTCMonth() + 1)}/${v.getUTCFullYear()}`;
   if (typeof v === "object") {
@@ -305,10 +426,10 @@ export function textoDoValor(v: unknown): string {
 }
 
 async function lerXlsx(bytes: Uint8Array): Promise<TabelaLida> {
-  conferirZip(bytes);
+  const conferido = zipGuardado(abrirZip(bytes));
   const livro = new ExcelJS.Workbook();
   try {
-    await livro.xlsx.load(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength) as unknown as ArrayBuffer);
+    await livro.xlsx.load(conferido as unknown as ArrayBuffer);
   } catch {
     return recusar("Não deu para abrir o arquivo .xlsx (danificado ou protegido por senha). Salve de novo no Excel, sem senha.");
   }

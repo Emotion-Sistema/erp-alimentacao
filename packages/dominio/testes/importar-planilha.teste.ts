@@ -6,11 +6,13 @@
  * Só dados inventados.
  */
 import { randomUUID } from "node:crypto";
+import { crc32, deflateRawSync } from "node:zlib";
 import ExcelJS from "exceljs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql, type Banco } from "@erp/banco";
 import {
   ErroDeRegra,
+  LIMITE_DE_BYTES,
   conferirPlanilha,
   gravarPlanilha,
   modeloDePlanilha,
@@ -22,7 +24,7 @@ import {
   type Ator,
   type Conferencia,
 } from "../src/index";
-import { conferirZip, lerArquivoDePlanilha } from "../src/planilha-ler";
+import { abrirZip, lerArquivoDePlanilha, textoDoNumero } from "../src/planilha-ler";
 import { atorDoCargo, bancoDeTeste, prepararDados } from "./apoio";
 
 let db: Banco;
@@ -150,7 +152,7 @@ describe("leitura do arquivo (formato pelo conteúdo, acentos, separadores)", ()
     expect(t.formato).toBe("xlsx");
     expect(t.linhas).toEqual([
       { numero: 1, celulas: ["Nome", "Preço", "Tempo", "Data"] },
-      { numero: 2, celulas: ["X-Bacon", "29,9", "12", "19/11/2026"] },
+      { numero: 2, celulas: ["X-Bacon", "29,90", "12", "19/11/2026"] },
       { numero: 3, celulas: ["Só nome"] },
     ]);
     expect(t.avisos[0]).toContain('li só a primeira ("Produtos")');
@@ -182,7 +184,7 @@ describe("leitura do arquivo (formato pelo conteúdo, acentos, separadores)", ()
     expect(await msg("Nome;Preço\n", "so-cabecalho.csv")).toContain("só tem o cabeçalho");
   });
 
-  it(".xlsx que incha ao abrir é recusado antes de abrir (índice do zip conferido)", async () => {
+  it(".xlsx que incha: o tamanho DECLARADO alto é recusado sem abrir", async () => {
     const b = await xlsx([["Nome"], ["A"]]);
     const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
     let fim = -1;
@@ -193,10 +195,97 @@ describe("leitura do arquivo (formato pelo conteúdo, acentos, separadores)", ()
       }
     const inicio = v.getUint32(fim + 16, true);
     v.setUint32(inicio + 24, 900 * 1024 * 1024, true); // a primeira parte "abre" com 900 MB
-    expect(() => conferirZip(b)).toThrow(/grande demais por dentro/);
+    expect(() => abrirZip(b)).toThrow(/grande demais por dentro/);
     expect((await erroDe(ler(b, "bomba.xlsx"))).message).toContain("grande demais por dentro");
   });
+
+  it(".xlsx que incha MENTINDO o tamanho (declara 1.000 bytes, tem 60 MB): para de abrir no limite, sem gastar memória", async () => {
+    const espacos = 60 * 1024 * 1024;
+    const bomba = zipXlsx(" ".repeat(espacos), { declarado: 1000 });
+    expect(bomba.length).toBeLessThan(LIMITE_DE_BYTES);
+    const antes = process.memoryUsage().rss;
+    expect((await erroDe(ler(bomba, "bomba.xlsx"))).message).toContain("grande demais por dentro");
+    expect(process.memoryUsage().rss - antes, "memória gasta ao recusar").toBeLessThan(64 * 1024 * 1024);
+    // O mesmo zip honesto (sem mentir) também é recusado: passa do limite por parte.
+    expect((await erroDe(ler(zipXlsx(" ".repeat(espacos)), "grande.xlsx"))).message).toContain("grande demais por dentro");
+    // Índice e cabeçalho da parte que não batem: danificado.
+    expect((await erroDe(ler(zipXlsx("", { localDiferente: true }), "torto.xlsx"))).message).toContain("danificado");
+    // Várias partes honestas que, somadas, passam de 10 MB.
+    expect((await erroDe(ler(zipXlsx("", { extras: 3, tamanhoExtra: 4 * 1024 * 1024 }), "somado.xlsx"))).message).toContain("grande demais por dentro");
+    // O zip montado aqui, sem mentira e pequeno, abre normalmente.
+    expect((await ler(zipXlsx(""), "honesto.xlsx")).linhas.map((l) => l.celulas)).toEqual([["Nome"], ["x"]]);
+  });
+
+  it(".html com 300 mil níveis de aninhamento: lido sem estourar a pilha", async () => {
+    const n = 300_000;
+    // Só as aberturas (o leitor fecha sozinho): 300 mil níveis cabem em menos de 2 MB.
+    const fundo = `<table><tr><td>Nome</td></tr><tr><td>${"<i>".repeat(n)}Pão</td></tr></table>`;
+    expect((await ler(fundo, "fundo.html")).linhas.map((l) => l.celulas)).toEqual([["Nome"], ["Pão"]]);
+    const fundo2 = `<table>${"<div>".repeat(n)}<tr><td>Nome</td></tr><tr><td>Café</td></tr>`;
+    const t = await ler(fundo2, "fundo2.html");
+    expect(t.linhas.map((l) => l.celulas)).toEqual([["Nome"], ["Café"]]);
+  });
+
+  it("número de célula com imprecisão de conta sai com 2 casas; com mais casas de verdade, sai como está", () => {
+    expect(textoDoNumero(32.989999999999995)).toBe("32,99");
+    expect(textoDoNumero(0.1 + 0.2)).toBe("0,30");
+    expect(textoDoNumero(12.5)).toBe("12,50");
+    expect(textoDoNumero(-5.5)).toBe("-5,50");
+    expect(textoDoNumero(15)).toBe("15");
+    expect(textoDoNumero(1.234)).toBe("1,234");
+    expect(textoDoNumero(Number.NaN)).toBe("");
+  });
 });
+
+/** Zip de .xlsx mínimo montado à mão (para mentir no tamanho, como faria um ataque). */
+function zipXlsx(espacos: string, o: { declarado?: number; localDiferente?: boolean; extras?: number; tamanhoExtra?: number } = {}): Uint8Array {
+  const partes: [string, string][] = [
+    ["[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+    ["_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ["xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="A" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ["xl/_rels/workbook.xml.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'],
+    ["xl/worksheets/sheet1.xml", `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Nome</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>x${espacos}</t></is></c></row></sheetData></worksheet>`],
+  ];
+  for (let i = 0; i < (o.extras ?? 0); i++) partes.push([`xl/media/extra${i}.txt`, "a".repeat(o.tamanhoExtra ?? 0)]);
+  const locais: Buffer[] = [];
+  const indice: Buffer[] = [];
+  let pos = 0;
+  for (const [nome, texto] of partes) {
+    const dados = Buffer.from(texto);
+    const comp = deflateRawSync(dados, { level: 9 });
+    const n = Buffer.from(nome);
+    // A mentira vai só na parte grande (a planilha), como num ataque de verdade.
+    const aberto = nome === "xl/worksheets/sheet1.xml" && o.declarado !== undefined ? o.declarado : dados.length;
+    const l = Buffer.alloc(30);
+    l.writeUInt32LE(0x04034b50, 0);
+    l.writeUInt16LE(20, 4);
+    l.writeUInt16LE(8, 8);
+    l.writeUInt32LE(crc32(dados), 14);
+    l.writeUInt32LE(comp.length, 18);
+    l.writeUInt32LE(o.localDiferente ? aberto + 1 : aberto, 22);
+    l.writeUInt16LE(n.length, 26);
+    const c = Buffer.alloc(46);
+    c.writeUInt32LE(0x02014b50, 0);
+    c.writeUInt16LE(20, 4);
+    c.writeUInt16LE(20, 6);
+    c.writeUInt16LE(8, 10);
+    c.writeUInt32LE(crc32(dados), 16);
+    c.writeUInt32LE(comp.length, 20);
+    c.writeUInt32LE(aberto, 24);
+    c.writeUInt16LE(n.length, 28);
+    c.writeUInt32LE(pos, 42);
+    locais.push(l, n, comp);
+    indice.push(c, n);
+    pos += 30 + n.length + comp.length;
+  }
+  const fim = Buffer.alloc(22);
+  fim.writeUInt32LE(0x06054b50, 0);
+  fim.writeUInt16LE(partes.length, 8);
+  fim.writeUInt16LE(partes.length, 10);
+  fim.writeUInt32LE(indice.reduce((s, x) => s + x.length, 0), 12);
+  fim.writeUInt32LE(pos, 16);
+  return new Uint8Array(Buffer.concat([...locais, ...indice, fim]));
+}
 
 describe("cabeçalhos flexíveis", () => {
   it("entende os nomes comuns sem ligar para acento e maiúscula; cada coluna serve a um campo", () => {
@@ -249,7 +338,7 @@ describe("produtos: conferir (não grava) e gravar (tudo ou nada)", () => {
     expect(problema(5)[0]!.texto).toContain("está desativada");
     expect(problema(6)).toEqual([{ coluna: "Coluna E (Tempo de preparo)", texto: expect.stringContaining("Falta o tempo de preparo") }]);
     expect(problema(7)[0]).toMatchObject({ coluna: "Coluna E (Tempo de preparo)", texto: expect.stringContaining("Sem tipo de produção") });
-    expect(problema(8)[0]).toMatchObject({ coluna: "Coluna D (Valor)", texto: expect.stringContaining("Preço inválido") });
+    expect(problema(8)[0]).toMatchObject({ coluna: "Coluna D (Valor)", texto: expect.stringContaining("mais de 2 casas decimais") });
     expect(linha(c, 9).situacao).toBe("ja_existe");
     expect(problema(10)[0]).toMatchObject({ coluna: "Coluna A (Produto)", texto: "Repetido: o mesmo produto já está na linha 2 da planilha." });
     expect(problema(11)[0]).toMatchObject({ coluna: "Coluna C (Tipo de produção)", texto: expect.stringContaining("Não existe o tipo de produção") });
@@ -365,6 +454,21 @@ describe("produtos: conferir (não grava) e gravar (tudo ou nada)", () => {
     expect((await erroDe(conferirPlanilha(db, gerente, { ...p, mapa: { senha: 1 } }))).message).toContain("Campo desconhecido");
   });
 
+  it("preço vindo do Excel com imprecisão de conta vira centavos certos; com mais de 2 casas é erro claro", async () => {
+    const x = await xlsx([
+      ["Nome", "Categoria", "Preço"],
+      [`Conta ${S}`, "Bebidas", 32.989999999999995],
+      [`Casas ${S}`, "Bebidas", 1.234],
+    ]);
+    const c = await conferirPlanilha(db, gerente, pedido("produtos", "contas.xlsx", x));
+    expect(linha(c, 2)).toMatchObject({ situacao: "ok", resumo: ["Bebidas", "R$ 32,99", "Não passa pela produção"] });
+    expect(linha(c, 3).problemas[0]).toMatchObject({ coluna: "Coluna C (Preço)", texto: expect.stringContaining("mais de 2 casas decimais") });
+    const r = await gravarPlanilha(db, gerente, { ...pedido("produtos", "contas.xlsx", x), pular: [3], chave: c.chave });
+    expect(r.criados).toBe(1);
+    const p = await db.selectFrom("produto").select("preco_centavos").where("nome", "=", `Conta ${S}`).executeTakeFirstOrThrow();
+    expect(p.preco_centavos).toBe(3299);
+  });
+
   it(".xlsx e .html chegam ao mesmo resultado que o .csv", async () => {
     const x = await xlsx([
       ["Nome", "Categoria", "Preço", "Tipo", "Tempo"],
@@ -433,6 +537,25 @@ describe("ingredientes: a regra do cadastro em lote", () => {
     ]);
     const aud = await db.selectFrom("auditoria").select("detalhes").where("alvo_tipo", "=", "ingrediente").where("alvo_id", "=", String(ing.id)).executeTakeFirstOrThrow();
     expect(aud.detalhes).toMatchObject({ operacao: "importar_planilha", importacao: c2.chave, linha: 2 });
+  });
+});
+
+describe("ingredientes: dois cliques ao mesmo tempo", () => {
+  it("a mesma chave grava uma vez só (trava por chave, sem a trava da lista de produtos)", async () => {
+    const p = pedido("ingredientes", "duplo.csv", ["Nome;Unidade;Área;Embalagens", `Duplo ingrediente ${S};kg;Cozinha;saco 5 kg`, `Outro duplo ${S};un;Cafeteria;`].join("\n"));
+    const c = await conferirPlanilha(db, gerente, p);
+    expect(c.resumo.prontas).toBe(2);
+    const antes = await fotografia();
+    const rs = await Promise.all([1, 2, 3].map(() => gravarPlanilha(db, gerente, { ...p, chave: c.chave })));
+    expect(rs.filter((r) => !r.repetida)).toHaveLength(1);
+    expect(new Set(rs.map((r) => r.importacaoId)).size).toBe(1);
+    const depois = await fotografia();
+    expect(depois.ingredientes - antes.ingredientes).toBe(2);
+    expect(depois.conversoes - antes.conversoes).toBe(1);
+    expect(depois.importacoes - antes.importacoes).toBe(1);
+    // Mesma chave com outras linhas puladas: conflito (a assinatura não bate), nada gravado.
+    expect((await erroDe(gravarPlanilha(db, gerente, { ...p, pular: [3], chave: c.chave }))).codigo).toBe("conflito");
+    expect(await fotografia()).toEqual(depois);
   });
 });
 

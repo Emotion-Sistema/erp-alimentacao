@@ -224,7 +224,9 @@ function avaliarProduto(ctx: Contexto, celulas: string[], vistos: Map<string, nu
   if (!textoPreco) erro("preco", "Falta o preço.");
   else {
     const c = centavosDoTexto(textoPreco);
-    if (c === null) erro("preco", `Preço inválido: "${textoPreco.slice(0, 20)}". Escreva em reais, com vírgula nos centavos (ex.: 12,50).`);
+    if (c === null && /^\s*(?:R\$\s*)?\d+[.,]\d{3,}\s*$/i.test(textoPreco) && !/^\s*(?:R\$\s*)?\d{1,3}\.\d{3}\s*$/i.test(textoPreco))
+      erro("preco", `Preço com mais de 2 casas decimais: "${textoPreco.slice(0, 20)}". Use no máximo 2 casas (ex.: 12,50).`);
+    else if (c === null) erro("preco", `Preço inválido: "${textoPreco.slice(0, 20)}". Escreva em reais, com vírgula nos centavos (ex.: 12,50).`);
     else if (c < 1 || c > PRECO_MAXIMO_CENTAVOS) erro("preco", `O preço precisa ser de R$ 0,01 até ${textoDosCentavos(PRECO_MAXIMO_CENTAVOS)}.`);
     else {
       precoCentavos = c;
@@ -396,11 +398,16 @@ function conferirMapa(tipo: TipoDeImportacao, mapa: MapaDeColunas | undefined, c
   return saida;
 }
 
+/** Cabeçalhos e o mapa que vale (o pedido conferido, ou o sugerido). Não depende do banco. */
+function mapaDaTabela(tipo: TipoDeImportacao, tabela: TabelaLida, mapaPedido: MapaDeColunas | undefined) {
+  const colunas = Math.max(...tabela.linhas.map((l) => l.celulas.length));
+  const cabecalhos = Array.from({ length: colunas }, (_, i) => tabela.linhas[0]!.celulas[i] ?? "");
+  return { cabecalhos, mapa: conferirMapa(tipo, mapaPedido, colunas, cabecalhos) };
+}
+
 function avaliar(tipo: TipoDeImportacao, tabela: TabelaLida, nomeDoArquivo: string, refs: Referencias, mapaPedido: MapaDeColunas | undefined, pular: readonly number[]): Avaliacao {
   const [cabecalho, ...dados] = tabela.linhas;
-  const colunas = Math.max(...tabela.linhas.map((l) => l.celulas.length));
-  const cabecalhos = Array.from({ length: colunas }, (_, i) => cabecalho!.celulas[i] ?? "");
-  const mapa = conferirMapa(tipo, mapaPedido, colunas, cabecalhos);
+  const { cabecalhos, mapa } = mapaDaTabela(tipo, tabela, mapaPedido);
   const faltamColunas = CAMPOS[tipo].filter((c) => c.obrigatorio && mapa[c.campo] === null && !(tipo === "ingredientes" && c.campo !== "nome")).map((c) => c.rotulo);
   const ctx: Contexto = { tipo, refs, cabecalhos, mapa };
   const vistos = new Map<string, number>();
@@ -476,7 +483,10 @@ export async function gravarPlanilha(db: Banco, ator: Ator | null, dados: unknow
   const chave = p.chave;
   const bytes = bytesDoPedido(p);
   const tabela = await lerArquivoDePlanilha(bytes, p.arquivo.nome);
-  const jaFeita = async (trx: Banco, assinatura: string) => {
+  // A assinatura (arquivo, tipo, mapa e linhas puladas) vem antes de tudo: vale também na garantia final.
+  const { mapa } = mapaDaTabela(p.tipo, tabela, p.mapa);
+  const assinatura = assinaturaDe(p, bytes, mapa);
+  const jaFeita = async (trx: Banco) => {
     const ja = await trx.selectFrom("importacao_planilha").select(["id", "assinatura", "criados", "ja_existiam", "puladas"]).where("chave", "=", chave).executeTakeFirst();
     if (ja && ja.assinatura !== assinatura) throw new ErroDeRegra("conflito", "Esta conferência já foi usada para outra importação. Confira a planilha de novo.");
     return ja ? resultadoDe(ja, true) : null;
@@ -488,10 +498,9 @@ export async function gravarPlanilha(db: Banco, ator: Ator | null, dados: unknow
       // Mesma chave ao mesmo tempo (clique duplo): a segunda espera a primeira terminar.
       await sql`SELECT pg_advisory_xact_lock(hashtext(${"importacao_planilha:" + chave}))`.execute(trx);
       const refs = await referencias(trx, p.tipo);
-      const { conferencia, avaliadas } = avaliar(p.tipo, tabela, p.arquivo.nome, refs, p.mapa, p.pular);
-      const assinatura = assinaturaDe(p, bytes, conferencia.mapa);
-      const anterior = await jaFeita(trx, assinatura);
+      const anterior = await jaFeita(trx);
       if (anterior) return anterior;
+      const { conferencia, avaliadas } = avaliar(p.tipo, tabela, p.arquivo.nome, refs, mapa, p.pular);
 
       const comErro = conferencia.linhas.filter((l) => l.situacao === "erro" && !l.pulada);
       if (comErro.length) {
@@ -564,8 +573,8 @@ export async function gravarPlanilha(db: Banco, ator: Ator | null, dados: unknow
   } catch (e) {
     // Garantia final: duas gravações com a mesma chave que passaram juntas pela trava.
     if ((e as { code?: string; constraint?: string }).code === "23505" && (e as { constraint?: string }).constraint === "importacao_planilha_chave") {
-      const ja = await db.selectFrom("importacao_planilha").select(["id", "assinatura", "criados", "ja_existiam", "puladas"]).where("chave", "=", chave).executeTakeFirst();
-      if (ja) return resultadoDe(ja, true);
+      const ja = await jaFeita(db);
+      if (ja) return ja;
     }
     throw e;
   }
