@@ -21,6 +21,12 @@ import {
   FOTO_BYTES_MAXIMO,
   listarGruposDeAdicionais,
   verClube,
+  painelDeFichas,
+  verFicha,
+  verVersaoDaFicha,
+  salvarFicha,
+  salvarCustoDeReferencia,
+  salvarLimiteDeCusto,
   salvarRegrasDoClube,
   salvarPremio,
   salvarPresente,
@@ -335,6 +341,14 @@ export const gravarProduto = seguro(async (req) => json(await salvarProduto(obte
 // Grupos de adicionais (decisão 0021).
 export const verGruposDeAdicionais = seguro(async (req) => json(await listarGruposDeAdicionais(obterBanco(), await ator(req))));
 export const gravarGrupoDeAdicionais = seguro(async (req) => json(await salvarGrupoDeAdicionais(obterBanco(), await ator(req), await corpoJson(req))));
+
+// Fichas técnicas (E08, decisão 0025). Custo só sai para quem tem custos.ver (o domínio tira).
+export const verPainelDeFichas = seguro(async (req) => json(await painelDeFichas(obterBanco(), await ator(req))));
+export const verUmaFicha = seguroComId(async (req, p) => json(await verFicha(obterBanco(), await ator(req), p.id)));
+export const verUmaVersaoDaFicha = seguroComId(async (req, p) => json(await verVersaoDaFicha(obterBanco(), await ator(req), p.id)));
+export const gravarFicha = seguro(async (req) => json(await salvarFicha(obterBanco(), await ator(req), await corpoJson(req))));
+export const gravarCustoDeReferencia = seguro(async (req) => json(await salvarCustoDeReferencia(obterBanco(), await ator(req), await corpoJson(req))));
+export const gravarLimiteDeCusto = seguro(async (req) => json(await salvarLimiteDeCusto(obterBanco(), await ator(req), await corpoJson(req))));
 
 // Clube E-MOTION (RC-21, decisão 0024): só as regras; nada de dado de cliente.
 export const verPainelDoClube = seguro(async (req) => json(await verClube(obterBanco(), await ator(req))));
