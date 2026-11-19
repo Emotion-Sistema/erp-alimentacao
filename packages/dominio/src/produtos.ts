@@ -304,9 +304,11 @@ export function traduzirErroDoProduto(e: unknown): never {
   if (code === "23505")
     throw new ErroDeRegra(
       "conflito",
-      (e as { constraint?: string }).constraint === "produto_tamanho_nome"
-        ? "Tamanho repetido neste produto."
-        : "Já existe um produto ativo com esse nome.",
+      ({
+        produto_tamanho_nome: "Tamanho repetido neste produto.",
+        combo_parte_nome: "Parte repetida no combo.",
+        combo_opcao_unica: "A mesma opção veio duas vezes na parte do combo.",
+      } as Record<string, string>)[(e as { constraint?: string }).constraint ?? ""] ?? "Já existe um produto ativo com esse nome.",
     );
   if (code === "23503")
     throw new ErroDeRegra(
@@ -368,6 +370,26 @@ export async function gravarProdutoNaTransacao(
       "dados_invalidos",
       "Combo não passa pela produção como um todo: cada produto escolhido vai para a tela dele. Deixe o combo sem tipo de produção.",
     );
+  // Produto que é opção de algum combo não vira combo (nada de combo dentro de combo).
+  if (comboDepois && antes && !antes.combo) {
+    const usos = await trx
+      .selectFrom("combo_opcao as o")
+      .innerJoin("combo_parte as cp", "cp.id", "o.parte_id")
+      .innerJoin("produto as c", "c.id", "cp.combo_id")
+      .select("c.nome")
+      .distinct()
+      .where("o.produto_id", "=", antes.id)
+      .where("o.ativo", "=", true)
+      .where("cp.ativo", "=", true)
+      .where("c.combo", "=", true)
+      .orderBy("c.nome")
+      .execute();
+    if (usos.length)
+      throw new ErroDeRegra(
+        "dados_invalidos",
+        `Este produto é opção do combo ${usos.map((u) => u.nome).join(", ")}; combo dentro de combo não pode. Tire-o de lá antes.`,
+      );
+  }
   const tamanhosDepois = d.tamanhos !== undefined ? d.tamanhos.length : (antes?.tamanhos.length ?? 0);
   if (comboDepois && tamanhosDepois > 0)
     throw new ErroDeRegra("dados_invalidos", "Combo não tem tamanhos: o tamanho fica em cada opção do combo.");

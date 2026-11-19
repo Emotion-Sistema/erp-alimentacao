@@ -175,7 +175,7 @@ export function JanelaDoProduto({
     setPartes([]);
     setSujo(true);
     // Era combo e fica sem tipo: a pessoa escolhe de novo se passa pela produção.
-    if (produto?.combo && tipo === SEM_PRODUCAO) setTipo("");
+    if ((produto ?? criado)?.combo && tipo === SEM_PRODUCAO) setTipo("");
   }
 
   /**
@@ -325,7 +325,7 @@ export function JanelaDoProduto({
         listaDePartes.push({ ...(p.id ? { id: p.id } : {}), nome: nomeP, opcoes });
       }
       combo = { partes: listaDePartes };
-    } else if (produto?.combo) combo = null; // desmonta o combo
+    } else if ((produto ?? criado)?.combo) combo = null; // desmonta o combo (também o recém-criado)
     if (!eCombo && tipo === "") return setErro(TP.janela.faltaTipo);
     const min = tempo.trim();
     if (passaPelaProducao && (!/^\d{1,3}$/.test(min) || Number(min) < 1 || Number(min) > TEMPO_DE_PREPARO_MAXIMO)) return setErro(TP.janela.tempoInvalido(TEMPO_DE_PREPARO_MAXIMO));

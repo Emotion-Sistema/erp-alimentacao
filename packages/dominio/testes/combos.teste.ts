@@ -180,4 +180,26 @@ describe("combos", () => {
     const r = await calcularPrecoDoItem(db, combo.id, "loja", { ...escolha(combo, 0, 1), adicionais: [{ id: g.itens[0]!.id, quantidade: 1 }] });
     expect(r.unitarioCentavos).toBe(3200 + 300 + 500);
   });
+  it("ajustes da revisão: opção não vira combo; opção que ganhou tamanho ou virou combo fica indisponível; gravação recusa inativo, id de outra parte e parte repetida", async () => {
+    const { combo, lanche, outroLanche, suco } = await montar();
+    // Opção de combo não vira combo.
+    const m = (await erroDe(salvarProduto(db, gerente, { id: suco.id, tipoProducaoId: null, combo: { partes: [{ nome: "A", opcoes: [{ produtoId: lanche.id, acrescimoCentavos: 0 }] }] } }))).message;
+    expect(m).toContain("opção do combo");
+    expect(m).toContain(combo.nome);
+    // Opção sem tamanho cujo produto ganhou tamanhos depois: indisponível na venda.
+    await salvarProduto(db, gerente, { id: suco.id, tamanhos: [{ nome: "300 ml", acrescimoCentavos: 0 }] });
+    expect((await erroDe(calcularPrecoDoItem(db, combo.id, "loja", escolha(combo, 0, 1)))).message).toContain("não está disponível");
+    // Opção que virou combo por fora da regra (direto no banco): a venda ainda barra.
+    await db.updateTable("produto").set({ combo: true, tipo_producao_id: null, tempo_preparo_min: null }).where("id", "=", lanche.id).execute();
+    expect((await erroDe(calcularPrecoDoItem(db, combo.id, "loja", escolha(combo, 0, 0)))).message).toContain("não está disponível");
+    // Gravação: produto fora de venda como opção.
+    await salvarProduto(db, gerente, { id: outroLanche.id, ativo: false });
+    const [p0, p1] = combo.combo!.partes;
+    expect((await erroDe(salvarProduto(db, gerente, { id: combo.id, combo: { partes: [{ id: p0!.id, nome: "Lanche", opcoes: [{ produtoId: outroLanche.id, acrescimoCentavos: 0 }] }] } }))).message).toContain("fora de venda");
+    // Gravação: id de opção de outra parte.
+    const ativo = await salvarProduto(db, gerente, { nome: nome("Ativo"), categoriaId: cat, precoCentavos: 100 });
+    expect((await erroDe(salvarProduto(db, gerente, { id: combo.id, combo: { partes: [{ id: p0!.id, nome: "Lanche", opcoes: [{ id: p1!.opcoes[0]!.id, produtoId: ativo.id, acrescimoCentavos: 0 }] }] } }))).codigo).toBe("nao_encontrado");
+    // Gravação: a mesma parte (id) duas vezes.
+    expect((await erroDe(salvarProduto(db, gerente, { id: combo.id, combo: { partes: [{ id: p0!.id, nome: "A", opcoes: [{ produtoId: ativo.id, acrescimoCentavos: 0 }] }, { id: p0!.id, nome: "B", opcoes: [{ produtoId: ativo.id, acrescimoCentavos: 0 }] }] } }))).message).toContain("duas vezes");
+  });
 });
