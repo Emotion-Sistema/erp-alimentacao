@@ -66,8 +66,8 @@ describe("importar fichas", () => {
     ]);
     // O sal não existe e veio sem unidade: não dá para criar; erro só nessa linha.
     expect(conf.fichas[0]!.erros).toEqual([
-      { linha: 2, texto: expect.stringContaining("é contado em ml; a planilha diz kg") }, // o preparo vem depois e mesmo assim é conferido
-      { linha: 4, texto: expect.stringContaining(`"Sal ${s}" não existe`) },
+      { linha: 2, coluna: 10, texto: expect.stringContaining("é contado em ml; a planilha diz kg") }, // o preparo vem depois e mesmo assim é conferido
+      { linha: 4, coluna: 10, texto: expect.stringContaining(`"Sal ${s}" não existe`) },
     ]);
     expect(conf.fichas[1]!.erros).toEqual([]);
     void leite;
@@ -270,5 +270,70 @@ describe("ajustes da revisão (importação)", () => {
     expect(f.versao!.itens).toHaveLength(1);
     expect(f.versao!.itens[0]).toMatchObject({ quantidade: null, medidaCaseira: "40 g; 4 pedras" });
     expect(f.versao!.pendencias.join(" ")).toContain("mais de uma linha");
+  });
+});
+
+describe("corrigir no painel (ideia nº 13)", () => {
+  const corrigir = (linhas: string[], aplicar: boolean, correcoes: unknown, extra: Record<string, unknown> = {}) =>
+    importarFichas(db, gerente, { arquivo: csv(linhas), aplicar, correcoes, ...extra });
+
+  it("a conferência traz o cabeçalho, as células das linhas com erro e a coluna; corrigir a unidade de um item e gravar", async () => {
+    await salvarIngrediente(db, gerente, { nome: `Suco C ${s}`, unidadeBase: "ml", area: "cozinha" });
+    await salvarIngrediente(db, gerente, { nome: `Açúcar C ${s}`, unidadeBase: "g", area: "cozinha" });
+    const linhas = [
+      `Xarope C ${s};preparo;1;l;;;5;;Suco C ${s};500;g;;;;;Ferver`, // 2: suco é contado em ml
+      `;;;;;;;;Açúcar C ${s};200;g;;;;;Mexer`, // 3: ok
+    ];
+    const antes = Number((await db.selectFrom("ficha").select((eb) => eb.fn.countAll().as("n")).executeTakeFirstOrThrow()).n);
+    const c = await corrigir(linhas, false, []);
+    expect(c.correcoes).toBe(0);
+    expect(c.colunas).toEqual(CAB.split(";"));
+    expect(c.fichas[0]!.erros).toEqual([{ linha: 2, coluna: 10, texto: expect.stringContaining("é contado em ml; a planilha diz g") }]);
+    // Só a linha citada no erro vem com as células (uma por coluna do cabeçalho).
+    expect(c.linhas).toEqual([{ numero: 2, celulas: linhas[0]!.split(";") }]);
+    // Opções das colunas de escolha fixa, pelo índice da coluna.
+    expect(c.opcoes).toMatchObject({ "1": ["produto", "preparo"], "3": expect.arrayContaining(["l", "ml"]), "10": ["g", "kg", "ml", "l", "un", "dz"], "11": ["sim", "não"] });
+
+    // Sem as correções, gravar não grava nada (o servidor confere de novo).
+    const semCorrecao = await corrigir(linhas, true, []);
+    expect(semCorrecao.aplicado).toBe(false);
+    const correcoes = [{ linha: 2, coluna: 10, valor: "ml" }];
+    const conferida = await corrigir(linhas, false, correcoes, { devolverTabela: true });
+    expect(conferida.fichas.map((f) => [f.acao, f.erros])).toEqual([["criar", []]]);
+    expect(conferida.linhas).toEqual([]);
+    expect(conferida.correcoes).toBe(1);
+    expect(conferida.tabela![1]![10]).toBe("ml");
+    expect(Number((await db.selectFrom("ficha").select((eb) => eb.fn.countAll().as("n")).executeTakeFirstOrThrow()).n)).toBe(antes);
+
+    const r = await corrigir(linhas, true, correcoes);
+    expect(r.aplicado).toBe(true);
+    expect(r.tabela).toBeUndefined();
+    const id = (await db.selectFrom("ficha").select("id").where("nome", "=", `Xarope C ${s}`).executeTakeFirstOrThrow()).id;
+    const f = await verFicha(db, gerente, id);
+    expect(f.versao!.itens.map((i) => [i.nome, i.quantidade])).toEqual([
+      [`Suco C ${s}`, "500"],
+      [`Açúcar C ${s}`, "200"],
+    ]);
+    // A auditoria registra quantas correções vieram, não o conteúdo.
+    const aud = await db.selectFrom("auditoria").select("detalhes").where("alvo_tipo", "=", "importacao_fichas").orderBy("id", "desc").executeTakeFirstOrThrow();
+    expect(aud.detalhes).toMatchObject({ correcoes: 1, fichas: 1 });
+  });
+
+  it("correção que cria erro novo é pega; linha que não existe e cabeçalho são recusados", async () => {
+    await salvarIngrediente(db, gerente, { nome: `Água C ${s}`, unidadeBase: "ml", area: "cozinha" });
+    const linhas = [`Chá C ${s};preparo;1;l;;;5;;Água C ${s};900;ml;;;;;Ferver`];
+    const piora = await corrigir(linhas, true, [{ linha: 2, coluna: 9, valor: "1.000" }]);
+    expect(piora.aplicado).toBe(false);
+    expect(piora.fichas[0]!.erros).toEqual([{ linha: 2, coluna: 9, texto: expect.stringContaining("sem ponto de milhar") }]);
+    expect(piora.linhas[0]!.celulas[9]).toBe("1.000");
+    // Erro de um campo da ficha: aponta a coluna dele (unidade do rendimento).
+    const semUnidade = await corrigir(linhas, false, [{ linha: 2, coluna: 3, valor: "" }]);
+    expect(semUnidade.fichas[0]!.erros).toEqual([{ linha: 2, coluna: 3, texto: expect.stringContaining("Informe a unidade do rendimento") }]);
+    expect(await db.selectFrom("ficha").select("id").where("nome", "=", `Chá C ${s}`).executeTakeFirst()).toBeUndefined();
+    expect((await erroDe(corrigir(linhas, false, [{ linha: 7, coluna: 0, valor: "x" }]))).message).toContain("linha 7: essa linha não existe");
+    expect((await erroDe(corrigir(linhas, true, [{ linha: 1, coluna: 0, valor: "x" }]))).message).toContain("é o cabeçalho");
+    expect((await erroDe(corrigir(linhas, false, [{ linha: 2, coluna: 16, valor: "x" }]))).message).toContain("a coluna Q não existe");
+    expect((await erroDe(corrigir(linhas, false, [{ linha: 2, coluna: 0, valor: "a\tb" }]))).message).toContain("caractere inválido");
+    expect(await db.selectFrom("ficha").select("id").where("nome", "=", `Chá C ${s}`).executeTakeFirst()).toBeUndefined();
   });
 });

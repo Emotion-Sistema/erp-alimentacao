@@ -334,9 +334,9 @@ describe("produtos: conferir (não grava) e gravar (tudo ou nada)", () => {
     expect(linha(c, 2)).toMatchObject({ situacao: "ok", resumo: ["Hambúrgueres", "R$ 1.234,50", "Tipo: Hambúrgueres", "15 min"] });
     expect(linha(c, 3)).toMatchObject({ situacao: "ok", resumo: ["Bebidas", "R$ 7,50", "Não passa pela produção"] });
     const problema = (n: number) => linha(c, n).problemas;
-    expect(problema(4)).toEqual([{ coluna: "Coluna B (Categoria)", texto: expect.stringContaining("Não existe a categoria") }]);
+    expect(problema(4)).toEqual([{ coluna: "Coluna B (Categoria)", indice: 1, texto: expect.stringContaining("Não existe a categoria") }]);
     expect(problema(5)[0]!.texto).toContain("está desativada");
-    expect(problema(6)).toEqual([{ coluna: "Coluna E (Tempo de preparo)", texto: expect.stringContaining("Falta o tempo de preparo") }]);
+    expect(problema(6)).toEqual([{ coluna: "Coluna E (Tempo de preparo)", indice: 4, texto: expect.stringContaining("Falta o tempo de preparo") }]);
     expect(problema(7)[0]).toMatchObject({ coluna: "Coluna E (Tempo de preparo)", texto: expect.stringContaining("Sem tipo de produção") });
     expect(problema(8)[0]).toMatchObject({ coluna: "Coluna D (Valor)", texto: expect.stringContaining("mais de 2 casas decimais") });
     expect(linha(c, 9).situacao).toBe("ja_existe");
@@ -598,5 +598,151 @@ describe("permissões e modelo", () => {
     expect((await erroDe(conferirPlanilha(db, gerente, {}))).message).toContain("Escolha o que vai importar");
     expect((await erroDe(conferirPlanilha(db, gerente, { tipo: "produtos", arquivo: { nome: "a.csv", conteudo: "não é base64!" } }))).message).toContain("formato inválido");
     expect((await erroDe(gravarPlanilha(db, gerente, { ...pedido("produtos", "a.csv", "Nome\nA\n"), chave: "123" }))).message).toContain("Confira a planilha");
+  });
+});
+
+describe("corrigir no painel (ideia nº 13): correções por célula, conferidas de novo no servidor", () => {
+  const nomes = { a: `Corrige A ${S}`, b: `Corrige B ${S}`, c: `Corrige C ${S}` };
+  const planilha = () =>
+    [
+      "Nome;Categoria;Preço", // 1: cabeçalho
+      `${nomes.a};Bebidas;4,00`, // 2: ok
+      `${nomes.b};Categoria Errada ${S};sete reais`, // 3: categoria e preço com erro
+      `${nomes.c};Bebidas`, // 4: linha curta, falta o preço
+    ].join("\n");
+  const p = () => pedido("produtos", "corrigir.csv", planilha());
+  const consertos = [
+    { linha: 3, coluna: 1, valor: "Bebidas" },
+    { linha: 3, coluna: 2, valor: "7,77" },
+    { linha: 4, coluna: 2, valor: " 5,25 " }, // cria a célula (a linha era mais curta); espaços são limpos
+  ];
+
+  it("a conferência traz as células e o índice da coluna de cada problema; a correção resolve o erro e nada é gravado", async () => {
+    const c = await conferirPlanilha(db, gerente, p());
+    expect(c.resumo).toMatchObject({ prontas: 1, erros: 2 });
+    expect(c.correcoes).toBe(0);
+    expect(linha(c, 2).celulas).toBeUndefined(); // linha pronta não precisa das células
+    expect(linha(c, 3).celulas).toEqual([nomes.b, `Categoria Errada ${S}`, "sete reais"]);
+    expect(linha(c, 3).problemas.map((x) => x.indice)).toEqual([1, 2]);
+    expect(linha(c, 4).celulas).toEqual([nomes.c, "Bebidas", ""]);
+    expect(linha(c, 4).problemas).toEqual([{ coluna: "Coluna C (Preço)", indice: 2, texto: "Falta o preço." }]);
+    // Opções para escolher ao corrigir: as categorias e os tipos ativos (a desativada não aparece).
+    expect(c.opcoes.categoria).toContain("Bebidas");
+    expect(c.opcoes.categoria).not.toContain(categoriaDesativada);
+    expect(c.opcoes.tipo).toContain("Hambúrgueres");
+    expect(c.tipoSugerido).toBeNull();
+
+    const antes = await fotografia();
+    const corrigida = await conferirPlanilha(db, gerente, { ...p(), correcoes: consertos });
+    expect(await fotografia()).toEqual(antes);
+    expect(corrigida.correcoes).toBe(3);
+    expect(corrigida.resumo).toMatchObject({ prontas: 3, erros: 0 });
+    expect(linha(corrigida, 3).resumo).toEqual(["Bebidas", "R$ 7,77", "Não passa pela produção"]);
+    expect(linha(corrigida, 4).resumo).toContain("R$ 5,25");
+    // A mesma célula corrigida duas vezes: vale a última (e conta uma vez só).
+    const duas = await conferirPlanilha(db, gerente, { ...p(), correcoes: [...consertos, { linha: 3, coluna: 2, valor: "9,99" }] });
+    expect(duas.correcoes).toBe(3);
+    expect(linha(duas, 3).resumo).toContain("R$ 9,99");
+    // A planilha inteira já corrigida, só quando a tela pede (para baixar o .csv corrigido).
+    expect(corrigida.tabela).toBeUndefined();
+    const comTabela = await conferirPlanilha(db, gerente, { ...p(), correcoes: consertos, devolverTabela: true });
+    expect(comTabela.tabela).toEqual([
+      ["Nome", "Categoria", "Preço"],
+      [nomes.a, "Bebidas", "4,00"],
+      [nomes.b, "Bebidas", "7,77"],
+      [nomes.c, "Bebidas", "5,25"],
+    ]);
+  });
+
+  it("correção que cria erro novo é pega pelo servidor, ao conferir e ao gravar", async () => {
+    const piora = [...consertos, { linha: 2, coluna: 2, valor: "abc" }];
+    const c = await conferirPlanilha(db, gerente, { ...p(), correcoes: piora });
+    expect(linha(c, 2)).toMatchObject({ situacao: "erro", celulas: [nomes.a, "Bebidas", "abc"] });
+    expect(linha(c, 2).problemas[0]).toMatchObject({ indice: 2, texto: expect.stringContaining('Preço inválido: "abc"') });
+    const antes = await fotografia();
+    // A tela não decide: mesmo com a chave, a gravação confere de novo e recusa.
+    const e = await erroDe(gravarPlanilha(db, gerente, { ...p(), correcoes: piora, chave: c.chave }));
+    expect(e.message).toContain("linha 2: Preço inválido");
+    // E apagar o nome (célula vazia) também vira erro, nunca um produto sem nome.
+    const semNome = await conferirPlanilha(db, gerente, { ...p(), correcoes: [...consertos, { linha: 4, coluna: 0, valor: "" }] });
+    expect(linha(semNome, 4).problemas[0]).toMatchObject({ indice: 0, texto: "Falta o nome do produto." });
+    expect(await fotografia()).toEqual(antes);
+  });
+
+  it("linha que não existe, cabeçalho, coluna fora da planilha e valor inválido: erro claro, nada gravado", async () => {
+    const antes = await fotografia();
+    const msg = async (correcoes: unknown) => (await erroDe(conferirPlanilha(db, gerente, { ...p(), correcoes }))).message;
+    expect(await msg([{ linha: 9, coluna: 0, valor: "x" }])).toContain("linha 9: essa linha não existe na planilha");
+    expect(await msg([{ linha: 1, coluna: 0, valor: "Produto" }])).toContain("A linha 1 é o cabeçalho");
+    expect(await msg([{ linha: 3, coluna: 3, valor: "x" }])).toContain("a coluna D não existe nesta planilha");
+    expect(await msg([{ linha: 3, coluna: 50, valor: "x" }])).toContain("Coluna inválida");
+    expect(await msg([{ linha: 3, coluna: 1, valor: "a".repeat(501) }])).toContain("máximo 500 letras");
+    expect(await msg([{ linha: 3, coluna: 1, valor: "Bebi\u0000das" }])).toContain("caractere inválido");
+    expect(await msg([{ linha: 3, coluna: 1, valor: "linha\nquebrada" }])).toContain("caractere inválido");
+    expect(await msg([{ linha: 0, coluna: 1, valor: "x" }])).toContain("Número de linha inválido");
+    expect(await msg([{ linha: 3, coluna: 1 }])).toContain("Correção sem o valor");
+    expect(await msg(Array.from({ length: 2001 }, (_, i) => ({ linha: 3, coluna: i % 3, valor: "x" })))).toContain("Correções demais");
+    // Ao gravar, a mesma regra: a linha que não existe é recusada antes de qualquer coisa.
+    expect((await erroDe(gravarPlanilha(db, gerente, { ...p(), correcoes: [{ linha: 9, coluna: 0, valor: "x" }], chave: randomUUID() }))).message).toContain("não existe");
+    expect(await fotografia()).toEqual(antes);
+  });
+
+  it("idempotência: a chave vale para as MESMAS correções; outras correções (ou nenhuma) com a mesma chave são recusadas", async () => {
+    const c = await conferirPlanilha(db, gerente, { ...p(), correcoes: consertos });
+    const antes = await fotografia();
+    // Gravar sem as correções da conferência: confere de novo e recusa (as linhas 3 e 4 voltam a ter erro).
+    expect((await erroDe(gravarPlanilha(db, gerente, { ...p(), chave: c.chave }))).message).toMatch(/^Nada foi gravado: 2 linha\(s\) com erro/);
+    expect(await fotografia()).toEqual(antes);
+    const [r1, r2] = await Promise.all([
+      gravarPlanilha(db, gerente, { ...p(), correcoes: consertos, chave: c.chave }),
+      gravarPlanilha(db, gerente, { ...p(), correcoes: consertos, chave: c.chave }),
+    ]);
+    expect([r1.repetida, r2.repetida].sort()).toEqual([false, true]);
+    expect(r1.criados).toBe(3);
+    const depois = await fotografia();
+    expect(depois.produtos - antes.produtos).toBe(3);
+    expect(depois.importacoes - antes.importacoes).toBe(1);
+    const gravados = await db.selectFrom("produto").select(["nome", "preco_centavos"]).where("nome", "in", Object.values(nomes)).orderBy("nome").execute();
+    expect(gravados.map((g) => [g.nome, g.preco_centavos])).toEqual([
+      [nomes.a, 400],
+      [nomes.b, 777],
+      [nomes.c, 525],
+    ]);
+    // A mesma chave sem as correções, ou com outras: não devolve o resultado antigo; conflito, nada gravado.
+    expect((await erroDe(gravarPlanilha(db, gerente, { ...p(), chave: c.chave }))).codigo).toBe("conflito");
+    expect((await erroDe(gravarPlanilha(db, gerente, { ...p(), correcoes: [...consertos, { linha: 2, coluna: 2, valor: "4,50" }], chave: c.chave }))).codigo).toBe("conflito");
+    expect(await fotografia()).toEqual(depois);
+    // As mesmas correções em outra ordem (e a mesma célula repetida com o mesmo valor final): é a mesma importação.
+    const r3 = await gravarPlanilha(db, gerente, { ...p(), correcoes: [{ linha: 3, coluna: 2, valor: "1,00" }, ...[...consertos].reverse()], chave: c.chave });
+    expect(r3).toMatchObject({ repetida: true, importacaoId: r1.importacaoId });
+    // A auditoria registra QUANTAS correções vieram, nunca o conteúdo delas.
+    const aud = await db.selectFrom("auditoria").select("detalhes").where("alvo_tipo", "=", "importacao_planilha").where("alvo_id", "=", String(r1.importacaoId)).executeTakeFirstOrThrow();
+    expect(aud.detalhes).toMatchObject({ operacao: "importar_planilha", correcoes: 3, criados: 3 });
+    expect(JSON.stringify(aud.detalhes)).not.toContain("7,77");
+    expect(JSON.stringify(aud.detalhes)).not.toContain("5,25");
+  });
+
+  it("tipo trocado: planilha de produtos com Ingredientes escolhido (e o contrário) traz o aviso com o tipo certo", async () => {
+    const deProdutos = ["Nome;Categoria;Tipo de produção;Preço;Tempo de preparo (min);Descrição", `Lanche trocado ${S};Bebidas;;4,00;;`].join("\n");
+    const c = await conferirPlanilha(db, gerente, pedido("ingredientes", "produtos.csv", deProdutos));
+    expect(c.resumo).toMatchObject({ prontas: 0, erros: 1 });
+    expect(linha(c, 2).problemas.map((x) => x.texto).join(" ")).toContain("Falta a unidade do estoque");
+    expect(c.tipoSugerido).toBe("produtos");
+    expect(c.avisoDoTipo).toBe("Esta planilha parece de produtos. Trocar para Produtos?");
+    // Com o tipo certo, o aviso some.
+    const certo = await conferirPlanilha(db, gerente, pedido("produtos", "produtos.csv", deProdutos));
+    expect(certo).toMatchObject({ tipoSugerido: null, avisoDoTipo: null });
+    expect(certo.resumo.prontas).toBe(1);
+    // Planilha de ingredientes com Produtos escolhido.
+    const deIngredientes = ["Nome;Unidade;Área;Fornecedor;Embalagens", `Insumo trocado ${S};kg;Cozinha;;`].join("\n");
+    const i = await conferirPlanilha(db, gerente, pedido("produtos", "insumos.csv", deIngredientes));
+    expect(i).toMatchObject({ tipoSugerido: "ingredientes", avisoDoTipo: "Esta planilha parece de ingredientes. Trocar para Ingredientes?" });
+    const iCerta = await conferirPlanilha(db, gerente, pedido("ingredientes", "insumos.csv", deIngredientes));
+    expect(iCerta.tipoSugerido).toBeNull();
+    expect(iCerta.opcoes.unidade).toEqual(["kg", "g", "L", "ml", "un", "dz"]);
+    expect(iCerta.opcoes.area).toEqual(["Alimentos da cozinha", "Bebidas do salão", "Cafeteria", "Potes de sorvete (60 Sabores)"]);
+    // Só o nome: nenhum dos dois tipos acha tudo, então não sugere troca.
+    const soNome = await conferirPlanilha(db, gerente, pedido("produtos", "nomes.csv", `Nome\nAlgo ${S}\n`));
+    expect(soNome.tipoSugerido).toBeNull();
   });
 });

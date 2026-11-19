@@ -16,6 +16,15 @@ export const LIMITE_DE_BYTES = 2 * 1024 * 1024; // 2 MB
 export const LIMITE_DE_LINHAS = 2000;
 export const LIMITE_DE_COLUNAS = 50;
 export const EXTENSOES_ACEITAS = ".xlsx,.csv,.txt,.html,.htm,.xls";
+/** Correções feitas no painel (ideia nº 13): no máximo 2.000 por vez. */
+export const LIMITE_DE_CORRECOES = 2000;
+
+/**
+ * Uma célula corrigida no painel: `linha` é o número da linha como na planilha; `coluna` começa
+ * em 0 (A = 0). O servidor aplica antes de conferir e confere tudo de novo (vale para as duas
+ * importações, cadastros e fichas).
+ */
+export type CorrecaoDeCelula = { linha: number; coluna: number; valor: string };
 
 export type CampoDaPlanilha = {
   campo: string;
@@ -162,7 +171,13 @@ export function sugerirMapa(tipo: TipoDeImportacao, cabecalhos: readonly string[
 // ---------- resultado da conferência ----------
 
 export type SituacaoDaLinha = "ok" | "erro" | "ja_existe";
-export type ProblemaDaLinha = { coluna: string | null; texto: string };
+export type ProblemaDaLinha = {
+  /** "Coluna C (Preço)" para mostrar; nulo quando o problema não é de uma coluna só. */
+  coluna: string | null;
+  /** Índice da coluna (0 = A), para a tela destacar o campo ao corrigir; nulo quando não se sabe. */
+  indice: number | null;
+  texto: string;
+};
 export type LinhaConferida = {
   /** Número da linha na planilha (como a pessoa vê no Excel). */
   numero: number;
@@ -174,6 +189,8 @@ export type LinhaConferida = {
   avisos: string[];
   /** A pessoa marcou para pular (não grava, mesmo se estiver certa). */
   pulada: boolean;
+  /** Só nas linhas com erro: o texto atual de cada célula (já com as correções), para corrigir no painel. */
+  celulas?: string[];
 };
 export type ColunaLida = { indice: number; letra: string; texto: string };
 export type Conferencia = {
@@ -190,6 +207,18 @@ export type Conferencia = {
   faltamColunas: string[];
   linhas: LinhaConferida[];
   resumo: Resumo;
+  /**
+   * Tipo trocado: o tipo escolhido não acha as colunas obrigatórias e o outro acharia. A tela
+   * mostra o aviso e um botão que troca o tipo e confere de novo. Nulo quando está tudo certo.
+   */
+  tipoSugerido: TipoDeImportacao | null;
+  avisoDoTipo: string | null;
+  /** Opções válidas dos campos de escolha (unidade, área, categoria, tipo...), para corrigir no painel. */
+  opcoes: Record<string, string[]>;
+  /** Quantas correções do painel foram aplicadas nesta conferência. */
+  correcoes: number;
+  /** Só quando a tela pede (`devolverTabela`): a planilha inteira já corrigida, para baixar em .csv. */
+  tabela?: string[][];
 };
 export type Resumo = { total: number; prontas: number; erros: number; jaExistem: number; puladas: number };
 export type ResultadoDaGravacao = { importacaoId: number; criados: number; jaExistiam: number; puladas: number; repetida: boolean };
