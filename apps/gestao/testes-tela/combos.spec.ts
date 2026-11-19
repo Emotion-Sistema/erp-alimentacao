@@ -263,8 +263,8 @@ test("desmarcar \"É um combo?\" pede confirmação e desmonta o combo", async (
   const editar = page.getByRole("dialog", { name: `Editar ${COMBO}` });
   const eCombo = editar.getByLabel("É um combo?");
 
-  // "Não" deixa como estava.
-  await eCombo.uncheck();
+  // "Não" deixa como estava (a caixa continua marcada até a pessoa confirmar: por isso click, não uncheck).
+  await eCombo.click();
   const confirmar = editar.getByRole("alertdialog", { name: "Deixar de ser combo? As partes saem deste produto quando você salvar." });
   await expect(confirmar).toBeVisible();
   await expect(eCombo).toBeChecked();
@@ -272,7 +272,7 @@ test("desmarcar \"É um combo?\" pede confirmação e desmonta o combo", async (
   await expect(confirmar).toHaveCount(0);
   await expect(editar.getByRole("group", { name: "Partes do combo" })).toBeVisible();
 
-  await eCombo.uncheck();
+  await eCombo.click();
   await editar.getByRole("button", { name: "Sim, deixar de ser combo" }).click();
   await expect(eCombo).not.toBeChecked();
   await expect(editar.getByRole("group", { name: "Partes do combo" })).toHaveCount(0);
