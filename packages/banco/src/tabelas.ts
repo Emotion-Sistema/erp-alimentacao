@@ -183,6 +183,10 @@ export interface IngredienteTabela {
   ativo: Generated<boolean>;
   criado_em: Instante;
   atualizado_em: Instante;
+  /** Custo de referência (migração 0019): centavos por `custo_ref_quantidade` na unidade base. */
+  custo_ref_centavos: ColumnType<number | null, number | null | undefined, number | null>;
+  custo_ref_quantidade: ColumnType<string | null, string | null | undefined, string | null>;
+  custo_ref_em: ColumnType<Date | null, Date | string | null | undefined, Date | string | null>;
 }
 
 export interface IngredienteConversaoTabela {
@@ -488,6 +492,63 @@ export interface ClubeCampanhaTabela {
   destinatarios: number | null;
 }
 
+/** Fichas técnicas (migração 0019). Versão, item e pendência são só de inserção. */
+export interface FichaTabela {
+  id: Generated<number>;
+  tipo: "produto" | "tamanho" | "adicional" | "preparo";
+  produto_id: number | null;
+  tamanho_id: number | null;
+  adicional_id: number | null;
+  nome: string | null;
+  unidade_rendimento: "g" | "ml" | "un" | null;
+  versao_atual_id: number | null;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface FichaVersaoTabela {
+  id: Generated<number>;
+  ficha_id: number;
+  numero: number;
+  rende: string | null;
+  porcao_quantidade: string | null;
+  porcao_unidade: "g" | "ml" | "un" | null;
+  tempo_min: number | null;
+  validade_dias: number | null;
+  etapas: ColumnType<{ texto: string; minutos: number | null }[], string | undefined, never>;
+  equipamentos: ColumnType<string[], string[] | undefined, never>;
+  observacoes: string | null;
+  motivo: string | null;
+  criada_por: number;
+  criada_em: Instante;
+}
+
+export interface FichaItemTabela {
+  id: Generated<number>;
+  versao_id: number;
+  ordem: number;
+  ingrediente_id: number | null;
+  preparo_id: number | null;
+  quantidade: string | null;
+  opcional: Generated<boolean>;
+  medida_caseira: string | null;
+  observacao: string | null;
+}
+
+export interface FichaPendenciaTabela {
+  id: Generated<number>;
+  versao_id: number;
+  texto: string;
+}
+
+export interface FichaConfigTabela {
+  id: Generated<number>;
+  limite_custo_pb: Generated<number>;
+  atualizado_em: Instante;
+  atualizado_por: number | null;
+}
+
 export interface BancoTabelas {
   empresa: EmpresaTabela;
   unidade: UnidadeTabela;
@@ -529,4 +590,9 @@ export interface BancoTabelas {
   clube_premio: ClubePremioTabela;
   clube_presente: ClubePresenteTabela;
   clube_campanha: ClubeCampanhaTabela;
+  ficha: FichaTabela;
+  ficha_versao: FichaVersaoTabela;
+  ficha_item: FichaItemTabela;
+  ficha_pendencia: FichaPendenciaTabela;
+  ficha_config: FichaConfigTabela;
 }

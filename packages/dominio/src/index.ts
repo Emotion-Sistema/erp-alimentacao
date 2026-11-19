@@ -27,3 +27,6 @@ export * from "./combos";
 export * from "./importar";
 export * from "./clube";
 export * from "./clube-comum";
+export * from "./fichas";
+export * from "./fichas-comum";
+export * from "./fichas-importar";
