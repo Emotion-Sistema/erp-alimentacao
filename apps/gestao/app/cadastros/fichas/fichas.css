@@ -1,0 +1,130 @@
+/*
+ * Fichas técnicas (E08). O resto vem de ../horarios/horarios.css (hor-tela, hor-secao, hor-cat, abas)
+ * e ../adicionais/adicionais.css (linha-editavel). Só variáveis do tema: nenhuma cor escrita aqui.
+ * No celular (até 40rem) tudo empilha e nada passa da largura da tela.
+ */
+
+/* ---------- abas e filtros ---------- */
+.fichas__filtros { display: flex; flex-wrap: wrap; gap: var(--espaco-3) var(--espaco-5); min-width: 0; }
+.fichas__filtros > .erp-campo { flex: 1 1 14rem; min-width: 0; margin: 0; }
+.fichas__voltar { margin: 0; }
+.fichas__voltar a { display: inline-flex; align-items: center; min-height: var(--alvo-toque); font-weight: var(--peso-forte); }
+
+/* ---------- cartão e custo ---------- */
+.fichas-cartao .hor-cat__nome a { color: inherit; overflow-wrap: anywhere; }
+.fichas-custo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-1) var(--espaco-2); margin: 0; font-variant-numeric: tabular-nums; }
+.fichas-custo__rotulo { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
+.fichas-custo__valor { font-weight: var(--peso-forte); color: var(--cor-preco); }
+.hor-cat--inativa .fichas-custo__valor { color: var(--cor-texto-suave); }
+.erp-selo[data-acima="sim"] { font-weight: var(--peso-forte); }
+
+/* ---------- listas simples (sem ficha, nomes parecidos, consumo, usado em) ---------- */
+.fichas-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-1); min-width: 0; }
+.fichas-lista__item {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); min-width: 0; min-height: var(--alvo-toque);
+  padding: var(--espaco-2) 0; border-bottom: 1px solid var(--cor-borda-suave);
+}
+.fichas-lista__item:last-child { border-bottom: 0; }
+.fichas-lista__nome { flex: 1 1 12rem; min-width: 0; font-weight: var(--peso-forte); overflow-wrap: anywhere; }
+.fichas-lista__valor { font-variant-numeric: tabular-nums; font-weight: var(--peso-forte); }
+
+/* ---------- custo de referência ---------- */
+.fichas-custos { display: grid; gap: var(--espaco-4); min-width: 0; }
+.fichas-precos { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); min-width: 0; }
+.fichas-preco { display: grid; gap: var(--espaco-2); min-width: 0; padding: var(--espaco-2) 0; border-bottom: 1px solid var(--cor-borda-suave); }
+.fichas-preco:last-child { border-bottom: 0; }
+.fichas-preco__linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); min-width: 0; }
+.fichas-preco__nome { flex: 1 1 10rem; min-width: 0; font-weight: var(--peso-forte); overflow-wrap: anywhere; }
+.fichas-preco__valor { font-weight: var(--peso-forte); color: var(--cor-preco); font-variant-numeric: tabular-nums; }
+.fichas-preco__form { display: grid; gap: var(--espaco-3); min-width: 0; padding: var(--espaco-3); background: var(--cor-superficie); border-radius: var(--raio); }
+.fichas-preco__form > * { margin: 0; min-width: 0; }
+
+/* ---------- ficha aberta ---------- */
+.fichas-pendencias { border-left: 6px solid var(--cor-atencao); }
+.fichas-pendencias__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); }
+.fichas-pendencias__lista > li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); min-width: 0; font-weight: var(--peso-forte); color: var(--cor-atencao); }
+.fichas-pendencias__lista > li > span { min-width: 0; overflow-wrap: anywhere; }
+.fichas-ok { display: flex; align-items: center; gap: var(--espaco-2); margin: 0; color: var(--cor-sucesso); font-weight: var(--peso-forte); }
+.fichas-tabela__caixa { min-width: 0; overflow-x: auto; }
+.fichas-tabela { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.fichas-tabela th, .fichas-tabela td { padding: var(--espaco-2); text-align: left; vertical-align: top; border-bottom: 1px solid var(--cor-borda-suave); overflow-wrap: anywhere; }
+.fichas-tabela thead th { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); background: var(--cor-superficie); }
+.fichas-tabela tbody th { font-weight: var(--peso-forte); }
+.fichas-tabela__nota { font-weight: 400; font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
+.fichas-etapas { margin: 0; padding-left: var(--espaco-5); display: grid; gap: var(--espaco-2); }
+.fichas-etapas__min { margin-left: var(--espaco-2); }
+.fichas-obs { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+
+/* ---------- histórico e comparação ---------- */
+.fichas-historico { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); }
+.fichas-historico__item {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); min-width: 0;
+  padding: var(--espaco-2) 0; border-bottom: 1px solid var(--cor-borda-suave);
+}
+.fichas-historico__texto { display: grid; gap: var(--espaco-1); flex: 1 1 14rem; min-width: 0; }
+.fichas-comparar { display: grid; gap: var(--espaco-3); min-width: 0; padding: var(--espaco-3); background: var(--cor-superficie); border-radius: var(--raio); }
+.fichas-comparar__cabeca { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-2); }
+.fichas-comparar__cabeca h3 { margin: 0; }
+.fichas-mudancas { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); }
+.fichas-mudancas__item {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); min-width: 0;
+  padding: var(--espaco-2) var(--espaco-3); background: var(--cor-cartao); border-radius: var(--raio-pequeno); border-left: 4px solid var(--cor-info);
+}
+.fichas-mudancas__item > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.fichas-mudancas__item--entrou { border-left-color: var(--cor-sucesso); }
+.fichas-mudancas__item--saiu { border-left-color: var(--cor-perigo); }
+.fichas-comparar__antiga summary { min-height: var(--alvo-toque); display: flex; align-items: center; cursor: pointer; font-weight: var(--peso-forte); }
+
+/* ---------- editor ---------- */
+.fichas-editor { display: grid; gap: var(--espaco-4); min-width: 0; }
+.fichas-editor > * { min-width: 0; margin: 0; }
+.fichas-editor__bloco { display: grid; gap: var(--espaco-3); min-width: 0; }
+.fichas-editor__bloco > * { min-width: 0; margin: 0; }
+.fichas-editor__titulo { font-size: var(--tamanho-texto); }
+.fichas-editor__busca { display: grid; gap: var(--espaco-2); min-width: 0; }
+.fichas-editor__achados { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--espaco-2); min-width: 0; }
+.fichas-editor__achados .erp-botao { max-width: 100%; white-space: normal; text-align: left; }
+.fichas-editor__tipo { font-weight: 400; }
+.fichas-editor__nome { flex: 1 1 10rem; }
+.fichas-editor__texto { width: 22rem; max-width: 100%; }
+
+/* ---------- versão para a cozinha ---------- */
+.fichas-cozinha { display: grid; gap: var(--espaco-4); min-width: 0; }
+.fichas-cozinha__barra { display: flex; flex-wrap: wrap; gap: var(--espaco-2); }
+.fichas-cozinha__controles { display: grid; gap: var(--espaco-3); min-width: 0; }
+.fichas-cozinha__controles > * { margin: 0; min-width: 0; }
+.fichas-cozinha__vezes { border: 0; margin: 0; padding: 0; min-width: 0; }
+.fichas-cozinha__vezes > legend { font-weight: var(--peso-forte); padding: 0; }
+.fichas-cozinha__opcoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2) var(--espaco-5); }
+.fichas-cozinha__folha {
+  display: grid; gap: var(--espaco-3); min-width: 0; padding: var(--espaco-5); background: var(--cor-cartao);
+  border: 1px solid var(--cor-borda-suave); border-radius: var(--raio-grande); box-shadow: var(--sombra-1); font-size: var(--texto-grande);
+}
+.fichas-cozinha__folha > * { margin: 0; min-width: 0; }
+.fichas-cozinha__cabeca { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-4); }
+.fichas-cozinha__cabeca h2 { margin: 0; overflow-wrap: anywhere; }
+.fichas-cozinha__foto { width: 160px; height: 120px; object-fit: cover; border-radius: var(--raio); border: 1px solid var(--cor-borda-suave); }
+.fichas-cozinha__vezes-escolhidas { margin: 0; font-weight: var(--peso-forte); color: var(--cor-primaria); }
+.fichas-cozinha__alerta { color: var(--cor-atencao); font-weight: var(--peso-forte); }
+.fichas-cozinha__dados { display: flex; flex-wrap: wrap; gap: var(--espaco-3) var(--espaco-6); }
+.fichas-cozinha__dados dt { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
+.fichas-cozinha__dados dd { margin: 0; font-weight: var(--peso-forte); }
+.fichas-cozinha__itens, .fichas-cozinha__lista { margin: 0; padding-left: var(--espaco-5); display: grid; gap: var(--espaco-2); }
+.fichas-cozinha__etapas { margin: 0; padding-left: var(--espaco-5); display: grid; gap: var(--espaco-3); }
+.fichas-cozinha__qtd { font-weight: var(--peso-forte); font-variant-numeric: tabular-nums; }
+.fichas-cozinha__nota { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
+.fichas-cozinha__obs { white-space: pre-line; overflow-wrap: anywhere; }
+
+@media (max-width: 40rem) {
+  .fichas__abas { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+  .fichas__abas .hor-abas__aba { padding: var(--espaco-1) var(--espaco-2); line-height: 1.2; }
+  .fichas-cozinha__folha { padding: var(--espaco-3); font-size: var(--tamanho-texto); }
+  .fichas-tabela th, .fichas-tabela td { padding: var(--espaco-1); }
+}
+
+/* Impressão: só a folha da receita vai para o papel (sem casca, menu, botões nem o seletor). */
+@media print {
+  body * { visibility: hidden; }
+  .fichas-cozinha__folha, .fichas-cozinha__folha * { visibility: visible; }
+  .fichas-cozinha__folha { position: absolute; inset: 0 0 auto 0; border: 0; box-shadow: none; padding: 0; }
+}

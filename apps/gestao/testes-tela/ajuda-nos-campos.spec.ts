@@ -203,6 +203,31 @@ test.describe("telas internas do administrador", () => {
     await conferirAjuda(page, "novo produto com tamanhos", 11);
   });
 
+  test("cadastros: fichas técnicas (filtros, editor e custos)", async ({ page }) => {
+    await page.goto("/cadastros/fichas");
+    await expect(page.getByRole("heading", { name: "Fichas técnicas", level: 1 })).toBeVisible();
+    // Busca, tipo e situação.
+    await conferirAjuda(page, "fichas (filtros)", 3);
+    await page.getByRole("button", { name: "Nova ficha" }).click();
+    const janela = page.getByRole("dialog", { name: "Nova ficha técnica" });
+    await janela.getByLabel("Tipo da ficha").selectOption("preparo");
+    await janela.getByLabel("Procurar ingrediente ou preparo").fill("a");
+    await janela.getByTestId("achados").getByRole("button").first().click();
+    await janela.getByRole("button", { name: "Anotar pendência" }).click();
+    await janela.getByRole("button", { name: "Adicionar etapa" }).click();
+    await janela.getByRole("button", { name: "Adicionar equipamento" }).click();
+    // Tipo, unidade do preparo, nome, rende e unidade, porção e unidade, tempo, validade, procurar,
+    // item (quantidade, medida, opcional), pendência, etapa e minutos, equipamento, observações.
+    await conferirAjuda(page, "nova ficha (preparo com item, pendência, etapa e equipamento)", 15);
+    await semEstouroDeLargura(page);
+    await janela.getByRole("button", { name: "Fechar" }).click();
+    await page.getByRole("button", { name: "Descartar" }).click();
+    await page.getByRole("tab", { name: "Custos" }).click();
+    await page.getByRole("button", { name: /^Editar o preço de / }).first().click();
+    // Limite do alerta, preço, quantidade e unidade.
+    await conferirAjuda(page, "fichas (custos)", 4);
+  });
+
   test("cadastros: produto combo (partes e opções)", async ({ page }) => {
     await page.goto("/cadastros/produtos");
     await page.getByRole("button", { name: "Novo produto" }).click();

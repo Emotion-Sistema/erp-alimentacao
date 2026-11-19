@@ -56,6 +56,11 @@ describe("aplicativos por cargo", () => {
     expect(itens("gestao", "supervisor")).not.toContain("/turnos");
     for (const c of ["dono", "administrador", "gerente_geral"] as const) expect(itens("gestao", c)).toContain("/clube");
     for (const c of ["supervisor", "atendente", "caixa", "financeiro"] as const) expect(itens("gestao", c)).not.toContain("/clube");
+    // Fichas técnicas (E08): logo depois de Produtos; a cozinheira também consulta (sem custo, o servidor tira).
+    const cadastros = itens("cadastros", "gerente_geral");
+    expect(cadastros.indexOf("/cadastros/fichas")).toBe(cadastros.indexOf("/cadastros/produtos") + 1);
+    for (const c of ["dono", "gerente_geral", "supervisor", "financeiro", "cozinheira"] as const) expect(itens("cadastros", c)).toContain("/cadastros/fichas");
+    for (const c of ["atendente", "caixa", "auxiliar_cozinha", "motoboy", "contador"] as const) expect(itensVisiveis(APLICATIVOS.find((a) => a.codigo === "cadastros")!, c)).toEqual([]);
   });
 
   it("caixa e gerente geral não veem nenhum item do financeiro", () => {
