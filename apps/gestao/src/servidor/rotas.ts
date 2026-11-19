@@ -15,10 +15,15 @@ import {
   listarCategorias,
   listarTiposDeProducao,
   listarProdutos,
+<<<<<<< HEAD
   arquivoDaFoto,
   removerFotoDoProduto,
   salvarFotoDoProduto,
   FOTO_BYTES_MAXIMO,
+=======
+  listarGruposDeAdicionais,
+  salvarGrupoDeAdicionais,
+>>>>>>> f5db096c3463544e177c9f31732758fbd7eca4dc
   salvarProduto,
   salvarTipoDeProducao,
   salvarCategoria,
@@ -324,6 +329,9 @@ export const saude = seguro(async () => {
 // ---------- produtos (E07 parte 2, decisão 0018) ----------
 export const verProdutos = seguro(async (req) => json(await listarProdutos(obterBanco(), await ator(req))));
 export const gravarProduto = seguro(async (req) => json(await salvarProduto(obterBanco(), await ator(req), await corpoJson(req))));
+// Grupos de adicionais (decisão 0021).
+export const verGruposDeAdicionais = seguro(async (req) => json(await listarGruposDeAdicionais(obterBanco(), await ator(req))));
+export const gravarGrupoDeAdicionais = seguro(async (req) => json(await salvarGrupoDeAdicionais(obterBanco(), await ator(req), await corpoJson(req))));
 
 // Foto do produto (decisão 0022). Confere a permissão ANTES de ler o arquivo.
 const LIMITE_DA_FOTO = Math.ceil(FOTO_BYTES_MAXIMO / 3) * 4 + 16 * 1024;

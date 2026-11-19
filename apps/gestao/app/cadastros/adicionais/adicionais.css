@@ -1,0 +1,56 @@
+/*
+ * Adicionais e as listas editáveis das janelas (tamanhos e grupos do produto, itens do grupo).
+ * Só variáveis do tema (packages/interface/src/tema.css); nenhuma cor escrita aqui.
+ * No celular (até 40rem) cada linha vira um cartão empilhado e os botões ficam grandes para o dedo.
+ */
+
+/* ---------- lista editável (fieldset com uma ajuda só) ---------- */
+.linha-editavel { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: var(--espaco-3); }
+.linha-editavel > legend { font-weight: var(--peso-forte); padding: 0; margin-bottom: var(--espaco-1); }
+.linha-editavel > * { min-width: 0; margin: 0; }
+.linha-editavel__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); min-width: 0; counter-reset: linha; }
+.linha-editavel__linha {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--espaco-2) var(--espaco-3); min-width: 0;
+  padding: var(--espaco-3); background: var(--cor-cartao); border: 1px solid var(--cor-borda-suave); border-left: 6px solid var(--cor-primaria);
+  border-radius: var(--raio); box-shadow: var(--sombra-1);
+}
+.linha-editavel__linha--inativa { border-left-color: var(--cor-borda); background: color-mix(in srgb, var(--cor-cartao) 55%, var(--cor-superficie)); box-shadow: none; }
+.linha-editavel__campos { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--espaco-2) var(--espaco-3); flex: 1 1 20rem; min-width: 0; }
+.linha-editavel__campos .erp-campo__rotulo { font-size: var(--texto-pequeno); }
+.linha-editavel__nome { width: 12rem; max-width: 100%; }
+.linha-editavel__dinheiro { width: 8rem; font-variant-numeric: tabular-nums; }
+.linha-editavel__numero { width: 5.5rem; font-variant-numeric: tabular-nums; }
+.linha-editavel__botoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); }
+.linha-editavel__seta { padding-inline: var(--espaco-3); }
+.linha-editavel__adicionar { justify-self: start; }
+.linha-editavel__texto { display: grid; gap: var(--espaco-1); flex: 1 1 14rem; min-width: 0; align-self: center; }
+.linha-editavel__titulo { font-weight: var(--peso-forte); overflow-wrap: anywhere; }
+.linha-editavel__detalhe { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); overflow-wrap: anywhere; }
+.linha-editavel__escolher { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--espaco-2) var(--espaco-3); min-width: 0; }
+.linha-editavel__escolher > .erp-campo { flex: 1 1 16rem; min-width: 0; margin: 0; }
+.linha-editavel__escolher > .erp-botao { margin-top: calc(1.5em + var(--espaco-2)); }
+.linha-editavel__numeros { display: flex; flex-wrap: wrap; gap: var(--espaco-3) var(--espaco-5); min-width: 0; }
+.linha-editavel__numeros > .erp-campo { flex: 1 1 14rem; min-width: 0; margin: 0; }
+
+@media (max-width: 40rem) {
+  .linha-editavel__linha { display: grid; align-items: stretch; padding: var(--espaco-3) var(--espaco-2); }
+  .linha-editavel__campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); align-items: end; flex: none; }
+  .linha-editavel__campos > .erp-campo:first-child { grid-column: 1 / -1; }
+  .linha-editavel__nome, .linha-editavel__dinheiro, .linha-editavel__numero { width: 100%; }
+  .linha-editavel__botoes > .erp-botao:last-child { flex: 1 1 auto; }
+  .linha-editavel__adicionar { justify-self: stretch; }
+  .linha-editavel__escolher > .erp-botao { margin-top: 0; width: 100%; }
+}
+
+/* ---------- itens no cartão do grupo ---------- */
+.adic-itens { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-1); }
+.adic-itens__item {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--espaco-1) var(--espaco-3); min-width: 0;
+  padding: var(--espaco-1) 0; border-bottom: 1px solid var(--cor-borda-suave);
+}
+.adic-itens__item:last-child { border-bottom: 0; }
+.adic-itens__nome { overflow-wrap: anywhere; min-width: 0; }
+.adic-itens__preco { font-weight: var(--peso-forte); color: var(--cor-preco); font-variant-numeric: tabular-nums; }
+.adic-itens__extra { font-weight: 400; color: var(--cor-texto-suave); }
+.hor-cat--inativa .adic-itens__preco { color: var(--cor-texto-suave); }
+.linha-editavel__link { display: inline-flex; align-items: center; min-height: 44px; font-weight: var(--peso-forte); }

@@ -56,9 +56,14 @@ const ROTAS: Rota[] = [
   { metodo: "POST", caminho: "/api/cadastros/fornecedores", acao: "cadastros.gerenciar", chamar: (c) => r.gravarFornecedor(req("/api/cadastros/fornecedores", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/cadastros/produtos", acao: "cadastros.ver", chamar: (c) => r.verProdutos(req("/api/cadastros/produtos", "GET", c)) },
   { metodo: "POST", caminho: "/api/cadastros/produtos", acao: "cadastros.gerenciar", chamar: (c) => r.gravarProduto(req("/api/cadastros/produtos", "POST", c, {})) },
+<<<<<<< HEAD
   { metodo: "POST", caminho: "/api/cadastros/produtos/foto", acao: "cadastros.gerenciar", chamar: (c) => r.enviarFotoDoProduto(req("/api/cadastros/produtos/foto", "POST", c, {})) },
   { metodo: "POST", caminho: "/api/cadastros/produtos/foto/tirar", acao: "cadastros.gerenciar", chamar: (c) => r.tirarFotoDoProduto(req("/api/cadastros/produtos/foto/tirar", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/cadastros/produtos/foto/[id]", acao: "cadastros.ver", chamar: (c) => r.verFotoDoProduto(req(`/api/cadastros/produtos/foto/${INEXISTENTE}`, "GET", c), { id: INEXISTENTE }) },
+=======
+  { metodo: "GET", caminho: "/api/cadastros/adicionais", acao: "cadastros.ver", chamar: (c) => r.verGruposDeAdicionais(req("/api/cadastros/adicionais", "GET", c)) },
+  { metodo: "POST", caminho: "/api/cadastros/adicionais", acao: "cadastros.gerenciar", chamar: (c) => r.gravarGrupoDeAdicionais(req("/api/cadastros/adicionais", "POST", c, {})) },
+>>>>>>> f5db096c3463544e177c9f31732758fbd7eca4dc
   { metodo: "GET", caminho: "/api/cadastros/tipos-producao", acao: "cadastros.ver", chamar: (c) => r.verTiposDeProducao(req("/api/cadastros/tipos-producao", "GET", c)) },
   { metodo: "POST", caminho: "/api/cadastros/tipos-producao", acao: "cadastros.gerenciar", chamar: (c) => r.gravarTipoDeProducao(req("/api/cadastros/tipos-producao", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/cadastros/categorias", acao: "cadastros.ver", chamar: (c) => r.verCategorias(req("/api/cadastros/categorias", "GET", c)) },
