@@ -4,6 +4,7 @@ import "./ingredientes.css";
 import "./horarios/horarios.css";
 import "./produtos/produtos.css";
 import "./adicionais/adicionais.css";
+import "./fichas/fichas.css";
 import "./importar/importar.css";
 
 export const metadata = metadadosDoApp("cadastros");

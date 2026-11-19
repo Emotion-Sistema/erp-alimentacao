@@ -51,7 +51,8 @@ export type IconeDoMenu =
   | "documento"
   | "entrega"
   | "adicional"
-  | "estrela";
+  | "estrela"
+  | "receita";
 
 /** Ação principal do aplicativo: o botão redondo grande no meio da barra de baixo, no celular. */
 export type AcaoPrincipal = { texto: string; caminho: string; acao: Acao };
@@ -264,7 +265,7 @@ export const APLICATIVOS: readonly Aplicativo[] = [
     nome: "Cadastros",
     caminho: "/cadastros",
     descricao:
-      "Ingredientes, embalagens, fornecedores, categorias e horários de venda.",
+      "Ingredientes, embalagens, fornecedores, produtos, fichas técnicas, categorias e horários de venda.",
     aparelho: "computador",
     itens: [
       {
@@ -291,6 +292,13 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         texto: "Produtos",
         acao: "cadastros.ver",
         icone: "xicara",
+      },
+      {
+        caminho: "/cadastros/fichas",
+        texto: "Fichas técnicas",
+        acao: "cadastros.ver",
+        icone: "receita",
+        curto: "Fichas",
       },
       {
         caminho: "/cadastros/adicionais",
