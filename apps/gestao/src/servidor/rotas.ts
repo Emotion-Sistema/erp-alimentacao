@@ -15,6 +15,10 @@ import {
   listarCategorias,
   listarTiposDeProducao,
   listarProdutos,
+  arquivoDaFoto,
+  removerFotoDoProduto,
+  salvarFotoDoProduto,
+  FOTO_BYTES_MAXIMO,
   listarGruposDeAdicionais,
   salvarGrupoDeAdicionais,
   salvarProduto,
@@ -325,6 +329,33 @@ export const gravarProduto = seguro(async (req) => json(await salvarProduto(obte
 // Grupos de adicionais (decisão 0021).
 export const verGruposDeAdicionais = seguro(async (req) => json(await listarGruposDeAdicionais(obterBanco(), await ator(req))));
 export const gravarGrupoDeAdicionais = seguro(async (req) => json(await salvarGrupoDeAdicionais(obterBanco(), await ator(req), await corpoJson(req))));
+
+// Foto do produto (decisão 0022). Confere a permissão ANTES de ler o arquivo.
+const LIMITE_DA_FOTO = Math.ceil(FOTO_BYTES_MAXIMO / 3) * 4 + 16 * 1024;
+export const enviarFotoDoProduto = seguro(async (req) => {
+  const db = obterBanco();
+  const a = await ator(req);
+  await exigir(db, a, "cadastros.gerenciar", { tipo: "produto_foto" });
+  const corpo = await corpoJsonLimitado(req, LIMITE_DA_FOTO, "Foto grande demais: o máximo é 8 MB.");
+  return json(await salvarFotoDoProduto(db, a, corpo), 201);
+});
+export const tirarFotoDoProduto = seguro(async (req) => json(await removerFotoDoProduto(obterBanco(), await ator(req), await corpoJson(req))));
+/** O arquivo da foto. A foto de um id nunca muda (trocar cria outra), então pode ficar no cache do aparelho. */
+export const verFotoDoProduto = seguroComId(async (req, p) => {
+  const f = await arquivoDaFoto(obterBanco(), await ator(req), p.id);
+  return new Response(new Uint8Array(f.conteudo), {
+    status: 200,
+    headers: {
+      "content-type": f.tipo,
+      "content-length": String(f.conteudo.length),
+      "cache-control": "private, max-age=31536000, immutable",
+      etag: `"${f.sha256}"`,
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; sandbox",
+      "content-disposition": "inline",
+    },
+  });
+});
 
 // ---------- tipos de produção (E07 parte 2, decisão 0017) ----------
 export const verTiposDeProducao = seguro(async (req) => json(await listarTiposDeProducao(obterBanco(), await ator(req))));

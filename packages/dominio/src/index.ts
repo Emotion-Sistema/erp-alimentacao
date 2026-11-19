@@ -20,6 +20,7 @@ export * from "./lista-colada";
 export * from "./horarios";
 export * from "./tipos-producao";
 export * from "./produtos";
+export * from "./fotos";
 export * from "./adicionais";
 export * from "./preco-do-item";
 export * from "./importar";

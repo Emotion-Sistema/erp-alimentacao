@@ -10,6 +10,7 @@ import { z } from "zod";
 import { sql, type Banco } from "@erp/banco";
 import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
+import { fotosAtivas } from "./fotos";
 import { posicaoDaGravacao, reposicionar, travarLista } from "./posicao";
 import {
   GRUPOS_POR_PRODUTO,
@@ -155,7 +156,7 @@ const colunas = [
   "ativo",
 ] as const;
 
-type ProdutoSimples = Omit<Produto, "tamanhos" | "gruposAdicionais">;
+type ProdutoSimples = Omit<Produto, "tamanhos" | "gruposAdicionais" | "fotoId">;
 
 /** Tamanhos ativos e grupos ligados (ativos) de cada produto pedido, na ordem. */
 async function extrasDosProdutos(
@@ -193,8 +194,10 @@ async function extrasDosProdutos(
 }
 
 async function comExtras(db: Banco, produtos: ProdutoSimples[]): Promise<Produto[]> {
-  const extras = await extrasDosProdutos(db, produtos.map((p) => p.id));
-  return produtos.map((p) => ({ ...p, ...extras.get(p.id)! }));
+  const ids = produtos.map((p) => p.id);
+  const extras = await extrasDosProdutos(db, ids);
+  const fotos = await fotosAtivas(db, ids);
+  return produtos.map((p) => ({ ...p, ...extras.get(p.id)!, fotoId: fotos.get(p.id) ?? null }));
 }
 
 /** Todos os produtos: ativos primeiro, na ordem do cardápio (categoria, depois o lugar na categoria). */

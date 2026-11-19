@@ -22,3 +22,30 @@
   .prod-previa { padding: var(--espaco-3) var(--espaco-2); }
   .prod-previa__tabela th, .prod-previa__tabela td { padding-inline: var(--espaco-1); }
 }
+
+/* Foto do produto (decisão 0022). Miniatura no cartão: quadradinho com o nome ao lado. */
+.prod-miniatura { flex: none; width: 56px; height: 56px; object-fit: cover; border-radius: var(--raio-pequeno); border: 1px solid var(--cor-borda-suave); background: var(--cor-superficie); }
+.hor-cat--inativa .prod-miniatura { opacity: 0.6; }
+/* Seção "Foto" da janela: quadro 4:3 e os botões embaixo. */
+.prod-foto { display: grid; gap: var(--espaco-3); min-width: 0; }
+.prod-foto > :not(dialog) { min-width: 0; margin: 0; }
+.prod-foto__titulo { font-size: var(--tamanho-texto); font-weight: var(--peso-forte); }
+.prod-foto__quadro {
+  position: relative; width: 100%; max-width: 20rem; aspect-ratio: 4 / 3; overflow: hidden;
+  border-radius: var(--raio); border: 1px solid var(--cor-borda-suave); background: var(--cor-superficie);
+}
+.prod-foto__quadro--vazio { display: grid; place-items: center; border: 2px dashed var(--cor-borda); }
+.prod-foto__imagem { display: block; width: 100%; height: 100%; object-fit: cover; }
+.prod-foto__vazio { color: var(--cor-texto-suave); font-weight: var(--peso-forte); }
+.prod-foto__status {
+  position: absolute; inset: auto 0 0 0; padding: var(--espaco-2) var(--espaco-3); text-align: center;
+  background: var(--cor-cartao); color: var(--cor-texto); font-weight: var(--peso-forte); border-top: 1px solid var(--cor-borda-suave);
+}
+.prod-foto__avisos:empty { display: none; }
+.prod-foto__nota { margin: 0; font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
+.prod-foto__botoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); }
+.prod-foto__botoes > .erp-botao { min-height: var(--alvo-toque); }
+@media (max-width: 40rem) {
+  .prod-foto__quadro { max-width: none; }
+  .prod-foto__botoes > .erp-botao { flex: 1 1 100%; }
+}
