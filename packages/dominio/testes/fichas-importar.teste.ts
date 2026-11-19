@@ -236,12 +236,26 @@ describe("ajustes da revisão (importação)", () => {
     });
     const conf = await importar([`Massa M ${s};preparo;100;g;;;;;Farinha L ${s};12;g;;;;;`], false);
     expect(conf.fichas[0]!.versaoAtual).toBe(2);
-    const g = await importarFichas(db, gerente, { arquivo: csv([`Massa M ${s};preparo;100;g;;;;;Farinha L ${s};12;g;;;;;`]), aplicar: true, versoes: { [`Massa M ${s}`]: 2 } });
+    const g = await importarFichas(db, gerente, { arquivo: csv([`Massa M ${s};preparo;100;g;;;;;Farinha L ${s};12;g;;;;;`]), aplicar: true, versoes: { [`preparo:Massa M ${s}`]: 2 } });
     expect(g.fichas[0]!.acao).toBe("nova_versao");
     const v3 = await verFicha(db, gerente, id);
     expect(v3.versao).toMatchObject({ numero: 3, observacoes: "Servir quente", equipamentos: ["Forno"] });
-    const velha = await importarFichas(db, gerente, { arquivo: csv([`Massa M ${s};preparo;100;g;;;;;Farinha L ${s};13;g;;;;;`]), aplicar: true, versoes: { [`Massa M ${s}`]: 2 } });
+    const velha = await importarFichas(db, gerente, { arquivo: csv([`Massa M ${s};preparo;100;g;;;;;Farinha L ${s};13;g;;;;;`]), aplicar: true, versoes: { [`preparo:Massa M ${s}`]: 2 } });
     expect(velha.aplicado).toBe(false);
     expect(velha.fichas[0]!.erros[0]!.texto).toContain("mudou depois da conferência");
+  });
+
+  it("tipo digitado errado num preparo não deixa o nome dele virar ingrediente", async () => {
+    await salvarIngrediente(db, gerente, { nome: `Agua T ${s}`, unidadeBase: "ml", area: "cozinha" });
+    await salvarProduto(db, gerente, { nome: `Bife T ${s}`, categoriaId: cat, precoCentavos: 2000 });
+    const r = await importarFichas(db, gerente, {
+      arquivo: csv([`Molho T ${s};prepraro;100;ml;;;;;Agua T ${s};10;ml;;;;;`, `Bife T ${s};produto;1;;;;;;Molho T ${s};10;ml;;;;;`]),
+      aplicar: true,
+      criarIngredientes: true,
+      pularComErro: true,
+    });
+    expect(r.aplicado).toBe(false);
+    expect(r.fichas.every((f) => f.acao === "erro")).toBe(true);
+    expect(await db.selectFrom("ingrediente").select("id").where("nome", "=", `Molho T ${s}`).executeTakeFirst()).toBeUndefined();
   });
 });

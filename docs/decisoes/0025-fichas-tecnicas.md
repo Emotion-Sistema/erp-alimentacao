@@ -59,7 +59,7 @@ comparar versões.
    (ingredientes novos se pedido, preparos em ordem de dependência, depois produtos); ficha igual à
    atual não ganha versão nova. Opção "pular as com erro": grava as boas e deixa de fora as com erro
    e as que usam um preparo com erro. As receitas reais da casa **não entram no repositório** (público
-   desde 19/11/2026): a planilha fica no Drive e é importada pela tela Cadastros → Fichas técnicas → Importar. Na conferência, cada ficha volta com a versão atual; ao gravar, a tela manda essas versões e a ficha que mudou nesse meio-tempo é recusada. Linhas repetidas do mesmo item somam; "1.000" é recusado como ambíguo (escreva 1000); nome de preparo nunca vira ingrediente; a nova versão herda observações e equipamentos (a planilha não tem essas colunas).
+   desde 19/11/2026): a planilha fica no Drive e é importada pela tela Cadastros → Fichas técnicas → Importar. Na conferência, cada ficha volta com a versão atual; ao gravar (chave "tipo:nome"), a tela manda essas versões e a ficha que mudou nesse meio-tempo é recusada. Linhas repetidas do mesmo item somam; "1.000" é recusado como ambíguo (escreva 1000); nome de preparo nunca vira ingrediente; a nova versão herda observações e equipamentos (a planilha não tem essas colunas).
 
 ## Hipóteses (reversíveis)
 - Opcional conta no consumo (baixa como se fosse); a E11 pode passar a perguntar.
@@ -68,6 +68,8 @@ comparar versões.
 - Produto que vira combo precisa desligar a ficha antes; religar ficha confere o alvo de novo.
 - Ficha de tamanho é a receita inteira daquele tamanho (não um acréscimo).
 - Limite de alerta do custo: 35% do preço.
+- A auditoria guarda o custo de referência antes e depois: hoje todo cargo com `auditoria.ver` tem
+  `custos.ver`. Se um cargo novo ganhar `auditoria.ver` sem `custos.ver`, rever (matriz de permissões).
 - Renomear um preparo vale para todas as versões (o nome é da ficha, fica na auditoria).
 - O custo de cada item, quando o preparo dele tem custo parcial, aparece sem marca própria (o
   custo da ficha já sai marcado como parcial).
