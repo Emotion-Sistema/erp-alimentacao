@@ -87,14 +87,13 @@ RC-06 (fiscal).
   CEP (ver seção 6); a pessoa só completa número e complemento. Se o serviço não responder, ela
   digita à mão; o servidor confere o formato. O endereço serve para o delivery (RC-08) e pode ter
   mais de um (casa, trabalho).
-- **Data de nascimento:** obrigatória; mostra o presente do mês de aniversário. **Menor de 18 anos**
-  não entra no Clube sozinho (hipótese a confirmar com o jurídico; a lei pede cuidado extra com
-  dado de criança e adolescente).
+- **Data de nascimento:** obrigatória; mostra o presente do mês de aniversário. **Clube só a partir
+  de 18 anos** (decidido em 19/11/2026): menor de idade pede como convidado.
 - **Alergias:** opcional, por lista (glúten, lactose, amendoim, frutos do mar, ovo, soja e "outra"),
   para o cardápio avisar e o atendente ver um alerta na comanda. Pela lei, informação de saúde é
   **dado sensível**: pede um aceite próprio e destacado, só serve para avisar sobre alergia, nunca
   para campanha, e aparece para a equipe só como alerta na comanda (nunca numa lista de clientes).
-- **Contato para o código:** celular ou e-mail (seção 6).
+- **E-mail:** obrigatório, é por ele que chega o código de entrada (seção 6). Celular opcional.
 - **Aceites separados:** (1) uso dos dados para a conta e o Clube; (2) alergias; (3) receber
   ofertas por notificação. Só o (1) é obrigatório. Cada aceite guarda data, hora e versão do texto.
 - **Segurança da conta:** sem senha; entra com código de 6 números que vale poucos minutos, com
@@ -119,12 +118,12 @@ RC-06 (fiscal).
 
 ## 6. Hipóteses e decisões do responsável
 - **Percentual do desconto do aplicativo** e se vale para tudo ou só para algumas categorias.
-- **Como chega o código de entrada:** por **e-mail** não tem custo; por **SMS** é serviço pago
-  (contratação, confirmação específica). Proposta: começar por e-mail e ligar SMS se quiser.
+- **Código de entrada: por e-mail** (decidido pelo responsável em 19/11/2026; sem custo). O contato
+  obrigatório do cadastro é o e-mail; o celular fica opcional. SMS só se um dia quiser (serviço pago).
   (Isto é só o código de entrar; campanha nunca vai por esses meios.)
 - **Serviço público de CEP:** escolher na construção um serviço gratuito e conhecido, conferido na
   hora (não inventar API); o CEP sai do servidor, nunca com o nome ou o CPF junto.
-- **Idade mínima do Clube** (proposta: 18 anos) e o texto dos aceites: com o jurídico.
+- **Idade mínima do Clube: 18 anos** (decidido em 19/11/2026); texto dos aceites com o jurídico.
 - **Pontos:** quanto vale cada real e o catálogo de prêmios.
 - **Texto de privacidade e de aceite:** revisar com o jurídico ou o contador da empresa.
 - **Fiscal:** como o desconto aparece na nota (desconto no item) a confirmar com o contador; não
