@@ -4,9 +4,12 @@
  * do banco) viram frações de inteiros grandes (BigInt); dinheiro só é arredondado no fim, para
  * centavos. Nada de float na conta.
  *
- * `analisarFichas` é a regra única de consumo e custo: abre os preparos dentro das fichas (com
- * a versão atual de cada um), soma por ingrediente e calcula o custo pela referência de cada
- * ingrediente. A E11 usa o mesmo consumo para baixar o estoque, gravando as versões usadas.
+ * `analisarFichas` é a regra única de consumo e custo. Dois consumos, de propósito (RC-01):
+ *  - DIRETO: o que a receita tira do estoque — ingredientes e PREPAROS (o preparo tem estoque
+ *    próprio: produzir o lote baixa os ingredientes dele; vender o prato baixa o preparo, nunca
+ *    os ingredientes de novo). É este que a E11 usa, com a fração exata.
+ *  - EXPANDIDO (ingredientes crus): abre os preparos pela versão atual; serve ao custo, aos
+ *    alergênicos e para mostrar. Nunca para baixar estoque.
  */
 
 export const TIPOS_DE_FICHA = ["produto", "tamanho", "adicional", "preparo"] as const;
@@ -169,10 +172,16 @@ export type AnaliseDaFicha = {
   completa: boolean;
   pendencias: Pendencia[];
   /**
-   * Quanto UMA unidade do rendimento gasta (uma porção, ou 1 g/ml/un do preparo), por
-   * ingrediente, em texto decimal com até 4 casas. Vazio se a ficha não está completa.
+   * Ingredientes CRUS por unidade do rendimento (uma porção, ou 1 g/ml/un do preparo), abrindo
+   * os preparos. Só para mostrar e para o custo. Vazio se a ficha não está completa.
+   * `quantidade` arredondada a 4 casas; `exata` = "numerador/denominador".
    */
-  consumo: { ingredienteId: number; nome: string; quantidade: string }[];
+  consumo: { ingredienteId: number; nome: string; quantidade: string; exata: string }[];
+  /**
+   * O que UMA unidade do rendimento tira do estoque: ingredientes e preparos (sem abrir), com a
+   * fração exata ("n/d"). A E11 multiplica pela quantidade vendida e só então arredonda.
+   */
+  consumoDireto: { ingredienteId: number | null; preparoId: number | null; nome: string; quantidade: string; exata: string }[];
   /** Custo de uma porção (ou de 1 unidade do preparo) em centavos, arredondado. Nulo sem dado nenhum. */
   custoCentavos: number | null;
   /** Custo de uma unidade do rendimento, exato (para quem soma preparos). */
@@ -186,6 +195,9 @@ export type AnaliseDaFicha = {
 type Interna = {
   pendencias: Pendencia[];
   consumo: Map<number, Fracao> | null;
+  direto: Map<string, { ingredienteId: number | null; preparoId: number | null; nome: string; q: Fracao }> | null;
+  /** Níveis abaixo desta ficha (0 = sem preparo dentro). */
+  altura?: number;
   custo: Fracao;
   custoTemDado: boolean;
   /** Todos os itens entraram no custo (nenhum sem quantidade, sem preço ou de preparo parcial). */
@@ -211,18 +223,29 @@ export function analisarFichas(
       : Fracao.inteiro(ing.custoCentavos).dividido(Fracao.decimal(ing.custoQuantidade));
 
   function analisar(id: number): Interna {
-    const ja = memo.get(id);
-    if (ja) return ja;
     const ficha = fichas.get(id);
+    const ja = memo.get(id);
+    if (ja && caminho.length + (ja.altura ?? 0) < PROFUNDIDADE_MAXIMA) return ja;
+    if (ja && ficha)
+      return {
+        pendencias: [{ tipo: "profunda_demais", texto: `Preparo dentro de preparo passou de ${PROFUNDIDADE_MAXIMA} níveis.` }],
+        consumo: null,
+        direto: null,
+        custo: Fracao.ZERO,
+        custoTemDado: false,
+        custoCompleto: false,
+        semCusto: new Map(),
+      };
     const pend: Pendencia[] = [];
     const semCusto = new Map<number, string>();
     if (!ficha) {
-      return { pendencias: [{ tipo: "sem_versao", texto: "Ficha não encontrada." }], consumo: null, custo: Fracao.ZERO, custoTemDado: false, custoCompleto: false, semCusto };
+      return { pendencias: [{ tipo: "sem_versao", texto: "Ficha não encontrada." }], consumo: null, direto: null, custo: Fracao.ZERO, custoTemDado: false, custoCompleto: false, semCusto };
     }
     if (caminho.includes(id)) {
       return {
         pendencias: [{ tipo: "receita_circular", texto: `O preparo "${ficha.nome}" acaba usando a si mesmo.` }],
         consumo: null,
+        direto: null,
         custo: Fracao.ZERO,
         custoTemDado: false,
         custoCompleto: false,
@@ -233,6 +256,7 @@ export function analisarFichas(
       return {
         pendencias: [{ tipo: "profunda_demais", texto: `Preparo dentro de preparo passou de ${PROFUNDIDADE_MAXIMA} níveis.` }],
         consumo: null,
+        direto: null,
         custo: Fracao.ZERO,
         custoTemDado: false,
         custoCompleto: false,
@@ -243,7 +267,7 @@ export function analisarFichas(
     try {
       const v = ficha.versao;
       if (!v) {
-        const r: Interna = { pendencias: [{ tipo: "sem_versao", texto: "A ficha ainda não tem receita." }], consumo: null, custo: Fracao.ZERO, custoTemDado: false, custoCompleto: false, semCusto };
+        const r: Interna = { pendencias: [{ tipo: "sem_versao", texto: "A ficha ainda não tem receita." }], consumo: null, direto: null, custo: Fracao.ZERO, custoTemDado: false, custoCompleto: false, semCusto };
         memo.set(id, r);
         return r;
       }
@@ -256,10 +280,14 @@ export function analisarFichas(
         });
       const rende = v.rende === null ? null : Fracao.decimal(v.rende);
       const consumo = new Map<number, Fracao>();
+      const direto = new Map<string, { ingredienteId: number | null; preparoId: number | null; nome: string; q: Fracao }>();
+      const somarDireto = (k: string, ingredienteId: number | null, preparoId: number | null, nome: string, q: Fracao) =>
+        direto.set(k, { ingredienteId, preparoId, nome, q: (direto.get(k)?.q ?? Fracao.ZERO).mais(q) });
       let custo = Fracao.ZERO;
       let custoTemDado = false;
       let custoCompleto = rende !== null && v.itens.length > 0;
       let consumoOk = rende !== null && v.itens.length > 0;
+      let altura = 0;
 
       for (const item of v.itens) {
         if (item.quantidade === null) {
@@ -281,6 +309,7 @@ export function analisarFichas(
             continue;
           }
           consumo.set(ing.id, (consumo.get(ing.id) ?? Fracao.ZERO).mais(q));
+          somarDireto(`i${ing.id}`, ing.id, null, ing.nome, q);
           const cu = custoUnitario(ing);
           if (cu) {
             custo = custo.mais(q.vezes(cu));
@@ -297,7 +326,9 @@ export function analisarFichas(
             custoCompleto = false;
             continue;
           }
+          somarDireto(`p${prep.id}`, null, prep.id, prep.nome, q);
           const sub = analisar(item.preparoId);
+          altura = Math.max(altura, (sub.altura ?? 0) + 1);
           for (const [k, nome] of sub.semCusto) semCusto.set(k, nome);
           if (!sub.custoCompleto) custoCompleto = false;
           if (sub.custoTemDado) {
@@ -316,15 +347,21 @@ export function analisarFichas(
       // Tudo por unidade do rendimento.
       const porUnidade = new Map<number, Fracao>();
       if (consumoOk && rende) for (const [k, q] of consumo) porUnidade.set(k, q.dividido(rende));
+      const diretoPorUnidade = new Map<string, { ingredienteId: number | null; preparoId: number | null; nome: string; q: Fracao }>();
+      if (consumoOk && rende) for (const [k, x] of direto) diretoPorUnidade.set(k, { ...x, q: x.q.dividido(rende) });
+      const ok = consumoOk && pend.length === 0;
       const r: Interna = {
         pendencias: pend,
-        consumo: consumoOk && pend.length === 0 ? porUnidade : null,
+        consumo: ok ? porUnidade : null,
+        direto: ok ? diretoPorUnidade : null,
+        altura,
         custo: rende ? custo.dividido(rende) : Fracao.ZERO,
         custoTemDado: custoTemDado && rende !== null,
         custoCompleto,
         semCusto,
       };
-      memo.set(id, r);
+      // "Profunda demais" depende do caminho até aqui: não guarda, para cada raiz ser julgada inteira.
+      if (!pend.some((p) => p.tipo === "profunda_demais")) memo.set(id, r);
       return r;
     } finally {
       caminho.pop();
@@ -333,21 +370,35 @@ export function analisarFichas(
 
   const saida = new Map<number, AnaliseDaFicha>();
   for (const id of ids) {
+    // Cada ficha pedida é julgada a partir dela mesma (o limite de profundidade conta dali).
+    for (const [k, v] of memo) if (v.pendencias.some((p) => p.tipo === "profunda_demais")) memo.delete(k);
     const r = analisar(id);
     const nomes = (k: number) => ingredientes.get(k)?.nome ?? `#${k}`;
     saida.set(id, {
       completa: r.pendencias.length === 0 && r.consumo !== null,
       pendencias: r.pendencias,
       consumo: r.consumo
-        ? [...r.consumo].map(([k, q]) => ({ ingredienteId: k, nome: nomes(k), quantidade: q.texto(4) })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+        ? [...r.consumo]
+            .map(([k, q]) => ({ ingredienteId: k, nome: nomes(k), quantidade: q.texto(4), exata: `${q.n}/${q.d}` }))
+            .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
         : [],
-      custoCentavos: r.custoTemDado ? Number(r.custo.arredondado()) : null,
-      custoExato: r.custoTemDado ? r.custo : null,
+      consumoDireto: r.direto
+        ? [...r.direto.values()].map((x) => ({ ingredienteId: x.ingredienteId, preparoId: x.preparoId, nome: x.nome, quantidade: x.q.texto(4), exata: `${x.q.n}/${x.q.d}` }))
+        : [],
+      custoCentavos: centavosSeguros(r),
+      custoExato: centavosSeguros(r) === null ? null : r.custo,
       custoParcial: r.custoTemDado && !r.custoCompleto,
       semCusto: [...r.semCusto].map(([ingredienteId, nome]) => ({ ingredienteId, nome })),
     });
   }
   return saida;
+}
+
+/** Custo arredondado em centavos, ou nulo sem dado ou grande demais para um número exato. */
+function centavosSeguros(r: Interna): number | null {
+  if (!r.custoTemDado) return null;
+  const c = r.custo.arredondado();
+  return c > BigInt(Number.MAX_SAFE_INTEGER) ? null : Number(c);
 }
 
 /** Percentual do custo sobre o preço, em pontos-base (3125 = 31,25%). Nulo sem custo ou preço. */

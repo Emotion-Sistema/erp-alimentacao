@@ -39,10 +39,7 @@ const decimal = (rotulo: string) =>
   z
     .union([z.string(), z.number()], { error: `${rotulo}: um número.` })
     .transform((v) => String(v).trim().replace(",", "."))
-    .refine(
-      (v) => /^\d{1,10}(\.\d{1,4})?$/.test(v) && /[1-9]/.test(v),
-      `${rotulo}: use um número maior que zero, com até 4 casas depois da vírgula.`,
-    );
+    .refine((v) => /^\d{1,10}(\.\d{1,4})?$/.test(v) && /[1-9]/.test(v), `${rotulo}: use um número maior que zero, com até 4 casas depois da vírgula.`);
 const texto = (rotulo: string, min: number, max: number) =>
   z
     .string({ error: `${rotulo} em formato inválido.` })
@@ -55,8 +52,8 @@ const texto = (rotulo: string, min: number, max: number) =>
         .max(max, `${rotulo} com no máximo ${max} letras.`)
         .refine((v) => !/\p{Cc}/u.test(v), `${rotulo} com caractere inválido.`),
     );
-/** Texto opcional: vazio vira nulo. */
-const opcional = (rotulo: string, max: number) =>
+/** Texto opcional: vazio vira nulo. Quebra de linha só onde `variasLinhas` (observações). */
+const opcional = (rotulo: string, max: number, variasLinhas = false) =>
   z
     .string({ error: `${rotulo} em formato inválido.` })
     .trim()
@@ -65,9 +62,7 @@ const opcional = (rotulo: string, max: number) =>
       z
         .string()
         .max(max, `${rotulo} com no máximo ${max} letras.`)
-        // Recusa caractere de controle de propósito (a quebra de linha, \n, passa).
-        // eslint-disable-next-line no-control-regex
-        .refine((v) => !/[\u0000-\u0009\u000b-\u001f\u007f]/.test(v), `${rotulo} com caractere inválido.`),
+        .refine((v) => !/\p{Cc}/u.test(variasLinhas ? v.replace(/\r?\n/g, "") : v), `${rotulo} com caractere inválido.`),
     )
     .transform((v) => (v === "" ? null : v))
     .nullable()
@@ -121,7 +116,7 @@ const esquemaFicha = z.object(
             .array(texto("Equipamento", 2, 60))
             .max(EQUIPAMENTOS_POR_FICHA, `No máximo ${EQUIPAMENTOS_POR_FICHA} equipamentos.`)
             .optional(),
-          observacoes: opcional("Observações", 2000),
+          observacoes: opcional("Observações", 2000, true),
           motivo: opcional("O que mudou", 200),
           itens: z.array(esquemaItem).max(ITENS_POR_FICHA, `No máximo ${ITENS_POR_FICHA} itens.`),
           pendencias: z
@@ -152,8 +147,7 @@ const idDaRota = (v: unknown) => (typeof v === "string" && /^[1-9][0-9]{0,9}$/.t
 
 function validar<T>(esquema: z.ZodType<T>, dados: unknown): T {
   const p = esquema.safeParse(dados);
-  if (!p.success)
-    throw new ErroDeRegra("dados_invalidos", [...new Set(p.error.issues.map((i) => i.message))].join(" "));
+  if (!p.success) throw new ErroDeRegra("dados_invalidos", [...new Set(p.error.issues.map((i) => i.message))].join(" "));
   return p.data;
 }
 
@@ -277,12 +271,7 @@ async function versoesCompletas(db: Banco, versaoIds: number[]): Promise<Map<num
     .orderBy("i.versao_id")
     .orderBy("i.ordem")
     .execute();
-  const pend = await db
-    .selectFrom("ficha_pendencia")
-    .select(["versao_id as versaoId", "texto"])
-    .where("versao_id", "in", versaoIds)
-    .orderBy("id")
-    .execute();
+  const pend = await db.selectFrom("ficha_pendencia").select(["versao_id as versaoId", "texto"]).where("versao_id", "in", versaoIds).orderBy("id").execute();
   for (const v of vs)
     saida.set(v.id, {
       ...v,
@@ -318,14 +307,22 @@ const limpo = (v: string) => (v.includes(".") ? v.replace(/0+$/, "").replace(/\.
 async function carregarParaConta(
   db: Banco,
   ids: number[],
-): Promise<{ fichas: Map<number, FichaParaConta>; ingredientes: Map<number, IngredienteParaConta>; linhas: Map<number, LinhaDaFicha>; versoes: Map<number, VersaoDaFicha> }> {
+): Promise<{
+  fichas: Map<number, FichaParaConta>;
+  ingredientes: Map<number, IngredienteParaConta>;
+  linhas: Map<number, LinhaDaFicha>;
+  versoes: Map<number, VersaoDaFicha>;
+}> {
   const fichas = new Map<number, FichaParaConta>();
   const linhasMap = new Map<number, LinhaDaFicha>();
   const versoes = new Map<number, VersaoDaFicha>();
   const ingIds = new Set<number>();
   let fila = [...new Set(ids)];
   for (let nivel = 0; fila.length && nivel < 50; nivel++) {
-    const linhas = await linhasDasFichas(db, fila.filter((f) => !linhasMap.has(f)));
+    const linhas = await linhasDasFichas(
+      db,
+      fila.filter((f) => !linhasMap.has(f)),
+    );
     const nomes = await nomesDosAlvos(db, linhas);
     const vs = await versoesCompletas(
       db,
@@ -410,7 +407,15 @@ async function precosDosAlvos(db: Banco, linhas: LinhaDaFicha[]): Promise<{ prec
     ? await db
         .selectFrom("produto_tamanho as t")
         .innerJoin("produto as p", "p.id", "t.produto_id")
-        .select(["t.id", "t.ativo", "p.ativo as produtoAtivo", "p.preco_centavos", "p.preco_delivery_centavos", "t.acrescimo_centavos", "t.acrescimo_delivery_centavos"])
+        .select([
+          "t.id",
+          "t.ativo",
+          "p.ativo as produtoAtivo",
+          "p.preco_centavos",
+          "p.preco_delivery_centavos",
+          "t.acrescimo_centavos",
+          "t.acrescimo_delivery_centavos",
+        ])
         .where("t.id", "in", tam)
         .execute()
     : [];
@@ -508,6 +513,24 @@ export async function painelDeFichas(db: Banco, ator: Ator | null): Promise<Pain
       .where("p.ativo", "=", true)
       .where("p.combo", "=", false)
       .where((w) => w.not(w.exists(w.selectFrom("ficha as f").select("f.id").whereRef("f.produto_id", "=", "p.id").where("f.ativo", "=", true))))
+      // Produto com tamanhos: ter ficha em TODOS os tamanhos ativos também vale (decisão 0025).
+      .where((w) =>
+        w.not(
+          w.and([
+            w.exists(w.selectFrom("produto_tamanho as t").select("t.id").whereRef("t.produto_id", "=", "p.id").where("t.ativo", "=", true)),
+            w.not(
+              w.exists(
+                w
+                  .selectFrom("produto_tamanho as t")
+                  .select("t.id")
+                  .whereRef("t.produto_id", "=", "p.id")
+                  .where("t.ativo", "=", true)
+                  .where((x) => x.not(x.exists(x.selectFrom("ficha as f").select("f.id").whereRef("f.tamanho_id", "=", "t.id").where("f.ativo", "=", true)))),
+              ),
+            ),
+          ]),
+        ),
+      )
       .orderBy("c.nome")
       .orderBy("p.nome")
       .execute(),
@@ -554,8 +577,7 @@ export function nomesParecidos(ings: { id: number; nome: string }[]): PainelDeFi
       const a = palavras[i]!;
       const b = palavras[j]!;
       if (a.p.trim().length < 3 || b.p.trim().length < 3) continue;
-      if (a.p.includes(b.p) || b.p.includes(a.p))
-        pares.push({ a: { id: a.g.id, nome: a.g.nome }, b: { id: b.g.id, nome: b.g.nome } });
+      if (a.p.includes(b.p) || b.p.includes(a.p)) pares.push({ a: { id: a.g.id, nome: a.g.nome }, b: { id: b.g.id, nome: b.g.nome } });
     }
   return pares.slice(0, 200);
 }
@@ -606,7 +628,13 @@ export async function verFicha(db: Banco, ator: Ator | null, idDaFicha: unknown)
     .where("f.ativo", "=", true)
     .distinct()
     .execute();
-  const nomesUsado = await nomesDosAlvos(db, await linhasDasFichas(db, usadoEm.map((u) => u.id)));
+  const nomesUsado = await nomesDosAlvos(
+    db,
+    await linhasDasFichas(
+      db,
+      usadoEm.map((u) => u.id),
+    ),
+  );
   const custoDosItens = (v?.itens ?? []).map((i) => custoDoItem(i, ingredientes, analise));
   return {
     resumo: resumir(l, f.nome, v, a, verCusto, precos.get(l.id), fora.has(l.id)),
@@ -646,7 +674,7 @@ export async function verVersaoDaFicha(db: Banco, ator: Ator | null, idDaVersao:
 
 // ---------------------------------------------------------------- gravar
 
-async function travarFichas(trx: Banco): Promise<void> {
+export async function travarFichas(trx: Banco): Promise<void> {
   await sql`SELECT pg_advisory_xact_lock(hashtext('fichas:gravar'))`.execute(trx);
 }
 
@@ -660,12 +688,31 @@ async function travarFichas(trx: Banco): Promise<void> {
 export async function salvarFicha(db: Banco, ator: Ator | null, dados: unknown): Promise<FichaCompleta> {
   const quem = await exigir(db, ator, "cadastros.gerenciar", { tipo: "ficha" });
   const d = validar(esquemaFicha, dados);
+  try {
+    const fichaId = await db.transaction().execute(async (trx) => {
+      await travarFichas(trx);
+      return gravarFichaNaTransacao(trx, quem, d);
+    });
+    return await verFicha(db, quem, fichaId);
+  } catch (e) {
+    traduzirErroDaFicha(e);
+  }
+}
+
+export type DadosDaFicha = z.output<typeof esquemaFicha>;
+/** Valida os dados de uma ficha (para a importação montar e conferir antes de gravar). */
+export const validarDadosDaFicha = (dados: unknown): DadosDaFicha => validar(esquemaFicha, dados);
+
+/**
+ * O miolo da gravação, dentro de uma transação que JÁ pegou `travarFichas` (a importação grava
+ * várias fichas numa transação só). Devolve o id da ficha.
+ */
+export async function gravarFichaNaTransacao(trx: Banco, quem: Ator, d: DadosDaFicha): Promise<number> {
   if (!d.id && !d.tipo) throw new ErroDeRegra("dados_invalidos", "Escolha o tipo da ficha.");
   if (!d.id && !d.receita) throw new ErroDeRegra("dados_invalidos", "Mande a receita da ficha.");
   if (d.receita) {
     const r = d.receita;
-    if ((r.porcaoQuantidade == null) !== (r.porcaoUnidade == null))
-      throw new ErroDeRegra("dados_invalidos", "A porção precisa da quantidade e da unidade.");
+    if ((r.porcaoQuantidade == null) !== (r.porcaoUnidade == null)) throw new ErroDeRegra("dados_invalidos", "A porção precisa da quantidade e da unidade.");
     const chaves = new Set<string>();
     for (const i of r.itens) {
       if ((i.ingredienteId === undefined) === (i.preparoId === undefined))
@@ -674,12 +721,10 @@ export async function salvarFicha(db: Banco, ator: Ator | null, dados: unknown):
       if (chaves.has(k)) throw new ErroDeRegra("dados_invalidos", "O mesmo ingrediente ou preparo veio duas vezes. Some as quantidades numa linha.");
       chaves.add(k);
     }
-    if (new Set(r.pendencias ?? []).size !== (r.pendencias ?? []).length)
-      throw new ErroDeRegra("dados_invalidos", "Pendência repetida.");
+    if (new Set(r.pendencias ?? []).size !== (r.pendencias ?? []).length) throw new ErroDeRegra("dados_invalidos", "Pendência repetida.");
   }
-  try {
-    const fichaId = await db.transaction().execute(async (trx) => {
-      await travarFichas(trx);
+  {
+    {
       let atual: LinhaDaFicha | undefined;
       if (d.id) {
         [atual] = await linhasDasFichas(trx, [d.id]);
@@ -704,8 +749,14 @@ export async function salvarFicha(db: Banco, ator: Ator | null, dados: unknown):
           ...(d.ativo === undefined ? {} : { ativo: d.ativo }),
         };
         if (d.ativo === false && atual.ativo) await conferirDesativar(trx, atual);
+        // Religar confere o alvo de novo (pode ter virado combo ou saído do cardápio).
+        if (d.ativo === true && !atual.ativo) await conferirAlvoAtivo(trx, atual);
         if (Object.keys(mudancas).length)
-          await trx.updateTable("ficha").set({ ...mudancas, atualizado_em: sql`now()` }).where("id", "=", id).execute();
+          await trx
+            .updateTable("ficha")
+            .set({ ...mudancas, atualizado_em: sql`now()` })
+            .where("id", "=", id)
+            .execute();
       } else {
         id = (
           await trx
@@ -732,10 +783,7 @@ export async function salvarFicha(db: Banco, ator: Ator | null, dados: unknown):
           .executeTakeFirst();
         const ultimoNumero = ultima?.n ?? 0;
         if (ultimoNumero > 0 && d.versaoBase !== ultimoNumero)
-          throw new ErroDeRegra(
-            "conflito",
-            `Esta ficha mudou enquanto você editava (agora está na versão ${ultimoNumero}). Abra de novo e refaça a mudança.`,
-          );
+          throw new ErroDeRegra("conflito", `Esta ficha mudou enquanto você editava (agora está na versão ${ultimoNumero}). Abra de novo e refaça a mudança.`);
         await conferirItens(trx, id, d.receita.itens);
         numero = ultimoNumero + 1;
         const r = d.receita;
@@ -780,14 +828,32 @@ export async function salvarFicha(db: Banco, ator: Ator | null, dados: unknown):
             .insertInto("ficha_pendencia")
             .values(r.pendencias.map((texto) => ({ versao_id: versaoId, texto })))
             .execute();
-        await trx.updateTable("ficha").set({ versao_atual_id: versaoId, atualizado_em: sql`now()` }).where("id", "=", id).execute();
+        await trx
+          .updateTable("ficha")
+          .set({ versao_atual_id: versaoId, atualizado_em: sql`now()` })
+          .where("id", "=", id)
+          .execute();
 
-        // Receita circular: confere com tudo já gravado (dentro da trava).
-        if (tipo === "preparo") {
-          const { fichas, ingredientes } = await carregarParaConta(trx, [id]);
-          const a = analisarFichas(fichas, ingredientes, [id]).get(id)!;
-          const circular = a.pendencias.find((p) => p.tipo === "receita_circular" || p.tipo === "profunda_demais");
-          if (circular) throw new ErroDeRegra("dados_invalidos", circular.texto);
+        // Receita circular e profundidade: confere esta ficha e TODAS as que a usam (de qualquer
+        // altura), com tudo já gravado, dentro da trava.
+        const acima = await sql<{ id: number }>`
+          WITH RECURSIVE sobe(id) AS (
+            SELECT ${id}::int
+            UNION
+            SELECT f.id FROM sobe s
+              JOIN ficha_item i ON i.preparo_id = s.id
+              JOIN ficha f ON f.versao_atual_id = i.versao_id AND f.ativo
+          ) SELECT id FROM sobe LIMIT 500`.execute(trx);
+        const ids = acima.rows.map((r) => r.id);
+        const { fichas, ingredientes } = await carregarParaConta(trx, ids);
+        const analise = analisarFichas(fichas, ingredientes, ids);
+        for (const fid of ids) {
+          const ruim = analise.get(fid)!.pendencias.find((p) => p.tipo === "receita_circular" || p.tipo === "profunda_demais");
+          if (ruim)
+            throw new ErroDeRegra(
+              "dados_invalidos",
+              fid === id ? ruim.texto : `Assim a ficha "${fichas.get(fid)?.nome ?? "?"}" fica com problema: ${ruim.texto}`,
+            );
         }
       }
 
@@ -808,9 +874,12 @@ export async function salvarFicha(db: Banco, ator: Ator | null, dados: unknown):
         ip: quem.ip,
       });
       return id;
-    });
-    return await verFicha(db, quem, fichaId);
-  } catch (e) {
+    }
+  }
+}
+
+export function traduzirErroDaFicha(e: unknown): never {
+  {
     if (e instanceof ErroDeRegra) throw e;
     const { code, constraint } = e as { code?: string; constraint?: string };
     if (code === "23505")
@@ -866,6 +935,17 @@ async function conferirAlvo(trx: Banco, tipo: TipoDeFicha, d: z.output<typeof es
   } else {
     so("preparo");
     if (!d.nome || !d.unidadeRendimento) throw new ErroDeRegra("dados_invalidos", "O preparo precisa de nome e da unidade em que rende (g, ml ou un).");
+  }
+}
+
+/** Ao religar: o alvo ainda existe, está no cardápio e (produto) não virou combo. */
+async function conferirAlvoAtivo(trx: Banco, f: LinhaDaFicha): Promise<void> {
+  if (f.tipo === "preparo") return;
+  const { fora } = await precosDosAlvos(trx, [f]);
+  if (fora.has(f.id)) throw new ErroDeRegra("conflito", "O item desta ficha saiu do cardápio; reative-o antes.");
+  if (f.tipo === "produto") {
+    const p = await trx.selectFrom("produto").select("combo").where("id", "=", f.produtoId!).forShare().executeTakeFirstOrThrow();
+    if (p.combo) throw new ErroDeRegra("dados_invalidos", "Este produto virou combo: combo não tem ficha própria.");
   }
 }
 
@@ -971,19 +1051,22 @@ export async function salvarLimiteDeCusto(db: Banco, ator: Ator | null, dados: u
 }
 
 /**
- * Consumo de uma ficha por unidade do rendimento, com as versões usadas (para a E11 gravar no
- * pedido). Recusa ficha com pendência. Quem chama já conferiu a permissão.
+ * O que UMA unidade do rendimento tira do estoque (ingredientes e preparos, sem abrir os
+ * preparos: RC-01), em fração exata, com a versão usada (para a E11 gravar no pedido e só
+ * arredondar depois de multiplicar pela quantidade vendida). Recusa ficha desligada, alvo fora do
+ * cardápio e ficha com pendência. Quem chama já conferiu a permissão.
  */
 export async function consumoDaFicha(
   db: Banco,
   fichaId: number,
-): Promise<{ consumo: AnaliseDaFicha["consumo"]; versoes: { fichaId: number; versaoId: number }[] }> {
+): Promise<{ fichaId: number; versaoId: number; consumo: AnaliseDaFicha["consumoDireto"] }> {
   const { fichas, ingredientes, linhas } = await carregarParaConta(db, [fichaId]);
-  if (!linhas.has(fichaId)) throw new ErroDeRegra("nao_encontrado", "Ficha não encontrada.");
+  const l = linhas.get(fichaId);
+  if (!l) throw new ErroDeRegra("nao_encontrado", "Ficha não encontrada.");
+  if (!l.ativo) throw new ErroDeRegra("conflito", "A ficha está desligada.");
+  if (l.tipo !== "preparo" && (await precosDosAlvos(db, [l])).fora.has(l.id))
+    throw new ErroDeRegra("conflito", "O item desta ficha saiu do cardápio.");
   const a = analisarFichas(fichas, ingredientes, [fichaId]).get(fichaId)!;
-  if (!a.completa) throw new ErroDeRegra("conflito", `A ficha tem pendências: ${a.pendencias.map((p) => p.texto).join(" ")}`);
-  return {
-    consumo: a.consumo,
-    versoes: [...linhas.values()].flatMap((l) => (l.versaoAtualId ? [{ fichaId: l.id, versaoId: l.versaoAtualId }] : [])),
-  };
+  if (!a.completa || !l.versaoAtualId) throw new ErroDeRegra("conflito", `A ficha tem pendências: ${a.pendencias.map((p) => p.texto).join(" ")}`);
+  return { fichaId, versaoId: l.versaoAtualId, consumo: a.consumoDireto };
 }

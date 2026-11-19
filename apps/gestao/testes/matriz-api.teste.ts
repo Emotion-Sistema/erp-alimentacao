@@ -63,6 +63,7 @@ const ROTAS: Rota[] = [
   { metodo: "POST", caminho: "/api/fichas", acao: "cadastros.gerenciar", chamar: (c) => r.gravarFicha(req("/api/fichas", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/fichas/[id]", acao: "cadastros.ver", chamar: (c) => r.verUmaFicha(req(`/api/fichas/${INEXISTENTE}`, "GET", c), { id: INEXISTENTE }) },
   { metodo: "GET", caminho: "/api/fichas/versao/[id]", acao: "cadastros.ver", chamar: (c) => r.verUmaVersaoDaFicha(req(`/api/fichas/versao/${INEXISTENTE}`, "GET", c), { id: INEXISTENTE }) },
+  { metodo: "POST", caminho: "/api/fichas/importar", acao: "cadastros.gerenciar", chamar: (c) => r.importarFichasDaPlanilha(req("/api/fichas/importar", "POST", c, {})) },
   { metodo: "POST", caminho: "/api/fichas/custo", acao: "cadastros.gerenciar", chamar: (c) => r.gravarCustoDeReferencia(req("/api/fichas/custo", "POST", c, {})) },
   { metodo: "POST", caminho: "/api/fichas/limite", acao: "cadastros.gerenciar", chamar: (c) => r.gravarLimiteDeCusto(req("/api/fichas/limite", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/clube", acao: "clube.ver", chamar: (c) => r.verPainelDoClube(req("/api/clube", "GET", c)) },

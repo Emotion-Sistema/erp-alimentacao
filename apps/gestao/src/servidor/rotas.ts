@@ -22,6 +22,7 @@ import {
   listarGruposDeAdicionais,
   verClube,
   painelDeFichas,
+  importarFichas,
   verFicha,
   verVersaoDaFicha,
   salvarFicha,
@@ -461,6 +462,14 @@ export const gravarImportacao = seguro(async (req) => {
   const { db, a, corpo } = await pedidoDeImportacao(req);
   const r = await gravarPlanilha(db, a, corpo);
   return json(r, r.repetida ? 200 : 201);
+});
+/** Fichas técnicas por planilha (E08): conferir (aplicar falso) ou gravar tudo de uma vez. */
+export const importarFichasDaPlanilha = seguro(async (req) => {
+  const db = obterBanco();
+  const a = await ator(req);
+  await exigir(db, a, "cadastros.gerenciar", { tipo: "importacao_fichas" });
+  const corpo = await corpoJsonLimitado(req, LIMITE_DO_PEDIDO, MENSAGEM_DO_LIMITE);
+  return json(await importarFichas(db, a, corpo));
 });
 /** Modelo de planilha para baixar (?tipo=ingredientes|produtos&formato=xlsx|csv). */
 export const baixarModeloDePlanilha = seguro(async (req) => {
