@@ -184,6 +184,25 @@ test.describe("telas internas do administrador", () => {
     await semEstouroDeLargura(page);
   });
 
+  test("cadastros: adicionais (janela do grupo) e produto com tamanhos e grupos", async ({ page }) => {
+    await page.goto("/cadastros/adicionais");
+    await page.getByRole("button", { name: "Novo grupo" }).click();
+    const janela = page.getByRole("dialog", { name: "Novo grupo de adicionais" });
+    await janela.getByLabel("Escolha obrigatória?").check();
+    await janela.getByRole("button", { name: "Adicionar item" }).click();
+    await janela.getByLabel("Algum item tem preço diferente no delivery").check();
+    // Nome, obrigatória, mínimo, máximo, item (nome, preço, delivery, vezes) e a caixa do delivery.
+    await conferirAjuda(page, "novo grupo de adicionais", 9);
+    await semEstouroDeLargura(page);
+    await page.goto("/cadastros/produtos");
+    await page.getByRole("button", { name: "Novo produto" }).click();
+    const produto = page.getByRole("dialog", { name: "Novo produto" });
+    await produto.getByLabel("Mesmo preço da loja").uncheck();
+    await produto.getByRole("button", { name: "Adicionar tamanho" }).click();
+    // Nome, categoria, preço, mesmo preço, preço no delivery, tamanho (nome, acréscimo, delivery), grupo, tipo, descrição.
+    await conferirAjuda(page, "novo produto com tamanhos", 11);
+  });
+
   test("cadastros: fornecedores", async ({ page }) => {
     await page.goto("/cadastros/fornecedores");
     await page.getByRole("button", { name: "Novo fornecedor" }).click();

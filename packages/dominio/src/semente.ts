@@ -102,6 +102,51 @@ async function semearCadastros(db: Banco): Promise<void> {
     }
   }
   await semearProdutos(db);
+  await semearAdicionaisETamanhos(db);
+}
+
+/**
+ * Exemplos INVENTADOS de adicionais, tamanhos e preço do delivery (decisão 0021). Pode rodar de
+ * novo: grupo que já existe pelo nome fica como está; produto que já tem tamanho ou grupo também.
+ */
+async function semearAdicionaisETamanhos(db: Banco): Promise<void> {
+  const grupos: { nome: string; minimo: number; maximo: number; itens: { nome: string; preco: number; vezes: number }[] }[] = [
+    { nome: "Ponto da carne", minimo: 1, maximo: 1, itens: [{ nome: "Ao ponto", preco: 0, vezes: 1 }, { nome: "Bem passado", preco: 0, vezes: 1 }, { nome: "Mal passado", preco: 0, vezes: 1 }] },
+    { nome: "Turbine seu lanche", minimo: 0, maximo: 5, itens: [{ nome: "Bacon extra", preco: 500, vezes: 3 }, { nome: "Ovo", preco: 250, vezes: 2 }, { nome: "Cheddar", preco: 300, vezes: 2 }] },
+  ];
+  const ids: number[] = [];
+  for (const g of grupos) {
+    let grupo = await db.selectFrom("grupo_adicional").select("id").where("nome", "=", g.nome).executeTakeFirst();
+    if (!grupo) {
+      grupo = await db.insertInto("grupo_adicional").values({ nome: g.nome, minimo: g.minimo, maximo: g.maximo }).returning("id").executeTakeFirstOrThrow();
+      await db
+        .insertInto("adicional")
+        .values(g.itens.map((i, k) => ({ grupo_id: grupo!.id, nome: i.nome, preco_centavos: i.preco, maximo_por_item: i.vezes, ordem: (k + 1) * 10 })))
+        .execute();
+    }
+    ids.push(grupo.id);
+  }
+  for (const nome of ["X-Salada", "X-Bacon"]) {
+    const p = await db.selectFrom("produto").select("id").where("nome", "=", nome).executeTakeFirst();
+    if (!p) continue;
+    const ja = await db.selectFrom("produto_grupo_adicional").select("grupo_id").where("produto_id", "=", p.id).executeTakeFirst();
+    if (!ja)
+      await db
+        .insertInto("produto_grupo_adicional")
+        .values(ids.map((g, k) => ({ produto_id: p.id, grupo_id: g, ordem: (k + 1) * 10 })))
+        .execute();
+  }
+  // Preço próprio no delivery (exemplo).
+  await db.updateTable("produto").set({ preco_delivery_centavos: 3290 }).where("nome", "=", "X-Bacon").where("preco_delivery_centavos", "is", null).execute();
+  const batata = await db.selectFrom("produto").select("id").where("nome", "=", "Porção de batata frita").executeTakeFirst();
+  if (batata && !(await db.selectFrom("produto_tamanho").select("id").where("produto_id", "=", batata.id).executeTakeFirst()))
+    await db
+      .insertInto("produto_tamanho")
+      .values([
+        { produto_id: batata.id, nome: "Meia", acrescimo_centavos: 0, ordem: 10 },
+        { produto_id: batata.id, nome: "Inteira", acrescimo_centavos: 1500, ordem: 20 },
+      ])
+      .execute();
 }
 
 /**

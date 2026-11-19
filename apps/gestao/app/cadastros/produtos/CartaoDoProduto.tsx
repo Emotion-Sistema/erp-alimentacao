@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * Cartão de um produto: lugar na categoria, nome, preço, tipo de produção (ou "Não passa pela
- * produção"), tempo de preparo, descrição e, para quem gerencia, Editar e Desativar/Reativar.
+ * Cartão de um produto: lugar na categoria, nome, preço (e, discreto, o do delivery se for outro,
+ * quantos tamanhos e grupos de adicionais), tipo de produção (ou "Não passa pela produção"), tempo
+ * de preparo, descrição e, para quem gerencia, Editar e Desativar/Reativar.
  */
 import { Botao, Selo } from "@erp/interface";
-import { textoDosCentavos, type Produto } from "@erp/dominio/produtos";
+import { acrescimoNoCanal, precoNoCanal, textoDosCentavos, type Produto } from "@erp/dominio/produtos";
 import { NOME_DA_AREA_DE_PRODUCAO, type TipoDeProducao } from "@erp/dominio/tipos-producao";
 import { TP } from "./textos";
 
@@ -30,6 +31,11 @@ export function CartaoDoProduto({
   aoMudarAtivo: (ativo: boolean) => void;
 }) {
   const p = produto;
+  // Com tamanhos, o menor preço possível (o acréscimo mais baixo) em cada canal.
+  const comTamanhos = p.tamanhos.length > 0;
+  const menor = (canal: "loja" | "delivery") => precoNoCanal(p, canal) + (comTamanhos ? Math.min(...p.tamanhos.map((t) => acrescimoNoCanal(t, canal))) : 0);
+  const loja = menor("loja");
+  const delivery = menor("delivery");
   return (
     <article className={["hor-cat", !p.ativo && "hor-cat--inativa"].filter(Boolean).join(" ")} data-testid={`produto-${p.nome}`}>
       <header className="hor-cat__cabeca">
@@ -38,8 +44,19 @@ export function CartaoDoProduto({
         {!p.ativo && <Selo variante="alerta">{TP.cartao.desativado}</Selo>}
       </header>
       <p className="prod-preco" data-testid="preco-do-produto">
-        {textoDosCentavos(p.precoCentavos)}
+        {comTamanhos ? TP.cartao.aPartirDe(textoDosCentavos(loja)) : textoDosCentavos(loja)}
       </p>
+      {(delivery !== loja || comTamanhos || p.gruposAdicionais.length > 0) && (
+        <p className="prod-extras" data-testid="extras-do-produto">
+          {[
+            delivery !== loja && TP.cartao.delivery(comTamanhos ? TP.cartao.aPartirDe(textoDosCentavos(delivery)) : textoDosCentavos(delivery)),
+            comTamanhos && TP.cartao.tamanhos(p.tamanhos.length),
+            p.gruposAdicionais.length > 0 && TP.cartao.grupos(p.gruposAdicionais.length),
+          ]
+            .filter(Boolean)
+            .join(". ")}
+        </p>
+      )}
       <div className="hor-cat__selos" data-testid="producao-do-produto">
         {p.tipoProducaoId === null ? (
           <Selo>{TP.cartao.semProducao}</Selo>

@@ -231,6 +231,54 @@ export interface ProdutoTabela {
   tipo_producao_id: number | null;
   preco_centavos: number;
   tempo_preparo_min: number | null;
+  /** Nulo: igual ao preço da loja (migração 0015). */
+  preco_delivery_centavos: Generated<number | null>;
+  ordem: Generated<number>;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+/** Tamanho do produto (migração 0015): acréscimo sobre o preço do produto. */
+export interface ProdutoTamanhoTabela {
+  id: Generated<number>;
+  produto_id: number;
+  nome: string;
+  acrescimo_centavos: Generated<number>;
+  acrescimo_delivery_centavos: Generated<number | null>;
+  ordem: Generated<number>;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+/** Grupo de adicionais reutilizável (migração 0015). */
+export interface GrupoAdicionalTabela {
+  id: Generated<number>;
+  nome: string;
+  minimo: Generated<number>;
+  maximo: Generated<number>;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface AdicionalTabela {
+  id: Generated<number>;
+  grupo_id: number;
+  nome: string;
+  preco_centavos: Generated<number>;
+  preco_delivery_centavos: Generated<number | null>;
+  maximo_por_item: Generated<number>;
+  ordem: Generated<number>;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface ProdutoGrupoAdicionalTabela {
+  produto_id: number;
+  grupo_id: number;
   ordem: Generated<number>;
   ativo: Generated<boolean>;
   criado_em: Instante;
@@ -351,6 +399,10 @@ export interface BancoTabelas {
   categoria: CategoriaTabela;
   tipo_producao: TipoProducaoTabela;
   produto: ProdutoTabela;
+  produto_tamanho: ProdutoTamanhoTabela;
+  grupo_adicional: GrupoAdicionalTabela;
+  adicional: AdicionalTabela;
+  produto_grupo_adicional: ProdutoGrupoAdicionalTabela;
   horario_unidade: HorarioUnidadeTabela;
   horario_unidade_data: HorarioUnidadeDataTabela;
   horario_venda: HorarioVendaTabela;
