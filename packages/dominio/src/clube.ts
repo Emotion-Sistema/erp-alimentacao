@@ -157,11 +157,14 @@ const horaCurta = (v: string | null) => (v ? v.slice(0, 5) : null);
 
 async function carregarRegras(db: Banco): Promise<RegrasDoClube> {
   const r = await db.selectFrom("clube_regras").selectAll().where("id", "=", 1).executeTakeFirstOrThrow();
+  // Só as categorias ativas no cadastro: uma categoria desativada depois sai do Clube sozinha.
   const categorias = await db
-    .selectFrom("clube_categoria")
-    .select("categoria_id")
-    .where("ativo", "=", true)
-    .orderBy("categoria_id")
+    .selectFrom("clube_categoria as cc")
+    .innerJoin("categoria as c", "c.id", "cc.categoria_id")
+    .select("cc.categoria_id")
+    .where("cc.ativo", "=", true)
+    .where("c.ativo", "=", true)
+    .orderBy("cc.categoria_id")
     .execute();
   const horarios = await db.selectFrom("clube_horario_desconto").selectAll().orderBy("dia").execute();
   return {
@@ -308,19 +311,22 @@ export async function salvarRegrasDoClube(db: Banco, ator: Ator | null, dados: u
         .execute();
 
       if (d.categorias) {
-        const novas = d.categorias.filter((c) => !antes.categorias.includes(c));
-        if (novas.length) {
-          // FOR SHARE: a categoria não é desativada no meio desta gravação.
+        if (d.categorias.length) {
+          // Todas as da lista (também as que já estavam): ativas no cadastro. FOR SHARE: a
+          // categoria não é desativada no meio desta gravação.
           const ativas = await trx
             .selectFrom("categoria")
             .select("id")
-            .where("id", "in", novas)
+            .where("id", "in", d.categorias)
             .where("ativo", "=", true)
             .forShare()
             .execute();
-          if (ativas.length !== novas.length) throw new ErroDeRegra("nao_encontrado", "Categoria não encontrada ou desativada.");
+          if (ativas.length !== d.categorias.length) throw new ErroDeRegra("nao_encontrado", "Categoria não encontrada ou desativada.");
         }
-        const saem = antes.categorias.filter((c) => !d.categorias!.includes(c));
+        const marcadas = await trx.selectFrom("clube_categoria").select("categoria_id").where("ativo", "=", true).execute();
+        const jaMarcadas = marcadas.map((m) => m.categoria_id);
+        const novas = d.categorias.filter((c) => !jaMarcadas.includes(c));
+        const saem = jaMarcadas.filter((c) => !d.categorias!.includes(c));
         if (saem.length)
           await trx
             .updateTable("clube_categoria")
@@ -349,7 +355,10 @@ export async function salvarRegrasDoClube(db: Banco, ator: Ator | null, dados: u
             .execute();
 
       const depois = await carregarRegras(trx);
-      if (depois.ligado && !depois.todasAsCategorias) {
+      // Só confere quando esta gravação mexe nisso (uma categoria desativada no cadastro não
+      // impede mudar outro campo; a tela avisa).
+      const mexeuNasCategorias = d.ligado !== undefined || d.todasAsCategorias !== undefined || d.categorias !== undefined;
+      if (mexeuNasCategorias && depois.ligado && !depois.todasAsCategorias) {
         const ativas = await trx
           .selectFrom("clube_categoria as cc")
           .innerJoin("categoria as c", "c.id", "cc.categoria_id")
@@ -456,6 +465,10 @@ export async function salvarPresente(db: Banco, ator: Ator | null, dados: unknow
       const trocouBeneficio = beneficio !== antes.beneficio;
       let valor = d.valor === undefined ? (trocouBeneficio ? null : antes.valor) : d.valor;
       let produtoId = d.produtoId === undefined ? (trocouBeneficio ? null : antes.produtoId) : d.produtoId;
+      if (beneficio === "produto" && d.valor != null)
+        throw new ErroDeRegra("dados_invalidos", "Produto grátis não tem valor: escolha só o produto.");
+      if (beneficio !== "produto" && d.produtoId != null)
+        throw new ErroDeRegra("dados_invalidos", "Produto só vale no benefício \"Um produto grátis\".");
       if (beneficio === "produto") {
         valor = null;
         if (produtoId === null) throw new ErroDeRegra("dados_invalidos", "Escolha o produto do presente.");
@@ -551,16 +564,19 @@ export async function agendarCampanha(db: Banco, ator: Ator | null, dados: unkno
       const conferencia = await sql<{ instante: Date; cedo: boolean; longe: boolean; aberta: boolean; naSemana: number }>`
         WITH x AS (SELECT (${d.enviarEm}::timestamp AT TIME ZONE ${unidade.fuso_horario}) AS instante)
         SELECT x.instante,
-               x.instante < now() + make_interval(mins => ${CAMPANHA_ANTECEDENCIA_MINUTOS}) AS cedo,
-               x.instante > now() + make_interval(days => ${CAMPANHA_PRAZO_DIAS}) AS longe,
+               x.instante < clock_timestamp() + make_interval(mins => ${CAMPANHA_ANTECEDENCIA_MINUTOS}) AS cedo,
+               x.instante > clock_timestamp() + make_interval(days => ${CAMPANHA_PRAZO_DIAS}) AS longe,
                unidade_aberta_em(${unidade.id}, x.instante) AS aberta,
-               (SELECT count(*)::int FROM clube_campanha c
+               (SELECT count(*)::int FROM clube_campanha c JOIN unidade cu ON cu.id = c.unidade_id
                  WHERE c.situacao <> 'cancelada'
                    AND c.id IS DISTINCT FROM ${d.id ?? null}::int
-                   AND date_trunc('week', c.enviar_em AT TIME ZONE ${unidade.fuso_horario})
+                   AND date_trunc('week', c.enviar_em AT TIME ZONE cu.fuso_horario)
                      = date_trunc('week', x.instante AT TIME ZONE ${unidade.fuso_horario})) AS "naSemana"
         FROM x`.execute(trx);
       const c = conferencia.rows[0]!;
+      const volta = await sql<{ v: string }>`SELECT to_char(${c.instante}::timestamptz AT TIME ZONE ${unidade.fuso_horario}, 'YYYY-MM-DD"T"HH24:MI') AS v`.execute(trx);
+      if (volta.rows[0]!.v !== d.enviarEm)
+        throw new ErroDeRegra("dados_invalidos", "Esse horário não existe no relógio da loja (troca de horário). Escolha outro.");
       if (c.cedo)
         throw new ErroDeRegra("dados_invalidos", `Agende com pelo menos ${CAMPANHA_ANTECEDENCIA_MINUTOS} minutos de antecedência.`);
       if (c.longe) throw new ErroDeRegra("dados_invalidos", `Agende para no máximo ${CAMPANHA_PRAZO_DIAS} dias à frente.`);

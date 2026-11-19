@@ -146,6 +146,15 @@ describe("regra do desconto e dos pontos (sem banco)", () => {
     expect(() => descontoDoClube(r, [], { dia: 1, hora: "25:00" })).toThrow();
   });
 
+  it("desconto: regras fora do permitido e valores gigantes dão erro (nunca desconto errado)", () => {
+    const itens = [{ categoriaId: 1, totalCentavos: 1000 }];
+    const m = { dia: 2, hora: "12:00" };
+    expect(() => descontoDoClube(regrasBase({ descontoPb: 5001 }), itens, m)).toThrow();
+    expect(() => descontoDoClube(regrasBase({ descontoPb: 10.5 }), itens, m)).toThrow();
+    expect(() => descontoDoClube(regrasBase({ tetoDescontoCentavos: 0 }), itens, m)).toThrow();
+    expect(() => descontoDoClube(regrasBase(), [{ categoriaId: 1, totalCentavos: Number.MAX_SAFE_INTEGER }], m)).toThrow();
+  });
+
   it("pontos: só reais inteiros contam; Clube desligado não dá pontos", () => {
     expect(pontosDoPagamento({ ligado: true, pontosPorReal: 1 }, 2590)).toBe(25);
     expect(pontosDoPagamento({ ligado: true, pontosPorReal: 3 }, 99)).toBe(0);
@@ -237,6 +246,19 @@ describe("regras gerais", () => {
     expect((await erroDe(salvarRegrasDoClube(db, gerente, { categorias: [cat, morta] }))).codigo).toBe("nao_encontrado");
     expect((await erroDe(salvarRegrasDoClube(db, gerente, { categorias: [999_999] }))).codigo).toBe("nao_encontrado");
     expect((await erroDe(salvarRegrasDoClube(db, gerente, { categorias: [cat, cat] }))).message).toContain("duas vezes");
+  });
+
+  it("categoria desativada depois sai do Clube sozinha; mudar outro campo continua possível", async () => {
+    const nome = nomeNovo("Sai");
+    const x = (await salvarCategoria(db, gerente, { nome })).id;
+    await salvarRegrasDoClube(db, gerente, { ligado: true, todasAsCategorias: false, categorias: [x] });
+    await salvarCategoria(db, gerente, { id: x, nome, ativo: false });
+    const r = await regrasDoClube(db);
+    expect(r.categorias).toEqual([]);
+    expect(descontoDoClube(r, [{ categoriaId: x, totalCentavos: 1000 }], { dia: 2, hora: "12:00" }).descontoCentavos).toBe(0);
+    expect((await salvarRegrasDoClube(db, gerente, { pontosPorReal: 2 })).pontosPorReal).toBe(2);
+    // Reenviar a categoria desativada é recusado, mesmo já estando marcada.
+    expect((await erroDe(salvarRegrasDoClube(db, gerente, { categorias: [x] }))).codigo).toBe("nao_encontrado");
   });
 
   it("Clube ligado com só algumas categorias precisa de pelo menos uma", async () => {
@@ -331,6 +353,12 @@ describe("presentes automáticos", () => {
     expect((await erroDe(salvarPresente(db, gerente, { tipo: "boas_vindas", ligado: true }))).codigo).toBe("nao_encontrado");
     const v = await salvarPresente(db, gerente, { tipo: "boas_vindas", beneficio: "pontos", valor: 50 });
     expect(v).toMatchObject({ beneficio: "pontos", valor: 50, produtoId: null });
+  });
+
+  it("campo que não combina com o benefício é recusado (nunca ignorado calado)", async () => {
+    const prod = await novoProduto();
+    expect((await erroDe(salvarPresente(db, gerente, { tipo: "boas_vindas", beneficio: "produto", produtoId: prod.id, valor: 10 }))).message).toContain("não tem valor");
+    expect((await erroDe(salvarPresente(db, gerente, { tipo: "boas_vindas", beneficio: "pontos", valor: 10, produtoId: prod.id }))).message).toContain("produto grátis");
   });
 
   it("limites: % até 100; dias sem pedir só no 'sentimos sua falta' (7 a 365)", async () => {
@@ -437,6 +465,23 @@ describe("campanhas", () => {
     expect(e.codigo).toBe("conflito");
     expect((await erroDe(cancelarCampanha(db, gerente, { id: 999_999, motivo: "Nada" }))).codigo).toBe("nao_encontrado");
     expect((await db.selectFrom("clube_campanha").select("situacao").where("id", "=", c.id).executeTakeFirstOrThrow()).situacao).toBe("cancelada");
+  });
+
+  it("hora que não existe no relógio da loja (troca de horário) é recusada", async () => {
+    const emp = (await db.selectFrom("unidade").select("empresa_id").where("id", "=", unidade).executeTakeFirstOrThrow()).empresa_id;
+    const fora = await db
+      .insertInto("unidade")
+      .values({ empresa_id: emp, nome: `Teste fuso ${sufixo}`, fuso_horario: "America/New_York" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    // Domingo 08/03/2026 já passou; procura o próximo domingo de troca nos EUA (2º domingo de março).
+    const r = await sql<{ d: string }>`
+      SELECT to_char(d, 'YYYY-MM-DD') AS d FROM generate_series(now()::date, now()::date + 400, interval '1 day') AS d
+      WHERE extract(month FROM d) = 3 AND extract(isodow FROM d) = 7 AND extract(day FROM d) BETWEEN 8 AND 14 LIMIT 1`.execute(db);
+    const domingo = r.rows[0]!.d;
+    // A conferência da hora vem antes do prazo e do horário da casa.
+    const e = await erroDe(campanha(`${domingo}T02:30`, { unidadeId: fora.id }));
+    expect(e.message).toContain("não existe no relógio da loja");
   });
 
   it("concorrência determinística: agendar espera quem está agendando e respeita o limite", async () => {

@@ -90,7 +90,8 @@ INSERT INTO clube_presente (tipo, beneficio, valor, dias_sem_pedir) VALUES
 -- Campanhas: só por notificação do aplicativo (RC-21). Aqui a equipe agenda; o envio de verdade
 -- (só para quem aceitou ofertas) entra com o aplicativo do cliente (E26 e depois). Nada se apaga:
 -- desistir = cancelar, com motivo. enviar_em precisa cair no horário da casa (unidade aberta) e
--- respeitar o limite por semana; o servidor confere sob trava.
+-- respeitar o limite por semana; o servidor confere sob trava. O Clube é da empresa: o limite
+-- vale para todas as unidades juntas (o cliente é um só), cada campanha na semana do fuso da sua unidade.
 CREATE TABLE clube_campanha (
   id              integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   unidade_id      integer NOT NULL REFERENCES unidade (id), -- de quem é o horário da casa
@@ -104,7 +105,7 @@ CREATE TABLE clube_campanha (
   atualizada_em   timestamptz NOT NULL DEFAULT now(),
   cancelada_por   integer REFERENCES usuario (id),
   cancelada_em    timestamptz,
-  motivo_cancelamento text CHECK (length(btrim(motivo_cancelamento)) BETWEEN 2 AND 120),
+  motivo_cancelamento text CHECK (length(btrim(motivo_cancelamento)) BETWEEN 2 AND 120 AND motivo_cancelamento !~ '[[:cntrl:]]'),
   enviada_em      timestamptz,
   destinatarios   integer CHECK (destinatarios >= 0),
   CONSTRAINT clube_campanha_cancelada CHECK (

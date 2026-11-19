@@ -35,7 +35,10 @@ fixo no código.
    dos horários; data especial vence o dia da semana; abre ≤ hora < fecha); e **limite por semana**
    (segunda a domingo, padrão 2, editável de 1 a 7), contando agendadas e enviadas. Agendada pode
    mudar ou ser cancelada com motivo; nada se apaga. **Nada é enviado nesta etapa**: o envio (só para
-   quem aceitou ofertas) entra com o aplicativo do cliente.
+   quem aceitou ofertas) entra com o aplicativo do cliente. O Clube é da empresa: o limite vale para
+   todas as unidades juntas (o cliente é um só), cada campanha contada na semana do fuso da sua
+   unidade; a unidade escolhida só decide o horário da casa. Hora que não existe no relógio da loja
+   (troca de horário) é recusada.
 7. **Permissões** (decisão 0011): `clube.ver` e `clube.gerenciar` para dono, administrador e
    gerente geral ("definidos pelo gerente", RC-21). Auditoria com antes e depois em tudo.
 8. **Concorrência:** regras com `FOR UPDATE`; agendar campanha pega a trava das campanhas e lê o
@@ -45,7 +48,10 @@ fixo no código.
 ## Hipóteses (reversíveis; a confirmar com o responsável)
 - Valores iniciais: desconto 10%, todas as categorias, sem teto, 1 ponto por real, 2 campanhas por
   semana, presentes desligados (10%, 15% e 10% depois de 30 dias). Todos editáveis na tela.
-- Quem configura: dono, administrador e gerente geral (supervisor não).
+- Quem configura: dono, administrador e gerente geral (supervisor não), para a empresa toda; com
+  mais de uma unidade, rever se o gerente geral fica restrito à própria (hoje há uma só).
+- Categoria desativada no cadastro sai do Clube sozinha; a tela avisa se o Clube ficar ligado sem
+  nenhuma categoria ativa.
 - Arredondamento do desconto para baixo, sobre a soma dos itens que participam.
 - Semana da campanha de segunda a domingo; campanha conta pelo horário da loja escolhida.
 - Níveis (Bronze, Prata, Ouro) e "indique um amigo" ficam para depois, com dados reais (RC-21).

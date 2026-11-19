@@ -151,6 +151,10 @@ export function descontoDoClube(
   if (agora === null) throw new Error("Hora inválida.");
   for (const i of itens)
     if (!Number.isSafeInteger(i.totalCentavos) || i.totalCentavos < 0) throw new Error("Valor do item inválido.");
+  if (!Number.isInteger(regras.descontoPb) || regras.descontoPb < 0 || regras.descontoPb > PB_MAXIMO_DO_DESCONTO)
+    throw new Error("Percentual do desconto inválido.");
+  const teto0 = regras.tetoDescontoCentavos;
+  if (teto0 !== null && (!Number.isSafeInteger(teto0) || teto0 < 1)) throw new Error("Teto do desconto inválido.");
 
   const nada = (motivo: MotivoSemDesconto, baseCentavos = 0): ResultadoDoDesconto => ({
     descontoCentavos: 0,
@@ -170,6 +174,7 @@ export function descontoDoClube(
   const base = itens
     .filter((i) => regras.todasAsCategorias || (i.categoriaId !== null && participa.has(i.categoriaId)))
     .reduce((s, i) => s + i.totalCentavos, 0);
+  if (!Number.isSafeInteger(base * regras.descontoPb)) throw new Error("Valor do pedido grande demais.");
   if (base <= 0) return nada("sem_itens_do_clube");
   const bruto = Math.floor((base * regras.descontoPb) / 10_000);
   const teto = regras.tetoDescontoCentavos;
