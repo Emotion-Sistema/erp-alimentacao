@@ -46,6 +46,32 @@
 .imp-linha__pular { display: inline-flex; align-items: center; gap: var(--espaco-2); min-height: 44px; font-weight: var(--peso-forte); cursor: pointer; justify-self: start; }
 .imp-linha__pular input { width: 1.25rem; height: 1.25rem; margin: 0; }
 
+/* Tipo trocado: o aviso e o botão que troca o tipo. */
+.imp-tipo-trocado { display: grid; gap: var(--espaco-2); justify-items: start; min-width: 0; }
+.imp-tipo-trocado > * { margin: 0; }
+
+/* Corrigir no painel (ideia nº 13): os campos de uma linha; a coluna com problema fica destacada. */
+.imp-corrigir__abrir { justify-self: start; }
+.imp-corrigir {
+  display: grid; gap: var(--espaco-3); min-width: 0; margin: 0; padding: var(--espaco-3);
+  background: var(--cor-superficie); border: 1px solid var(--cor-borda); border-radius: var(--raio);
+}
+.imp-corrigir > * { margin: 0; min-width: 0; }
+.imp-corrigir__titulo { font-weight: var(--peso-forte); }
+.imp-corrigir__intro { color: var(--cor-texto-suave); font-size: var(--texto-pequeno); overflow-wrap: anywhere; }
+.imp-corrigir__campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: var(--espaco-3); min-width: 0; }
+.imp-corrigir__campo { min-width: 0; padding-left: var(--espaco-2); border-left: 4px solid transparent; }
+.imp-corrigir__campo > * { margin: 0; min-width: 0; }
+.imp-corrigir__campo .erp-campo__entrada { width: 100%; }
+.imp-corrigir__campo--problema { border-left-color: var(--cor-perigo); }
+.imp-corrigir__campo--problema .erp-campo__rotulo { color: var(--cor-perigo); }
+.imp-correcoes { display: grid; gap: var(--espaco-2); min-width: 0; }
+.imp-correcoes > * { margin: 0; }
+.imp-correcoes summary { cursor: pointer; font-weight: var(--peso-forte); min-height: 44px; display: flex; align-items: center; }
+.imp-correcoes__lista { margin: var(--espaco-2) 0 0; padding: 0; list-style: none; display: grid; gap: var(--espaco-2); }
+.imp-correcoes__lista li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); overflow-wrap: anywhere; min-width: 0; }
+.imp-correcoes__lista li > span { min-width: 0; flex: 1 1 14rem; }
+
 @media (max-width: 40rem) {
   .imp-linha { padding: var(--espaco-3); }
   .imp-tela .hor-secao__cabeca > .erp-botao { width: 100%; }

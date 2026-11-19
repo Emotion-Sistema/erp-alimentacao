@@ -10,13 +10,18 @@
  *     boas e deixar de fora as com erro") e `versoes` (sempre; "tipo:nome" -> versão atual vista na conferência): se
  *     outra pessoa mudou uma ficha nesse meio tempo, o servidor recusa em vez de gravar por cima.
  * O arquivo vai em base64 dentro do JSON. O modelo .csv é montado aqui mesmo (dados inventados).
+ * Linha com erro: "Corrigir aqui" (ideia nº 13) abre os campos da linha; a tela guarda a lista de
+ * correções e reenvia o arquivo + todas elas ao conferir e ao gravar (o servidor aplica e confere de novo).
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Aviso, Botao, Icone, Selo, type VarianteDoSelo } from "@erp/interface";
 import type { FichaDaPlanilha, ResultadoDaImportacao } from "@erp/dominio";
+import { letraDaColuna } from "@erp/dominio/importar";
 import { chamar } from "../../chamar";
 import { BotaoExemplos, Campo, Marcador } from "../../Campo";
 import { JanelaModal, usarPedirFechar } from "../JanelaModal";
+import { BotaoCorrigir, CorrecoesFeitas, CorrigirLinha, baixarCsv, juntarCorrecoes, nomeDaCorrigida, paraEnviar, type ColunaParaCorrigir, type CorrecaoFeita } from "../importar/CorrigirNoPainel";
+import { TC } from "../importar/textos";
 import { TF } from "./textos";
 
 const T = TF.importar;
@@ -90,10 +95,14 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
   const [pularComErro, setPularComErro] = useState(false);
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState<"" | "lendo" | "conferindo" | "gravando">("");
+  const [correcoes, setCorrecoes] = useState<CorrecaoFeita[]>([]);
+  const [corrigindo, setCorrigindo] = useState<number | null>(null);
 
   async function escolher(lista: FileList | null) {
     setErro("");
     setConferido(null);
+    setCorrecoes([]);
+    setCorrigindo(null);
     const f = lista?.[0];
     if (!f) return setArquivo(null);
     setOcupado("lendo");
@@ -105,8 +114,12 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
     setOcupado("");
   }
 
-  async function enviar(aplicar: boolean) {
-    if (!arquivo) return setErro(T.faltaArquivo);
+  /** Conferir (aplicar falso) ou gravar, sempre com TODAS as correções feitas no painel. Devolve se deu certo. */
+  async function enviar(aplicar: boolean, lista: CorrecaoFeita[] = correcoes): Promise<boolean> {
+    if (!arquivo) {
+      setErro(T.faltaArquivo);
+      return false;
+    }
     setErro("");
     setOcupado(aplicar ? "gravando" : "conferindo");
     const versoes: Record<string, number | null> = {};
@@ -118,15 +131,42 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
       pularComErro,
       // Sempre: o servidor recusa a ficha que mudou depois da conferência (chave "tipo:nome").
       versoes,
+      correcoes: paraEnviar(lista),
     });
     setOcupado("");
-    if (!r.ok || !r.dados) return setErro(r.mensagem);
-    if (aplicar && r.dados.aplicado) return aoGravado(r.dados);
+    if (!r.ok || !r.dados) {
+      setErro(r.mensagem);
+      return false;
+    }
+    if (aplicar && r.dados.aplicado) {
+      aoGravado(r.dados);
+      return true;
+    }
     // Tudo já igual à planilha: o servidor não grava nada (aplicado falso) e diz "sem mudança" em cada uma.
     const nadaMudou = r.dados.erros.length === 0 && r.dados.fichas.some((f) => f.acao === "sem_mudanca") && r.dados.fichas.every((f) => f.acao === "sem_mudanca" || (pularComErro && f.acao === "erro"));
-    if (aplicar && nadaMudou) return aoGravado(r.dados);
+    if (aplicar && nadaMudou) {
+      aoGravado(r.dados);
+      return true;
+    }
     setConferido(r.dados);
     if (aplicar) setErro(T.naoGravou);
+    return !aplicar;
+  }
+
+  /** Muda a lista de correções e confere de novo; se o servidor recusar, a lista volta a ser a de antes. */
+  async function mudarCorrecoes(nova: CorrecaoFeita[]) {
+    const antes = correcoes;
+    setCorrecoes(nova);
+    if (await enviar(false, nova)) setCorrigindo(null);
+    else setCorrecoes(antes);
+  }
+
+  async function baixarCorrigida() {
+    if (!arquivo) return;
+    setErro("");
+    const r = await chamar<ResultadoDaImportacao>("/api/fichas/importar", "POST", { arquivo, aplicar: false, criarIngredientes, correcoes: paraEnviar(correcoes), devolverTabela: true });
+    if (!r.ok || !r.dados?.tabela) return setErro(r.mensagem);
+    baixarCsv(nomeDaCorrigida(arquivo.nome), r.dados.tabela);
   }
 
   const c = conferido;
@@ -134,6 +174,28 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
   const boas = c?.fichas.filter((f) => f.acao === "criar" || f.acao === "nova_versao").length ?? 0;
   const faltaIngrediente = (c?.ingredientesNovos.length ?? 0) > 0;
   const podeGravar = !!c && c.erros.length === 0 && boas > 0 && (comErro === 0 || pularComErro);
+
+  /** As colunas da planilha como campos para corrigir (nome do cabeçalho, ajuda da coluna e opções válidas). */
+  const colunasParaCorrigir: ColunaParaCorrigir[] = useMemo(
+    () =>
+      (c?.colunas ?? []).map((nome, indice) => {
+        const ajuda = T.colunas[nome.trim().toLowerCase()];
+        return {
+          indice,
+          rotulo: nome || TC.colunaSemNome(letraDaColuna(indice)),
+          explicacao: ajuda ? `${nome}: ${ajuda}` : TC.semUso,
+          exemplo: T.exemplosDasColunas[nome.trim().toLowerCase()] ?? TC.semUsoExemplo,
+          opcoes: c?.opcoes[String(indice)],
+        };
+      }),
+    [c],
+  );
+  /** Colunas com problema em cada linha (todas as fichas). */
+  const problemasDaLinha = useMemo(() => {
+    const m = new Map<number, Set<number>>();
+    for (const f of c?.fichas ?? []) for (const e of f.erros) if (e.coluna !== undefined) m.set(e.linha, (m.get(e.linha) ?? new Set()).add(e.coluna));
+    return m;
+  }, [c]);
 
   return (
     <JanelaModal titulo={T.titulo} sujo={!!arquivo} aoMexer={() => undefined} aoFechar={aoFechar} data-testid="importar-fichas">
@@ -215,6 +277,28 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
                       ))}
                     </ul>
                   )}
+                  {/* Uma vez por linha citada nos erros desta ficha (a mesma linha pode ter mais de um erro). */}
+                  {[...new Set(f.erros.map((e) => e.linha))].map((numero) => {
+                    const daLinha = c.linhas.find((l) => l.numero === numero);
+                    if (!daLinha) return null;
+                    return (
+                      <div key={numero} className="fichas-importar__corrigir">
+                        <BotaoCorrigir numero={numero} aberto={corrigindo === numero} disabled={!!ocupado} onClick={() => setCorrigindo(corrigindo === numero ? null : numero)} />
+                        {corrigindo === numero && (
+                          <CorrigirLinha
+                            key={`${numero}:${daLinha.celulas.join("\u0001")}`}
+                            numero={numero}
+                            colunas={colunasParaCorrigir}
+                            celulas={daLinha.celulas}
+                            comProblema={problemasDaLinha.get(numero) ?? new Set()}
+                            ocupado={!!ocupado}
+                            aoAplicar={(novas) => void mudarCorrecoes(juntarCorrecoes(correcoes, novas))}
+                            aoCancelar={() => setCorrigindo(null)}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </li>
               ))}
             </ul>
@@ -230,6 +314,7 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
                 </ul>
               </div>
             )}
+            <CorrecoesFeitas lista={correcoes} ocupado={!!ocupado} aoDesfazer={(x) => void mudarCorrecoes(correcoes.filter((y) => y !== x))} aoBaixar={() => void baixarCorrigida()} />
             {!podeGravar && <p className="hor-secao__intro" data-testid="por-que-nao-grava">{boas === 0 ? T.nadaParaGravar : T.corrijaOuPule}</p>}
           </section>
         )}

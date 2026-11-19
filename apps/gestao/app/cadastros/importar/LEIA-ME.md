@@ -10,12 +10,17 @@ coluna aceitos, tipos da conferência, `resumir`, `relatorioDeErros`). Component
 |---|---|
 | `page.tsx` | Página (servidor): exige `cadastros.gerenciar`; `?tipo=ingredientes` ou `produtos` escolhe o tipo inicial. |
 | `ImportarPlanilha.tsx` | Os 5 passos: tipo e modelo, arquivo, mapa de colunas, resultado (resumo, filtro, linhas, Pular, relatório) e Gravar. |
-| `textos.ts` | Textos desta tela. |
+| `CorrigirNoPainel.tsx` | "Corrigir aqui" (ideia nº 13): campos de uma linha (um por coluna, a com problema destacada, lista de opções nas colunas de escolha), "n correções feitas" com Desfazer e "Baixar a planilha corrigida". Usado também por `../fichas/ImportarFichas.tsx`. |
+| `textos.ts` | Textos desta tela (`TI`) e de Corrigir no painel (`TC`). |
 | `importar.css` | Estilo próprio (prefixo `imp-`); a base vem de `../horarios/horarios.css`. Só variáveis do tema. |
 
 Rotas (todas `cadastros.gerenciar`, na matriz da API):
-- `POST /api/cadastros/importar/conferir` com `{ tipo, arquivo: { nome, conteudo (base64) }, mapa?, pular? }`:
-  devolve a `Conferencia` (chave, colunas, mapa, linhas com situação, resumo). Não grava nada.
+- `POST /api/cadastros/importar/conferir` com `{ tipo, arquivo: { nome, conteudo (base64) }, mapa?, pular?, correcoes?, devolverTabela? }`:
+  devolve a `Conferencia` (chave, colunas, mapa, linhas com situação, resumo; nas linhas com erro, `celulas` e o
+  `indice` da coluna de cada problema; `opcoes` dos campos de escolha; `tipoSugerido`/`avisoDoTipo` quando o tipo
+  parece trocado; `tabela` só com `devolverTabela`). Não grava nada.
+  `correcoes: { linha, coluna, valor }[]` (linha como na planilha, coluna 0 = A, até 2.000, valor até 500 letras):
+  o servidor aplica sobre a tabela lida ANTES de conferir, e de novo ao gravar; entram na assinatura da chave.
 - `POST /api/cadastros/importar/gravar` com o mesmo corpo e a `chave`: 201 na primeira vez, 200 com
   `repetida: true` se a mesma chave voltar. Recusa (400) se sobrar linha com erro sem Pular.
 - `GET /api/cadastros/importar/modelo?tipo=produtos&formato=xlsx` (ou `csv`): o modelo para baixar.

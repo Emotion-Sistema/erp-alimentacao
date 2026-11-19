@@ -384,6 +384,59 @@ test("importar fichas: modelo, conferir (criar, erro, ingrediente novo), gravar 
   await expect(page.getByTestId(`ficha-${CREME}`).getByTestId("versao-da-ficha")).toHaveText("Versão 1");
 });
 
+test("importar fichas: corrigir a unidade de um item no painel, desfazer, baixar a corrigida e gravar", async ({ page }) => {
+  const CALDO = `Caldo corrigido ${SUFIXO}`;
+  const cabecalho = "ficha;tipo;rende;unidade do rendimento;porcao;unidade da porcao;tempo (min);validade (dias);ingrediente;quantidade;unidade;opcional;medida caseira;observacao;pendencia;etapa";
+  // A carne é contada em g; a planilha diz ml (erro na linha 2, coluna "unidade").
+  const csv = [cabecalho, `${CALDO};preparo;1;l;;;30;2;${CARNE};250;ml;;;;;Cozinhar`, `;;;;;;;;${PAO};2;un;;;;;Servir`].join("\n");
+  await entrar(page, "gerente.geral");
+  await page.goto("/cadastros/fichas");
+  await page.getByRole("button", { name: "Importar fichas" }).click();
+  const janela = page.getByRole("dialog", { name: "Importar fichas de uma planilha" });
+  await janela.getByLabel("Arquivo da planilha").setInputFiles({ name: "caldo.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "utf8") });
+  await janela.getByRole("button", { name: "Conferir", exact: true }).click();
+  const ficha = janela.getByTestId(`importar-${CALDO}`);
+  await expect(ficha.getByTestId("acao")).toHaveText("Erro");
+  await expect(ficha).toContainText(`Linha 2: "${CARNE}" é contado em g; a planilha diz ml.`);
+  await expect(janela.getByRole("button", { name: "Gravar 0 fichas" })).toBeDisabled();
+
+  await ficha.getByRole("button", { name: "Corrigir aqui a linha 2" }).click();
+  const form = janela.getByTestId("corrigindo-2");
+  // Um campo por coluna, com o nome do cabeçalho; a unidade (com problema) é uma lista com as opções válidas.
+  const unidade = form.getByLabel("unidade (com problema)");
+  await expect(unidade).toHaveValue("ml");
+  await expect(unidade.locator("option")).toHaveText(["(vazio)", "g", "kg", "ml", "l", "un", "dz"]);
+  await expect(form.getByLabel("ingrediente", { exact: true })).toHaveValue(CARNE);
+  await expect(form.locator(".imp-corrigir__campo--problema")).toHaveCount(1);
+  await janelaSemEstouro(page);
+  await unidade.selectOption("g");
+  await form.getByRole("button", { name: "Aplicar e conferir de novo" }).click();
+  await expect(ficha.getByTestId("acao")).toHaveText("Criar");
+  await expect(janela.getByTestId("quantas-correcoes")).toHaveText("1 correção feita no painel");
+
+  // Desfazer: volta o erro; corrigir de novo.
+  await janela.getByTestId("quantas-correcoes").click();
+  await janela.getByRole("button", { name: "Desfazer a correção da linha 2, unidade" }).click();
+  await expect(ficha.getByTestId("acao")).toHaveText("Erro");
+  await expect(janela.getByTestId("correcoes-feitas")).toHaveCount(0);
+  await ficha.getByRole("button", { name: "Corrigir aqui a linha 2" }).click();
+  await janela.getByTestId("corrigindo-2").getByLabel("unidade (com problema)").selectOption("g");
+  await janela.getByTestId("corrigindo-2").getByRole("button", { name: "Aplicar e conferir de novo" }).click();
+  await expect(ficha.getByTestId("acao")).toHaveText("Criar");
+
+  // A planilha corrigida, para guardar.
+  const [baixado] = await Promise.all([page.waitForEvent("download"), janela.getByRole("button", { name: "Baixar a planilha corrigida (.csv)" }).click()]);
+  expect(baixado.suggestedFilename()).toBe("caldo-corrigida.csv");
+  expect(readFileSync((await baixado.path())!, "utf8")).toContain(`${CALDO};preparo;1;l;;;30;2;${CARNE};250;g;;;;;Cozinhar`);
+
+  // Gravar manda as mesmas correções: a carne entra em g.
+  await janela.getByRole("button", { name: "Gravar 1 ficha" }).click();
+  await expect(janela).toHaveCount(0);
+  await expect(page.getByTestId("aviso-rapido")).toContainText("1 ficha gravada.");
+  await page.getByTestId(`ficha-${CALDO}`).getByRole("link", { name: `Abrir a ficha de ${CALDO}` }).click();
+  await expect(page.getByTestId(`item-${CARNE}`)).toContainText("250 g");
+});
+
 test("celular (390 px): lista, ficha, editor e cozinha sem rolagem de lado", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await entrar(page, "gerente.geral");

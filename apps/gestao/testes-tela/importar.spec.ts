@@ -158,3 +158,93 @@ test("celular (390 px): a tela inteira, com o resultado, cabe sem rolar para o l
   await expect(page.locator(".barra__nav")).toBeVisible();
   await semEstouroDeLargura(page);
 });
+
+// Ideia nº 13: corrigir o erro ali mesmo no painel, sem abrir a planilha. Dados inventados.
+const csvDaCorrecao = [
+  "Produto;Categoria;Tipo de produção;Preço;Tempo de preparo (min);Descrição",
+  "Coxinha da correção;Salgados;Salgados;7,00;5;",
+  "Esfiha da correção;Categoria Sumida;;sete;;", // 3: categoria e preço com erro
+  "Quibe da correção;Salgados;Salgados;6,50;;", // 4: falta o tempo de preparo
+].join("\n");
+
+test("corrigir no painel: abre os campos da linha, aplica, desfaz, baixa a planilha corrigida e grava com as correções", async ({ page }) => {
+  await entrar(page, "gerente.geral");
+  await page.goto("/cadastros/importar?tipo=produtos");
+  await page.getByLabel("Arquivo da planilha").setInputFiles({ name: "correcao.csv", mimeType: "text/csv", buffer: Buffer.from(csvDaCorrecao, "utf8") });
+  await expect(resumo(page)).toHaveText("1 pronta, 2 com erro.");
+  // Linha pronta não tem "Corrigir aqui"; a com erro tem.
+  await expect(linha(page, 2).getByTestId("corrigir-2")).toHaveCount(0);
+  await linha(page, 3).getByRole("button", { name: "Corrigir aqui a linha 3" }).click();
+  const form = page.getByTestId("corrigindo-3");
+  await expect(form).toBeVisible();
+  // Um campo por coluna, com o nome do cabeçalho; as colunas com problema vêm destacadas.
+  const categoria = form.getByLabel("Categoria (com problema)");
+  await expect(categoria).toHaveValue("Categoria Sumida");
+  await expect(categoria.locator("option")).toContainText(["(vazio)", "Como está: Categoria Sumida", "Bebidas", "Salgados"]);
+  await expect(form.locator(".imp-corrigir__campo--problema")).toHaveCount(2);
+  await expect(form.getByLabel("Produto", { exact: true })).toHaveValue("Esfiha da correção");
+  await expect(form.getByLabel("Descrição", { exact: true })).toHaveValue("");
+  // Celular: os campos cabem sem rolar para o lado.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await semEstouroDeLargura(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await categoria.selectOption("Salgados");
+  await form.getByLabel("Preço (com problema)").fill("6,00");
+  await form.getByRole("button", { name: "Aplicar e conferir de novo" }).click();
+  await expect(resumo(page)).toHaveText("2 prontas, 1 com erro.");
+  await expect(linha(page, 3)).toContainText("Salgados, R$ 6,00");
+  await expect(page.getByTestId("quantas-correcoes")).toHaveText("2 correções feitas no painel");
+  // Nada foi gravado só por corrigir.
+  expect(await quantosProdutos(page, "Esfiha da correção")).toBe(0);
+
+  await linha(page, 4).getByRole("button", { name: "Corrigir aqui a linha 4" }).click();
+  await page.getByTestId("corrigindo-4").getByLabel("Tempo de preparo (min) (com problema)").fill("8");
+  await page.getByTestId("corrigindo-4").getByRole("button", { name: "Aplicar e conferir de novo" }).click();
+  await expect(resumo(page)).toHaveText("3 prontas.");
+  await expect(page.getByTestId("quantas-correcoes")).toHaveText("3 correções feitas no painel");
+
+  // Desfazer uma correção: a linha volta a ter erro; refazer.
+  await page.getByTestId("quantas-correcoes").click();
+  await expect(page.getByTestId("correcao-4-4")).toContainText('Linha 4, Tempo de preparo (min): "(vazio)" virou "8"');
+  await page.getByRole("button", { name: "Desfazer a correção da linha 4, Tempo de preparo (min)" }).click();
+  await expect(resumo(page)).toHaveText("2 prontas, 1 com erro.");
+  await expect(page.getByTestId("quantas-correcoes")).toHaveText("2 correções feitas no painel");
+  await linha(page, 4).getByRole("button", { name: "Corrigir aqui a linha 4" }).click();
+  await page.getByTestId("corrigindo-4").getByLabel("Tempo de preparo (min) (com problema)").fill("8");
+  await page.getByTestId("corrigindo-4").getByRole("button", { name: "Aplicar e conferir de novo" }).click();
+  await expect(resumo(page)).toHaveText("3 prontas.");
+
+  // A planilha corrigida, para guardar: .csv com as correções aplicadas.
+  const [baixado] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Baixar a planilha corrigida (.csv)" }).click()]);
+  expect(baixado.suggestedFilename()).toBe("correcao-corrigida.csv");
+  const texto = readFileSync(await baixado.path(), "utf8");
+  expect(texto).toContain("Esfiha da correção;Salgados;;6,00");
+  expect(texto).toContain("Quibe da correção;Salgados;Salgados;6,50;8");
+
+  // Gravar manda as mesmas correções; o servidor confere tudo de novo.
+  await page.getByRole("button", { name: "Gravar 3 produtos" }).click();
+  await expect(page.getByTestId("importacao-gravada")).toHaveText("Pronto: 3 produtos cadastrados.");
+  for (const nome of ["Coxinha da correção", "Esfiha da correção", "Quibe da correção"]) expect(await quantosProdutos(page, nome)).toBe(1);
+  // A tela não decide sozinha: sem as correções, o servidor recusa a mesma planilha (a linha 3 continua errada).
+  const r = await page.request.post("/api/cadastros/importar/conferir", {
+    data: { tipo: "produtos", arquivo: { nome: "correcao.csv", conteudo: Buffer.from(csvDaCorrecao.replace(/Coxinha|Esfiha|Quibe/g, (n) => `${n} 2`), "utf8").toString("base64") } },
+  });
+  expect(((await r.json()) as { resumo: { erros: number } }).resumo.erros).toBe(2);
+});
+
+test("tipo trocado: planilha de produtos com Ingredientes escolhido mostra o aviso e o botão troca e confere de novo", async ({ page }) => {
+  await entrar(page, "gerente.geral");
+  await page.goto("/cadastros/importar?tipo=ingredientes");
+  await expect(page.getByRole("radio", { name: "Ingredientes" })).toBeChecked();
+  const csv = ["Nome;Categoria;Tipo de produção;Preço;Tempo de preparo (min);Descrição", "Pão de queijo do aviso;Salgados;;4,50;;"].join("\n");
+  await page.getByLabel("Arquivo da planilha").setInputFiles({ name: "produtos.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "utf8") });
+  await expect(resumo(page)).toHaveText("0 prontas, 1 com erro.");
+  await expect(linha(page, 2)).toContainText("Falta a unidade do estoque");
+  const aviso = page.getByTestId("aviso-tipo-trocado");
+  await expect(aviso).toContainText("Esta planilha parece de produtos. Trocar para Produtos?");
+  await aviso.getByRole("button", { name: "Trocar para Produtos" }).click();
+  await expect(page.getByRole("radio", { name: "Produtos" })).toBeChecked();
+  await expect(resumo(page)).toHaveText("1 pronta.");
+  await expect(page.getByTestId("aviso-tipo-trocado")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Gravar 1 produto" })).toBeEnabled();
+});

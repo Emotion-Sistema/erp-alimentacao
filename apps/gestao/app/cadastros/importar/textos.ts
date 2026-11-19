@@ -46,8 +46,8 @@ export const TI = {
     filtroExemplo: "Com erro, para ver só o que precisa corrigir.",
     filtros: { todas: "Todas", ok: "Prontas", erro: "Com erro", ja_existe: "Já cadastradas", pulada: "Puladas" },
     linhas: "Linhas da planilha",
-    linhasAjuda: "Cada linha mostra o que foi entendido. Nas linhas com erro, corrija a planilha e escolha o arquivo de novo, ou marque Pular para importar sem ela.",
-    linhasExemplo: "Linha 5 com erro na Coluna B (Categoria): corrija o nome da categoria na planilha, ou marque Pular a linha 5.",
+    linhasAjuda: "Cada linha mostra o que foi entendido. Nas linhas com erro, aperte Corrigir aqui para arrumar ali mesmo, ou marque Pular para importar sem ela.",
+    linhasExemplo: "Linha 5 com erro na Coluna B (Categoria): aperte Corrigir aqui, escolha a categoria certa e confira de novo; ou marque Pular a linha 5.",
     linha: (n: number) => `Linha ${n}`,
     pular: (n: number) => `Pular a linha ${n}`,
     nenhuma: "Nenhuma linha neste filtro.",
@@ -60,7 +60,7 @@ export const TI = {
     explicacao: "Grava tudo de uma vez: ou entra tudo, ou nada. Antes de gravar, o sistema confere tudo de novo.",
     gravar: (n: number, tipo: { um: string; varios: string }) => `Gravar ${plural(n, tipo.um, tipo.varios)}`,
     gravando: "Gravando...",
-    corrija: (n: number) => `Para gravar, corrija ${plural(n, "linha com erro", "linhas com erro")} na planilha (e escolha o arquivo de novo) ou marque Pular nelas.`,
+    corrija: (n: number) => `Para gravar, corrija ${plural(n, "linha com erro", "linhas com erro")} (em Corrigir aqui, ou na planilha e escolha o arquivo de novo) ou marque Pular nelas.`,
     nadaPronto: "Nenhuma linha pronta para gravar.",
     pronto: (r: { criados: number; jaExistiam: number; puladas: number }, tipo: { um: string; varios: string }) =>
       [
@@ -74,4 +74,29 @@ export const TI = {
     ver: { ingredientes: "Ver os ingredientes", produtos: "Ver os produtos" },
     outra: "Importar outro arquivo",
   },
+  tipoTrocado: {
+    trocar: (rotulo: string) => `Trocar para ${rotulo}`,
+  },
+};
+
+/** Textos de "Corrigir no painel" (ideia nº 13), usados nas duas importações (cadastros e fichas). */
+export const TC = {
+  corrigirAqui: "Corrigir aqui",
+  naLinha: (n: number) => `a linha ${n}`,
+  titulo: (n: number) => `Corrigir a linha ${n}`,
+  intro: "Troque o que estiver errado e aperte Aplicar e conferir de novo. O arquivo no seu aparelho não muda; o sistema confere tudo de novo com a correção.",
+  comProblema: (rotulo: string) => `${rotulo} (com problema)`,
+  vazio: "(vazio)",
+  comoEsta: (v: string) => `Como está: ${v.slice(0, 40)}`,
+  aplicar: "Aplicar e conferir de novo",
+  cancelar: "Cancelar",
+  nadaMudou: "Mude algum campo para poder aplicar.",
+  feitas: (n: number) => `${plural(n, "correção feita", "correções feitas")} no painel`,
+  descricao: (linha: number, rotulo: string, antes: string, depois: string) => `Linha ${linha}, ${rotulo}: "${antes || "(vazio)"}" virou "${depois || "(vazio)"}"`,
+  desfazer: "Desfazer",
+  desfazerQual: (linha: number, rotulo: string) => `a correção da linha ${linha}, ${rotulo}`,
+  baixar: "Baixar a planilha corrigida (.csv)",
+  semUso: "Esta coluna não é usada nesta importação; pode deixar como está.",
+  semUsoExemplo: "Deixe como está.",
+  colunaSemNome: (letra: string) => `Coluna ${letra}`,
 };
