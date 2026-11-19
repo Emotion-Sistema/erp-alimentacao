@@ -20,6 +20,7 @@ import {
   type GrupoDeAdicionais,
   type Produto,
 } from "../src/index";
+import { sql } from "@erp/banco";
 import { atorDoCargo, bancoDeTeste, prepararDados } from "./apoio";
 
 let db: Banco;
@@ -326,6 +327,73 @@ describe("preço do item com adicionais", () => {
       // Ou ligou antes de desativar, ou foi recusado por estar desativado. Nunca erro de banco.
       if (liga.status === "rejected") expect(liga.reason).toBeInstanceOf(ErroDeRegra);
     }
+  });
+});
+
+describe("ajustes da revisão", () => {
+  it("concorrência determinística: ligar espera a trava do grupo e é recusado se ele foi desativado", async () => {
+    const g = await salvarGrupoDeAdicionais(db, gerente, { nome: nomeNovo("Trava"), itens: [{ nome: "A", precoCentavos: 0 }] });
+    const p = await novoProduto();
+    const outra = bancoDeTeste();
+    try {
+      let soltar!: () => void;
+      const solto = new Promise<void>((r) => (soltar = r));
+      let travou!: () => void;
+      const travado = new Promise<void>((r) => (travou = r));
+      const segura = outra.transaction().execute(async (trx) => {
+        await sql`SELECT id FROM grupo_adicional WHERE id = ${g.id} FOR UPDATE`.execute(trx);
+        travou();
+        await solto;
+        await trx.updateTable("grupo_adicional").set({ ativo: false }).where("id", "=", g.id).execute();
+      });
+      await travado;
+      let terminou = false;
+      const liga = salvarProduto(db, gerente, { id: p.id, gruposAdicionais: [g.id] }).finally(() => (terminou = true));
+      liga.catch(() => undefined);
+      await new Promise((r) => setTimeout(r, 300));
+      expect(terminou).toBe(false); // esperando a trava
+      soltar();
+      await segura;
+      expect((await erroDe(liga)).message).toContain("desativado");
+      const ativas = await db.selectFrom("produto_grupo_adicional").select("grupo_id").where("produto_id", "=", p.id).where("ativo", "=", true).execute();
+      expect(ativas).toEqual([]);
+    } finally {
+      await outra.destroy();
+    }
+  });
+
+  it("escolha nula ou que não é objeto vira formato inválido (nunca erro interno)", async () => {
+    const p = await novoProduto();
+    for (const e of [null, "x", 1, []]) expect((await erroDe(calcularPrecoDoItem(db, p.id, "loja", e as never))).message).toContain("formato inválido");
+  });
+
+  it("campo ausente num item ou tamanho existente fica como está; null limpa", async () => {
+    const g = await salvarGrupoDeAdicionais(db, gerente, { nome: nomeNovo("Aus"), maximo: 3, itens: [{ nome: "Bacon", precoCentavos: 500, precoDeliveryCentavos: 600, maximoPorItem: 3 }] });
+    const id = g.itens[0]!.id;
+    const h = await salvarGrupoDeAdicionais(db, gerente, { id: g.id, itens: [{ id, nome: "Bacon", precoCentavos: 550 }] });
+    expect(h.itens[0]).toMatchObject({ precoCentavos: 550, precoDeliveryCentavos: 600, maximoPorItem: 3 });
+    const k = await salvarGrupoDeAdicionais(db, gerente, { id: g.id, itens: [{ id, nome: "Bacon", precoCentavos: 550, precoDeliveryCentavos: null }] });
+    expect(k.itens[0]!.precoDeliveryCentavos).toBeNull();
+    const p = await novoProduto({ tamanhos: [{ nome: "G", acrescimoCentavos: 500, acrescimoDeliveryCentavos: 700 }] });
+    const t = p.tamanhos[0]!.id;
+    expect((await salvarProduto(db, gerente, { id: p.id, tamanhos: [{ id: t, nome: "Grande", acrescimoCentavos: 400 }] })).tamanhos[0]).toMatchObject({ acrescimoCentavos: 400, acrescimoDeliveryCentavos: 700 });
+    expect((await salvarProduto(db, gerente, { id: p.id, tamanhos: [{ id: t, nome: "Grande", acrescimoCentavos: 400, acrescimoDeliveryCentavos: null }] })).tamanhos[0]!.acrescimoDeliveryCentavos).toBeNull();
+  });
+
+  it("nome comparado igual ao banco, também com letra fora da lista de acentos", async () => {
+    for (const nome of ["Mý", "300ml", "Pão ÇÑ", "1 litro", "Café-com-leite"]) {
+      const r = await sql<{ n: string }>`SELECT nome_de_unidade(${nome}) AS n`.execute(db);
+      expect(nomeComparavel(nome)).toBe(r.rows[0]!.n);
+    }
+  });
+
+  it("limites: mínimo 2 com itens que somam exatamente 2 vezes passa; tamanho tirado não vende", async () => {
+    const g = await salvarGrupoDeAdicionais(db, gerente, { nome: nomeNovo("Dois"), minimo: 2, maximo: 2, itens: [{ nome: "A", precoCentavos: 0 }, { nome: "B", precoCentavos: 0 }] });
+    expect(g.minimo).toBe(2);
+    const p = await novoProduto({ tamanhos: [{ nome: "P", acrescimoCentavos: 0 }, { nome: "G", acrescimoCentavos: 100 }] });
+    const tirado = p.tamanhos[1]!.id;
+    await salvarProduto(db, gerente, { id: p.id, tamanhos: [{ id: p.tamanhos[0]!.id, nome: "P", acrescimoCentavos: 0 }] });
+    expect((await erroDe(calcularPrecoDoItem(db, p.id, "loja", { tamanhoId: tirado }))).message).toContain("tamanho não encontrado");
   });
 });
 

@@ -54,7 +54,7 @@ const esquemaTamanho = z.object(
     id: id("Tamanho não encontrado.").optional(),
     nome: textoCurto("tamanho", 30),
     acrescimoCentavos: centavos("Acréscimo do tamanho", 0),
-    /** Nulo ou ausente: igual ao da loja. */
+    /** Nulo: igual ao da loja. Ausente: novo = igual à loja; existente = fica como está. */
     acrescimoDeliveryCentavos: centavos("Acréscimo do tamanho no delivery", 0).nullable().optional(),
   },
   { error: "Tamanho em formato inválido." },
@@ -474,7 +474,7 @@ async function gravarTamanhos(
     throw new ErroDeRegra("dados_invalidos", "O mesmo tamanho veio duas vezes.");
   const existentes = await trx
     .selectFrom("produto_tamanho")
-    .select(["id", "ativo"])
+    .select(["id", "ativo", "acrescimo_delivery_centavos as acrescimoDelivery"])
     .where("produto_id", "=", produtoId)
     .forNoKeyUpdate()
     .execute();
@@ -501,7 +501,13 @@ async function gravarTamanhos(
     const valores = {
       nome: t.nome,
       acrescimo_centavos: t.acrescimoCentavos,
-      acrescimo_delivery_centavos: t.acrescimoDeliveryCentavos ?? null,
+      // Ausente num tamanho que já existe: fica como está; só null limpa (igual à loja).
+      acrescimo_delivery_centavos:
+        t.acrescimoDeliveryCentavos !== undefined
+          ? t.acrescimoDeliveryCentavos
+          : t.id
+            ? (existentes.find((e) => e.id === t.id)?.acrescimoDelivery ?? null)
+            : null,
       ordem: (i + 1) * 10,
       ativo: true,
     };

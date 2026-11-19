@@ -30,10 +30,15 @@ export type Produto = {
 
 /** O mesmo jeito de comparar nomes do banco (função nome_de_unidade, migração 0006). */
 export function nomeComparavel(texto: string): string {
-  return texto
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
+  // A mesma lista de acentos do translate() da função do banco; outras letras viram espaço, como lá.
+  const de = "áàâãäéèêëíìîïóòôõöúùûüçñ";
+  const para = "aaaaaeeeeiiiiooooouuuucn";
+  return [...texto.toLowerCase()]
+    .map((c) => {
+      const i = de.indexOf(c);
+      return i < 0 ? c : para[i];
+    })
+    .join("")
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/([0-9])([a-z])/g, "$1 $2")
     .trim()
@@ -125,6 +130,7 @@ const inteiroPositivo = (v: unknown): v is number => typeof v === "number" && Nu
  */
 export function precoDoItem(produto: Produto, grupos: readonly GrupoDeAdicionais[], canal: Canal, escolha: EscolhaDoItem): PrecoDoItem {
   const erro = (motivo: string): PrecoDoItem => ({ ok: false, motivo });
+  if (!escolha || typeof escolha !== "object" || Array.isArray(escolha)) return erro("Escolha em formato inválido.");
   if (!CANAIS.includes(canal)) return erro("Canal desconhecido.");
   if (!produto.ativo) return erro(`${produto.nome}: produto fora de venda.`);
 

@@ -57,7 +57,7 @@ const esquemaItem = z.object(
     id: id("Adicional não encontrado.").optional(),
     nome: nome("adicional", 1, 40),
     precoCentavos: centavos("Preço do adicional"),
-    /** Nulo ou ausente: igual ao da loja. */
+    /** Nulo: igual ao da loja. Ausente: novo = igual à loja; existente = fica como está. */
     precoDeliveryCentavos: centavos("Preço do adicional no delivery").nullable().optional(),
     maximoPorItem: inteiro("Vezes por item", 1, MAXIMO_POR_ITEM).optional(),
   },
@@ -219,7 +219,9 @@ export async function salvarGrupoDeAdicionais(db: Banco, ator: Ator | null, dado
 }
 
 async function gravarItens(trx: Banco, grupoId: number, lista: z.output<typeof esquemaItem>[]): Promise<void> {
-  const existentes = await trx.selectFrom("adicional").select(["id", "ativo"]).where("grupo_id", "=", grupoId).forNoKeyUpdate().execute();
+  const existentes = await trx
+    .selectFrom("adicional")
+    .select(["id", "ativo", "preco_delivery_centavos as precoDelivery", "maximo_por_item as maximoPorItem"]).where("grupo_id", "=", grupoId).forNoKeyUpdate().execute();
   const deste = new Set(existentes.map((e) => e.id));
   const ids = lista.flatMap((i) => (i.id ? [i.id] : []));
   if (ids.some((i) => !deste.has(i))) throw new ErroDeRegra("nao_encontrado", "Adicional não encontrado neste grupo.");
@@ -230,11 +232,13 @@ async function gravarItens(trx: Banco, grupoId: number, lista: z.output<typeof e
   // Tira os nomes do caminho (um item pode receber o nome de outro na mesma gravação).
   if (ids.length) await trx.updateTable("adicional").set({ ativo: false }).where("id", "in", ids).execute();
   for (const [k, i] of lista.entries()) {
+    // Ausente num item que já existe: fica como está; só null limpa o preço do delivery.
+    const ja = i.id ? existentes.find((e) => e.id === i.id) : undefined;
     const valores = {
       nome: i.nome,
       preco_centavos: i.precoCentavos,
-      preco_delivery_centavos: i.precoDeliveryCentavos ?? null,
-      maximo_por_item: i.maximoPorItem ?? 1,
+      preco_delivery_centavos: i.precoDeliveryCentavos !== undefined ? i.precoDeliveryCentavos : (ja?.precoDelivery ?? null),
+      maximo_por_item: i.maximoPorItem ?? ja?.maximoPorItem ?? 1,
       ordem: (k + 1) * 10,
       ativo: true,
     };

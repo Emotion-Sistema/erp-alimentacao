@@ -32,7 +32,10 @@ O pedido (E11) vai precisar de uma regra única e testada para o preço de cada 
    vindo da tela**. Tudo em centavos inteiros.
 5. Concorrência: gravar produto continua na trava da lista de produtos; ligar um grupo novo ao
    produto lê o grupo com `FOR SHARE`, e alterar o grupo o lê com `FOR UPDATE`, então desativar um
-   grupo enquanto outro o liga termina sempre consistente (testado).
+   grupo enquanto outro o liga termina sempre consistente (teste determinístico com duas conexões:
+   a ligação espera a trava do grupo e, se ele foi desativado, é recusada).
+   Num item ou tamanho que já existe, campo ausente fica como está; só `null` limpa o preço do
+   delivery (volta a ser igual ao da loja).
 6. Auditoria com antes e depois do produto (com tamanhos e grupos) e do grupo (com itens).
 
 ## Hipóteses (reversíveis; a confirmar com o uso)
