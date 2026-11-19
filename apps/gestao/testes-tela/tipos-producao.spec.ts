@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { entrar, janelaNoCentro, janelaSemEstouro, semEstouroDeLargura } from "./ajudas";
 
-// Tipos de produção (RC-10, decisão 0017): os 3 iniciais por área, novo tipo, editar a capacidade,
+// Tipos de produção (RC-10, decisão 0017): os iniciais por área (3 da 0011 e 3 da 0013), novo tipo, editar a capacidade,
 // desativar com "Desfazer" e o supervisor só lendo. Só dados fictícios.
 
 test.describe.configure({ mode: "serial" });
@@ -15,13 +15,13 @@ test("gerente vê os tipos por área, cria um, edita a capacidade, desativa e de
   await expect(page.getByRole("heading", { name: "Tipos de produção", level: 1 })).toBeVisible();
   await expect(page.getByText("Produto sem tipo não passa pela produção")).toBeVisible();
 
-  // Os 3 iniciais, cada um na sua área, com a frase de onde sai.
+  // Os iniciais, cada um na sua área, com a frase de onde sai.
   const cozinha = page.getByTestId("area-cozinha");
   const cafeteria = page.getByTestId("area-cafeteria");
   await expect(cozinha.getByRole("heading", { name: "Cozinha", level: 2 })).toBeVisible();
   await expect(cozinha).toContainText("Sai pelo elevador.");
   await expect(cafeteria).toContainText("Sai no balcão da cafeteria.");
-  expect((await cozinha.locator(".hor-cat__nome").allTextContents()).slice(0, 2)).toEqual(["Hambúrgueres", "Pratos e grelhados"]);
+  await expect.poll(async () => (await cozinha.locator(".hor-cat__nome").allTextContents()).slice(0, 5)).toEqual(["Hambúrgueres", "Pratos e grelhados", "Porções", "Salgados", "Almoço"]);
   expect((await cafeteria.locator(".hor-cat__nome").allTextContents())[0]).toBe("Cafeteria");
   await expect(cozinha.getByTestId("tipo-Hambúrgueres")).toContainText(/Faz \d+ ao mesmo tempo/);
 

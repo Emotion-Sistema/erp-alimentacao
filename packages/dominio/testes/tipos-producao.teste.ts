@@ -43,15 +43,22 @@ async function ultimaAuditoria(alvoId: number) {
 }
 
 describe("tipos de produção", () => {
-  it("vêm os do RC-10, com área e capacidade 1", async () => {
+  it("vêm os do RC-10 e os três da 0013, com área e capacidade 1", async () => {
     const tipos = await listarTiposDeProducao(db, supervisor);
     expect(tipos).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ nome: "Hambúrgueres", area: "cozinha", capacidade: 1, ativo: true }),
         expect.objectContaining({ nome: "Pratos e grelhados", area: "cozinha", capacidade: 1, ativo: true }),
         expect.objectContaining({ nome: "Cafeteria", area: "cafeteria", capacidade: 1, ativo: true }),
+        // Migração 0013 (resposta do responsável, 19/11/2026): um tipo para cada local da cozinha.
+        expect.objectContaining({ nome: "Porções", area: "cozinha", capacidade: 1, ativo: true }),
+        expect.objectContaining({ nome: "Salgados", area: "cozinha", capacidade: 1, ativo: true }),
+        expect.objectContaining({ nome: "Almoço", area: "cozinha", capacidade: 1, ativo: true }),
       ]),
     );
+    // Entram depois dos três primeiros, nesta ordem.
+    const cozinha = tipos.filter((t) => t.ativo && ["Hambúrgueres", "Pratos e grelhados", "Porções", "Salgados", "Almoço"].includes(t.nome));
+    expect(cozinha.map((t) => t.nome)).toEqual(["Hambúrgueres", "Pratos e grelhados", "Porções", "Salgados", "Almoço"]);
   });
 
   it("cria, altera mantendo o que não veio, e registra antes e depois", async () => {

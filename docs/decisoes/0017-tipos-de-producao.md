@@ -29,11 +29,14 @@ Telas citadas no RC-10: Geral, Hambúrgueres, Pratos e grelhados, Elevador e Caf
 - **Porções, salgados e almoço são feitos na mesma cozinha, mas em locais diferentes:** cada um
   vira um **tipo de produção próprio** (área cozinha), com a sua tela. A casa cria ou ajusta pela tela;
   o próximo PR de código já deixa os três criados (migração, só se ainda não existirem).
+- Feito na migração 0013 (19/11/2026): Porções, Salgados e Almoço, área cozinha, capacidade 1,
+  depois dos que já existem. Tipo ativo com o mesmo nome (sem ligar para acento e maiúscula) não é
+  criado de novo. A reversão só tira o tipo sem produto ligado e sem registro na auditoria.
 
 ## Hipóteses (a confirmar com o responsável)
 - Capacidade inicial 1 em cada tipo (o responsável ajusta na tela).
-- Porções, salgados e almoço entram em "Pratos e grelhados" até o responsável criar tipos
-  próprios.
+- Os produtos fictícios da semente seguem nos tipos de antes (ex.: a porção de batata em "Pratos e
+  grelhados"); a casa liga cada produto real ao tipo certo na tela Produtos.
 
 ## Alternativas descartadas
 - Tipo por unidade: hoje há uma loja; a capacidade por turno (E14) já cobre a diferença.
@@ -44,6 +47,6 @@ Telas de produção (E14) e estimativa (E14) leem estes tipos. Mudar a área de 
 de onde o pedido sai, sem código.
 
 ## Critério de aceite e evidência
-`packages/dominio/testes/tipos-producao.teste.ts` (PostgreSQL real): tipos iniciais, criar,
+`packages/dominio/testes/tipos-producao.teste.ts` (PostgreSQL real): tipos iniciais (0011 e 0013), criar,
 alterar mantendo o que não veio, auditoria, nome único, permissões, concorrência. Matriz da
 API com as duas rotas novas.

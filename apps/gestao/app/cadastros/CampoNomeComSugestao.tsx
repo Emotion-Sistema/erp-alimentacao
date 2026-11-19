@@ -6,8 +6,8 @@
  * (unidade, área e embalagens) para o formulário preencher; a pessoa confirma antes de gravar.
  */
 import { useId, useMemo, useState } from "react";
-import { aConfirmar, AVISO_A_CONFIRMAR, buscarNoCatalogo, chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
-import { Aviso, Selo, varianteDaArea } from "@erp/interface";
+import { buscarNoCatalogo, chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
+import { Selo, varianteDaArea } from "@erp/interface";
 import { Campo } from "../Campo";
 import { equivalenciaNaUnidade, unidadePorExtenso } from "./auxiliares";
 
@@ -75,7 +75,7 @@ export function CampoNomeComSugestao({
       <Campo
         id={id}
         rotulo="Nome"
-        explicacao="Nome do ingrediente como a equipe o conhece. Ao digitar, aparecem sugestões prontas: escolha uma e a unidade, a área e as embalagens vêm preenchidas."
+        explicacao="Nome do ingrediente como a equipe o conhece. Ao digitar, aparecem sugestões prontas: escolha uma e a unidade, a área e as embalagens vêm preenchidas. A unidade sugerida pode ser trocada no campo ao lado."
         exemplo="Digite mussa e escolha Mussarela: vem em g, na cozinha, com as embalagens de costume."
         value={valor}
         onChange={(e) => {
@@ -112,13 +112,9 @@ export function CampoNomeComSugestao({
                   escolher(s);
                 }}
               >
-                <strong className="sugestao__nome">
-                  {s.nome}
-                  {aConfirmar(s) && " *"}
-                </strong>
+                <strong className="sugestao__nome">{s.nome}</strong>
                 <span className="sugestao__detalhes">
                   {ja && <Selo icone="info">já cadastrado</Selo>}
-                  {aConfirmar(s) && <Selo variante="alerta">* unidade a confirmar</Selo>}
                   <Selo icone="balanca">{unidadePorExtenso(s.unidadeBase)}</Selo>
                   <Selo variante={varianteDaArea(s.area)} icone="local">
                     {nomeDaArea(s.area)}
@@ -135,11 +131,6 @@ export function CampoNomeComSugestao({
             );
           })}
       </ul>
-      {aConfirmar(valor) && (
-        <Aviso tipo="atencao" data-testid="nome-a-confirmar">
-          * {AVISO_A_CONFIRMAR}
-        </Aviso>
-      )}
     </div>
   );
 }

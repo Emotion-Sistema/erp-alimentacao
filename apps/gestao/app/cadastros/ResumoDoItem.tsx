@@ -40,6 +40,7 @@ export function ContaDaEmbalagem({ nome, quantidade, base, exibicao, ...resto }:
 }
 
 export function ResumoDoItem({
+  semUnidade = false,
   unidadeBase,
   unidadeExibicao,
   area,
@@ -49,6 +50,8 @@ export function ResumoDoItem({
   embalagens,
   acaoDasEmbalagens,
 }: {
+  /** Esconde a unidade quando ela já aparece num campo para trocar, logo ao lado. */
+  semUnidade?: boolean;
   unidadeBase: string;
   /** Unidade escolhida para ver e informar; sem ela, vale a de dentro. */
   unidadeExibicao?: string;
@@ -63,9 +66,11 @@ export function ResumoDoItem({
   return (
     <>
       <FichaDeDados>
-        <Dado rotulo="Unidade do estoque" icone="balanca">
-          {unidadeBase ? unidadePorExtenso(unidadeExibicao || unidadeBase) : null}
-        </Dado>
+        {!semUnidade && (
+          <Dado rotulo="Unidade do estoque" icone="balanca">
+            {unidadeBase ? unidadePorExtenso(unidadeExibicao || unidadeBase) : null}
+          </Dado>
+        )}
         <Dado rotulo="Área">
           <SeloDaArea area={area} nome={nomeDaArea(area)} />
         </Dado>
