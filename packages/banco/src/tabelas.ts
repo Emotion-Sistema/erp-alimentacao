@@ -418,6 +418,76 @@ export interface ProdutoFotoTabela {
   atualizado_em: Instante;
 }
 
+/** Clube E-MOTION (migração 0018): só as regras que a equipe configura; nada de cliente. */
+export interface ClubeRegrasTabela {
+  id: Generated<number>;
+  ligado: Generated<boolean>;
+  desconto_pb: Generated<number>;
+  todas_as_categorias: Generated<boolean>;
+  teto_desconto_centavos: number | null;
+  pontos_por_real: Generated<number>;
+  campanhas_por_semana: Generated<number>;
+  atualizado_em: Instante;
+  atualizado_por: number | null;
+}
+
+export interface ClubeCategoriaTabela {
+  categoria_id: number;
+  ativo: Generated<boolean>;
+  atualizado_em: Instante;
+}
+
+export interface ClubeHorarioDescontoTabela {
+  dia: number;
+  modo: "todo_horario" | "sem_desconto" | "janela";
+  inicio: Hora | null;
+  fim: Hora | null;
+  atualizado_em: Instante;
+}
+
+export interface ClubePremioTabela {
+  id: Generated<number>;
+  nome: string;
+  descricao: string | null;
+  pontos: number;
+  produto_id: number | null;
+  ordem: Generated<number>;
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface ClubePresenteTabela {
+  tipo: "boas_vindas" | "aniversario" | "sentimos_falta";
+  ligado: Generated<boolean>;
+  beneficio: "desconto_percentual" | "desconto_valor" | "produto" | "pontos";
+  valor: number | null;
+  produto_id: number | null;
+  dias_sem_pedir: number | null;
+  validade_dias: Generated<number>;
+  mensagem: string | null;
+  atualizado_em: Instante;
+  atualizado_por: number | null;
+}
+
+export interface ClubeCampanhaTabela {
+  id: Generated<number>;
+  unidade_id: number;
+  titulo: string;
+  texto: string;
+  publico: "todos" | "aniversariantes_do_mes" | "sem_pedir_30_dias";
+  enviar_em: ColumnType<Date, Date | string, Date | string>;
+  situacao: Generated<"agendada" | "cancelada" | "enviada">;
+  criada_por: number;
+  criada_em: Instante;
+  atualizada_em: Instante;
+  cancelada_por: number | null;
+  cancelada_em: ColumnType<Date | null, Date | string | null | undefined, Date | string | null>;
+  motivo_cancelamento: string | null;
+  enviada_em: ColumnType<Date | null, Date | string | null | undefined, Date | string | null>;
+  destinatarios: number | null;
+}
+
 export interface BancoTabelas {
   empresa: EmpresaTabela;
   unidade: UnidadeTabela;
@@ -453,4 +523,10 @@ export interface BancoTabelas {
   horario_venda_data: HorarioVendaDataTabela;
   pausa_venda: PausaVendaTabela;
   importacao_planilha: ImportacaoPlanilhaTabela;
+  clube_regras: ClubeRegrasTabela;
+  clube_categoria: ClubeCategoriaTabela;
+  clube_horario_desconto: ClubeHorarioDescontoTabela;
+  clube_premio: ClubePremioTabela;
+  clube_presente: ClubePresenteTabela;
+  clube_campanha: ClubeCampanhaTabela;
 }

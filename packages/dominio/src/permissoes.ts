@@ -55,6 +55,9 @@ export const ACOES = [
   // Cadastros (E07, decisão 0015): ingredientes, unidades, conversões, fornecedores, produtos
   "cadastros.ver",
   "cadastros.gerenciar",
+  // Clube E-MOTION (RC-21, decisão 0024): regras do desconto, pontos, prêmios, presentes e campanhas
+  "clube.ver",
+  "clube.gerenciar",
   // Pedido e atendimento
   "pedidos.lancar",
   "pedidos.ver_proprios",

@@ -25,3 +25,5 @@ export * from "./adicionais";
 export * from "./preco-do-item";
 export * from "./combos";
 export * from "./importar";
+export * from "./clube";
+export * from "./clube-comum";
