@@ -21,6 +21,7 @@ import { BotaoExemplos, Campo, Selecao } from "../../Campo";
 import { AvisoComDesfazer, type AvisoRapido } from "../embalagens/AvisoComDesfazer";
 import { CartaoDaFicha } from "./CartaoDaFicha";
 import { CustosDeReferencia } from "./CustosDeReferencia";
+import { ImportarFichas } from "./ImportarFichas";
 import { EditorDaFicha, type AlvoInicial } from "./EditorDaFicha";
 import { TF } from "./textos";
 
@@ -41,6 +42,7 @@ export function PainelDasFichas() {
   const [tipo, setTipo] = useState<"todos" | TipoDeFicha>("todos");
   const [situacao, setSituacao] = useState<Situacao>("todas");
   const [editor, setEditor] = useState<{ alvo?: AlvoInicial } | null>(null);
+  const [importando, setImportando] = useState(false);
   const [aviso, setAviso] = useState<AvisoRapido | null>(null);
   const avisar = useCallback((texto: string) => setAviso({ id: ++numeroDoAviso, texto }), []);
 
@@ -106,6 +108,10 @@ export function PainelDasFichas() {
         </div>
         {painel?.podeGerenciar && (
           <div className="hor-secao__botoes">
+            <Botao variante="secundario" onClick={() => setImportando(true)} className="hor-secao__acao">
+              <Icone nome="documento" />
+              {TF.importar.botao}
+            </Botao>
             <Botao onClick={() => setEditor({})} className="hor-secao__acao">
               <Icone nome="mais" />
               {TF.pagina.nova}
@@ -261,6 +267,16 @@ export function PainelDasFichas() {
           aoSalvo={(f) => {
             setEditor(null);
             router.push(`/cadastros/fichas/${f.resumo.id}`);
+          }}
+        />
+      )}
+      {importando && (
+        <ImportarFichas
+          aoFechar={() => setImportando(false)}
+          aoGravado={(r) => {
+            setImportando(false);
+            void recarregar();
+            avisar(TF.importar.gravado(r.fichas.filter((f) => f.acao === "criar" || f.acao === "nova_versao").length));
           }}
         />
       )}

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { avisoNaTela, entrar, janelaNoCentro, janelaSemEstouro, nomesDoMenu, semEstouroDeLargura, sql } from "./ajudas";
 
@@ -304,6 +305,67 @@ test("atendente é bloqueado na tela e na API", async ({ page }) => {
   expect((await page.request.get("/api/fichas")).status()).toBe(403);
   expect((await page.request.get(`/api/fichas/${idDoLanche}`)).status()).toBe(403);
   expect((await page.request.post("/api/fichas/limite", { data: { limiteCustoPb: 9000 } })).status()).toBe(403);
+});
+
+test("importar fichas: modelo, conferir (criar, erro, ingrediente novo), gravar as boas e reimportar sem mudança", async ({ page }) => {
+  const CREME = `Creme tela ${SUFIXO}`;
+  const CEBOLA = `Cebola nova ${SUFIXO}`;
+  const SUMIDO = `Produto sumido ${SUFIXO}`;
+  const cabecalho = "ficha;tipo;rende;unidade do rendimento;porcao;unidade da porcao;tempo (min);validade (dias);ingrediente;quantidade;unidade;opcional;medida caseira;observacao;pendencia;etapa";
+  const csv = [
+    cabecalho,
+    `${CREME};preparo;1;kg;;;10;2;${CARNE};0,4;kg;;;;;Refogar`,
+    `${CREME};preparo;;;;;;;${CEBOLA};100;g;;1 xícara;;;Bater`,
+    `${SUMIDO};produto;1;;;;;;${PAO};1;un;;;;;`,
+  ].join("\n");
+  const arquivo = { name: "fichas-teste.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "utf8") };
+
+  await entrar(page, "gerente.geral");
+  await page.goto("/cadastros/fichas");
+  await page.getByRole("button", { name: "Importar fichas" }).click();
+  const janela = page.getByRole("dialog", { name: "Importar fichas de uma planilha" });
+  await janelaNoCentro(page, janela);
+  await janela.getByText("Colunas da planilha").click();
+  await expect(janela.getByTestId("colunas-do-modelo")).toContainText("unidade do rendimento");
+  // O modelo .csv sai da própria tela, com o cabeçalho e 3 linhas de exemplo.
+  const [baixado] = await Promise.all([page.waitForEvent("download"), janela.getByRole("button", { name: "Baixar modelo .csv" }).click()]);
+  expect(baixado.suggestedFilename()).toBe("modelo-fichas-tecnicas.csv");
+  const modelo = readFileSync((await baixado.path())!, "utf8").replace(/^\ufeff/, "").trim().split(/\r?\n/);
+  expect(modelo[0]).toBe(cabecalho);
+  expect(modelo).toHaveLength(4);
+
+  await janela.getByLabel("Arquivo da planilha").setInputFiles(arquivo);
+  await janela.getByRole("button", { name: "Conferir", exact: true }).click();
+  const resultado = janela.getByTestId("resultado-da-conferencia");
+  await expect(resultado.getByTestId(`importar-${CREME}`).getByTestId("acao")).toHaveText("Criar");
+  await expect(resultado.getByTestId(`importar-${SUMIDO}`).getByTestId("acao")).toHaveText("Erro");
+  await expect(resultado.getByTestId(`importar-${SUMIDO}`)).toContainText("Linha 4:");
+  await expect(janela.getByTestId("ingredientes-novos")).toContainText(CEBOLA);
+  const gravar = janela.getByRole("button", { name: "Gravar 1 ficha" });
+  await expect(gravar).toBeDisabled();
+  await janela.getByLabel("Gravar as boas e deixar de fora as com erro").check();
+  await expect(gravar).toBeDisabled();
+  await janela.getByLabel("Criar os ingredientes que faltam").check();
+  await expect(gravar).toBeEnabled();
+  await janelaSemEstouro(page);
+  await gravar.click();
+  await expect(janela).toHaveCount(0);
+  await expect(page.getByTestId("aviso-rapido")).toContainText("1 ficha gravada.");
+  await expect(page.getByTestId(`ficha-${CREME}`)).toBeVisible();
+  await expect(page.getByTestId(`ficha-${SUMIDO}`)).toHaveCount(0);
+  // 0,4 kg virou 400 g; a cebola nova foi cadastrada.
+  await page.getByTestId(`ficha-${CREME}`).getByRole("link", { name: `Abrir a ficha de ${CREME}` }).click();
+  await expect(page.getByTestId(`item-${CARNE}`)).toContainText("400 g");
+  await expect(page.getByTestId(`item-${CEBOLA}`)).toContainText("100 g");
+
+  // O mesmo arquivo de novo: nada muda.
+  await page.goto("/cadastros/fichas");
+  await page.getByRole("button", { name: "Importar fichas" }).click();
+  await janela.getByLabel("Arquivo da planilha").setInputFiles(arquivo);
+  await janela.getByRole("button", { name: "Conferir", exact: true }).click();
+  await expect(resultado.getByTestId(`importar-${CREME}`).getByTestId("acao")).toHaveText("Sem mudança");
+  await expect(janela.getByTestId("ingredientes-novos")).toHaveCount(0);
+  await expect(janela.getByTestId("por-que-nao-grava")).toHaveText("Nada para gravar: nenhuma ficha nova ou mudada.");
 });
 
 test("celular (390 px): lista, ficha, editor e cozinha sem rolagem de lado", async ({ page }) => {

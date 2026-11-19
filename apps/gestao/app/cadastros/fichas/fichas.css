@@ -128,3 +128,17 @@
   .fichas-cozinha__folha, .fichas-cozinha__folha * { visibility: visible; }
   .fichas-cozinha__folha { position: absolute; inset: 0 0 auto 0; border: 0; box-shadow: none; padding: 0; }
 }
+
+/* ---------- importar fichas ---------- */
+.fichas-importar { display: grid; gap: var(--espaco-3); min-width: 0; }
+.fichas-importar > * { margin: 0; min-width: 0; }
+.fichas-importar__colunas summary { min-height: var(--alvo-toque); display: flex; align-items: center; cursor: pointer; font-weight: var(--peso-forte); }
+.fichas-importar__colunas ul { margin: 0; padding-left: var(--espaco-5); display: grid; gap: var(--espaco-1); overflow-wrap: anywhere; }
+.fichas-importar__resultado { display: grid; gap: var(--espaco-3); min-width: 0; }
+.fichas-importar__resultado > * { margin: 0; min-width: 0; }
+.fichas-importar__ficha { display: grid; gap: var(--espaco-1); min-width: 0; border-bottom: 1px solid var(--cor-borda-suave); }
+.fichas-importar__ficha .fichas-lista__item { border-bottom: 0; }
+.fichas-importar__ficha .fichas-pendencias__lista > li { color: var(--cor-perigo); }
+.fichas-importar__novos { display: grid; gap: var(--espaco-2); padding: var(--espaco-3); background: var(--cor-superficie); border-radius: var(--raio); }
+.fichas-importar__novos > * { margin: 0; }
+.fichas-importar__novos ul { margin: 0; padding-left: var(--espaco-5); }
