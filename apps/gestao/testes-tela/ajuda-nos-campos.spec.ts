@@ -251,6 +251,26 @@ test.describe("telas internas do administrador", () => {
     }
   });
 
+  test("Clube E-MOTION: as quatro abas e as janelas", async ({ page }) => {
+    await page.goto("/clube");
+    await expect(page.getByTestId("aba-desconto")).toBeVisible();
+    // "Só nas categorias escolhidas" mostra as caixas das categorias.
+    await page.getByLabel("Só nas categorias escolhidas").check();
+    await page.getByTestId("desconto-dia-2").getByLabel("Só das ... às ...").check();
+    await conferirAjuda(page, "clube (desconto)", 12);
+    await page.getByRole("tab", { name: "Pontos e prêmios" }).click();
+    await conferirAjuda(page, "clube (pontos)", 1);
+    await page.getByRole("button", { name: "Adicionar prêmio" }).click();
+    await conferirAjuda(page, "clube (novo prêmio)", 4);
+    await page.getByRole("button", { name: "Cancelar" }).click();
+    await page.getByRole("tab", { name: "Presentes" }).click();
+    await conferirAjuda(page, "clube (presentes)", 15);
+    await page.getByRole("tab", { name: "Campanhas" }).click();
+    await conferirAjuda(page, "clube (campanhas)", 1);
+    await page.getByRole("button", { name: "Agendar campanha" }).click();
+    await conferirAjuda(page, "clube (agendar campanha)", 4);
+  });
+
   test("exemplo abre e fecha, 'todos' vale para a tela e a escolha sobrevive ao recarregar", async ({ page }) => {
     await page.goto("/turnos");
     const campo = page.getByLabel("Minutos (0 a 120)");

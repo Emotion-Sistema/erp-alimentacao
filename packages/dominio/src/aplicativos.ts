@@ -50,7 +50,8 @@ export type IconeDoMenu =
   | "recibo"
   | "documento"
   | "entrega"
-  | "adicional";
+  | "adicional"
+  | "estrela";
 
 /** Ação principal do aplicativo: o botão redondo grande no meio da barra de baixo, no celular. */
 export type AcaoPrincipal = { texto: string; caminho: string; acao: Acao };
@@ -247,6 +248,13 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         texto: "Estações",
         acao: "estacoes.ver",
         icone: "tablet",
+      },
+      {
+        caminho: "/clube",
+        texto: "Clube E-MOTION",
+        acao: "clube.ver",
+        icone: "estrela",
+        curto: "Clube",
       },
     ],
     naBarra: ["/gestao", "/funcionarios", "/turnos", "/comunicados"],
