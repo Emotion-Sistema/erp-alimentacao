@@ -4,6 +4,8 @@
  * Cartão de um produto: miniatura da foto (só se tiver), lugar na categoria, nome, preço (e, discreto, o do delivery se for outro,
  * quantos tamanhos e grupos de adicionais), tipo de produção (ou "Não passa pela produção"), tempo
  * de preparo, descrição e, para quem gerencia, Editar e Desativar/Reativar.
+ * Combo (decisão 0023): selo "Combo" no lugar do tipo, uma linha discreta com as partes e o preço
+ * "a partir de" (combo + menor acréscimo de cada parte) quando alguma parte tem acréscimos diferentes.
  */
 import { Botao, Selo } from "@erp/interface";
 import { acrescimoNoCanal, precoNoCanal, textoDosCentavos, type Produto } from "@erp/dominio/produtos";
@@ -34,9 +36,18 @@ export function CartaoDoProduto({
   const p = produto;
   // Com tamanhos, o menor preço possível (o acréscimo mais baixo) em cada canal.
   const comTamanhos = p.tamanhos.length > 0;
-  const menor = (canal: "loja" | "delivery") => precoNoCanal(p, canal) + (comTamanhos ? Math.min(...p.tamanhos.map((t) => acrescimoNoCanal(t, canal))) : 0);
+  // Combo: o menor acréscimo de cada parte; "a partir de" se alguma parte tem acréscimos diferentes.
+  const partes = p.combo?.partes.filter((x) => x.opcoes.length > 0) ?? [];
+  const acrescimosDoCombo = (canal: "loja" | "delivery") => partes.map((x) => x.opcoes.map((o) => acrescimoNoCanal(o, canal)));
+  const variaNoCombo = (canal: "loja" | "delivery") => acrescimosDoCombo(canal).some((a) => Math.min(...a) !== Math.max(...a));
+  const menor = (canal: "loja" | "delivery") =>
+    precoNoCanal(p, canal) +
+    (comTamanhos ? Math.min(...p.tamanhos.map((t) => acrescimoNoCanal(t, canal))) : 0) +
+    acrescimosDoCombo(canal).reduce((s, a) => s + Math.min(...a), 0);
   const loja = menor("loja");
   const delivery = menor("delivery");
+  const aPartirNaLoja = comTamanhos || variaNoCombo("loja");
+  const aPartirNoDelivery = comTamanhos || variaNoCombo("delivery");
   return (
     <article className={["hor-cat", !p.ativo && "hor-cat--inativa"].filter(Boolean).join(" ")} data-testid={`produto-${p.nome}`}>
       <header className="hor-cat__cabeca">
@@ -47,12 +58,17 @@ export function CartaoDoProduto({
         {!p.ativo && <Selo variante="alerta">{TP.cartao.desativado}</Selo>}
       </header>
       <p className="prod-preco" data-testid="preco-do-produto">
-        {comTamanhos ? TP.cartao.aPartirDe(textoDosCentavos(loja)) : textoDosCentavos(loja)}
+        {aPartirNaLoja ? TP.cartao.aPartirDe(textoDosCentavos(loja)) : textoDosCentavos(loja)}
       </p>
+      {p.combo && partes.length > 0 && (
+        <p className="prod-extras" data-testid="partes-do-produto">
+          {TP.cartao.partes(partes.map((x) => x.nome))}
+        </p>
+      )}
       {(delivery !== loja || comTamanhos || p.gruposAdicionais.length > 0) && (
         <p className="prod-extras" data-testid="extras-do-produto">
           {[
-            delivery !== loja && TP.cartao.delivery(comTamanhos ? TP.cartao.aPartirDe(textoDosCentavos(delivery)) : textoDosCentavos(delivery)),
+            delivery !== loja && TP.cartao.delivery(aPartirNoDelivery ? TP.cartao.aPartirDe(textoDosCentavos(delivery)) : textoDosCentavos(delivery)),
             comTamanhos && TP.cartao.tamanhos(p.tamanhos.length),
             p.gruposAdicionais.length > 0 && TP.cartao.grupos(p.gruposAdicionais.length),
           ]
@@ -61,7 +77,10 @@ export function CartaoDoProduto({
         </p>
       )}
       <div className="hor-cat__selos" data-testid="producao-do-produto">
-        {p.tipoProducaoId === null ? (
+        {p.combo ? (
+          // Combo não passa pela produção como um todo: cada opção vai para a tela dela.
+          <Selo variante="info">{TP.cartao.combo}</Selo>
+        ) : p.tipoProducaoId === null ? (
           <Selo>{TP.cartao.semProducao}</Selo>
         ) : (
           <>

@@ -7,6 +7,9 @@
  * O preço é digitado em reais ("12,50") e vai em centavos inteiros (`centavosDoTexto`, nunca float).
  * Tamanhos e grupos vão SEMPRE com a lista completa, na ordem (o que não vier fica inativo), e os
  * tamanhos que já existiam levam o `id` (decisão 0021).
+ * Combo (decisão 0023): "É um combo?" marcado esconde o tipo, o tempo e os tamanhos (vão
+ * `tipoProducaoId: null` e `tamanhos: []`) e mostra "Partes do combo" (`PartesDoCombo.tsx`); vai a
+ * lista completa de partes e opções, com os ids que já existiam. Desmarcar manda `combo: null`.
  * A foto (decisão 0022) fica em `FotoDoProduto.tsx`: no produto que já existe vai na hora; no novo,
  * vai logo depois de criar. Se a foto falhar, o produto fica criado e a janela continua aberta,
  * com o erro e "Tentar de novo" (salvar de novo altera o mesmo produto, não cria outro).
@@ -24,12 +27,13 @@ import {
 } from "@erp/dominio/produtos";
 import { NOME_DA_AREA_DE_PRODUCAO, type TipoDeProducao } from "@erp/dominio/tipos-producao";
 import { chamar } from "../../chamar";
-import { AreaDeTexto, BotaoExemplos, Campo, Grupo, OpcaoDoGrupo, Selecao } from "../../Campo";
+import { AreaDeTexto, BotaoExemplos, Campo, Grupo, Marcador, OpcaoDoGrupo, Selecao } from "../../Campo";
 import { PosicaoNaLista } from "../PosicaoNaLista";
 import { JanelaModal, usarPedirFechar } from "../JanelaModal";
 import type { Categoria } from "../horarios/contas";
 import { AdicionaisDoProduto } from "./AdicionaisDoProduto";
 import { FotoDoProduto } from "./FotoDoProduto";
+import { nomeDaOpcao, nomeDaParte, novaChaveDoCombo, opcaoForaDeVenda, PartesDoCombo, type LinhaDaParte } from "./PartesDoCombo";
 import { PreviaDoPreco } from "./PreviaDoPreco";
 import { nomeDoTamanho, novaChaveDeTamanho, TamanhosDoProduto, type LinhaDoTamanho } from "./TamanhosDoProduto";
 import { TP } from "./textos";
@@ -102,6 +106,24 @@ export function JanelaDoProduto({
   );
   const [acrescimoDiferente, setAcrescimoDiferente] = useState((produto?.tamanhos ?? []).some((t) => t.acrescimoDeliveryCentavos !== null));
   const [gruposLigados, setGruposLigados] = useState<number[]>(produto?.gruposAdicionais ?? []);
+  const [eCombo, setECombo] = useState(produto?.combo != null);
+  const [confirmandoDesfazerCombo, setConfirmandoDesfazerCombo] = useState(false);
+  const [partes, setPartes] = useState<LinhaDaParte[]>(() =>
+    (produto?.combo?.partes ?? []).map((p) => ({
+      chave: novaChaveDoCombo(),
+      id: p.id,
+      nome: p.nome,
+      opcoes: p.opcoes.map((o) => ({
+        chave: novaChaveDoCombo(),
+        id: o.id,
+        produtoId: String(o.produtoId),
+        tamanhoId: o.tamanhoId === null ? "" : String(o.tamanhoId),
+        acrescimo: reais(o.acrescimoCentavos),
+        delivery: o.acrescimoDeliveryCentavos === null ? "" : reais(o.acrescimoDeliveryCentavos),
+      })),
+    })),
+  );
+  const [acrescimoDiferenteCombo, setAcrescimoDiferenteCombo] = useState((produto?.combo?.partes ?? []).some((p) => p.opcoes.some((o) => o.acrescimoDeliveryCentavos !== null)));
 
   // Produto novo já criado, esperando a foto ir (ou tendo falhado).
   const [criado, setCriado] = useState<Produto | null>(null);
@@ -118,8 +140,10 @@ export function JanelaDoProduto({
   const [erro, setErro] = useState("");
   const [gravando, setGravando] = useState(false);
 
-  const passaPelaProducao = tipo !== "" && tipo !== SEM_PRODUCAO;
+  const passaPelaProducao = !eCombo && tipo !== "" && tipo !== SEM_PRODUCAO;
   const deliveryNosTamanhos = !mesmoPreco || acrescimoDiferente;
+  const deliveryNasOpcoes = !mesmoPreco || acrescimoDiferenteCombo;
+  const porId = new Map(produtos.map((p) => [p.id, p]));
 
   // Botões das listas (subir, descer, remover, adicionar) não disparam input: marcam "mexido" aqui.
   const mudarTamanhos = (l: LinhaDoTamanho[]) => {
@@ -130,6 +154,52 @@ export function JanelaDoProduto({
     setGruposLigados(l);
     setSujo(true);
   };
+  const mudarPartes = (l: LinhaDaParte[]) => {
+    setPartes(l);
+    setSujo(true);
+  };
+  function marcarCombo(marcado: boolean) {
+    if (marcado) {
+      setECombo(true);
+      // Combo começa com uma parte vazia, pronta para preencher.
+      if (partes.length === 0) setPartes([{ chave: novaChaveDoCombo(), nome: "", opcoes: [{ chave: novaChaveDoCombo(), produtoId: "", tamanhoId: "", acrescimo: "0,00", delivery: "" }] }]);
+      return;
+    }
+    // Já há partes: pergunta antes (desmontar o combo tira as partes ao salvar).
+    if (partes.length > 0) return setConfirmandoDesfazerCombo(true);
+    desfazerCombo();
+  }
+  function desfazerCombo() {
+    setConfirmandoDesfazerCombo(false);
+    setECombo(false);
+    setPartes([]);
+    setSujo(true);
+    // Era combo e fica sem tipo: a pessoa escolhe de novo se passa pela produção.
+    if (produto?.combo && tipo === SEM_PRODUCAO) setTipo("");
+  }
+
+  /**
+   * Partes como estão na janela, com ids provisórios (para a prévia) ou nulo se alguma opção ainda
+   * não tem produto, tamanho ou acréscimo válido.
+   */
+  function comboDaJanela(): { combo: NonNullable<Produto["combo"]> | null; motivo: string } {
+    if (partes.length === 0 || partes.some((p) => p.opcoes.length === 0)) return { combo: null, motivo: TP.janela.previaFaltaParte };
+    let n = 0;
+    const lista = [];
+    for (const [k, p] of partes.entries()) {
+      const opcoes = [];
+      for (const [j, o] of p.opcoes.entries()) {
+        const prod = o.produtoId ? porId.get(Number(o.produtoId)) : undefined;
+        if (!o.produtoId || (prod && prod.tamanhos.length > 0 && !o.tamanhoId && !opcaoForaDeVenda(o, porId, idGravado))) return { combo: null, motivo: TP.janela.previaFaltaOpcao };
+        const acrescimo = dinheiro(o.acrescimo);
+        const noDelivery = deliveryNasOpcoes && o.delivery.trim() ? dinheiro(o.delivery) : null;
+        if (acrescimo === null || (deliveryNasOpcoes && o.delivery.trim() && noDelivery === null)) return { combo: null, motivo: TP.janela.previaConfira };
+        opcoes.push({ id: ++n, produtoId: Number(o.produtoId), tamanhoId: o.tamanhoId ? Number(o.tamanhoId) : null, acrescimoCentavos: acrescimo, acrescimoDeliveryCentavos: noDelivery, ordem: j });
+      }
+      lista.push({ id: k + 1, nome: nomeDaParte(p, k), ordem: k, opcoes });
+    }
+    return { combo: { partes: lista }, motivo: "" };
+  }
 
   // Produto como está na janela, para a prévia (tamanhos com ids provisórios). Nulo se falta algo.
   function produtoDaJanela(): { produto: Produto | null; motivo: string } {
@@ -138,7 +208,12 @@ export function JanelaDoProduto({
     const delivery = mesmoPreco ? null : dinheiro(precoDelivery, 1);
     if (!mesmoPreco && delivery === null) return { produto: null, motivo: TP.janela.previaConfira };
     const lista: Tamanho[] = [];
-    for (const [k, t] of tamanhos.entries()) {
+    let combo: Produto["combo"] = null;
+    if (eCombo) {
+      const c = comboDaJanela();
+      if (!c.combo) return { produto: null, motivo: c.motivo };
+      combo = c.combo;
+    } else for (const [k, t] of tamanhos.entries()) {
       const acrescimo = dinheiro(t.acrescimo);
       const noDelivery = deliveryNosTamanhos && t.delivery.trim() ? dinheiro(t.delivery) : null;
       if (acrescimo === null || (deliveryNosTamanhos && t.delivery.trim() && noDelivery === null)) return { produto: null, motivo: TP.janela.previaConfira };
@@ -148,7 +223,7 @@ export function JanelaDoProduto({
       produto: {
         id: produto?.id ?? 0,
         fotoId: null,
-        combo: null,
+        combo,
         nome: nome.trim() || TP.janela.novo,
         descricao: null,
         categoriaId: categoriaId ?? 0,
@@ -206,7 +281,7 @@ export function JanelaDoProduto({
       if (centavosDelivery < 1 || centavosDelivery > PRECO_MAXIMO_CENTAVOS) return setErro(TP.janela.precoDeliveryForaDoLimite(textoDosCentavos(PRECO_MAXIMO_CENTAVOS)));
     }
     const listaDeTamanhos = [];
-    for (const [k, t] of tamanhos.entries()) {
+    for (const [k, t] of (eCombo ? [] : tamanhos).entries()) {
       if (!t.nome.trim()) return setErro(TP.janela.faltaNomeTamanho(k + 1));
       const acrescimo = dinheiro(t.acrescimo);
       if (acrescimo === null) return setErro(TP.janela.acrescimoInvalido(t.nome.trim()));
@@ -217,7 +292,41 @@ export function JanelaDoProduto({
       }
       listaDeTamanhos.push({ ...(t.id ? { id: t.id } : {}), nome: t.nome.trim(), acrescimoCentavos: acrescimo, acrescimoDeliveryCentavos: noDelivery });
     }
-    if (tipo === "") return setErro(TP.janela.faltaTipo);
+    // Combo: a lista completa de partes e opções, na ordem, com os ids que já existiam.
+    let combo: unknown = undefined;
+    if (eCombo) {
+      if (partes.length === 0) return setErro(TP.janela.faltaParte);
+      const listaDePartes = [];
+      for (const [k, p] of partes.entries()) {
+        const nomeP = p.nome.trim();
+        if (!nomeP) return setErro(TP.janela.faltaNomeParte(k + 1));
+        if (p.opcoes.length === 0) return setErro(TP.janela.faltaOpcao(nomeP));
+        const opcoes = [];
+        for (const [j, o] of p.opcoes.entries()) {
+          if (!o.produtoId) return setErro(TP.janela.faltaProdutoOpcao(nomeP, j + 1));
+          if (opcaoForaDeVenda(o, porId, idGravado)) return setErro(TP.janela.opcaoForaDeVenda(nomeP, nomeDaOpcao(o, j, porId)));
+          const prod = porId.get(Number(o.produtoId));
+          if (prod && prod.tamanhos.length > 0 && !o.tamanhoId) return setErro(TP.janela.faltaTamanhoOpcao(nomeP, prod.nome));
+          const acrescimo = dinheiro(o.acrescimo);
+          if (acrescimo === null) return setErro(TP.janela.acrescimoOpcaoInvalido(nomeP, j + 1));
+          let noDelivery: number | null = null;
+          if (deliveryNasOpcoes && o.delivery.trim()) {
+            noDelivery = dinheiro(o.delivery);
+            if (noDelivery === null) return setErro(TP.janela.acrescimoDeliveryOpcaoInvalido(nomeP, j + 1));
+          }
+          opcoes.push({
+            ...(o.id ? { id: o.id } : {}),
+            produtoId: Number(o.produtoId),
+            tamanhoId: o.tamanhoId ? Number(o.tamanhoId) : null,
+            acrescimoCentavos: acrescimo,
+            acrescimoDeliveryCentavos: noDelivery,
+          });
+        }
+        listaDePartes.push({ ...(p.id ? { id: p.id } : {}), nome: nomeP, opcoes });
+      }
+      combo = { partes: listaDePartes };
+    } else if (produto?.combo) combo = null; // desmonta o combo
+    if (!eCombo && tipo === "") return setErro(TP.janela.faltaTipo);
     const min = tempo.trim();
     if (passaPelaProducao && (!/^\d{1,3}$/.test(min) || Number(min) < 1 || Number(min) > TEMPO_DE_PREPARO_MAXIMO)) return setErro(TP.janela.tempoInvalido(TEMPO_DE_PREPARO_MAXIMO));
     const mudouDeCategoria = !!produto && categoriaId !== produto.categoriaId;
@@ -233,7 +342,9 @@ export function JanelaDoProduto({
       tamanhos: listaDeTamanhos,
       gruposAdicionais: gruposLigados,
       // Sem tipo, o servidor tira o tempo junto.
+      // Combo: nunca passa pela produção como um todo (cada opção vai para a tela dela).
       ...(passaPelaProducao ? { tipoProducaoId: Number(tipo), tempoPreparoMin: Number(min) } : { tipoProducaoId: null }),
+      ...(combo !== undefined ? { combo } : {}),
       descricao: descricao.trim() || null,
       // Produto desativado não entra na lista: a posição só vale para os ativos.
       // Só manda a posição se é novo, se a pessoa mudou o lugar ou se mudou a categoria:
@@ -284,13 +395,42 @@ export function JanelaDoProduto({
             <Campo rotulo={TP.janela.precoDelivery} explicacao={TP.janela.precoDeliveryAjuda} exemplo={TP.janela.precoDeliveryExemplo} value={precoDelivery} inputMode="decimal" maxLength={14} onChange={(e) => setPrecoDelivery(e.target.value)} autoComplete="off" />
           )}
         </Grupo>
-        <TamanhosDoProduto tamanhos={tamanhos} aoMudar={mudarTamanhos} precoProprioNoDelivery={!mesmoPreco} acrescimoDiferente={acrescimoDiferente} aoMudarAcrescimoDiferente={setAcrescimoDiferente} />
-        <AdicionaisDoProduto ligados={gruposLigados} grupos={grupos} aoMudar={mudarGrupos} />
-        <PreviaDoPreco produto={previa.produto} motivo={previa.motivo} grupos={grupos} />
-        <Selecao rotulo={TP.janela.tipo} explicacao={TP.janela.tipoAjuda} exemplo={TP.janela.tipoExemplo} opcoes={opcoesDeTipo} value={tipo} onChange={(e) => setTipo(e.target.value)} />
-        {passaPelaProducao && (
-          <Campo rotulo={TP.janela.tempo} explicacao={TP.janela.tempoAjuda(TEMPO_DE_PREPARO_MAXIMO)} exemplo={TP.janela.tempoExemplo} value={tempo} inputMode="numeric" maxLength={3} onChange={(e) => setTempo(e.target.value)} autoComplete="off" />
+        <Marcador rotulo={TP.janela.eCombo} explicacao={TP.janela.eComboAjuda} exemplo={TP.janela.eComboExemplo} checked={eCombo} onChange={(e) => marcarCombo(e.target.checked)} />
+        {confirmandoDesfazerCombo && (
+          <div className="hor-confirmar" role="alertdialog" aria-label={TP.janela.deixarDeSerCombo}>
+            <p>{TP.janela.deixarDeSerCombo}</p>
+            <div className="cadastros__botoes">
+              <Botao variante="perigo" onClick={desfazerCombo}>
+                {TP.janela.simDeixar}
+              </Botao>
+              <Botao variante="secundario" onClick={() => setConfirmandoDesfazerCombo(false)}>
+                {TP.janela.naoDeixar}
+              </Botao>
+            </div>
+          </div>
         )}
+        {eCombo ? (
+          <PartesDoCombo
+            partes={partes}
+            aoMudar={mudarPartes}
+            produtos={produtos}
+            categorias={categorias}
+            comboId={idGravado}
+            precoProprioNoDelivery={!mesmoPreco}
+            acrescimoDiferente={acrescimoDiferenteCombo}
+            aoMudarAcrescimoDiferente={setAcrescimoDiferenteCombo}
+          />
+        ) : (
+          <>
+            <Selecao rotulo={TP.janela.tipo} explicacao={TP.janela.tipoAjuda} exemplo={TP.janela.tipoExemplo} opcoes={opcoesDeTipo} value={tipo} onChange={(e) => setTipo(e.target.value)} />
+            {passaPelaProducao && (
+              <Campo rotulo={TP.janela.tempo} explicacao={TP.janela.tempoAjuda(TEMPO_DE_PREPARO_MAXIMO)} exemplo={TP.janela.tempoExemplo} value={tempo} inputMode="numeric" maxLength={3} onChange={(e) => setTempo(e.target.value)} autoComplete="off" />
+            )}
+            <TamanhosDoProduto tamanhos={tamanhos} aoMudar={mudarTamanhos} precoProprioNoDelivery={!mesmoPreco} acrescimoDiferente={acrescimoDiferente} aoMudarAcrescimoDiferente={setAcrescimoDiferente} />
+          </>
+        )}
+        <AdicionaisDoProduto ligados={gruposLigados} grupos={grupos} aoMudar={mudarGrupos} />
+        <PreviaDoPreco produto={previa.produto} motivo={previa.motivo} grupos={grupos} produtos={produtos} />
         <AreaDeTexto rotulo={TP.janela.descricao} explicacao={TP.janela.descricaoAjuda} exemplo={TP.janela.descricaoExemplo} value={descricao} maxLength={300} rows={2} onChange={(e) => setDescricao(e.target.value)} />
         {categoriaId !== null && (!produto || produto.ativo) && (
           <PosicaoNaLista key={categoriaId} rotulo={TP.janela.posicao} itens={daCategoria(categoriaId)} atualId={idGravado ?? undefined} nomeDoAtual={nome.trim()} posicao={posicao} aoMudar={setPosicao} />

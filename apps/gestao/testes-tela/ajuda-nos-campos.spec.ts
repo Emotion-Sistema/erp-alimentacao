@@ -203,6 +203,19 @@ test.describe("telas internas do administrador", () => {
     await conferirAjuda(page, "novo produto com tamanhos", 11);
   });
 
+  test("cadastros: produto combo (partes e opções)", async ({ page }) => {
+    await page.goto("/cadastros/produtos");
+    await page.getByRole("button", { name: "Novo produto" }).click();
+    const produto = page.getByRole("dialog", { name: "Novo produto" });
+    await produto.getByLabel("É um combo?").check();
+    await produto.getByLabel("Produto da opção 1 da parte 1", { exact: true }).selectOption({ label: "Porção de batata frita" });
+    await expect(produto.getByLabel("Tamanho da opção 1 da parte 1", { exact: true })).toBeVisible();
+    // Nome, categoria, preço, mesmo preço, é combo, nome da parte, produto, tamanho, acréscimo,
+    // acréscimo diferente no delivery, grupo para adicionar e descrição.
+    await conferirAjuda(page, "novo produto combo", 12);
+    await semEstouroDeLargura(page);
+  });
+
   test("cadastros: fornecedores", async ({ page }) => {
     await page.goto("/cadastros/fornecedores");
     await page.getByRole("button", { name: "Novo fornecedor" }).click();

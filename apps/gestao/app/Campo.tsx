@@ -264,3 +264,49 @@ export function CampoDoGrupo({
     </div>
   );
 }
+
+/** Opção solta ou um conjunto de opções com título (vira `<optgroup>`). */
+export type OpcaoDaSelecao = { valor: string; texto: string } | { grupo: string; opcoes: { valor: string; texto: string }[] };
+
+/**
+ * Lista de escolher DENTRO de um Grupo, usando a ajuda do grupo (como CampoDoGrupo). `opcoes` pode
+ * ter conjuntos com título (ex.: os produtos agrupados por categoria).
+ */
+export function SelecaoDoGrupo({
+  rotulo,
+  complemento,
+  opcoes,
+  id,
+  className,
+  ...resto
+}: Omit<SelectHTMLAttributes<HTMLSelectElement>, "aria-describedby"> & { rotulo: string; complemento?: string; opcoes: OpcaoDaSelecao[] }) {
+  const descricao = useContext(ContextoDoGrupo);
+  if (descricao === null) throw new Error("SelecaoDoGrupo só pode ser usada dentro de Grupo");
+  const gerado = useId();
+  const idCampo = id ?? gerado;
+  return (
+    <div className="erp-campo erp-campo--grade">
+      <label className="erp-campo__rotulo" htmlFor={idCampo}>
+        {rotulo}
+        {complemento && <span className="ajuda__so-leitor"> {complemento}</span>}
+      </label>
+      <select id={idCampo} className={["erp-campo__entrada", className].filter(Boolean).join(" ")} aria-describedby={descricao} {...resto}>
+        {opcoes.map((o) =>
+          "grupo" in o ? (
+            <optgroup key={`g-${o.grupo}`} label={o.grupo}>
+              {o.opcoes.map((x) => (
+                <option key={x.valor} value={x.valor}>
+                  {x.texto}
+                </option>
+              ))}
+            </optgroup>
+          ) : (
+            <option key={o.valor} value={o.valor}>
+              {o.texto}
+            </option>
+          ),
+        )}
+      </select>
+    </div>
+  );
+}
