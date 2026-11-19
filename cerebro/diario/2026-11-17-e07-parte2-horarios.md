@@ -119,7 +119,7 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 ## 19/11/2026: respostas do responsável e próximo plano
 - Fichas 1 e 2 respondidas (perguntas.md): fruta/alface em un; bife moído em g e bife pronto em disco em un; cremes e molhos em ml; **sempre poder escolher a unidade**.
 - Horário de venda = funcionamento (0016 confirmada). Produtos: **preço por canal** (loja e delivery diferentes), cortesia confirmada, **base de foto, tamanhos, adicionais e combos já agora** (0018). Clube: campos **totalmente personalizáveis** pela equipe, já agora.
-- Pergunta 2 (tipos de produção, 0017) não foi entendida: reexplicar com exemplo.
+- Pergunta 2 (tipos, 0017) respondida depois da explicação: capacidade ajustável pelos gerentes; porções, salgados e almoço viram tipos próprios (criar no PR 1 do plano, migração só se não existirem). Aguardando o "ok" do plano.
 - Plano proposto (ordem): (1) unidades do catálogo + escolher sempre; (2) importação de planilha (E07 parte 3); (3) produtos completos (preço por canal, foto, tamanhos, adicionais, combos); (4) base do Clube na gestão.
 
 ## O que ficou pendente
