@@ -27,16 +27,22 @@ export const FOTO_PROPORCAO_MAXIMA = 4;
 /** Maior foto gravada (o banco também confere). */
 export const FOTO_GRAVADA_MAXIMO = 1024 * 1024;
 /** Qualidades tentadas em ordem até a foto caber em 1 MB (foto com muito detalhe fino). */
-const QUALIDADES = [82, 70, 55, 40];
+export const QUALIDADES = [82, 70, 55, 40] as const;
 
 // Não segurar arquivos de 8 MB no cache da biblioteca; no máximo 2 fotos sendo refeitas ao mesmo
 // tempo (cada uma pode usar ~120 MB de memória), as demais esperam a vez.
 sharp.cache(false);
 const VAGAS = 2;
+/** Quantos podem esperar a vez (cada um segura o arquivo na memória); o resto é recusado. */
+const ESPERA_MAXIMA = 10;
 let ocupadas = 0;
 const fila: (() => void)[] = [];
 async function naVez<T>(trabalho: () => Promise<T>): Promise<T> {
-  if (ocupadas >= VAGAS) await new Promise<void>((r) => fila.push(r));
+  if (ocupadas >= VAGAS) {
+    if (fila.length >= ESPERA_MAXIMA)
+      throw new ErroDeRegra("conflito", "Muitas fotos sendo enviadas agora. Tente de novo em instantes.");
+    await new Promise<void>((r) => fila.push(r));
+  }
   else ocupadas++;
   try {
     return await trabalho();
@@ -87,11 +93,15 @@ export function formatoPelosBytes(b: Uint8Array): "jpeg" | "png" | "webp" | null
 }
 
 /** Refaz a imagem: confere, endireita, reduz e grava WebP novo sem metadados. */
-export function refazerFoto(original: Buffer): Promise<{ conteudo: Buffer; largura: number; altura: number }> {
-  return naVez(() => refazer(original));
+export function refazerFoto(
+  original: Buffer,
+  /** Só para teste: as qualidades tentadas (padrão: QUALIDADES). */
+  qualidades: readonly number[] = QUALIDADES,
+): Promise<{ conteudo: Buffer; largura: number; altura: number }> {
+  return naVez(() => refazer(original, qualidades));
 }
 
-async function refazer(original: Buffer): Promise<{ conteudo: Buffer; largura: number; altura: number }> {
+async function refazer(original: Buffer, qualidades: readonly number[]): Promise<{ conteudo: Buffer; largura: number; altura: number }> {
   if (!original.length) throw new ErroDeRegra("dados_invalidos", "Envie o arquivo da foto.");
   if (original.length > FOTO_BYTES_MAXIMO) throw new ErroDeRegra("dados_invalidos", "Foto grande demais: o máximo é 8 MB.");
   const formato = formatoPelosBytes(original);
@@ -111,7 +121,7 @@ async function refazer(original: Buffer): Promise<{ conteudo: Buffer; largura: n
     throw new ErroDeRegra("dados_invalidos", `Foto pequena demais: o lado menor precisa de pelo menos ${FOTO_LADO_MINIMO} pixels.`);
   if (Math.max(w, h) > FOTO_PROPORCAO_MAXIMA * Math.min(w, h))
     throw new ErroDeRegra("dados_invalidos", "Foto comprida demais: um lado pode ter no máximo 4 vezes o outro. Recorte a foto.");
-  for (const qualidade of QUALIDADES) {
+  for (const qualidade of qualidades) {
     let r: { data: Buffer; info: OutputInfo };
     try {
       r = await abrir()

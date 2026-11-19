@@ -1,7 +1,7 @@
 /**
  * Foto do produto (migração 0016; decisão 0022). Contra PostgreSQL real; imagens geradas no teste.
  */
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql, type Banco } from "@erp/banco";
@@ -9,6 +9,8 @@ import {
   arquivoDaFoto,
   ErroDeRegra,
   formatoPelosBytes,
+  FOTO_GRAVADA_MAXIMO,
+  QUALIDADES,
   listarProdutos,
   refazerFoto,
   removerFotoDoProduto,
@@ -100,19 +102,19 @@ describe("refazer a foto", () => {
 });
 
 describe("ajustes da revisão", () => {
-  const ruido = (w: number, h: number, canais: 1 | 3) => {
-    const b = Buffer.alloc(w * h * canais);
-    for (let i = 0; i < b.length; i++) b[i] = (Math.imul(i + 1, 2654435761) >>> 13) & 0xff;
-    return sharp(b, { raw: { width: w, height: h, channels: canais } }).png().toBuffer();
-  };
-  it("foto com muito detalhe fino cabe em 1 MB (qualidade menor), nunca erro do banco", async () => {
-    for (const canais of [1, 3] as const) {
-      const r = await refazerFoto(await ruido(1200, 1200, canais));
-      expect(r.conteudo.length).toBeLessThanOrEqual(1024 * 1024);
-    }
+  it("foto com muito detalhe fino: passa de 1 MB na qualidade 82, é refeita até caber; sem tentativas menores, recusa clara", async () => {
+    // Ruído de verdade: cada canal de cada pixel 0 ou 255 ao acaso.
+    const bruto = randomBytes(1200 * 1200 * 3).map((b) => (b & 1 ? 255 : 0));
+    const ruido = await sharp(Buffer.from(bruto), { raw: { width: 1200, height: 1200, channels: 3 } }).png({ compressionLevel: 1 }).toBuffer();
+    // Confere que o teste continua tendo sentido: na primeira qualidade passa de 1 MB.
+    const primeira = await sharp(ruido).webp({ quality: QUALIDADES[0] }).toBuffer();
+    expect(primeira.length).toBeGreaterThan(FOTO_GRAVADA_MAXIMO);
+    const r = await refazerFoto(ruido);
+    expect(r.conteudo.length).toBeLessThanOrEqual(FOTO_GRAVADA_MAXIMO);
+    expect((await erroDe(refazerFoto(ruido, [QUALIDADES[0]]))).message).toContain("detalhe demais");
     const p = await produto();
-    const f = await salvarFotoDoProduto(db, gerente, { produtoId: p, arquivo: b64(await ruido(1200, 1200, 3)) });
-    expect(f.bytes).toBeLessThanOrEqual(1024 * 1024);
+    const f = await salvarFotoDoProduto(db, gerente, { produtoId: p, arquivo: b64(ruido) });
+    expect(f.bytes).toBeLessThanOrEqual(FOTO_GRAVADA_MAXIMO);
   });
   it("recusa foto comprida demais (mais de 4 por 1), TIFF e AVIF", async () => {
     expect((await erroDe(refazerFoto(await imagem(200, 900)))).message).toContain("comprida");
@@ -195,6 +197,8 @@ describe("foto do produto", () => {
         if (r.rows[0]!.n >= 2) break;
         await new Promise((r) => setTimeout(r, 50));
       }
+      const presos = await sql<{ n: number }>`SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`.execute(db);
+      expect(presos.rows[0]!.n).toBeGreaterThanOrEqual(2);
       soltar();
       await segura;
       const r = await Promise.allSettled(envios);
