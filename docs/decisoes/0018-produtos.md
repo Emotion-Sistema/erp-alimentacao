@@ -38,9 +38,9 @@ RC-07: o site lê o mesmo cadastro (descrição para a vitrine). Dinheiro sempre
   cadastrar depois.
 
 ## Hipóteses (a confirmar com o responsável)
-- Um preço só para todos os canais por enquanto (o preço por canal do módulo de cadastros fica para
-  quando o delivery chegar, E26).
-- Foto, alergênicos, tamanhos, adicionais e combos ficam para um PR próprio depois deste.
+- ~~Um preço só para todos os canais por enquanto~~ Substituída: preço do delivery próprio na
+  decisão 0021.
+- Foto, alergênicos e combos ficam para PRs próprios; tamanhos e adicionais na decisão 0021.
 - Preço mínimo R$ 0,01 (nada de produto a R$ 0,00; cortesia será um desconto no pedido).
 - Cardápio inventado só nos dados fictícios de desenvolvimento, até chegar o real.
 

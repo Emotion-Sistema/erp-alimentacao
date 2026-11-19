@@ -15,6 +15,8 @@ import {
   listarCategorias,
   listarTiposDeProducao,
   listarProdutos,
+  listarGruposDeAdicionais,
+  salvarGrupoDeAdicionais,
   salvarProduto,
   salvarTipoDeProducao,
   salvarCategoria,
@@ -320,6 +322,9 @@ export const saude = seguro(async () => {
 // ---------- produtos (E07 parte 2, decisão 0018) ----------
 export const verProdutos = seguro(async (req) => json(await listarProdutos(obterBanco(), await ator(req))));
 export const gravarProduto = seguro(async (req) => json(await salvarProduto(obterBanco(), await ator(req), await corpoJson(req))));
+// Grupos de adicionais (decisão 0021).
+export const verGruposDeAdicionais = seguro(async (req) => json(await listarGruposDeAdicionais(obterBanco(), await ator(req))));
+export const gravarGrupoDeAdicionais = seguro(async (req) => json(await salvarGrupoDeAdicionais(obterBanco(), await ator(req), await corpoJson(req))));
 
 // ---------- tipos de produção (E07 parte 2, decisão 0017) ----------
 export const verTiposDeProducao = seguro(async (req) => json(await listarTiposDeProducao(obterBanco(), await ator(req))));
