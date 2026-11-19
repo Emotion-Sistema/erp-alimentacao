@@ -9,7 +9,7 @@
 import { useState } from "react";
 import { Botao } from "@erp/interface";
 import { linhasParaCsv, type CorrecaoDeCelula } from "@erp/dominio/importar";
-import { Campo, Selecao } from "../../Campo";
+import { AreaDeTexto, Campo, Selecao } from "../../Campo";
 import { TC } from "./textos";
 
 /** Uma correção como a tela guarda: o que vai ao servidor + o valor original e o nome da coluna (só para mostrar). */
@@ -36,9 +36,12 @@ export function juntarCorrecoes(lista: readonly CorrecaoFeita[], novas: readonly
 /** Só o que o servidor precisa (linha, coluna, valor). */
 export const paraEnviar = (lista: readonly CorrecaoFeita[]): CorrecaoDeCelula[] => lista.map(({ linha, coluna, valor }) => ({ linha, coluna, valor }));
 
-/** Baixa um .csv montado aqui na tela (a planilha já corrigida, devolvida pelo servidor). */
+/**
+ * Baixa um .csv montado aqui na tela (a planilha já corrigida, devolvida pelo servidor). Sem o
+ * apóstrofo contra fórmula: o arquivo é para importar de novo; o aviso fica ao lado do botão.
+ */
 export function baixarCsv(nome: string, tabela: readonly (readonly string[])[]) {
-  const url = URL.createObjectURL(new Blob([linhasParaCsv(tabela)], { type: "text/csv;charset=utf-8" }));
+  const url = URL.createObjectURL(new Blob([linhasParaCsv(tabela, { protegerFormulas: false })], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
   a.href = url;
   a.download = nome;
@@ -67,6 +70,7 @@ export function CorrigirLinha({
   colunas,
   celulas,
   comProblema,
+  truncadas = new Set<number>(),
   ocupado,
   aoAplicar,
   aoCancelar,
@@ -75,6 +79,8 @@ export function CorrigirLinha({
   colunas: readonly ColunaParaCorrigir[];
   celulas: readonly string[];
   comProblema: ReadonlySet<number>;
+  /** Colunas cujo texto veio cortado (longo demais): corrigir substitui o texto inteiro, e a tela avisa. */
+  truncadas?: ReadonlySet<number>;
   ocupado: boolean;
   aoAplicar: (novas: CorrecaoFeita[]) => void;
   aoCancelar: () => void;
@@ -103,8 +109,16 @@ export function CorrigirLinha({
           const problema = comProblema.has(c.indice);
           const rotulo = problema ? TC.comProblema(c.rotulo) : c.rotulo;
           const valor = rascunho[i] ?? "";
+          const cortada = truncadas.has(c.indice);
+          // Célula com quebra de linha: campo de várias linhas, que mantém as quebras.
+          const variasLinhas = (celulas[c.indice] ?? "").includes("\n");
           return (
             <div key={c.indice} className={`imp-corrigir__campo${problema ? " imp-corrigir__campo--problema" : ""}`} data-coluna={c.indice}>
+              {cortada && (
+                <p className="imp-corrigir__cortada" data-testid={`cortada-${c.indice}`}>
+                  {TC.cortada}
+                </p>
+              )}
               {c.opcoes ? (
                 <Selecao
                   rotulo={rotulo}
@@ -119,6 +133,8 @@ export function CorrigirLinha({
                     ...c.opcoes.map((o) => ({ valor: o, texto: o })),
                   ]}
                 />
+              ) : variasLinhas ? (
+                <AreaDeTexto rotulo={rotulo} explicacao={c.explicacao} exemplo={c.exemplo} value={valor} maxLength={500} rows={3} disabled={ocupado} onChange={(e) => mudar(i, e.target.value)} />
               ) : (
                 <Campo rotulo={rotulo} explicacao={c.explicacao} exemplo={c.exemplo} value={valor} maxLength={500} disabled={ocupado} onChange={(e) => mudar(i, e.target.value)} />
               )}
@@ -171,10 +187,13 @@ export function CorrecoesFeitas({
         </ul>
       </details>
       <div className="hor-secao__botoes">
-        <Botao variante="secundario" disabled={ocupado} onClick={aoBaixar}>
+        <Botao variante="secundario" disabled={ocupado} onClick={aoBaixar} aria-describedby="imp-baixar-aviso">
           {TC.baixar}
         </Botao>
       </div>
+      <p id="imp-baixar-aviso" className="imp-corrigir__intro">
+        {TC.baixarAviso}
+      </p>
     </div>
   );
 }

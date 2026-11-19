@@ -96,6 +96,9 @@ export const TC = {
   desfazer: "Desfazer",
   desfazerQual: (linha: number, rotulo: string) => `a correção da linha ${linha}, ${rotulo}`,
   baixar: "Baixar a planilha corrigida (.csv)",
+  baixarAviso:
+    "O arquivo sai igual ao que o sistema leu, já corrigido, para guardar ou importar de novo. Se abrir no Excel, confira as células que começam com = + - ou @: o Excel pode tratá-las como fórmula.",
+  cortada: "Este texto é longo e aparece cortado aqui. Se você mudar este campo, o que estiver escrito substitui o texto inteiro da célula.",
   semUso: "Esta coluna não é usada nesta importação; pode deixar como está.",
   semUsoExemplo: "Deixe como está.",
   colunaSemNome: (letra: string) => `Coluna ${letra}`,

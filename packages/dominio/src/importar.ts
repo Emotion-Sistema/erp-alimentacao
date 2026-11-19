@@ -36,7 +36,7 @@ import {
   type TipoDeImportacao,
 } from "./importar-comum";
 import { lerEmbalagemDoTexto, MAXIMO_POR_LINHA } from "./lista-colada";
-import { aplicarCorrecoes, assinaturaDasCorrecoes, correcoesQueValem, esquemaCorrecoes } from "./planilha-corrigir";
+import { aplicarCorrecoes, assinaturaDasCorrecoes, correcoesQueValem, esquemaCorrecoes, limitadorDeCelulas, tabelaParaDevolver } from "./planilha-corrigir";
 import { lerArquivoDePlanilha, type TabelaLida } from "./planilha-ler";
 import { travarLista } from "./posicao";
 import { gravarProdutoNaTransacao, textoDosCentavos, centavosDoTexto, traduzirErroDoProduto, validarDadosDoProduto, PRECO_MAXIMO_CENTAVOS, TEMPO_DE_PREPARO_MAXIMO, type DadosDoProduto } from "./produtos";
@@ -448,11 +448,13 @@ function avaliar(
   const ctx: Contexto = { tipo, refs, cabecalhos, mapa };
   const vistos = new Map<string, number>();
   const pulando = new Set(pular);
+  const limitador = limitadorDeCelulas();
   const avaliadas = dados.map((l) => {
     const a = tipo === "produtos" ? avaliarProduto(ctx, l.celulas, vistos, l.numero) : avaliarIngrediente(ctx, l.celulas, vistos, l.numero);
     a.linha.pulada = pulando.has(l.numero) && a.linha.situacao !== "ja_existe";
     // Linha com erro: as células atuais vão para a tela poder corrigir ali mesmo.
-    if (a.linha.situacao === "erro") a.linha.celulas = Array.from({ length: cabecalhos.length }, (_, i) => l.celulas[i] ?? "");
+    // Com teto: as primeiras 200 linhas, células cortadas em 500 letras, até 1 MB no total.
+    if (a.linha.situacao === "erro") Object.assign(a.linha, limitador.devolver(l.celulas, cabecalhos.length));
     return a;
   });
   const linhas = avaliadas.map((a) => a.linha);
@@ -474,6 +476,7 @@ function avaliar(
       avisoDoTipo: tipoSugerido ? `Esta planilha parece de ${NOME_DO_TIPO[tipoSugerido].varios}. Trocar para ${ROTULO_DO_TIPO[tipoSugerido]}?` : null,
       opcoes: opcoesDosCampos(tipo, refs),
       correcoes,
+      avisoDasCelulas: limitador.aviso(),
     },
   };
 }
@@ -492,7 +495,7 @@ export async function conferirPlanilha(db: Banco, ator: Ator | null, dados: unkn
   const tabela = aplicarCorrecoes(await lerArquivoDePlanilha(bytesDoPedido(p), p.arquivo.nome), p.correcoes);
   const refs = await referencias(db, p.tipo);
   const { conferencia } = avaliar(p.tipo, tabela, p.arquivo.nome, refs, p.mapa, p.pular, correcoesQueValem(p.correcoes).length);
-  return { chave: randomUUID(), ...conferencia, ...(p.devolverTabela ? { tabela: tabela.linhas.map((l) => l.celulas) } : {}) };
+  return { chave: randomUUID(), ...conferencia, ...(p.devolverTabela ? { tabela: tabelaParaDevolver(tabela) } : {}) };
 }
 
 // ---------- gravar (tudo ou nada) ----------

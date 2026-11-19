@@ -8,7 +8,16 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { ErroDeRegra } from "./erros";
-import { LIMITE_DE_COLUNAS, LIMITE_DE_CORRECOES, letraDaColuna, type CorrecaoDeCelula } from "./importar-comum";
+import {
+  LIMITE_DA_TABELA_DEVOLVIDA,
+  LIMITE_DAS_CELULAS_DEVOLVIDAS,
+  LIMITE_DE_COLUNAS,
+  LIMITE_DE_CORRECOES,
+  LINHAS_COM_CELULAS,
+  TAMANHO_DA_CELULA_DEVOLVIDA,
+  letraDaColuna,
+  type CorrecaoDeCelula,
+} from "./importar-comum";
 import { limparCelula, type TabelaLida } from "./planilha-ler";
 
 export const TAMANHO_MAXIMO_DA_CORRECAO = 500;
@@ -26,7 +35,8 @@ export const esquemaCorrecoes = z
         valor: z
           .string({ error: "Correção sem o valor." })
           .max(TAMANHO_MAXIMO_DA_CORRECAO, `Correção longa demais (máximo ${TAMANHO_MAXIMO_DA_CORRECAO} letras).`)
-          .refine((v) => !/\p{Cc}/u.test(v), "Correção com caractere inválido."),
+          // Quebra de linha dentro da célula vale (como na planilha); outro caractere de controle, não.
+          .refine((v) => !/\p{Cc}/u.test(v.replace(/\n/g, "")), "Correção com caractere inválido."),
       },
       { error: "Correção em formato inválido." },
     ),
@@ -73,4 +83,60 @@ export function assinaturaDasCorrecoes(correcoes: readonly CorrecaoDeCelula[]): 
   const valem = correcoesQueValem(correcoes);
   if (!valem.length) return "";
   return createHash("sha256").update(JSON.stringify(valem.map((c) => [c.linha, c.coluna, c.valor]))).digest("hex");
+}
+
+// ---------- teto da resposta ----------
+
+/** Tamanho em bytes de um texto dentro do JSON da resposta (com as aspas e o escape). */
+const bytesNoJson = (v: string) => Buffer.byteLength(JSON.stringify(v)) + 1;
+
+export type CelulasDevolvidas = { celulas: string[]; truncada?: true; colunasTruncadas?: number[] };
+
+/**
+ * Decide quais linhas com erro vão com as células para a tela (corrigir no painel), sem deixar a
+ * resposta crescer sem fim: só as primeiras 200 linhas, cada célula cortada em 500 letras (marcada
+ * como cortada) e no máximo 1 MB no total. Passou de algum teto, para de mandar e avisa.
+ */
+export function limitadorDeCelulas() {
+  let linhas = 0;
+  let bytes = 0;
+  let parou: null | "linhas" | "bytes" = null;
+  return {
+    devolver(celulas: readonly string[], largura: number): CelulasDevolvidas | undefined {
+      if (parou) return undefined;
+      if (linhas >= LINHAS_COM_CELULAS) {
+        parou = "linhas";
+        return undefined;
+      }
+      const colunasTruncadas: number[] = [];
+      const saida = Array.from({ length: largura }, (_, i) => {
+        const v = celulas[i] ?? "";
+        if (v.length <= TAMANHO_DA_CELULA_DEVOLVIDA) return v;
+        colunasTruncadas.push(i);
+        return Array.from(v).slice(0, TAMANHO_DA_CELULA_DEVOLVIDA).join("");
+      });
+      const tamanho = saida.reduce((n, v) => n + bytesNoJson(v), 0);
+      if (bytes + tamanho > LIMITE_DAS_CELULAS_DEVOLVIDAS) {
+        parou = "bytes";
+        return undefined;
+      }
+      bytes += tamanho;
+      linhas++;
+      return { celulas: saida, ...(colunasTruncadas.length ? { truncada: true as const, colunasTruncadas } : {}) };
+    },
+    aviso(): string | null {
+      if (parou === "linhas") return `Muitas linhas com erro: só as primeiras ${LINHAS_COM_CELULAS} podem ser corrigidas aqui. Corrija a planilha ou pule as linhas.`;
+      if (parou === "bytes") return "Muitas linhas com erro (texto demais para mostrar aqui); corrija a planilha ou pule as linhas.";
+      return null;
+    },
+  };
+}
+
+/** A planilha inteira já corrigida, para a tela baixar; recusa se passar de 2 MB de texto. */
+export function tabelaParaDevolver(tabela: TabelaLida): string[][] {
+  let bytes = 0;
+  for (const l of tabela.linhas) for (const c of l.celulas) bytes += bytesNoJson(c);
+  if (bytes > LIMITE_DA_TABELA_DEVOLVIDA)
+    throw new ErroDeRegra("dados_invalidos", `A planilha corrigida passa de ${LIMITE_DA_TABELA_DEVOLVIDA / 1024 / 1024} MB de texto: não dá para baixar por aqui. Corrija na própria planilha.`);
+  return tabela.linhas.map((l) => [...l.celulas]);
 }

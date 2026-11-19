@@ -318,6 +318,11 @@ export function ImportarPlanilha({ tipoInicial }: { tipoInicial: TipoDeImportaca
           <p className="imp-resumo" data-testid="resumo-da-conferencia">
             {textoDoResumo(resumo)}.
           </p>
+          {conf.avisoDasCelulas && !resultado && (
+            <Aviso tipo="atencao" data-testid="aviso-das-celulas">
+              {conf.avisoDasCelulas}
+            </Aviso>
+          )}
           {!resultado && <CorrecoesFeitas lista={correcoes} ocupado={!!ocupado} aoDesfazer={(c) => void mudarCorrecoes(correcoes.filter((x) => x !== c))} aoBaixar={() => void baixarCorrigida()} />}
           <Grupo legenda={TI.passo4.filtro} explicacao={TI.passo4.filtroAjuda} exemplo={TI.passo4.filtroExemplo} className="hor-escolhas">
             {FILTROS.map((f) => (
@@ -378,6 +383,7 @@ export function ImportarPlanilha({ tipoInicial }: { tipoInicial: TipoDeImportaca
                           colunas={colunasParaCorrigir}
                           celulas={l.celulas}
                           comProblema={new Set(l.problemas.flatMap((p) => (p.indice === null ? [] : [p.indice])))}
+                          truncadas={new Set(l.colunasTruncadas ?? [])}
                           ocupado={!!ocupado}
                           aoAplicar={(novas) => void mudarCorrecoes(juntarCorrecoes(correcoes, novas))}
                           aoCancelar={() => setCorrigindo(null)}

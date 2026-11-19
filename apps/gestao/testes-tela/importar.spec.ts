@@ -248,3 +248,33 @@ test("tipo trocado: planilha de produtos com Ingredientes escolhido mostra o avi
   await expect(page.getByTestId("aviso-tipo-trocado")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Gravar 1 produto" })).toBeEnabled();
 });
+
+test("corrigir no painel: célula com quebra de linha usa campo de várias linhas; texto cortado avisa que vai substituir tudo", async ({ page }) => {
+  await entrar(page, "gerente.geral");
+  await page.goto("/cadastros/importar?tipo=produtos");
+  const longo = "Descrição longa de exemplo ".repeat(30); // mais de 500 letras: chega cortada
+  const csv = ["Nome;Categoria;Preço;Descrição", 'Torta da quebra;Categoria Sumida;9,00;"Primeira linha\nSegunda linha"', `Bolo do texto longo;Categoria Sumida;8,00;${longo}`].join("\n");
+  await page.getByLabel("Arquivo da planilha").setInputFiles({ name: "quebras.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "utf8") });
+  await expect(resumo(page)).toHaveText("0 prontas, 2 com erro.");
+
+  await linha(page, 2).getByRole("button", { name: "Corrigir aqui a linha 2" }).click();
+  const form2 = page.getByTestId("corrigindo-2");
+  const descricao = form2.getByLabel("Descrição", { exact: true });
+  await expect(descricao).toHaveJSProperty("tagName", "TEXTAREA");
+  await expect(descricao).toHaveValue("Primeira linha\nSegunda linha");
+  await descricao.fill("Massa fina\nRecheio de frutas");
+  await form2.getByLabel("Categoria (com problema)").selectOption("Salgados");
+  await form2.getByRole("button", { name: "Aplicar e conferir de novo" }).click();
+  await expect(linha(page, 2)).toContainText("Pronta");
+
+  await linha(page, 3).getByRole("button", { name: "Corrigir aqui a linha 3" }).click();
+  const form3 = page.getByTestId("corrigindo-3");
+  await expect(form3.getByTestId("cortada-3")).toContainText("substitui o texto inteiro da célula");
+  await expect(form3.getByTestId("cortada-1")).toHaveCount(0);
+  await expect(form3.getByLabel("Descrição (com problema)")).toHaveValue(longo.slice(0, 500));
+  await form3.getByLabel("Descrição (com problema)").fill("Bolo de exemplo");
+  await form3.getByLabel("Categoria (com problema)").selectOption("Salgados");
+  await form3.getByRole("button", { name: "Aplicar e conferir de novo" }).click();
+  await expect(resumo(page)).toHaveText("2 prontas.");
+  await expect(page.getByText("O arquivo sai igual ao que o sistema leu")).toBeVisible();
+});

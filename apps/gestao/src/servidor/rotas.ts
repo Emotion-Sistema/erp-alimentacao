@@ -90,6 +90,7 @@ import {
   exigir,
   gravarPlanilha,
   LIMITE_DE_BYTES,
+  LIMITE_DE_CORRECOES,
   modeloDePlanilha,
   type Ator,
 } from "@erp/dominio";
@@ -442,15 +443,29 @@ export const verCnpj = seguroComId(async (req, p) => json(await consultarCnpj(ob
 
 // ---------- importar planilha (E07 parte 3, decisão 0020) ----------
 
-/** O arquivo vai em base64 dentro do JSON: 2 MB viram cerca de 2,7 MB, mais folga para o resto. */
-const LIMITE_DO_PEDIDO = Math.ceil(LIMITE_DE_BYTES / 3) * 4 + 64 * 1024;
+/**
+ * O arquivo vai em base64 dentro do JSON: 2 MB viram cerca de 2,7 MB, mais folga para o resto e para
+ * as correções do painel (até 2.000, cada uma com até 500 letras: cerca de 520 bytes no JSON).
+ */
+const TAMANHO_DO_ARQUIVO_NO_PEDIDO = Math.ceil(LIMITE_DE_BYTES / 3) * 4;
+const LIMITE_DO_PEDIDO = TAMANHO_DO_ARQUIVO_NO_PEDIDO + 64 * 1024 + LIMITE_DE_CORRECOES * 520;
 const MENSAGEM_DO_LIMITE = `Arquivo grande demais: o máximo é ${LIMITE_DE_BYTES / 1024 / 1024} MB. Divida a planilha em partes.`;
+const MENSAGEM_DAS_CORRECOES = `Correções demais de uma vez (máximo ${LIMITE_DE_CORRECOES.toLocaleString("pt-BR")}). Grave uma parte e importe o resto depois.`;
+/** Passou do limite: foi o arquivo (o "conteudo" passa do tamanho dele) ou as correções? */
+function mensagemDoPedidoGrande(lido: Uint8Array): string {
+  const texto = new TextDecoder().decode(lido);
+  const inicio = texto.search(/"conteudo"\s*:\s*"/);
+  if (inicio < 0) return MENSAGEM_DAS_CORRECOES;
+  const comeco = texto.indexOf('"', texto.indexOf(":", inicio) + 1) + 1;
+  const fim = texto.indexOf('"', comeco);
+  return (fim < 0 ? texto.length : fim) - comeco > TAMANHO_DO_ARQUIVO_NO_PEDIDO ? MENSAGEM_DO_LIMITE : MENSAGEM_DAS_CORRECOES;
+}
 /** Confere a permissão ANTES de ler o arquivo (não lê 2 MB de quem não pode importar). */
 async function pedidoDeImportacao(req: Request) {
   const db = obterBanco();
   const a = await ator(req);
   await exigir(db, a, "cadastros.gerenciar", { tipo: "importacao_planilha" });
-  return { db, a, corpo: await corpoJsonLimitado(req, LIMITE_DO_PEDIDO, MENSAGEM_DO_LIMITE) };
+  return { db, a, corpo: await corpoJsonLimitado(req, LIMITE_DO_PEDIDO, mensagemDoPedidoGrande) };
 }
 /** Passo 1: lê e confere; não grava nada. */
 export const conferirImportacao = seguro(async (req) => {
@@ -468,7 +483,7 @@ export const importarFichasDaPlanilha = seguro(async (req) => {
   const db = obterBanco();
   const a = await ator(req);
   await exigir(db, a, "cadastros.gerenciar", { tipo: "importacao_fichas" });
-  const corpo = await corpoJsonLimitado(req, LIMITE_DO_PEDIDO, MENSAGEM_DO_LIMITE);
+  const corpo = await corpoJsonLimitado(req, LIMITE_DO_PEDIDO, mensagemDoPedidoGrande);
   return json(await importarFichas(db, a, corpo));
 });
 /** Modelo de planilha para baixar (?tipo=ingredientes|produtos&formato=xlsx|csv). */

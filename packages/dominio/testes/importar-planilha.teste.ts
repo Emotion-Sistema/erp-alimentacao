@@ -5,7 +5,7 @@
  * idempotência (inclusive clique duplo ao mesmo tempo), permissões, limites de tamanho e tipo.
  * Só dados inventados.
  */
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { crc32, deflateRawSync } from "node:zlib";
 import ExcelJS from "exceljs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -678,7 +678,9 @@ describe("corrigir no painel (ideia nº 13): correções por célula, conferidas
     expect(await msg([{ linha: 3, coluna: 50, valor: "x" }])).toContain("Coluna inválida");
     expect(await msg([{ linha: 3, coluna: 1, valor: "a".repeat(501) }])).toContain("máximo 500 letras");
     expect(await msg([{ linha: 3, coluna: 1, valor: "Bebi\u0000das" }])).toContain("caractere inválido");
-    expect(await msg([{ linha: 3, coluna: 1, valor: "linha\nquebrada" }])).toContain("caractere inválido");
+    expect(await msg([{ linha: 3, coluna: 1, valor: "linha\rquebrada" }])).toContain("caractere inválido");
+    // Quebra de linha dentro da célula vale, como na planilha.
+    expect((await conferirPlanilha(db, gerente, { ...p(), correcoes: [{ linha: 2, coluna: 0, valor: "Nome com\nquebra" }] })).correcoes).toBe(1);
     expect(await msg([{ linha: 0, coluna: 1, valor: "x" }])).toContain("Número de linha inválido");
     expect(await msg([{ linha: 3, coluna: 1 }])).toContain("Correção sem o valor");
     expect(await msg(Array.from({ length: 2001 }, (_, i) => ({ linha: 3, coluna: i % 3, valor: "x" })))).toContain("Correções demais");
@@ -744,5 +746,59 @@ describe("corrigir no painel (ideia nº 13): correções por célula, conferidas
     // Só o nome: nenhum dos dois tipos acha tudo, então não sugere troca.
     const soNome = await conferirPlanilha(db, gerente, pedido("produtos", "nomes.csv", `Nome\nAlgo ${S}\n`));
     expect(soNome.tipoSugerido).toBeNull();
+  });
+});
+
+describe("teto da resposta da conferência (xlsx com texto compartilhado)", () => {
+  /** .xlsx com o MESMO texto longo em muitas células: no arquivo ele fica uma vez só (texto compartilhado). */
+  async function xlsxInchado(linhas: number, colunas: number, tamanho: number): Promise<Uint8Array> {
+    const longo = "Texto repetido de exemplo ".repeat(Math.ceil(tamanho / 26)).slice(0, tamanho);
+    const cab = ["Nome", "Categoria", "Preço", ...Array.from({ length: colunas - 3 }, (_, i) => `Extra ${i + 1}`)];
+    return xlsx([cab, ...Array.from({ length: linhas }, () => Array.from({ length: colunas }, () => longo))]);
+  }
+
+  it("só as primeiras 200 linhas com erro levam as células, cada uma cortada em 500 letras e marcada", async () => {
+    const bytes = await xlsxInchado(300, 3, 5000);
+    expect(bytes.length).toBeLessThan(200 * 1024); // o arquivo é pequeno; o texto lido é de 4,5 milhões de letras
+    const c = await conferirPlanilha(db, gerente, pedido("produtos", "inchado.xlsx", bytes));
+    expect(c.resumo.erros).toBe(300);
+    const comCelulas = c.linhas.filter((l) => l.celulas);
+    expect(comCelulas).toHaveLength(200);
+    expect(comCelulas[0]!.numero).toBe(2);
+    expect(comCelulas[199]!.numero).toBe(201);
+    expect(comCelulas.every((l) => l.truncada && l.celulas!.every((x) => x.length === 500) && l.colunasTruncadas!.join() === "0,1,2")).toBe(true);
+    expect(c.avisoDasCelulas).toContain("só as primeiras 200");
+    expect(Buffer.byteLength(JSON.stringify(c))).toBeLessThan(1.5 * 1024 * 1024);
+  });
+
+  it("passou de 1 MB de células: para de mandar e avisa; a planilha corrigida acima de 2 MB é recusada", async () => {
+    const bytes = await xlsxInchado(400, 12, 5000);
+    const c = await conferirPlanilha(db, gerente, pedido("produtos", "inchado.xlsx", bytes));
+    const comCelulas = c.linhas.filter((l) => l.celulas).length;
+    expect(comCelulas).toBeGreaterThan(100);
+    expect(comCelulas).toBeLessThan(200);
+    expect(c.avisoDasCelulas).toBe("Muitas linhas com erro (texto demais para mostrar aqui); corrija a planilha ou pule as linhas.");
+    const tamanho = Buffer.byteLength(JSON.stringify(c));
+    expect(tamanho).toBeLessThan(1.5 * 1024 * 1024);
+    expect(tamanho).toBeGreaterThan(1024 * 1024 - 100 * 1024); // as células usam o teto de 1 MB, não mais
+    const e = await erroDe(conferirPlanilha(db, gerente, pedido("produtos", "inchado.xlsx", bytes, { devolverTabela: true })));
+    expect(e.message).toContain("passa de 2 MB de texto");
+  });
+
+  it("sem correções, a assinatura da importação é igual à de antes (importações antigas continuam valendo)", async () => {
+    const csv = ["Nome;Categoria;Preço", `Assinado ${S};Bebidas;3,00`, `Pulado ${S};Inexistente ${S};1,00`].join("\n");
+    const p = pedido("produtos", "assinatura.csv", csv, { pular: [3] });
+    const c = await conferirPlanilha(db, gerente, p);
+    const r = await gravarPlanilha(db, gerente, { ...p, chave: c.chave });
+    const imp = await db.selectFrom("importacao_planilha").select("assinatura").where("id", "=", r.importacaoId).executeTakeFirstOrThrow();
+    // A conta antiga, escrita aqui de novo: tipo, sha256 do arquivo, mapa em ordem e as linhas puladas.
+    const arquivo = createHash("sha256").update(new TextEncoder().encode(csv)).digest("hex");
+    const mapa = Object.keys(c.mapa)
+      .sort()
+      .map((k) => `${k}=${c.mapa[k] ?? ""}`)
+      .join(",");
+    expect(imp.assinatura).toBe(createHash("sha256").update(`produtos\n${arquivo}\n${mapa}\n3`).digest("hex"));
+    // Lista de correções vazia é o mesmo que não mandar.
+    expect(await gravarPlanilha(db, gerente, { ...p, correcoes: [], chave: c.chave })).toMatchObject({ repetida: true, importacaoId: r.importacaoId });
   });
 });

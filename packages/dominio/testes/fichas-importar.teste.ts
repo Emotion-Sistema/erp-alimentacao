@@ -337,3 +337,27 @@ describe("corrigir no painel (ideia nº 13)", () => {
     expect(await db.selectFrom("ficha").select("id").where("nome", "=", `Chá C ${s}`).executeTakeFirst()).toBeUndefined();
   });
 });
+
+describe("teto da resposta (xlsx com texto compartilhado)", () => {
+  it("as linhas citadas em erros levam as células só até 200 linhas, cortadas em 500 letras; nomes e erros curtos", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const longo = "Texto repetido de exemplo ".repeat(200).slice(0, 5000);
+    const livro = new ExcelJS.Workbook();
+    const aba = livro.addWorksheet("Fichas");
+    aba.addRow(CAB.split(";"));
+    // A mesma ficha (nome enorme) com 300 itens de nome enorme: um erro por linha.
+    for (let i = 0; i < 300; i++) aba.addRow([longo, "produto", "", "", "", "", "", "", longo, "10", "g", "", longo, longo, longo, longo]);
+    const bytes = new Uint8Array((await livro.xlsx.writeBuffer()) as ArrayBuffer);
+    expect(bytes.length).toBeLessThan(200 * 1024);
+    const r = await importarFichas(db, gerente, { arquivo: { nome: "inchado.xlsx", conteudo: Buffer.from(bytes).toString("base64") }, aplicar: false });
+    expect(r.linhas).toHaveLength(200);
+    expect(r.linhas.every((l) => l.truncada && l.celulas.every((x) => x.length <= 500))).toBe(true);
+    expect(r.linhas[0]!.colunasTruncadas).toEqual([0, 8, 12, 13, 14, 15]);
+    expect(r.avisoDasCelulas).toContain("só as primeiras 200");
+    expect(r.fichas[0]!.nome.length).toBeLessThanOrEqual(120);
+    expect(r.fichas[0]!.erros.length).toBeGreaterThan(300);
+    expect(r.fichas[0]!.erros.every((e) => e.texto.length <= 300)).toBe(true);
+    expect(Buffer.byteLength(JSON.stringify(r))).toBeLessThan(1.5 * 1024 * 1024);
+    expect((await erroDe(importarFichas(db, gerente, { arquivo: { nome: "inchado.xlsx", conteudo: Buffer.from(bytes).toString("base64") }, aplicar: false, devolverTabela: true }))).message).toContain("passa de 2 MB");
+  });
+});

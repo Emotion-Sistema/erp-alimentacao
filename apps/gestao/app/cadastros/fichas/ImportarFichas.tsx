@@ -291,6 +291,7 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
                             colunas={colunasParaCorrigir}
                             celulas={daLinha.celulas}
                             comProblema={problemasDaLinha.get(numero) ?? new Set()}
+                            truncadas={new Set(daLinha.colunasTruncadas ?? [])}
                             ocupado={!!ocupado}
                             aoAplicar={(novas) => void mudarCorrecoes(juntarCorrecoes(correcoes, novas))}
                             aoCancelar={() => setCorrigindo(null)}
@@ -313,6 +314,11 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
                   ))}
                 </ul>
               </div>
+            )}
+            {c.avisoDasCelulas && (
+              <Aviso tipo="atencao" data-testid="aviso-das-celulas">
+                {c.avisoDasCelulas}
+              </Aviso>
             )}
             <CorrecoesFeitas lista={correcoes} ocupado={!!ocupado} aoDesfazer={(x) => void mudarCorrecoes(correcoes.filter((y) => y !== x))} aoBaixar={() => void baixarCorrigida()} />
             {!podeGravar && <p className="hor-secao__intro" data-testid="por-que-nao-grava">{boas === 0 ? T.nadaParaGravar : T.corrijaOuPule}</p>}

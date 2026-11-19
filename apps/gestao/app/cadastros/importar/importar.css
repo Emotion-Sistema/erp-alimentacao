@@ -64,6 +64,7 @@
 .imp-corrigir__campo > * { margin: 0; min-width: 0; }
 .imp-corrigir__campo .erp-campo__entrada { width: 100%; }
 .imp-corrigir__campo--problema { border-left-color: var(--cor-perigo); }
+.imp-corrigir__cortada { color: var(--cor-texto); font-size: var(--texto-pequeno); font-weight: var(--peso-forte); overflow-wrap: anywhere; }
 .imp-corrigir__campo--problema .erp-campo__rotulo { color: var(--cor-perigo); }
 .imp-correcoes { display: grid; gap: var(--espaco-2); min-width: 0; }
 .imp-correcoes > * { margin: 0; }

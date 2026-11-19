@@ -17,7 +17,7 @@ import { ErroDeRegra } from "./erros";
 import { Fracao, type UnidadeDaFicha } from "./fichas-comum";
 import { gravarFichaNaTransacao, traduzirErroDaFicha, travarFichas, validarDadosDaFicha, type DadosDaFicha } from "./fichas";
 import { LIMITE_DE_BYTES } from "./importar-comum";
-import { aplicarCorrecoes, correcoesQueValem, esquemaCorrecoes } from "./planilha-corrigir";
+import { aplicarCorrecoes, correcoesQueValem, esquemaCorrecoes, limitadorDeCelulas, tabelaParaDevolver, type CelulasDevolvidas } from "./planilha-corrigir";
 import { lerArquivoDePlanilha } from "./planilha-ler";
 import { nomeComparavel } from "./produtos-comum";
 import { exigir, type Ator } from "./sessao";
@@ -92,8 +92,10 @@ export type ResultadoDaImportacao = {
   erros: string[];
   /** O cabeçalho da planilha (o nome de cada coluna), para a tela montar os campos ao corrigir. */
   colunas: string[];
-  /** Só as linhas citadas em erros: o texto atual de cada célula (já com as correções). */
-  linhas: { numero: number; celulas: string[] }[];
+  /** Só as linhas citadas em erros (as primeiras 200, dentro do teto): o texto atual de cada célula, já corrigido. */
+  linhas: ({ numero: number } & CelulasDevolvidas)[];
+  /** Nem todas as linhas com erro vieram com as células (muitas linhas ou texto demais): o que dizer. */
+  avisoDasCelulas: string | null;
   /** Opções válidas das colunas de escolha fixa, pelo índice da coluna ("10" -> ["g", "kg", ...]). */
   opcoes: Record<string, string[]>;
   /** Quantas correções do painel foram aplicadas. */
@@ -478,33 +480,42 @@ export async function importarFichas(db: Banco, ator: Ator | null, dados: unknow
   const { fichas, erros, indice } = montar(tabela.linhas);
   const nomeArq = p.data.arquivo.nome.slice(0, 120);
   const largura = Math.max(...tabela.linhas.map((l) => l.celulas.length));
-  const colunas = Array.from({ length: largura }, (_, i) => tabela.linhas[0]?.celulas[i] ?? "");
+  const colunas = Array.from({ length: largura }, (_, i) => (tabela.linhas[0]?.celulas[i] ?? "").slice(0, 80));
   const opcoes: Record<string, string[]> = {};
   for (const [c, lista] of Object.entries(OPCOES_FIXAS) as [Coluna, string[]][]) if (indice[c] !== undefined) opcoes[String(indice[c])] = lista;
-  /** As células das linhas citadas em erros, para a tela corrigir ali mesmo. */
+  /** As células das linhas citadas em erros, para a tela corrigir ali mesmo (com teto: ver limitadorDeCelulas). */
   const linhasCitadas = (montadas: Montada[]) => {
     const citadas = new Set(montadas.flatMap((m) => m.planejada.erros.map((e) => e.linha)));
-    return tabela.linhas.filter((l) => citadas.has(l.numero)).map((l) => ({ numero: l.numero, celulas: Array.from({ length: largura }, (_, i) => l.celulas[i] ?? "") }));
+    const limitador = limitadorDeCelulas();
+    const linhas = tabela.linhas.flatMap((l) => {
+      if (!citadas.has(l.numero)) return [];
+      const d = limitador.devolver(l.celulas, largura);
+      return d ? [{ numero: l.numero, ...d }] : [];
+    });
+    return { linhas, avisoDasCelulas: limitador.aviso() };
   };
+  /** Texto que veio da planilha, cortado para a resposta não crescer sem fim (o nome e os erros). */
+  const curto = (t: string, n: number) => (t.length > n ? `${Array.from(t).slice(0, n - 3).join("")}...` : t);
   const resultado = (aplicado: boolean, montadas: Montada[], novos: Map<string, { nome: string; unidade: UnidadeDaFicha }>, acoes = new Map<Planejada, FichaDaPlanilha["acao"]>()): ResultadoDaImportacao => ({
     arquivo: nomeArq,
     aplicado,
     erros,
     colunas,
-    linhas: linhasCitadas(montadas),
+    ...linhasCitadas(montadas),
     opcoes,
     correcoes: quantasCorrecoes,
-    ...(p.data.devolverTabela && !aplicado ? { tabela: tabela.linhas.map((l) => l.celulas) } : {}),
+    ...(p.data.devolverTabela && !aplicado ? { tabela: tabelaParaDevolver(tabela) } : {}),
     ingredientesNovos: [...novos.values()],
     fichas: montadas.map((m) => ({
-      nome: m.planejada.nome,
+      // Nome de ficha válido tem até 80 letras: cortar em 120 não muda a chave "tipo:nome" de uma ficha boa.
+      nome: curto(m.planejada.nome, 120),
       tipo: m.planejada.tipo,
       linha: m.planejada.linha,
       acao: m.planejada.erros.length ? "erro" : (acoes.get(m.planejada) ?? (m.fichaId ? "nova_versao" : "criar")),
       versaoAtual: m.versaoAtual ?? null,
       itens: m.planejada.itens.length,
       pendencias: m.planejada.pendencias.length,
-      erros: m.planejada.erros,
+      erros: m.planejada.erros.map((e) => ({ ...e, texto: curto(e.texto, 300) })),
     })),
   });
   if (erros.length) return resultado(false, [], new Map());
