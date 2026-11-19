@@ -57,7 +57,7 @@
 /* Opção dentro da parte: cartão mais leve, para não confundir com a parte. */
 .linha-editavel__linha.prod-combo__opcao { border-left-color: var(--cor-borda); background: var(--cor-superficie); box-shadow: none; }
 .prod-combo__produto { width: 16rem; max-width: 100%; }
-.prod-combo__tamanho { width: 10rem; max-width: 100%; }
+.prod-combo__tamanho { width: 12rem; max-width: 100%; }
 @media (max-width: 40rem) {
   .linha-editavel__linha.prod-combo__parte { padding: var(--espaco-3) var(--espaco-2); }
   .prod-combo__cabeca { display: grid; }
