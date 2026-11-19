@@ -17,6 +17,7 @@ Os tipos do painel e da ficha (`PainelDeFichas`, `FichaCompleta`, `ResumoDaFicha
 | `EditorDaFicha.tsx` | Janela que monta a receita inteira (nova ficha ou versão nova com `versaoBase`). |
 | `HistoricoDaFicha.tsx` | Versões; compara uma antiga com a atual (`compararVersoes`), com ícone e palavra. |
 | `VersaoDaCozinha.tsx` | Receita limpa e imprimível, sem custo, com "fazer 1x / 2x / 3x / outro" (`escalarQuantidade`). |
+| `ImportarFichas.tsx` | Janela "Importar fichas" (só quem gerencia): arquivo .csv/.xlsx, Conferir, resultado por ficha (criar, versão nova, sem mudança, erro) com erros por linha, ingredientes que serão criados, "Criar os ingredientes que faltam" (muda a conferência: confere de novo) e "Gravar as boas e deixar de fora as com erro", Gravar. Bloco com as colunas e modelo .csv gerado na tela. |
 | `contas.ts` | Conversões sem float: kg/L para g/ml (`quantidadeNaBase`), % para pontos-base, textos. Teste: `apps/gestao/testes/fichas-contas.teste.ts`. |
 | `textos.ts` | Todos os textos e ajudas dos campos. |
 | `fichas.css` | O pouco que é só desta tela, inclusive o `@media print` da versão da cozinha. |
@@ -28,6 +29,12 @@ com `id` e `receita` grava versão nova (`versaoBase` = versão aberta; se outra
 volta 409 e a janela oferece abrir a mais nova); `{ id, ativo }` liga ou desliga. `POST /api/fichas/custo`
 `{ ingredienteId, custoCentavos | null, quantidade }` (pede também `custos.ver`). `POST /api/fichas/limite`
 `{ limiteCustoPb }` (35% = 3500). Erro volta como `{ mensagem }` e aparece na tela.
+
+Importar: `POST /api/fichas/importar` `{ arquivo: { nome, conteudo (base64) }, aplicar, criarIngredientes, pularComErro, versoes }`
+(regra em `packages/dominio/src/fichas-importar.ts`). `versoes` vai SEMPRE, com a chave `"tipo:nome"` e a
+`versaoAtual` vista na conferência: se outra pessoa mudou a ficha nesse meio tempo, o servidor marca erro
+em vez de gravar por cima. Planilha igual ao que já está gravado: o servidor não grava nada (`aplicado`
+falso, "sem mudança") e a tela diz "Nada mudou".
 
 Quantidade vazia num item = pendência (a ficha fica Incompleta e não baixa estoque). A tela nunca
 arredonda escondido: o que não cabe em 4 casas na unidade da ficha é recusado com explicação.

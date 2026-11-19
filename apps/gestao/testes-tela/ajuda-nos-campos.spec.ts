@@ -205,7 +205,7 @@ test.describe("telas internas do administrador", () => {
 
   test("cadastros: fichas técnicas (filtros, editor e custos)", async ({ page }) => {
     await page.goto("/cadastros/fichas");
-    await expect(page.getByRole("heading", { name: "Fichas técnicas", level: 1 })).toBeVisible();
+    await expect(page.getByLabel("Procurar ficha")).toBeVisible();
     // Busca, tipo e situação.
     await conferirAjuda(page, "fichas (filtros)", 3);
     await page.getByRole("button", { name: "Nova ficha" }).click();
@@ -226,6 +226,10 @@ test.describe("telas internas do administrador", () => {
     await page.getByRole("button", { name: /^Editar o preço de / }).first().click();
     // Limite do alerta, preço, quantidade e unidade.
     await conferirAjuda(page, "fichas (custos)", 4);
+    await page.getByRole("button", { name: "Importar fichas" }).click();
+    await expect(page.getByRole("dialog", { name: "Importar fichas de uma planilha" })).toBeVisible();
+    // Arquivo e as duas escolhas (criar ingredientes, gravar as boas).
+    await conferirAjuda(page, "importar fichas", 3);
   });
 
   test("cadastros: produto combo (partes e opções)", async ({ page }) => {

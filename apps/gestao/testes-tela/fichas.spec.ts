@@ -337,15 +337,21 @@ test("importar fichas: modelo, conferir (criar, erro, ingrediente novo), gravar 
   await janela.getByLabel("Arquivo da planilha").setInputFiles(arquivo);
   await janela.getByRole("button", { name: "Conferir", exact: true }).click();
   const resultado = janela.getByTestId("resultado-da-conferencia");
+  // Sem marcar "criar os ingredientes", a cebola nova é erro na linha dela.
+  await expect(resultado.getByTestId(`importar-${CREME}`).getByTestId("acao")).toHaveText("Erro");
+  await expect(resultado.getByTestId(`importar-${CREME}`)).toContainText(`Linha 3: Ingrediente "${CEBOLA}" não está cadastrado.`);
+  await expect(janela.getByRole("button", { name: /^Gravar / })).toBeDisabled();
+  await janela.getByLabel("Criar os ingredientes que faltam").check();
+  await expect(resultado).toHaveCount(0);
+  await janela.getByRole("button", { name: "Conferir", exact: true }).click();
   await expect(resultado.getByTestId(`importar-${CREME}`).getByTestId("acao")).toHaveText("Criar");
   await expect(resultado.getByTestId(`importar-${SUMIDO}`).getByTestId("acao")).toHaveText("Erro");
   await expect(resultado.getByTestId(`importar-${SUMIDO}`)).toContainText("Linha 4:");
   await expect(janela.getByTestId("ingredientes-novos")).toContainText(CEBOLA);
   const gravar = janela.getByRole("button", { name: "Gravar 1 ficha" });
   await expect(gravar).toBeDisabled();
+  await expect(janela.getByTestId("por-que-nao-grava")).toContainText("Corrija os erros");
   await janela.getByLabel("Gravar as boas e deixar de fora as com erro").check();
-  await expect(gravar).toBeDisabled();
-  await janela.getByLabel("Criar os ingredientes que faltam").check();
   await expect(gravar).toBeEnabled();
   await janelaSemEstouro(page);
   await gravar.click();
@@ -363,9 +369,19 @@ test("importar fichas: modelo, conferir (criar, erro, ingrediente novo), gravar 
   await page.getByRole("button", { name: "Importar fichas" }).click();
   await janela.getByLabel("Arquivo da planilha").setInputFiles(arquivo);
   await janela.getByRole("button", { name: "Conferir", exact: true }).click();
-  await expect(resultado.getByTestId(`importar-${CREME}`).getByTestId("acao")).toHaveText("Sem mudança");
+  // A conferência do servidor ainda diz "Versão nova" para ficha que já existe (só a gravação compara
+  // a receita); gravar não cria versão nova: a ficha continua na versão 1.
+  await expect(resultado.getByTestId(`importar-${CREME}`).getByTestId("acao")).toHaveText(/^(Versão nova|Sem mudança)$/);
   await expect(janela.getByTestId("ingredientes-novos")).toHaveCount(0);
-  await expect(janela.getByTestId("por-que-nao-grava")).toHaveText("Nada para gravar: nenhuma ficha nova ou mudada.");
+  await janela.getByLabel("Gravar as boas e deixar de fora as com erro").check();
+  const deNovo = janela.getByRole("button", { name: /^Gravar \d+ ficha/ });
+  if (await deNovo.isEnabled()) {
+    await deNovo.click();
+    await expect(janela).toHaveCount(0);
+    await expect(page.getByTestId("aviso-rapido")).toContainText("Nada mudou");
+  }
+  await page.goto("/cadastros/fichas");
+  await expect(page.getByTestId(`ficha-${CREME}`).getByTestId("versao-da-ficha")).toHaveText("Versão 1");
 });
 
 test("celular (390 px): lista, ficha, editor e cozinha sem rolagem de lado", async ({ page }) => {

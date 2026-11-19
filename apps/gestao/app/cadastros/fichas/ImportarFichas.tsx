@@ -122,6 +122,9 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
     setOcupado("");
     if (!r.ok || !r.dados) return setErro(r.mensagem);
     if (aplicar && r.dados.aplicado) return aoGravado(r.dados);
+    // Tudo já igual à planilha: o servidor não grava nada (aplicado falso) e diz "sem mudança" em cada uma.
+    const nadaMudou = r.dados.erros.length === 0 && r.dados.fichas.some((f) => f.acao === "sem_mudanca") && r.dados.fichas.every((f) => f.acao === "sem_mudanca" || (pularComErro && f.acao === "erro"));
+    if (aplicar && nadaMudou) return aoGravado(r.dados);
     setConferido(r.dados);
     if (aplicar) setErro(T.naoGravou);
   }
@@ -130,7 +133,7 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
   const comErro = c?.fichas.filter((f) => f.acao === "erro").length ?? 0;
   const boas = c?.fichas.filter((f) => f.acao === "criar" || f.acao === "nova_versao").length ?? 0;
   const faltaIngrediente = (c?.ingredientesNovos.length ?? 0) > 0;
-  const podeGravar = !!c && c.erros.length === 0 && boas > 0 && (comErro === 0 || pularComErro) && (!faltaIngrediente || criarIngredientes);
+  const podeGravar = !!c && c.erros.length === 0 && boas > 0 && (comErro === 0 || pularComErro);
 
   return (
     <JanelaModal titulo={T.titulo} sujo={!!arquivo} aoMexer={() => undefined} aoFechar={aoFechar} data-testid="importar-fichas">
@@ -163,6 +166,21 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
           disabled={!!ocupado}
           onChange={(e) => void escolher(e.target.files)}
         />
+        {/* As duas escolhas valem para conferir e para gravar; criar ingredientes muda a conferência. */}
+        <Marcador
+          rotulo={T.criarIngredientes}
+          explicacao={T.criarIngredientesAjuda}
+          exemplo={T.criarIngredientesExemplo}
+          checked={criarIngredientes}
+          onChange={(e) => {
+            setCriarIngredientes(e.target.checked);
+            if (conferido) {
+              setConferido(null);
+              setErro(T.confiraDeNovo);
+            }
+          }}
+        />
+        <Marcador rotulo={T.pularComErro} explicacao={T.pularComErroAjuda} exemplo={T.pularComErroExemplo} checked={pularComErro} onChange={(e) => setPularComErro(e.target.checked)} />
         <div className="cadastros__botoes">
           <Botao variante={c ? "secundario" : "primario"} disabled={!arquivo || !!ocupado} onClick={() => void enviar(false)}>
             {ocupado === "conferindo" ? T.conferindo : c ? T.conferirDeNovo : T.conferir}
@@ -210,13 +228,9 @@ export function ImportarFichas({ aoFechar, aoGravado }: { aoFechar: () => void; 
                     </li>
                   ))}
                 </ul>
-                <Marcador rotulo={T.criarIngredientes} explicacao={T.criarIngredientesAjuda} exemplo={T.criarIngredientesExemplo} checked={criarIngredientes} onChange={(e) => setCriarIngredientes(e.target.checked)} />
               </div>
             )}
-            {comErro > 0 && boas > 0 && (
-              <Marcador rotulo={T.pularComErro} explicacao={T.pularComErroAjuda} exemplo={T.pularComErroExemplo} checked={pularComErro} onChange={(e) => setPularComErro(e.target.checked)} />
-            )}
-            {!podeGravar && <p className="hor-secao__intro" data-testid="por-que-nao-grava">{boas === 0 ? T.nadaParaGravar : comErro > 0 && !pularComErro ? T.corrijaOuPule : T.marqueIngredientes}</p>}
+            {!podeGravar && <p className="hor-secao__intro" data-testid="por-que-nao-grava">{boas === 0 ? T.nadaParaGravar : T.corrijaOuPule}</p>}
           </section>
         )}
         <div className="cadastros__botoes">
