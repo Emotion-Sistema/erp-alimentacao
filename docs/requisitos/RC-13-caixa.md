@@ -29,6 +29,8 @@ não tem acesso ao financeiro: vê só a movimentação do próprio dia.
 - Dinheiro (com cálculo de troco), Pix, débito, crédito, vale-refeição e **pagamento misto**.
 - Divisão da conta: por pessoa, por item ou em partes iguais. Pagamento parcial permitido;
   a conta só fecha quando o total está quitado.
+  Regras completas (centavo exato, divisão de item entre clientes, aceite pelo celular, parte paga
+  não muda): `RC-20-comanda-compartilhada-pela-mesa.md`, seção 5b (responsável, 19/11/2026).
 - Taxa de serviço opcional, mostrada separada (pendência 45).
 - **Só o caixa marca Pago.**
 - **Maquininha avulsa (situação atual, um caixa):** a baixa é manual. O operador passa o

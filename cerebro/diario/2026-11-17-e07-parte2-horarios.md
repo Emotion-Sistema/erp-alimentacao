@@ -108,6 +108,10 @@ ponto já não aceita pedido; categoria vale para a empresa toda.
 - App único do cliente (o `loja`, PWA): mesa, delivery, acompanhamento e Clube; cadastro rápido na primeira mira do QR, nunca obrigatório; desconto nos itens que o membro marca, regras do gerente, não acumula (vale o maior); pontos, presentes, campanhas (mensagem fora do app só com confirmação específica).
 - RC-21 criado; S12 antecipado para logo depois da E26; roteiro, RC-07, RC-08, README, ideias e para-você-fazer atualizados.
 
+## 19/11/2026: dividir a conta e itens (RC-20 seção 5b)
+- Item (ex.: porção de dois amigos) ou conta inteira, por partes iguais, porcentagem ou valor; misturar; juntar. Cliente divide pelo celular só com aceite do outro; atendente e caixa direto.
+- Centavos inteiros, resto um centavo por vez numa ordem fixa (R$ 29,99/2 = 15,00 + 14,99); soma conferida pelo banco; parte paga não muda; cancelamento por movimento compensatório; trava da mesa e idempotência.
+
 ## O que ficou pendente
 - Conferir com o responsável o visual novo na homologação (inclusive num Android real: letras).
 - Telas com mais de um botão cheio (Horários, Funcionários, Turnos, Estações): rever a regra "um botão forte por tela" se o responsável quiser.

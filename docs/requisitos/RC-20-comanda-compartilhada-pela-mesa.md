@@ -110,6 +110,57 @@ atendente) e o modelo de dados nasce na **E11** (pedido).
 - **QR opcional: SIM.** Em qualquer mesa o cliente pode só falar com o atendente, que lança tudo como
   hoje; dá para misturar (uma pessoa pelo celular, outra falando).
 
+## 5b. Dividir a conta e dividir itens (responsável, 19/11/2026: "de forma muito perfeita, para não ter erro")
+Exemplo: dois amigos pedem uma porção para os dois, seja pelo QR de um deles ou só pelo atendente.
+
+**O que dá para fazer**
+1. **Dividir um item** (ou vários) entre clientes escolhidos da mesa: em partes iguais (o padrão),
+   por porcentagem ou por valor. Ex.: a porção entre os dois amigos; o vinho entre três de cinco.
+2. **Dividir a conta inteira** em N partes iguais, ou cada um paga o seu.
+3. **Misturar:** cada um paga o seu, e os itens marcados como "da mesa" se dividem entre quem
+   escolher (ex.: cada um seu lanche, a porção e a jarra de suco no meio).
+4. **Juntar** clientes numa conta só (um casal; alguém que paga para o outro).
+
+**Quem divide**
+- O cliente, pelo celular: "Dividir com..." escolhe os outros clientes da mesa; **só vale quando os
+  outros aceitam no próprio celular** (ninguém ganha conta de outro sem querer). Quem não usa o QR é
+  dividido pelo atendente.
+- O atendente, na conferência ou a qualquer hora antes de pagar.
+- O caixa, no fechamento (RC-13), que tem a palavra final e vê tudo.
+
+**A conta exata (sem centavo perdido nem a mais)**
+- Tudo em centavos inteiros. O valor de cada item já vem com adicionais e desconto (Clube, cupom ou
+  funcionário, o maior; RC-21) aplicados antes da divisão.
+- Dividir R$ 29,99 por 2 dá **R$ 15,00 + R$ 14,99**: o valor é repartido em centavos inteiros e o
+  que sobra vai um centavo de cada vez para os primeiros da lista, numa ordem fixa (quem entrou
+  primeiro na mesa). A tela mostra cada parte antes de confirmar.
+- **Regra de ouro, conferida pelo banco:** a soma das partes de cada item é sempre exatamente o
+  valor do item, e a soma das contas de todos os clientes é exatamente o total da mesa. Se não
+  fechar, o sistema não grava (trava no banco, não só na tela).
+- Porcentagem ou valor digitado: precisa fechar 100% / o valor do item; a tela mostra quanto falta.
+- **Taxa de serviço** (se a casa cobrar, pendência 45): proporcional ao que cada um consome, pela
+  mesma conta de centavos.
+
+**Travas para não errar**
+- **Parte paga não muda.** Depois que alguém pagou a sua parte, a divisão daquele item só muda nas
+  partes ainda não pagas; o que já foi pago fica como está.
+- **Item cancelado depois de pago** em parte: o valor volta para quem pagou por movimento
+  compensatório (estorno ou crédito, decidido no caixa), nunca apagando o registro.
+- **Duas pessoas mexendo ao mesmo tempo** (dois celulares, atendente e caixa): uma mudança espera a
+  outra (trava da mesa, como na posição da lista) e quem chega depois vê a divisão já atualizada;
+  pagamento repetido não cobra duas vezes (idempotência).
+- **Cada celular mostra a conta do seu cliente**, item por item, com a parte de cada divisão
+  ("½ Porção de batata: R$ 14,50"), e o total da mesa.
+- Tudo registrado: quem dividiu, quem aceitou, valores antes e depois, com horário (RC-17).
+
+**Critérios de aceite da divisão**
+1. Em qualquer divisão (teste com milhares de combinações aleatórias de valores e pessoas), a soma
+   das partes é exatamente o valor do item e a soma das contas é exatamente o total da mesa.
+2. R$ 29,99 por 2 = R$ 15,00 + R$ 14,99; R$ 10,00 por 3 = R$ 3,34 + R$ 3,33 + R$ 3,33.
+3. Divisão pelo cliente só vale com o aceite dos outros; o atendente e o caixa dividem direto.
+4. Parte paga não muda; cancelamento depois do pagamento gera movimento compensatório.
+5. Dois aparelhos dividindo e o caixa recebendo ao mesmo tempo: sem parte perdida, sem cobrança dupla.
+
 ## 5a. Fora deste requisito por enquanto
 - **Balcão e viagem:** outro fluxo da E13.
 - **Delivery próprio** (RC-08) continua com pagamento online e não usa a conferência do atendente.
