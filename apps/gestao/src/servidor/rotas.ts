@@ -15,15 +15,12 @@ import {
   listarCategorias,
   listarTiposDeProducao,
   listarProdutos,
-<<<<<<< HEAD
   arquivoDaFoto,
   removerFotoDoProduto,
   salvarFotoDoProduto,
   FOTO_BYTES_MAXIMO,
-=======
   listarGruposDeAdicionais,
   salvarGrupoDeAdicionais,
->>>>>>> f5db096c3463544e177c9f31732758fbd7eca4dc
   salvarProduto,
   salvarTipoDeProducao,
   salvarCategoria,
