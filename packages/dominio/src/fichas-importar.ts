@@ -17,6 +17,7 @@ import { ErroDeRegra } from "./erros";
 import { Fracao, type UnidadeDaFicha } from "./fichas-comum";
 import { gravarFichaNaTransacao, traduzirErroDaFicha, travarFichas, validarDadosDaFicha, type DadosDaFicha } from "./fichas";
 import { LIMITE_DE_BYTES } from "./importar-comum";
+import { aplicarCorrecoes, correcoesQueValem, esquemaCorrecoes, limitadorDeCelulas, tabelaParaDevolver, type CelulasDevolvidas } from "./planilha-corrigir";
 import { lerArquivoDePlanilha } from "./planilha-ler";
 import { nomeComparavel } from "./produtos-comum";
 import { exigir, type Ator } from "./sessao";
@@ -58,6 +59,18 @@ const unidadeDoTexto = (t: string): string | null => {
   return u in FATOR ? u : null;
 };
 
+/** Opções válidas das colunas de escolha fixa (para corrigir no painel). */
+const OPCOES_FIXAS: Partial<Record<Coluna, string[]>> = {
+  tipo: ["produto", "preparo"],
+  unidadeRendimento: ["g", "kg", "ml", "l", "un", "dz"],
+  unidadePorcao: ["g", "kg", "ml", "l", "un", "dz"],
+  unidade: ["g", "kg", "ml", "l", "un", "dz"],
+  opcional: ["sim", "não"],
+};
+
+/** Erro de uma linha; `coluna` (0 = A) quando se sabe qual célula corrigir. */
+export type ErroDaLinhaDaFicha = { linha: number; texto: string; coluna?: number };
+
 export type FichaDaPlanilha = {
   nome: string;
   tipo: "produto" | "preparo";
@@ -68,7 +81,7 @@ export type FichaDaPlanilha = {
   versaoAtual: number | null;
   itens: number;
   pendencias: number;
-  erros: { linha: number; texto: string }[];
+  erros: ErroDaLinhaDaFicha[];
 };
 export type ResultadoDaImportacao = {
   arquivo: string;
@@ -77,6 +90,18 @@ export type ResultadoDaImportacao = {
   ingredientesNovos: { nome: string; unidade: UnidadeDaFicha }[];
   /** Erros que não são de uma ficha só (colunas faltando, arquivo). */
   erros: string[];
+  /** O cabeçalho da planilha (o nome de cada coluna), para a tela montar os campos ao corrigir. */
+  colunas: string[];
+  /** Só as linhas citadas em erros (as primeiras 200, dentro do teto): o texto atual de cada célula, já corrigido. */
+  linhas: ({ numero: number } & CelulasDevolvidas)[];
+  /** Nem todas as linhas com erro vieram com as células (muitas linhas ou texto demais): o que dizer. */
+  avisoDasCelulas: string | null;
+  /** Opções válidas das colunas de escolha fixa, pelo índice da coluna ("10" -> ["g", "kg", ...]). */
+  opcoes: Record<string, string[]>;
+  /** Quantas correções do painel foram aplicadas. */
+  correcoes: number;
+  /** Só quando a tela pede (`devolverTabela`, sem gravar): a planilha inteira já corrigida. */
+  tabela?: string[][];
 };
 
 const esquemaPedido = z.object(
@@ -88,6 +113,10 @@ const esquemaPedido = z.object(
     pularComErro: z.boolean({ error: "Pular fichas com erro: sim ou não." }).optional(),
     /** Versão de cada ficha vista na conferência ("tipo:nome" -> número; nulo = não existia). */
     versoes: z.record(z.string().max(200), z.number().int().min(1).nullable()).optional(),
+    /** Células corrigidas no painel (ideia nº 13): aplicadas antes de conferir, ao conferir e ao gravar. */
+    correcoes: esquemaCorrecoes,
+    /** Só na conferência: devolve a planilha inteira já corrigida (para a tela baixar em .csv). */
+    devolverTabela: z.boolean({ error: "Devolver a tabela: sim ou não." }).optional(),
   },
   { error: "Pedido em formato inválido." },
 );
@@ -99,16 +128,20 @@ type Planejada = {
   linha: number;
   unidadeRendimento: UnidadeDaFicha | null;
   campos: Partial<Record<Coluna, string>>;
+  /** Linha de onde veio cada campo da ficha (para apontar o erro na linha certa). */
+  linhaDoCampo: Partial<Record<Coluna, number>>;
   itens: { linha: number; ingrediente: string; quantidade: string | null; unidade: string | null; opcional: boolean; medidaCaseira: string | null; observacao: string | null }[];
   pendencias: string[];
   etapas: string[];
-  erros: { linha: number; texto: string }[];
+  erros: ErroDaLinhaDaFicha[];
 };
 
+type IndiceDasColunas = Partial<Record<Coluna, number>>;
+
 /** Lê a planilha e monta as fichas (sem banco). */
-function montar(linhas: { numero: number; celulas: string[] }[]): { fichas: Planejada[]; erros: string[] } {
+function montar(linhas: { numero: number; celulas: string[] }[]): { fichas: Planejada[]; erros: string[]; indice: IndiceDasColunas } {
   const [cab, ...dados] = linhas;
-  if (!cab) return { fichas: [], erros: ["A planilha está vazia."] };
+  if (!cab) return { fichas: [], erros: ["A planilha está vazia."], indice: {} };
   const indice: Partial<Record<Coluna, number>> = {};
   cab.celulas.forEach((c, i) => {
     const k = chaveDeBusca(c).replace(/\s+/g, " ").trim();
@@ -116,7 +149,8 @@ function montar(linhas: { numero: number; celulas: string[] }[]): { fichas: Plan
       if (indice[col] === undefined && nomes.includes(k)) indice[col] = i;
   });
   const faltam = OBRIGATORIAS.filter((c) => indice[c] === undefined);
-  if (faltam.length) return { fichas: [], erros: [`Faltam colunas: ${faltam.join(", ")}.`] };
+  if (faltam.length) return { fichas: [], erros: [`Faltam colunas: ${faltam.join(", ")}.`], indice };
+  const col = (c: Coluna) => (indice[c] === undefined ? {} : { coluna: indice[c] });
   const cel = (l: string[], c: Coluna) => (indice[c] === undefined ? "" : (l[indice[c]!] ?? "").trim());
 
   const fichas: Planejada[] = [];
@@ -128,10 +162,10 @@ function montar(linhas: { numero: number; celulas: string[] }[]): { fichas: Plan
     if (nome) {
       const tipo = tipoTxt === "preparo" || tipoTxt === "preparo da casa" ? "preparo" : tipoTxt === "produto" ? "produto" : null;
       if (!tipo) {
-        const erro = { linha: numero, texto: `Tipo "${cel(celulas, "tipo")}" desconhecido: use produto ou preparo.` };
+        const erro = { linha: numero, texto: `Tipo "${cel(celulas, "tipo")}" desconhecido: use produto ou preparo.`, ...col("tipo") };
         if (atual && nomeComparavel(atual.nome) === nomeComparavel(nome)) atual.erros.push(erro);
         else {
-          atual = { chave: `?${numero}`, nome, tipo: "produto", linha: numero, unidadeRendimento: null, campos: {}, itens: [], pendencias: [], etapas: [], erros: [erro] };
+          atual = { chave: `?${numero}`, nome, tipo: "produto", linha: numero, unidadeRendimento: null, campos: {}, linhaDoCampo: {}, itens: [], pendencias: [], etapas: [], erros: [erro] };
           fichas.push(atual);
         }
         continue;
@@ -139,10 +173,10 @@ function montar(linhas: { numero: number; celulas: string[] }[]): { fichas: Plan
       const chave = `${tipo}:${nomeComparavel(nome)}`;
       const ja = porChave.get(chave);
       if (ja && ja !== atual) {
-        ja.erros.push({ linha: numero, texto: `A ficha "${nome}" aparece em dois lugares da planilha; deixe as linhas dela juntas.` });
+        ja.erros.push({ linha: numero, texto: `A ficha "${nome}" aparece em dois lugares da planilha; deixe as linhas dela juntas.`, ...col("ficha") });
         atual = ja;
       } else if (!ja) {
-        atual = { chave, nome, tipo, linha: numero, unidadeRendimento: null, campos: {}, itens: [], pendencias: [], etapas: [], erros: [] };
+        atual = { chave, nome, tipo, linha: numero, unidadeRendimento: null, campos: {}, linhaDoCampo: {}, itens: [], pendencias: [], etapas: [], erros: [] };
         porChave.set(chave, atual);
         fichas.push(atual);
       }
@@ -152,8 +186,9 @@ function montar(linhas: { numero: number; celulas: string[] }[]): { fichas: Plan
       const v = cel(celulas, c);
       if (!v) continue;
       if (atual.campos[c] !== undefined && atual.campos[c] !== v)
-        atual.erros.push({ linha: numero, texto: `Valor diferente para "${COLUNAS[c][0]}" na mesma ficha.` });
+        atual.erros.push({ linha: numero, texto: `Valor diferente para "${COLUNAS[c][0]}" na mesma ficha.`, ...col(c) });
       atual.campos[c] = v;
+      atual.linhaDoCampo[c] = numero;
     }
     const ing = cel(celulas, "ingrediente");
     const qtd = cel(celulas, "quantidade");
@@ -168,13 +203,13 @@ function montar(linhas: { numero: number; celulas: string[] }[]): { fichas: Plan
         medidaCaseira: cel(celulas, "medidaCaseira") || null,
         observacao: cel(celulas, "observacao") || null,
       });
-    else if (qtd || un) atual.erros.push({ linha: numero, texto: "Quantidade sem ingrediente." });
+    else if (qtd || un) atual.erros.push({ linha: numero, texto: "Quantidade sem ingrediente.", ...col("ingrediente") });
     const pend = cel(celulas, "pendencia");
     if (pend) atual.pendencias.push(pend);
     const etapa = cel(celulas, "etapa");
     if (etapa) atual.etapas.push(etapa);
   }
-  return { fichas, erros: [] };
+  return { fichas, erros: [], indice };
 }
 
 type Contexto = {
@@ -209,7 +244,10 @@ const decimal = (t: string) => t.trim().replace(",", ".");
 type Montada = { planejada: Planejada; dados: DadosDaFicha | null; fichaId: number | null; preparoDaPlanilha: string[]; versaoAtual?: number | null };
 
 /** Confere cada ficha contra o banco e monta os dados para `gravarFichaNaTransacao`. */
-function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean, arquivo: string) {
+function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean, arquivo: string, indice: IndiceDasColunas) {
+  const col = (c: Coluna) => (indice[c] === undefined ? {} : { coluna: indice[c] });
+  /** Erro de um campo da ficha: na linha de onde o valor veio (ou na primeira da ficha) e na coluna dele. */
+  const doCampo = (f: Planejada, c: Coluna) => ({ linha: f.linhaDoCampo[c] ?? f.linha, ...col(c) });
   const novos = new Map<string, { nome: string; unidade: UnidadeDaFicha }>();
   const preparosDaPlanilha = new Map<string, Planejada>();
   // Fichas com tipo desconhecido (digitado errado) também bloqueiam o nome: pode ser um preparo.
@@ -231,8 +269,8 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
     if (f.tipo === "produto") {
       const achados = ctx.produtos.get(nomeComparavel(f.nome)) ?? [];
       if (achados.length !== 1)
-        erros.push({ linha: f.linha, texto: achados.length ? `Há mais de um produto ativo chamado "${f.nome}".` : `Produto "${f.nome}" não encontrado no cardápio (cadastre ou importe os produtos antes).` });
-      else if (achados[0]!.combo) erros.push({ linha: f.linha, texto: `"${f.nome}" é combo: combo não tem ficha própria.` });
+        erros.push({ linha: f.linha, texto: achados.length ? `Há mais de um produto ativo chamado "${f.nome}".` : `Produto "${f.nome}" não encontrado no cardápio (cadastre ou importe os produtos antes).`, ...col("ficha") });
+      else if (achados[0]!.combo) erros.push({ linha: f.linha, texto: `"${f.nome}" é combo: combo não tem ficha própria.`, ...col("ficha") });
       else {
         fichaId = ctx.fichasDoProduto.get(achados[0]!.id) ?? null;
         if (!fichaId) Object.assign(base, { tipo: "produto", produtoId: achados[0]!.id });
@@ -243,9 +281,9 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
       const ja = ctx.preparos.get(nomeComparavel(f.nome));
       if (ja) {
         fichaId = ja.id;
-        if (unidade && unidade !== ja.unidade) erros.push({ linha: f.linha, texto: `O preparo "${f.nome}" já existe e rende em ${ja.unidade}.` });
+        if (unidade && unidade !== ja.unidade) erros.push({ ...doCampo(f, "unidadeRendimento"), texto: `O preparo "${f.nome}" já existe e rende em ${ja.unidade}.` });
         f.unidadeRendimento = ja.unidade;
-      } else if (!unidade) erros.push({ linha: f.linha, texto: `Informe a unidade do rendimento do preparo "${f.nome}" (g, ml ou un).` });
+      } else if (!unidade) erros.push({ ...doCampo(f, "unidadeRendimento"), texto: `Informe a unidade do rendimento do preparo "${f.nome}" (g, ml ou un).` });
       else {
         f.unidadeRendimento = unidade;
         Object.assign(base, { tipo: "preparo", nome: f.nome, unidadeRendimento: unidade });
@@ -257,11 +295,11 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
       const v = f.campos[c];
       if (!v) return null;
       if (milharAmbiguo(v)) {
-        erros.push({ linha: f.linha, texto: `${rotulo} "${v}": escreva sem ponto de milhar (ex.: 1000 ou 1,5).` });
+        erros.push({ ...doCampo(f, c), texto: `${rotulo} "${v}": escreva sem ponto de milhar (ex.: 1000 ou 1,5).` });
         return null;
       }
       if (!decimalOk(v)) {
-        erros.push({ linha: f.linha, texto: `${rotulo} "${v}" não é um número maior que zero.` });
+        erros.push({ ...doCampo(f, c), texto: `${rotulo} "${v}" não é um número maior que zero.` });
         return null;
       }
       return decimal(v);
@@ -270,7 +308,7 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
       const v = f.campos[c];
       if (!v) return null;
       if (!/^\d{1,4}$/.test(v)) {
-        erros.push({ linha: f.linha, texto: `${rotulo} "${v}" precisa ser um número inteiro.` });
+        erros.push({ ...doCampo(f, c), texto: `${rotulo} "${v}" precisa ser um número inteiro.` });
         return null;
       }
       return Number(v);
@@ -282,7 +320,7 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
     }
     const porcao = num("porcao", "Porção");
     const up = f.campos.unidadePorcao ? unidadeDoTexto(f.campos.unidadePorcao) : null;
-    if (porcao && !up) erros.push({ linha: f.linha, texto: "Informe a unidade da porção (g, ml ou un)." });
+    if (porcao && !up) erros.push({ linha: f.linhaDoCampo.unidadePorcao ?? f.linhaDoCampo.porcao ?? f.linha, ...col("unidadePorcao"), texto: "Informe a unidade da porção (g, ml ou un)." });
     const porcaoBase = porcao && up ? Fracao.decimal(porcao).vezes(Fracao.decimal(FATOR[up]!.fator)).texto(4) : null;
 
     // Itens.
@@ -292,7 +330,7 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
     const itens = f.itens.flatMap((i) => {
       const chave = nomeComparavel(i.ingrediente);
       if (nomesComTipoErrado.has(chave) && !ctx.preparos.has(chave) && !preparosDaPlanilha.has(chave)) {
-        erros.push({ linha: i.linha, texto: `"${i.ingrediente}" tem ficha na planilha com tipo errado; corrija o tipo dela antes.` });
+        erros.push({ linha: i.linha, texto: `"${i.ingrediente}" tem ficha na planilha com tipo errado; corrija o tipo dela antes.`, ...col("ingrediente") });
         return [];
       }
       const prep = ctx.preparos.get(chave) ?? (preparosDaPlanilha.has(chave) ? { id: null, unidade: preparosDaPlanilha.get(chave)!.unidadeRendimento } : undefined);
@@ -308,18 +346,18 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
         else if (criarIngredientes) {
           const u = i.unidade ? unidadeDoTexto(i.unidade) : null;
           if (!u) {
-            erros.push({ linha: i.linha, texto: `Ingrediente "${i.ingrediente}" não existe; para criar, informe a unidade (g, kg, ml, l, un).` });
+            erros.push({ linha: i.linha, texto: `Ingrediente "${i.ingrediente}" não existe; para criar, informe a unidade (g, kg, ml, l, un).`, ...col("unidade") });
             return [];
           }
           const n = i.ingrediente.replace(/\s+/g, " ").trim();
           if (n.length < 2 || n.length > 120 || /\p{Cc}/u.test(n)) {
-            erros.push({ linha: i.linha, texto: `Nome de ingrediente "${n.slice(0, 40)}" inválido para criar (2 a 120 letras).` });
+            erros.push({ linha: i.linha, texto: `Nome de ingrediente "${n.slice(0, 40)}" inválido para criar (2 a 120 letras).`, ...col("ingrediente") });
             return [];
           }
           novos.set(chave, { nome: n, unidade: FATOR[u]!.base });
           alvo = { ingredienteId: -1, unidade: FATOR[u]!.base, novo: chave };
         } else {
-          erros.push({ linha: i.linha, texto: `Ingrediente "${i.ingrediente}" não está cadastrado.` });
+          erros.push({ linha: i.linha, texto: `Ingrediente "${i.ingrediente}" não está cadastrado.`, ...col("ingrediente") });
           return [];
         }
       }
@@ -327,16 +365,16 @@ function conferir(fichas: Planejada[], ctx: Contexto, criarIngredientes: boolean
       let quantidade: string | null = null;
       if (i.quantidade) {
         const u = i.unidade ? unidadeDoTexto(i.unidade) : null;
-        if (milharAmbiguo(i.quantidade)) erros.push({ linha: i.linha, texto: `Quantidade "${i.quantidade}": escreva sem ponto de milhar (ex.: 1000 ou 1,5).` });
-        else if (!decimalOk(i.quantidade)) erros.push({ linha: i.linha, texto: `Quantidade "${i.quantidade}" não é um número maior que zero (até 4 casas).` });
-        else if (!u) erros.push({ linha: i.linha, texto: `Unidade "${i.unidade ?? ""}" desconhecida: use g, kg, ml, l, un ou dz.` });
+        if (milharAmbiguo(i.quantidade)) erros.push({ linha: i.linha, texto: `Quantidade "${i.quantidade}": escreva sem ponto de milhar (ex.: 1000 ou 1,5).`, ...col("quantidade") });
+        else if (!decimalOk(i.quantidade)) erros.push({ linha: i.linha, texto: `Quantidade "${i.quantidade}" não é um número maior que zero (até 4 casas).`, ...col("quantidade") });
+        else if (!u) erros.push({ linha: i.linha, texto: `Unidade "${i.unidade ?? ""}" desconhecida: use g, kg, ml, l, un ou dz.`, ...col("unidade") });
         else if (!alvo.unidade) erros.push({ linha: i.linha, texto: `O preparo "${i.ingrediente}" está sem a unidade do rendimento.` });
         else if (FATOR[u]!.base !== alvo.unidade)
-          erros.push({ linha: i.linha, texto: `"${i.ingrediente}" é contado em ${alvo.unidade}; a planilha diz ${u}.` });
+          erros.push({ linha: i.linha, texto: `"${i.ingrediente}" é contado em ${alvo.unidade}; a planilha diz ${u}.`, ...col("unidade") });
         else {
           quantidade = Fracao.decimal(decimal(i.quantidade)).vezes(Fracao.decimal(FATOR[u]!.fator)).texto(4);
           if (!decimalOk(quantidade)) {
-            erros.push({ linha: i.linha, texto: `Quantidade de "${i.ingrediente}" fora do permitido depois de converter (muito pequena ou muito grande).` });
+            erros.push({ linha: i.linha, texto: `Quantidade de "${i.ingrediente}" fora do permitido depois de converter (muito pequena ou muito grande).`, ...col("quantidade") });
             quantidade = null;
           }
         }
@@ -436,30 +474,55 @@ export async function importarFichas(db: Banco, ator: Ator | null, dados: unknow
   if (!p.success) throw new ErroDeRegra("dados_invalidos", [...new Set(p.error.issues.map((i) => i.message))].join(" "));
   const bytes = Buffer.from(p.data.arquivo.conteudo, "base64");
   if (bytes.length > LIMITE_DE_BYTES) throw new ErroDeRegra("dados_invalidos", `Arquivo grande demais: o máximo é ${LIMITE_DE_BYTES / 1024 / 1024} MB.`);
-  const tabela = await lerArquivoDePlanilha(bytes, p.data.arquivo.nome);
-  const { fichas, erros } = montar(tabela.linhas);
+  // As correções do painel entram ANTES de montar as fichas, ao conferir e ao gravar (nada vem pronto da tela).
+  const tabela = aplicarCorrecoes(await lerArquivoDePlanilha(bytes, p.data.arquivo.nome), p.data.correcoes);
+  const quantasCorrecoes = correcoesQueValem(p.data.correcoes).length;
+  const { fichas, erros, indice } = montar(tabela.linhas);
   const nomeArq = p.data.arquivo.nome.slice(0, 120);
+  const largura = Math.max(...tabela.linhas.map((l) => l.celulas.length));
+  const colunas = Array.from({ length: largura }, (_, i) => (tabela.linhas[0]?.celulas[i] ?? "").slice(0, 80));
+  const opcoes: Record<string, string[]> = {};
+  for (const [c, lista] of Object.entries(OPCOES_FIXAS) as [Coluna, string[]][]) if (indice[c] !== undefined) opcoes[String(indice[c])] = lista;
+  /** As células das linhas citadas em erros, para a tela corrigir ali mesmo (com teto: ver limitadorDeCelulas). */
+  const linhasCitadas = (montadas: Montada[]) => {
+    const citadas = new Set(montadas.flatMap((m) => m.planejada.erros.map((e) => e.linha)));
+    const limitador = limitadorDeCelulas();
+    const linhas = tabela.linhas.flatMap((l) => {
+      if (!citadas.has(l.numero)) return [];
+      const d = limitador.devolver(l.celulas, largura);
+      return d ? [{ numero: l.numero, ...d }] : [];
+    });
+    return { linhas, avisoDasCelulas: limitador.aviso() };
+  };
+  /** Texto que veio da planilha, cortado para a resposta não crescer sem fim (o nome e os erros). */
+  const curto = (t: string, n: number) => (t.length > n ? `${Array.from(t).slice(0, n - 3).join("")}...` : t);
   const resultado = (aplicado: boolean, montadas: Montada[], novos: Map<string, { nome: string; unidade: UnidadeDaFicha }>, acoes = new Map<Planejada, FichaDaPlanilha["acao"]>()): ResultadoDaImportacao => ({
     arquivo: nomeArq,
     aplicado,
     erros,
+    colunas,
+    ...linhasCitadas(montadas),
+    opcoes,
+    correcoes: quantasCorrecoes,
+    ...(p.data.devolverTabela && !aplicado ? { tabela: tabelaParaDevolver(tabela) } : {}),
     ingredientesNovos: [...novos.values()],
     fichas: montadas.map((m) => ({
-      nome: m.planejada.nome,
+      // Nome de ficha válido tem até 80 letras: cortar em 120 não muda a chave "tipo:nome" de uma ficha boa.
+      nome: curto(m.planejada.nome, 120),
       tipo: m.planejada.tipo,
       linha: m.planejada.linha,
       acao: m.planejada.erros.length ? "erro" : (acoes.get(m.planejada) ?? (m.fichaId ? "nova_versao" : "criar")),
       versaoAtual: m.versaoAtual ?? null,
       itens: m.planejada.itens.length,
       pendencias: m.planejada.pendencias.length,
-      erros: m.planejada.erros,
+      erros: m.planejada.erros.map((e) => ({ ...e, texto: curto(e.texto, 300) })),
     })),
   });
   if (erros.length) return resultado(false, [], new Map());
 
   const run = async (trx: Banco, aplicar: boolean) => {
     const ctx = await contexto(trx);
-    const { montadas, novos } = conferir(fichas, ctx, p.data.criarIngredientes ?? false, nomeArq);
+    const { montadas, novos } = conferir(fichas, ctx, p.data.criarIngredientes ?? false, nomeArq, indice);
     const pular = p.data.pularComErro ?? false;
     // Versão atual de cada ficha que já existe; ao gravar, tem de ser a mesma vista na conferência.
     const ids = montadas.flatMap((m) => (m.fichaId ? [m.fichaId] : []));
@@ -570,7 +633,8 @@ export async function importarFichas(db: Banco, ator: Ator | null, dados: unknow
       acao: "cadastros.gerenciar",
       resultado: "permitido",
       alvoTipo: "importacao_fichas",
-      detalhes: { arquivo: nomeArq, fichas: ordem.length, ingredientesNovos: novos.size, acoes: Object.fromEntries([...acoes].map(([k, v]) => [k.nome, v])) },
+      // Só quantas correções vieram do painel: o conteúdo delas não vai para a auditoria.
+      detalhes: { arquivo: nomeArq, fichas: ordem.length, ingredientesNovos: novos.size, correcoes: quantasCorrecoes, acoes: Object.fromEntries([...acoes].map(([k, v]) => [k.nome, v])) },
       ip: quem.ip,
     });
     return { r: resultado(true, montadas, novos, acoes), temErro: false };

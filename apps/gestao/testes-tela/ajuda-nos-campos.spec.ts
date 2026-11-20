@@ -129,6 +129,11 @@ test.describe("telas internas do administrador", () => {
     await expect(page.getByTestId("resumo-da-conferencia")).toBeVisible();
     await conferirAjuda(page, "importar planilha (mapa de colunas e resultado)", 15);
     await semEstouroDeLargura(page);
+    // Corrigir no painel (ideia nº 13): um campo por coluna, todos com ajuda.
+    await page.getByRole("button", { name: "Corrigir aqui a linha 4" }).click();
+    await expect(page.getByTestId("corrigindo-4")).toBeVisible();
+    await conferirAjuda(page, "importar planilha (corrigir no painel)", 21);
+    await semEstouroDeLargura(page);
   });
 
   test("cadastros: aba Embalagens e o painel de editar", async ({ page }) => {

@@ -36,6 +36,7 @@ import {
   type TipoDeImportacao,
 } from "./importar-comum";
 import { lerEmbalagemDoTexto, MAXIMO_POR_LINHA } from "./lista-colada";
+import { aplicarCorrecoes, assinaturaDasCorrecoes, correcoesQueValem, esquemaCorrecoes, limitadorDeCelulas, tabelaParaDevolver } from "./planilha-corrigir";
 import { lerArquivoDePlanilha, type TabelaLida } from "./planilha-ler";
 import { travarLista } from "./posicao";
 import { gravarProdutoNaTransacao, textoDosCentavos, centavosDoTexto, traduzirErroDoProduto, validarDadosDoProduto, PRECO_MAXIMO_CENTAVOS, TEMPO_DE_PREPARO_MAXIMO, type DadosDoProduto } from "./produtos";
@@ -70,6 +71,10 @@ const esquemaPedido = z.object(
     /** Números das linhas da planilha que a pessoa mandou pular. */
     pular: z.array(z.number().int().min(1).max(1_048_576)).max(2000).default([]),
     chave: z.uuid({ error: "Confira a planilha antes de gravar." }).optional(),
+    /** Células corrigidas no painel (ideia nº 13): aplicadas antes de conferir, ao conferir e ao gravar. */
+    correcoes: esquemaCorrecoes,
+    /** Só na conferência: devolve a planilha inteira já corrigida (para a tela baixar em .csv). */
+    devolverTabela: z.boolean({ error: "Devolver a tabela: sim ou não." }).optional(),
   },
   { error: "Pedido em formato inválido." },
 );
@@ -192,7 +197,7 @@ function avaliarProduto(ctx: Contexto, celulas: string[], vistos: Map<string, nu
     return i === null || i === undefined ? "" : (celulas[i] ?? "");
   };
   const problemas: ProblemaDaLinha[] = [];
-  const erro = (campo: string | null, texto: string) => problemas.push({ coluna: campo ? nomeDaColuna(ctx, campo) : null, texto });
+  const erro = (campo: string | null, texto: string) => problemas.push({ coluna: campo ? nomeDaColuna(ctx, campo) : null, indice: campo ? (ctx.mapa[campo] ?? null) : null, texto });
   const nome = valor("nome").replace(/\s+/g, " ");
   const base = { numero, nome: nome.slice(0, 120), avisos: [] as string[], pulada: false };
   if (!nome) erro("nome", "Falta o nome do produto.");
@@ -273,7 +278,7 @@ function avaliarProduto(ctx: Contexto, celulas: string[], vistos: Map<string, nu
     return { linha: { ...base, situacao: "ok", resumo, problemas: [] }, produto: validarDadosDoProduto(dados) };
   } catch (e) {
     if (!(e instanceof ErroDeRegra)) throw e;
-    return { linha: { ...base, situacao: "erro", resumo, problemas: [{ coluna: null, texto: e.message }] } };
+    return { linha: { ...base, situacao: "erro", resumo, problemas: [{ coluna: null, indice: null, texto: e.message }] } };
   }
 }
 
@@ -284,7 +289,7 @@ function avaliarIngrediente(ctx: Contexto, celulas: string[], vistos: Map<string
   };
   const problemas: ProblemaDaLinha[] = [];
   const avisos: string[] = [];
-  const erro = (campo: string | null, texto: string) => problemas.push({ coluna: campo ? nomeDaColuna(ctx, campo) : null, texto });
+  const erro = (campo: string | null, texto: string) => problemas.push({ coluna: campo ? nomeDaColuna(ctx, campo) : null, indice: campo ? (ctx.mapa[campo] ?? null) : null, texto });
   const nome = valor("nome").replace(/\s+/g, " ");
   const base = { numero, nome: nome.slice(0, 120), pulada: false };
   if (!nome) erro("nome", "Falta o nome do ingrediente.");
@@ -371,7 +376,7 @@ function avaliarIngrediente(ctx: Contexto, celulas: string[], vistos: Map<string
 
   if (problemas.length || !unidadeBase || !area) return { linha: { ...base, avisos, situacao: "erro", resumo, problemas } };
   const p = itemDoLote.safeParse({ nome, unidadeBase, unidadeExibicao: exibicao, area, fornecedorId, embalagens });
-  if (!p.success) return { linha: { ...base, avisos, situacao: "erro", resumo, problemas: [{ coluna: null, texto: [...new Set(p.error.issues.map((i) => i.message))].join(" ") }] } };
+  if (!p.success) return { linha: { ...base, avisos, situacao: "erro", resumo, problemas: [{ coluna: null, indice: null, texto: [...new Set(p.error.issues.map((i) => i.message))].join(" ") }] } };
   return { linha: { ...base, avisos, situacao: "ok", resumo, problemas: [] }, ingrediente: p.data };
 }
 
@@ -405,19 +410,55 @@ function mapaDaTabela(tipo: TipoDeImportacao, tabela: TabelaLida, mapaPedido: Ma
   return { cabecalhos, mapa: conferirMapa(tipo, mapaPedido, colunas, cabecalhos) };
 }
 
-function avaliar(tipo: TipoDeImportacao, tabela: TabelaLida, nomeDoArquivo: string, refs: Referencias, mapaPedido: MapaDeColunas | undefined, pular: readonly number[]): Avaliacao {
+/** Campos obrigatórios do tipo que ficaram sem coluna no mapa. */
+const obrigatoriosSemColuna = (tipo: TipoDeImportacao, mapa: MapaDeColunas) => CAMPOS[tipo].filter((c) => c.obrigatorio && (mapa[c.campo] ?? null) === null);
+const ROTULO_DO_TIPO: Record<TipoDeImportacao, string> = { ingredientes: "Ingredientes", produtos: "Produtos" };
+
+/**
+ * Tipo trocado (ex.: planilha de produtos com "Ingredientes" escolhido): o tipo escolhido não acha
+ * as colunas obrigatórias e o outro, pelos nomes do cabeçalho, acharia todas.
+ */
+function tipoQueCombina(tipo: TipoDeImportacao, mapa: MapaDeColunas, cabecalhos: string[]): TipoDeImportacao | null {
+  if (!obrigatoriosSemColuna(tipo, mapa).length) return null;
+  const outro: TipoDeImportacao = tipo === "produtos" ? "ingredientes" : "produtos";
+  return obrigatoriosSemColuna(outro, sugerirMapa(outro, cabecalhos)).length ? null : outro;
+}
+
+const UNIDADES_PARA_ESCOLHER = ["kg", "g", "L", "ml", "un", "dz"];
+
+/** Opções válidas de cada campo de escolha, para a tela mostrar ao corrigir. */
+function opcoesDosCampos(tipo: TipoDeImportacao, refs: Referencias): Record<string, string[]> {
+  const ativos = (l: readonly Ref[]) => [...new Set(l.filter((r) => r.ativo).map((r) => r.nome))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  if (tipo === "produtos") return { categoria: ativos(refs.categorias), tipo: ativos(refs.tipos) };
+  return { unidade: UNIDADES_PARA_ESCOLHER, area: AREAS_ESTOQUE.map((a) => NOME_DA_AREA[a]), fornecedor: ativos(refs.fornecedores) };
+}
+
+function avaliar(
+  tipo: TipoDeImportacao,
+  tabela: TabelaLida,
+  nomeDoArquivo: string,
+  refs: Referencias,
+  mapaPedido: MapaDeColunas | undefined,
+  pular: readonly number[],
+  correcoes = 0,
+): Avaliacao {
   const [cabecalho, ...dados] = tabela.linhas;
   const { cabecalhos, mapa } = mapaDaTabela(tipo, tabela, mapaPedido);
   const faltamColunas = CAMPOS[tipo].filter((c) => c.obrigatorio && mapa[c.campo] === null && !(tipo === "ingredientes" && c.campo !== "nome")).map((c) => c.rotulo);
   const ctx: Contexto = { tipo, refs, cabecalhos, mapa };
   const vistos = new Map<string, number>();
   const pulando = new Set(pular);
+  const limitador = limitadorDeCelulas();
   const avaliadas = dados.map((l) => {
     const a = tipo === "produtos" ? avaliarProduto(ctx, l.celulas, vistos, l.numero) : avaliarIngrediente(ctx, l.celulas, vistos, l.numero);
     a.linha.pulada = pulando.has(l.numero) && a.linha.situacao !== "ja_existe";
+    // Linha com erro: as células atuais vão para a tela poder corrigir ali mesmo.
+    // Com teto: as primeiras 200 linhas, células cortadas em 500 letras, até 1 MB no total.
+    if (a.linha.situacao === "erro") Object.assign(a.linha, limitador.devolver(l.celulas, cabecalhos.length));
     return a;
   });
   const linhas = avaliadas.map((a) => a.linha);
+  const tipoSugerido = tipoQueCombina(tipo, mapa, cabecalhos);
   return {
     avaliadas,
     conferencia: {
@@ -431,6 +472,11 @@ function avaliar(tipo: TipoDeImportacao, tabela: TabelaLida, nomeDoArquivo: stri
       faltamColunas,
       linhas,
       resumo: resumir(linhas),
+      tipoSugerido,
+      avisoDoTipo: tipoSugerido ? `Esta planilha parece de ${NOME_DO_TIPO[tipoSugerido].varios}. Trocar para ${ROTULO_DO_TIPO[tipoSugerido]}?` : null,
+      opcoes: opcoesDosCampos(tipo, refs),
+      correcoes,
+      avisoDasCelulas: limitador.aviso(),
     },
   };
 }
@@ -445,10 +491,11 @@ function bytesDoPedido(p: Pedido): Uint8Array {
 export async function conferirPlanilha(db: Banco, ator: Ator | null, dados: unknown): Promise<Conferencia> {
   await exigir(db, ator, "cadastros.gerenciar", { tipo: "importacao_planilha" });
   const p = validarPedido(dados);
-  const tabela = await lerArquivoDePlanilha(bytesDoPedido(p), p.arquivo.nome);
+  // As correções do painel entram ANTES de conferir: a conferência é a da planilha já corrigida.
+  const tabela = aplicarCorrecoes(await lerArquivoDePlanilha(bytesDoPedido(p), p.arquivo.nome), p.correcoes);
   const refs = await referencias(db, p.tipo);
-  const { conferencia } = avaliar(p.tipo, tabela, p.arquivo.nome, refs, p.mapa, p.pular);
-  return { chave: randomUUID(), ...conferencia };
+  const { conferencia } = avaliar(p.tipo, tabela, p.arquivo.nome, refs, p.mapa, p.pular, correcoesQueValem(p.correcoes).length);
+  return { chave: randomUUID(), ...conferencia, ...(p.devolverTabela ? { tabela: tabelaParaDevolver(tabela) } : {}) };
 }
 
 // ---------- gravar (tudo ou nada) ----------
@@ -460,7 +507,11 @@ function assinaturaDe(p: Pedido, bytes: Uint8Array, mapa: MapaDeColunas): string
     .map((k) => `${k}=${mapa[k] ?? ""}`)
     .join(",");
   const pular = [...new Set(p.pular)].sort((a, b) => a - b).join(",");
-  return createHash("sha256").update(`${p.tipo}\n${arquivo}\n${mapaOrdenado}\n${pular}`).digest("hex");
+  // Sem correções a assinatura fica igual à de antes (importações antigas continuam valendo).
+  const correcoes = assinaturaDasCorrecoes(p.correcoes);
+  return createHash("sha256")
+    .update(`${p.tipo}\n${arquivo}\n${mapaOrdenado}\n${pular}${correcoes ? `\n${correcoes}` : ""}`)
+    .digest("hex");
 }
 
 const resultadoDe = (r: { id: number; criados: number; ja_existiam: number; puladas: number }, repetida: boolean): ResultadoDaGravacao => ({
@@ -482,8 +533,10 @@ export async function gravarPlanilha(db: Banco, ator: Ator | null, dados: unknow
   if (!p.chave) throw new ErroDeRegra("dados_invalidos", "Confira a planilha antes de gravar.");
   const chave = p.chave;
   const bytes = bytesDoPedido(p);
-  const tabela = await lerArquivoDePlanilha(bytes, p.arquivo.nome);
-  // A assinatura (arquivo, tipo, mapa e linhas puladas) vem antes de tudo: vale também na garantia final.
+  // As mesmas correções da conferência, aplicadas de novo aqui (nada vem pronto da tela).
+  const tabela = aplicarCorrecoes(await lerArquivoDePlanilha(bytes, p.arquivo.nome), p.correcoes);
+  const quantasCorrecoes = correcoesQueValem(p.correcoes).length;
+  // A assinatura (arquivo, tipo, mapa, linhas puladas e correções) vem antes de tudo: vale também na garantia final.
   const { mapa } = mapaDaTabela(p.tipo, tabela, p.mapa);
   const assinatura = assinaturaDe(p, bytes, mapa);
   const jaFeita = async (trx: Banco) => {
@@ -564,6 +617,8 @@ export async function gravarPlanilha(db: Banco, ator: Ator | null, dados: unknow
           criados: r.criados,
           jaExistiam: r.ja_existiam,
           puladas: r.puladas,
+          // Só quantas: o conteúdo das correções não vai para a auditoria.
+          correcoes: quantasCorrecoes,
           ids,
         },
         ip: quem.ip,

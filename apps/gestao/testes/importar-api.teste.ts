@@ -64,7 +64,8 @@ describe("importar planilha pela API", () => {
   });
 
   it("pedido maior que o limite: recusado pelo cabeçalho e também quando o cabeçalho mente", async () => {
-    const grande = corpo("x".repeat(2 * 1024 * 1024 + 300 * 1024));
+    // Maior que o pedido inteiro (arquivo de 2 MB + folga das correções do painel).
+    const grande = corpo("x".repeat(4 * 1024 * 1024));
     const pelo = await r.conferirImportacao(req("/api/cadastros/importar/conferir", "POST", gerente, grande));
     expect(pelo.status).toBe(400);
     expect(((await pelo.json()) as { mensagem: string }).mensagem).toContain("máximo é 2 MB");
@@ -74,6 +75,22 @@ describe("importar planilha pela API", () => {
     const justo = await r.conferirImportacao(req("/api/cadastros/importar/conferir", "POST", gerente, corpo("y".repeat(2 * 1024 * 1024 + 1))));
     expect(justo.status).toBe(400);
     expect(((await justo.json()) as { mensagem: string }).mensagem).toContain("máximo é 2 MB");
+  });
+
+  it("correções do painel: a folga cabe 2.000; passou do pedido, a mensagem fala das correções (não do arquivo)", async () => {
+    const csv = `Nome;Categoria;Preço\nFolga ${S};Bebidas;4,00\n`;
+    const cheias = Array.from({ length: 2000 }, () => ({ linha: 2, coluna: 0, valor: `Folga ${S}`.padEnd(500, "x") }));
+    const cabe = await r.conferirImportacao(req("/api/cadastros/importar/conferir", "POST", gerente, corpo(csv, { correcoes: cheias })));
+    expect(cabe.status).toBe(200);
+    const demais = corpo(csv, { correcoes: Array.from({ length: 8000 }, () => ({ linha: 2, coluna: 0, valor: "x".repeat(500) })) });
+    for (const cab of [{}, { "content-length": "10" }] as Record<string, string>[]) {
+      const x = await r.conferirImportacao(req("/api/cadastros/importar/conferir", "POST", gerente, demais, cab));
+      expect(x.status).toBe(400);
+      expect(((await x.json()) as { mensagem: string }).mensagem).toContain("Correções demais de uma vez");
+    }
+    const fichas = await r.importarFichasDaPlanilha(req("/api/fichas/importar", "POST", gerente, JSON.stringify({ arquivo: { nome: "f.csv", conteudo: "eA==" }, aplicar: false, correcoes: JSON.parse(demais).correcoes })));
+    expect(fichas.status).toBe(400);
+    expect(((await fichas.json()) as { mensagem: string }).mensagem).toContain("Correções demais de uma vez");
   });
 
   it("supervisor recebe 403 antes de o arquivo ser lido; outro site é recusado", async () => {

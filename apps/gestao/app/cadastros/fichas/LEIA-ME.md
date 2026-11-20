@@ -36,6 +36,13 @@ Importar: `POST /api/fichas/importar` `{ arquivo: { nome, conteudo (base64) }, a
 em vez de gravar por cima. Planilha igual ao que já está gravado: o servidor não grava nada (`aplicado`
 falso, "sem mudança") e a tela diz "Nada mudou".
 
+Corrigir no painel (ideia nº 13): o pedido aceita também `correcoes: { linha, coluna, valor }[]` (linha como na
+planilha, coluna 0 = A, até 2.000) e `devolverTabela` (só ao conferir: devolve a planilha inteira corrigida).
+O servidor aplica as correções antes de montar as fichas, ao conferir e ao gravar. A resposta traz `colunas`
+(o cabeçalho), `linhas` (células das linhas citadas em erros), `opcoes` (colunas de escolha fixa, pelo
+índice) e `coluna` em cada erro quando se sabe. Os campos de "Corrigir aqui" são as peças de
+`../importar/CorrigirNoPainel.tsx`, as mesmas da importação de cadastros.
+
 Quantidade vazia num item = pendência (a ficha fica Incompleta e não baixa estoque). A tela nunca
 arredonda escondido: o que não cabe em 4 casas na unidade da ficha é recusado com explicação.
 Teste de tela: `apps/gestao/testes-tela/fichas.spec.ts`.

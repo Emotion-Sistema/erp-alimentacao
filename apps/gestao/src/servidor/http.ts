@@ -107,10 +107,12 @@ export async function corpoJson(req: Request): Promise<unknown> {
 /**
  * Corpo JSON com tamanho máximo (importação de planilha, decisão 0020). Recusa pelo cabeçalho
  * Content-Length e, se ele mentir ou faltar, conta os bytes enquanto lê e para no limite.
+ * `mensagem` pode ser uma função que olha o começo do que foi lido (no máximo o limite) para dizer
+ * o que passou (ex.: o arquivo ou as correções); aí o cabeçalho não basta e a leitura vai até o limite.
  */
-export async function corpoJsonLimitado(req: Request, maximo: number, mensagem: string): Promise<unknown> {
+export async function corpoJsonLimitado(req: Request, maximo: number, mensagem: string | ((lido: Uint8Array) => string)): Promise<unknown> {
   const declarado = Number(req.headers.get("content-length") ?? "0");
-  if (Number.isFinite(declarado) && declarado > maximo) throw new ErroDeRegra("dados_invalidos", mensagem);
+  if (typeof mensagem === "string" && Number.isFinite(declarado) && declarado > maximo) throw new ErroDeRegra("dados_invalidos", mensagem);
   if (!req.body) throw new ErroDeRegra("dados_invalidos", "Corpo da requisição inválido.");
   const leitor = req.body.getReader();
   const pedacos: Uint8Array[] = [];
@@ -121,7 +123,7 @@ export async function corpoJsonLimitado(req: Request, maximo: number, mensagem: 
     total += value.byteLength;
     if (total > maximo) {
       await leitor.cancel().catch(() => undefined);
-      throw new ErroDeRegra("dados_invalidos", mensagem);
+      throw new ErroDeRegra("dados_invalidos", typeof mensagem === "string" ? mensagem : mensagem(Buffer.concat([...pedacos, value]).subarray(0, maximo)));
     }
     pedacos.push(value);
   }

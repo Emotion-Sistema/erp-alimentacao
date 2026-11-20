@@ -86,3 +86,9 @@ com margem, pendências, versões e histórico imutável, receita circular, alvo
 custo de referência, painel, concorrência determinística (verificada por mutação).
 `fichas-importar.teste.ts`: conferir, gravar, repetir sem mudança, erros por linha, círculo,
 permissão. Testes de tela das fichas.
+
+## Adendo de 19/11/2026: corrigir no painel (ideia nº 13)
+A importação de fichas aceita `correcoes` por célula, como a de cadastros (adendo da decisão 0020):
+aplicadas no servidor antes de montar e conferir; a conferência devolve o cabeçalho, as células das
+linhas com erro e as opções das colunas de escolha; erros de campo da ficha apontam a linha de onde o
+valor veio.

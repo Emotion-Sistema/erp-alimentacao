@@ -113,3 +113,13 @@ A 1ª revisão reprovou: zip que mente o tamanho (abria 1,5 GB), HTML muito anin
 pilha), limite aberto generoso (40 MB), garantia final da chave sem comparar a assinatura, faltava o
 teste de cliques simultâneos em ingredientes e o número com imprecisão de conta virava erro. Tudo
 corrigido como descrito acima, com testes.
+
+## Adendo de 19/11/2026: corrigir no painel (ideia nº 13)
+Pedido do responsável: "sempre que der erro em importação, deixe a opção de corrigir ali mesmo no
+painel". O pedido de conferir e de gravar aceita `correcoes` (linha, coluna, valor; até 2000, até
+500 letras, sem caractere de controle). O servidor aplica as correções sobre a tabela lida ANTES de
+avaliar e confere tudo de novo; nada da tela é aceito sem passar pelas mesmas regras. As correções
+entram na assinatura da chave de idempotência (as mesmas correções em outra ordem são a mesma
+importação). A auditoria guarda só quantas correções vieram. Se a planilha parece de outro tipo
+(ex.: produtos com o tipo Ingredientes), a conferência avisa e a tela troca com um clique. Toda
+importação nova já nasce com a correção no painel. Mesma regra na importação de fichas (decisão 0025).

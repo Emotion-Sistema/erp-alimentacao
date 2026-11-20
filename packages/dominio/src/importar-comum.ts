@@ -16,6 +16,25 @@ export const LIMITE_DE_BYTES = 2 * 1024 * 1024; // 2 MB
 export const LIMITE_DE_LINHAS = 2000;
 export const LIMITE_DE_COLUNAS = 50;
 export const EXTENSOES_ACEITAS = ".xlsx,.csv,.txt,.html,.htm,.xls";
+/** Correções feitas no painel (ideia nº 13): no máximo 2.000 por vez. */
+export const LIMITE_DE_CORRECOES = 2000;
+/**
+ * Tetos da resposta da conferência (um .xlsx com "texto compartilhado" pode repetir um texto enorme
+ * em todas as células: poucos KB no arquivo viram centenas de MB de texto). Células para corrigir no
+ * painel: só das primeiras 200 linhas com erro, cada uma cortada em 500 letras, e no máximo 1 MB no
+ * total. A planilha corrigida para baixar: no máximo 2 MB de texto.
+ */
+export const LINHAS_COM_CELULAS = 200;
+export const TAMANHO_DA_CELULA_DEVOLVIDA = 500;
+export const LIMITE_DAS_CELULAS_DEVOLVIDAS = 1024 * 1024;
+export const LIMITE_DA_TABELA_DEVOLVIDA = 2 * 1024 * 1024;
+
+/**
+ * Uma célula corrigida no painel: `linha` é o número da linha como na planilha; `coluna` começa
+ * em 0 (A = 0). O servidor aplica antes de conferir e confere tudo de novo (vale para as duas
+ * importações, cadastros e fichas).
+ */
+export type CorrecaoDeCelula = { linha: number; coluna: number; valor: string };
 
 export type CampoDaPlanilha = {
   campo: string;
@@ -162,7 +181,13 @@ export function sugerirMapa(tipo: TipoDeImportacao, cabecalhos: readonly string[
 // ---------- resultado da conferência ----------
 
 export type SituacaoDaLinha = "ok" | "erro" | "ja_existe";
-export type ProblemaDaLinha = { coluna: string | null; texto: string };
+export type ProblemaDaLinha = {
+  /** "Coluna C (Preço)" para mostrar; nulo quando o problema não é de uma coluna só. */
+  coluna: string | null;
+  /** Índice da coluna (0 = A), para a tela destacar o campo ao corrigir; nulo quando não se sabe. */
+  indice: number | null;
+  texto: string;
+};
 export type LinhaConferida = {
   /** Número da linha na planilha (como a pessoa vê no Excel). */
   numero: number;
@@ -174,6 +199,11 @@ export type LinhaConferida = {
   avisos: string[];
   /** A pessoa marcou para pular (não grava, mesmo se estiver certa). */
   pulada: boolean;
+  /** Só nas linhas com erro (as primeiras 200, dentro do teto): o texto atual de cada célula, já corrigido. */
+  celulas?: string[];
+  /** Alguma célula veio cortada (texto longo demais); `colunasTruncadas` diz quais. */
+  truncada?: true;
+  colunasTruncadas?: number[];
 };
 export type ColunaLida = { indice: number; letra: string; texto: string };
 export type Conferencia = {
@@ -190,6 +220,20 @@ export type Conferencia = {
   faltamColunas: string[];
   linhas: LinhaConferida[];
   resumo: Resumo;
+  /**
+   * Tipo trocado: o tipo escolhido não acha as colunas obrigatórias e o outro acharia. A tela
+   * mostra o aviso e um botão que troca o tipo e confere de novo. Nulo quando está tudo certo.
+   */
+  tipoSugerido: TipoDeImportacao | null;
+  avisoDoTipo: string | null;
+  /** Opções válidas dos campos de escolha (unidade, área, categoria, tipo...), para corrigir no painel. */
+  opcoes: Record<string, string[]>;
+  /** Quantas correções do painel foram aplicadas nesta conferência. */
+  correcoes: number;
+  /** Nem todas as linhas com erro vieram com as células (muitas linhas ou texto demais): o que dizer. */
+  avisoDasCelulas: string | null;
+  /** Só quando a tela pede (`devolverTabela`): a planilha inteira já corrigida, para baixar em .csv. */
+  tabela?: string[][];
 };
 export type Resumo = { total: number; prontas: number; erros: number; jaExistem: number; puladas: number };
 export type ResultadoDaGravacao = { importacaoId: number; criados: number; jaExistiam: number; puladas: number; repetida: boolean };
@@ -229,12 +273,17 @@ export const NOME_DA_SITUACAO: Readonly<Record<SituacaoDaLinha | "pulada", strin
 
 // ---------- .csv (relatório e modelo) ----------
 
-/** Célula de .csv com ; e aspas; texto que começa com = + - @ ganha um apóstrofo (não vira fórmula no Excel). */
-function celulaCsv(v: string): string {
-  const seguro = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+/**
+ * Célula de .csv com ; e aspas. Com `protegerFormulas` (o padrão: relatório e modelo), texto que
+ * começa com = + - @ ganha um apóstrofo (não vira fórmula no Excel). A planilha corrigida, feita
+ * para importar de novo, sai SEM o apóstrofo (senão ele entraria no valor); a tela avisa.
+ */
+function celulaCsv(v: string, protegerFormulas: boolean): string {
+  const seguro = protegerFormulas && /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
   return /[;"\n\r]/.test(seguro) ? `"${seguro.replace(/"/g, '""')}"` : seguro;
 }
-export const linhasParaCsv = (linhas: readonly (readonly string[])[]): string => "\ufeff" + linhas.map((l) => l.map(celulaCsv).join(";")).join("\r\n") + "\r\n";
+export const linhasParaCsv = (linhas: readonly (readonly string[])[], { protegerFormulas = true }: { protegerFormulas?: boolean } = {}): string =>
+  "\ufeff" + linhas.map((l) => l.map((c) => celulaCsv(c, protegerFormulas)).join(";")).join("\r\n") + "\r\n";
 
 /** Relatório para baixar: as linhas com erro e as já cadastradas, com o motivo. */
 export function relatorioDeErros(c: Pick<Conferencia, "linhas">): string {
