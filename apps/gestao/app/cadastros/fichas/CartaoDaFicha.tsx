@@ -4,12 +4,13 @@
  * Uma linha da lista de fichas: nome (abre a ficha), tipo, selo Completa ou Incompleta (com
  * quantas pendências), versão e, só para quem vê custo (o servidor manda nulo para os outros),
  * o custo por porção e quanto ele é do preço na loja e no delivery. Passou do limite: selo de
- * alerta com ícone e texto (nunca só a cor).
+ * alerta com ícone e texto (nunca só a cor). Embaixo, os selos dos alergênicos (S1).
  */
 import Link from "next/link";
 import { Selo } from "@erp/interface";
 import type { ResumoDaFicha } from "@erp/dominio";
 import { NOME_DO_TIPO_DE_FICHA } from "@erp/dominio/fichas";
+import { SelosDeAlergenicos } from "./AlergenicosDaFicha";
 import { textoDoCusto, textoDoPb } from "./contas";
 import { TF } from "./textos";
 
@@ -76,6 +77,7 @@ export function CartaoDaFicha({ resumo, limiteCustoPb }: { resumo: ResumoDaFicha
         {!r.ativo && <Selo variante="alerta">{C.desativada}</Selo>}
         {r.ativo && r.foraDoCardapio && <Selo variante="alerta">{C.foraDoCardapio}</Selo>}
       </div>
+      <SelosDeAlergenicos alergenicos={r.alergenicos} compacto />
       <CustoDaFicha resumo={r} />
       {(r.custoPbLoja !== null || r.custoPbDelivery !== null) && (
         <div className="hor-cat__selos">

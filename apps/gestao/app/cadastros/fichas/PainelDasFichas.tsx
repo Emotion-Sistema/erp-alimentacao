@@ -6,6 +6,7 @@
  *   as desativadas e as "fora do cardápio" (esmaecidas).
  * - No cardápio sem ficha: produtos à venda sem ficha, com "Criar ficha" (quem gerencia).
  * - Nomes parecidos: pares de ingredientes que podem ser o mesmo.
+ * - Alergênicos: o catálogo (adicionar, editar, desativar e reativar só quem gerencia).
  * - Custos (só quem vê custo): limite do alerta e custo de referência dos ingredientes.
  * `podeGerenciar` e `podeVerCusto` vêm do servidor no painel; o servidor confere tudo de novo.
  */
@@ -20,6 +21,7 @@ import { chamar } from "../../chamar";
 import { BotaoExemplos, Campo, Selecao } from "../../Campo";
 import { AvisoComDesfazer, type AvisoRapido } from "../embalagens/AvisoComDesfazer";
 import { CartaoDaFicha } from "./CartaoDaFicha";
+import { CatalogoDeAlergenicos } from "./CatalogoDeAlergenicos";
 import { CustosDeReferencia } from "./CustosDeReferencia";
 import { ImportarFichas } from "./ImportarFichas";
 import { EditorDaFicha, type AlvoInicial } from "./EditorDaFicha";
@@ -27,8 +29,8 @@ import { TF } from "./textos";
 
 let numeroDoAviso = 0;
 
-type Aba = "fichas" | "sem-ficha" | "parecidos" | "custos";
-type Situacao = "todas" | "completas" | "incompletas" | "inativas";
+type Aba = "fichas" | "sem-ficha" | "parecidos" | "alergenicos" | "custos";
+type Situacao = "todas" | "completas" | "incompletas" | "inativas" | "alergenicos";
 
 const esmaecida = (f: ResumoDaFicha) => !f.ativo || f.foraDoCardapio;
 
@@ -61,7 +63,8 @@ export function PainelDasFichas() {
     // "?aba=custos" (link da ficha aberta para pôr os preços que faltam).
     try {
       const pedida = new URLSearchParams(window.location.search).get("aba");
-      if (pedida === "custos" || pedida === "sem-ficha" || pedida === "parecidos") setAba(pedida);
+      if (pedida === "custos" || pedida === "sem-ficha" || pedida === "parecidos" || pedida === "alergenicos") setAba(pedida);
+      if (new URLSearchParams(window.location.search).get("situacao") === "alergenicos") setSituacao("alergenicos");
     } catch {
       /* sem endereço: fica na primeira aba */
     }
@@ -70,7 +73,7 @@ export function PainelDasFichas() {
     };
   }, [recarregar]);
 
-  const abas: Aba[] = painel ? ["fichas", "sem-ficha", "parecidos", ...(painel.podeVerCusto ? (["custos"] as const) : [])] : [];
+  const abas: Aba[] = painel ? ["fichas", "sem-ficha", "parecidos", "alergenicos", ...(painel.podeVerCusto ? (["custos"] as const) : [])] : [];
   const abaVisivel: Aba = abas.includes(aba) ? aba : "fichas";
   const nomeDaAba = (a: Aba) =>
     a === "fichas"
@@ -79,7 +82,9 @@ export function PainelDasFichas() {
         ? TF.pagina.aba.semFicha(painel?.semFicha.length ?? 0)
         : a === "parecidos"
           ? TF.pagina.aba.parecidos(painel?.nomesParecidos.length ?? 0)
-          : TF.pagina.aba.custos;
+          : a === "alergenicos"
+            ? TF.pagina.aba.alergenicos(painel?.alergenicos.filter((x) => x.ativo).length ?? 0)
+            : TF.pagina.aba.custos;
 
   const termo = nomeComparavel(busca);
   const filtradas = (painel?.fichas ?? []).filter(
@@ -89,7 +94,8 @@ export function PainelDasFichas() {
       (situacao === "todas" ||
         (situacao === "completas" && f.completa && !esmaecida(f)) ||
         (situacao === "incompletas" && !f.completa && !esmaecida(f)) ||
-        (situacao === "inativas" && esmaecida(f))),
+        (situacao === "inativas" && esmaecida(f)) ||
+        (situacao === "alergenicos" && f.alergenicos.situacao === "em_conferencia" && !esmaecida(f))),
   );
   const emUso = filtradas.filter((f) => !esmaecida(f));
   const noFim = filtradas.filter(esmaecida);
@@ -177,6 +183,7 @@ export function PainelDasFichas() {
                         { valor: "completas", texto: TF.filtros.completas },
                         { valor: "incompletas", texto: TF.filtros.incompletas },
                         { valor: "inativas", texto: TF.filtros.inativas },
+                        { valor: "alergenicos", texto: TF.filtros.alergenicosEmConferencia },
                       ]}
                     />
                   </div>
@@ -240,6 +247,19 @@ export function PainelDasFichas() {
                       ))}
                     </ul>
                   )}
+                </>
+              )}
+              {abaVisivel === "alergenicos" && (
+                <>
+                  <BotaoExemplos />
+                  <CatalogoDeAlergenicos
+                    catalogo={painel.alergenicos}
+                    podeGerenciar={painel.podeGerenciar}
+                    aoMudar={(t) => {
+                      void recarregar();
+                      avisar(t);
+                    }}
+                  />
                 </>
               )}
               {abaVisivel === "custos" && (

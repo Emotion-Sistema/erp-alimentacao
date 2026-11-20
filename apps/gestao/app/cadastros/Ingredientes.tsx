@@ -6,6 +6,8 @@
  * duas abas: Rápido (catálogo pronto e lista colada, vários de uma vez) e Comum (um ingrediente por
  * vez). Editar, Duplicar e "Adicionar embalagem" abrem a mesma janela, no formulário Comum.
  * Ao gravar, a lista atualiza e os ingredientes novos ou salvos ficam em destaque.
+ * Na janela de editar, o bloco "Alergênicos" (S1) marca e confere os alergênicos do ingrediente.
+ * "?ingrediente=ID" (link "Conferir" das fichas) abre direto a janela daquele ingrediente.
  * A tela só esconde botões: o servidor confere a permissão em cada chamada.
  */
 import Link from "next/link";
@@ -24,6 +26,7 @@ import { ajustarLinhasParaBase } from "./embalagens/contas";
 import { EmbalagensDoIngrediente } from "./embalagens/EmbalagensDoIngrediente";
 import { ProvedorDoCatalogo, usarCatalogo } from "./embalagens/usarCatalogo";
 import { JanelaModal, usarPedirFechar } from "./JanelaModal";
+import { AlergenicosDoIngrediente } from "./AlergenicosDoIngrediente";
 
 type Opcao = { valor: string; texto: string };
 type Conversao = { id: number; nome: string; quantidadeBase: string; ativo: boolean; modeloId?: number | null };
@@ -37,6 +40,9 @@ type Ingrediente = {
   fornecedor: string | null;
   ativo: boolean;
   conversoes: Conversao[];
+  alergenicos: { codigo: string; tipo: "contem" | "tracos" }[];
+  alergenicosConferidosEm: string | null;
+  alergenicosConferidosPor: string | null;
 };
 type Lista = { ingredientes: Ingrediente[]; unidades: UnidadePadrao[] };
 type Fornecedor = { id: number; nome: string; ativo: boolean };
@@ -95,6 +101,10 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
   const [visitadas, setVisitadas] = useState<ReadonlySet<Aba>>(new Set());
   /** Há algo digitado na janela e ainda não gravado (fechar pergunta antes). */
   const [sujo, setSujo] = useState(false);
+  /** O bloco de alergênicos mudou e ainda não foi conferido (fechar pergunta antes). */
+  const [sujoAlergenicos, setSujoAlergenicos] = useState(false);
+  /** "?ingrediente=ID" já foi atendido (abre a janela uma vez só). */
+  const pedidoDoEndereco = useRef(false);
   /** Aviso dentro da janela (ex.: "salvar e cadastrar o próximo"). */
   const [avisoDaJanela, setAvisoDaJanela] = useState<Mensagem>(null);
   /** Ingredientes em destaque na lista (os novos ou o que acabou de ser salvo). */
@@ -134,6 +144,7 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
     setMensagem(null);
     setAvisoDaJanela(null);
     setSujo(false);
+    setSujoAlergenicos(false);
     setRealce(new Set());
     novosNaJanela.current = 0;
     setVisitadas(new Set(nova.modo === "novo" ? [nova.aba] : []));
@@ -147,6 +158,7 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
     novosNaJanela.current = 0;
     setJanela(null);
     setSujo(false);
+    setSujoAlergenicos(false);
     setAvisoDaJanela(null);
     if (texto) setMensagem({ tipo: "sucesso", texto });
     else if (novos > 0) setMensagem({ tipo: "sucesso", texto: `${plural(novos, "ingrediente novo", "ingredientes novos")} na lista, em destaque.` });
@@ -169,6 +181,28 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
     document.addEventListener("keydown", aoTeclar);
     return () => document.removeEventListener("keydown", aoTeclar);
   }, [podeGerenciar, abrirNovo]);
+
+  // "?ingrediente=ID" (vindo de "Conferir" numa ficha): abre a janela dele no bloco de alergênicos.
+  // Quem só vê cadastros ganha o ingrediente em destaque na lista.
+  useEffect(() => {
+    if (!dados || pedidoDoEndereco.current) return;
+    pedidoDoEndereco.current = true;
+    let pedido: number;
+    try {
+      pedido = Number(new URLSearchParams(window.location.search).get("ingrediente"));
+    } catch {
+      return;
+    }
+    if (!Number.isSafeInteger(pedido) || pedido <= 0 || !dados.ingredientes.some((i) => i.id === pedido)) return;
+    if (podeGerenciar) {
+      abrir({ modo: "editar", id: pedido, abrirEmbalagens: false });
+      window.setTimeout(() => {
+        const bloco = document.getElementById("alergenicos-do-ingrediente");
+        bloco?.scrollIntoView({ block: "start" });
+        bloco?.querySelector<HTMLElement>("h3")?.focus();
+      }, 50);
+    } else setRealce(new Set([pedido]));
+  }, [dados, podeGerenciar, abrir]);
 
   // Com a janela fechada, o primeiro destacado aparece na tela.
   useEffect(() => {
@@ -212,6 +246,11 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
         setAvisoDaJanela({ tipo: "sucesso", texto });
       }}
       aoMudarConversao={carregarTudo}
+      aoGravarAlergenicos={async (texto) => {
+        await carregar();
+        setAvisoDaJanela({ tipo: "sucesso", texto });
+      }}
+      aoSujoAlergenicos={setSujoAlergenicos}
       abrirEmbalagens={abrirEmbalagens}
       unidadeDoEstoque={ingrediente ? { base: ingrediente.unidadeBase, exibicao: ingrediente.unidadeExibicao } : undefined}
     />
@@ -399,8 +438,9 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
         </JanelaModal>
       )}
       {podeGerenciar && janela?.modo === "editar" && emEdicao && (
-        <JanelaModal titulo={`Editar ${emEdicao.nome}`} sujo={sujo} aoMexer={() => setSujo(true)} aoFechar={() => fechar()} data-testid="janela-ingrediente">
+        <JanelaModal titulo={`Editar ${emEdicao.nome}`} sujo={sujo || sujoAlergenicos} aoMexer={() => setSujo(true)} aoFechar={() => fechar()} data-testid="janela-ingrediente">
           <BotaoExemplos />
+          <div aria-live="polite">{avisoDaJanela && <Aviso tipo={avisoDaJanela.tipo}>{avisoDaJanela.texto}</Aviso>}</div>
           {formulario(emEdicao, undefined, janela.abrirEmbalagens)}
         </JanelaModal>
       )}
@@ -421,6 +461,8 @@ function FormularioIngrediente({
   aoSalvar,
   aoSalvarEProximo,
   aoMudarConversao,
+  aoGravarAlergenicos,
+  aoSujoAlergenicos,
   abrirEmbalagens,
 }: {
   ingrediente?: Ingrediente;
@@ -435,6 +477,8 @@ function FormularioIngrediente({
   /** Gravou e a janela continua aberta para o próximo. */
   aoSalvarEProximo: (texto: string) => Promise<void>;
   aoMudarConversao: () => Promise<void>;
+  aoGravarAlergenicos: (texto: string) => Promise<void>;
+  aoSujoAlergenicos: (sujo: boolean) => void;
   abrirEmbalagens?: boolean;
 }) {
   const pedirFechar = usarPedirFechar();
@@ -617,6 +661,7 @@ function FormularioIngrediente({
           abertoNoInicio={abrirEmbalagens}
         />
       )}
+      {ingrediente && <AlergenicosDoIngrediente key={ingrediente.alergenicosConferidosEm ?? "nao"} ingrediente={ingrediente} aoGravado={aoGravarAlergenicos} aoSujo={aoSujoAlergenicos} />}
     </div>
   );
 }

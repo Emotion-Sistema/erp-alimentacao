@@ -10,8 +10,10 @@ Os tipos do painel e da ficha (`PainelDeFichas`, `FichaCompleta`, `ResumoDaFicha
 |---|---|
 | `page.tsx` | Página da lista (servidor): a Casca confere `cadastros.ver`. |
 | `[id]/page.tsx` | Ficha aberta (servidor): confere `cadastros.ver` e passa `podeGerenciar` (`cadastros.gerenciar`) e `podeVerCusto` (`custos.ver`), que só escondem botões e colunas. |
-| `PainelDasFichas.tsx` | Abas: Fichas (busca, tipo, situação; desativadas e fora do cardápio no fim), No cardápio sem ficha ("Criar ficha"), Nomes parecidos, Custos (só quem vê custo). `?aba=custos` abre direto. |
+| `PainelDasFichas.tsx` | Abas: Fichas (busca, tipo, situação; desativadas e fora do cardápio no fim), No cardápio sem ficha ("Criar ficha"), Nomes parecidos, Alergênicos (catálogo), Custos (só quem vê custo). `?aba=custos` (ou `alergenicos`) abre direto; a situação tem também "Alergênicos em conferência". |
 | `CartaoDaFicha.tsx` | Uma ficha na lista: selo Completa / Incompleta (n pendências), versão, custo por porção ("parcial") e % do preço na loja e no delivery, com alerta acima do limite. |
+| `AlergenicosDaFicha.tsx` | Selos dos alergênicos (S1, decisão 0026; ícone + texto) e o bloco da ficha aberta com "Alergênicos em conferência" e o link "Conferir X" para `/cadastros?ingrediente=ID` (abre a janela do ingrediente no bloco Alergênicos, `../AlergenicosDoIngrediente.tsx`). |
+| `CatalogoDeAlergenicos.tsx` | Aba Alergênicos: lista, adicionar (código sai do nome), editar nome e descrição, desativar e reativar. |
 | `CustosDeReferencia.tsx` | Limite do alerta (%) e o custo de referência de cada ingrediente ("R$ 45,90 por 1 kg"), com "Sem preço". |
 | `FichaAberta.tsx` | Cabeçalho, pendências, itens (com custo por item para quem vê custo), rendimento, porção, tempo, validade, modo de preparo, equipamentos, observações, consumo por porção, "usado em", histórico; Editar, Desativar/Reativar e Versão para a cozinha. |
 | `EditorDaFicha.tsx` | Janela que monta a receita inteira (nova ficha ou versão nova com `versaoBase`). |
@@ -42,6 +44,11 @@ O servidor aplica as correções antes de montar as fichas, ao conferir e ao gra
 (o cabeçalho), `linhas` (células das linhas citadas em erros), `opcoes` (colunas de escolha fixa, pelo
 índice) e `coluna` em cada erro quando se sabe. Os campos de "Corrigir aqui" são as peças de
 `../importar/CorrigirNoPainel.tsx`, as mesmas da importação de cadastros.
+
+Alergênicos (S1): `GET/POST /api/cadastros/alergenicos` (catálogo: `{ codigo, novo?, nome?, descricao?, ativo? }`)
+e `POST /api/cadastros/ingredientes/[id]/alergenicos` `{ contem: [], tracos: [] }` (lista inteira; marca
+conferido). O resumo de cada ficha traz `alergenicos` (regra única `alergenicosDasFichas`). Na dúvida, "em
+conferência", nunca "não contém". Teste de tela: `apps/gestao/testes-tela/alergenicos.spec.ts`.
 
 Quantidade vazia num item = pendência (a ficha fica Incompleta e não baixa estoque). A tela nunca
 arredonda escondido: o que não cabe em 4 casas na unidade da ficha é recusado com explicação.

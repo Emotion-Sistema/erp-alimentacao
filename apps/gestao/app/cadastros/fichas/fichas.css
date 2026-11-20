@@ -142,3 +142,16 @@
 .fichas-importar__novos { display: grid; gap: var(--espaco-2); padding: var(--espaco-3); background: var(--cor-superficie); border-radius: var(--raio); }
 .fichas-importar__novos > * { margin: 0; }
 .fichas-importar__novos ul { margin: 0; padding-left: var(--espaco-5); }
+
+/* ---------- alergênicos (S1) ---------- */
+.fichas-alergenicos { margin: 0; }
+.fichas-alergenicos__conferir { display: grid; gap: var(--espaco-2); min-width: 0; }
+.fichas-alergenicos__conferir > * { margin: 0; min-width: 0; }
+.fichas-alergenicos__alerta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-1) var(--espaco-2); color: var(--cor-atencao); overflow-wrap: anywhere; }
+.fichas-alergenicos__conferir a { display: inline-flex; align-items: center; min-height: var(--alvo-toque); font-weight: var(--peso-forte); }
+.ingrediente-alergenicos { display: grid; gap: var(--espaco-3); min-width: 0; margin-top: var(--espaco-4); }
+.ingrediente-alergenicos > * { margin: 0; min-width: 0; }
+.ingrediente-alergenicos__grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: var(--espaco-2) var(--espaco-4); min-width: 0; }
+.ingrediente-alergenicos__grade > * { margin: 0; min-width: 0; }
+.ingrediente-alergenicos fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.ingrediente-alergenicos legend { font-weight: var(--peso-forte); padding: 0; }
