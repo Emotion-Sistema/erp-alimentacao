@@ -9,6 +9,11 @@ cd "$(dirname "$0")/../.."
 VERSAO="$(printf '%040d' 0 | tr 0 e)"   # um "commit" de mentira, 40 caracteres
 TEMP="$(mktemp -d)"
 trap 'ERP_VERSAO="$VERSAO" docker compose -p erp-ensaio --env-file "$TEMP/erp.env" -f infra/homologacao/compose.yml --profile ferramentas down -v >/dev/null 2>&1 || true; rm -rf "$TEMP"' EXIT
+# Portas livres agora (a máquina do CI pode ter 80/443 ocupadas). As URLs continuam as de sempre:
+# o curl conecta nessas portas com --connect-to, sem mudar o endereço nem o Host.
+porta_livre() { python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])'; }
+PORTA_HTTP=$(porta_livre)
+PORTA_HTTPS=$(porta_livre)
 cat > "$TEMP/erp.env" <<FIM
 ERP_DOMINIO=localhost
 ERP_SENHA_POSTGRES=$(openssl rand -hex 24)
@@ -17,6 +22,8 @@ ERP_SENHA_APP=$(openssl rand -hex 24)
 ERP_SENHA_WORKER=$(openssl rand -hex 24)
 ERP_CHAVE_SEGREDOS=$(openssl rand -base64 32)
 ERP_CADDY_EXTRA=$TEMP/caddy
+ERP_PORTA_HTTP=$PORTA_HTTP
+ERP_PORTA_HTTPS=$PORTA_HTTPS
 FIM
 mkdir -p "$TEMP/caddy"
 compose() { ERP_VERSAO="$VERSAO" docker compose -p erp-ensaio --env-file "$TEMP/erp.env" -f infra/homologacao/compose.yml "$@"; }
@@ -54,7 +61,7 @@ compose run --rm -T ferramentas node_modules/.bin/tsx -e '
 ok "primeiro acesso criou o dono"
 
 compose up -d gestao loja site worker caddy
-curlk() { curl -sk --resolve "$1:443:127.0.0.1" "${@:2}"; }
+curlk() { curl -sk --connect-to "$1:443:127.0.0.1:$PORTA_HTTPS" "${@:2}"; }
 for _ in $(seq 1 60); do
   curlk gestao.localhost "https://gestao.localhost/api/saude" | grep -q "\"versao\":\"$VERSAO\"" && break
   sleep 2
@@ -69,7 +76,7 @@ echo "$cab" | grep -qi '^x-powered-by' && falha "mostra X-Powered-By"
 for app in loja site; do
   [ "$(curlk "$app.localhost" -o /dev/null -w '%{http_code}' "https://$app.localhost/")" = 200 ] || falha "$app não abriu"
 done
-[ "$(curl -s -o /dev/null -w '%{http_code}' --resolve gestao.localhost:80:127.0.0.1 http://gestao.localhost/)" = 308 ] || falha "HTTP não manda para HTTPS"
+[ "$(curl -s -o /dev/null -w '%{http_code}' --connect-to "gestao.localhost:80:127.0.0.1:$PORTA_HTTP" http://gestao.localhost/)" = 308 ] || falha "HTTP não manda para HTTPS"
 ok "cabeçalhos de segurança, loja e site no ar, HTTP vai para HTTPS"
 
 corpo='{"login":"dono.ensaio","senha":"senha-do-ensaio-123"}'

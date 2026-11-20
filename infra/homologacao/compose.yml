@@ -88,7 +88,9 @@ services:
     image: caddy:2
     restart: unless-stopped
     logging: *registro
-    ports: ["80:80", "443:443", "443:443/udp"]
+    # No servidor: 80 e 443. O ensaio (CI e sessão) usa portas livres escolhidas na hora, porque a
+    # máquina do CI pode ter a 80 ou a 443 ocupadas.
+    ports: ["${ERP_PORTA_HTTP:-80}:80", "${ERP_PORTA_HTTPS:-443}:443", "${ERP_PORTA_HTTPS:-443}:443/udp"]
     environment:
       ERP_DOMINIO: ${ERP_DOMINIO:?}
     volumes:
