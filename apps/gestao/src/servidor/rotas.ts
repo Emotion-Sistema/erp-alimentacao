@@ -28,6 +28,9 @@ import {
   salvarFicha,
   salvarCustoDeReferencia,
   salvarLimiteDeCusto,
+  listarAlergenicos,
+  salvarAlergenico,
+  salvarAlergenicosDoIngrediente,
   salvarRegrasDoClube,
   salvarPremio,
   salvarPresente,
@@ -421,6 +424,16 @@ export const gravarIngrediente = seguro(async (req) => {
 export const gravarConversao = seguroComId(async (req, p) => {
   const db = obterBanco();
   return json(await salvarConversao(db, await ator(req), idDe(p), await corpoJson(req)));
+});
+
+// Alergênicos (S1, decisão 0026): catálogo e marcação do ingrediente. A permissão é do domínio.
+export const verAlergenicos = seguro(async (req) => json(await listarAlergenicos(obterBanco(), await ator(req))));
+export const gravarAlergenico = seguro(async (req) => json(await salvarAlergenico(obterBanco(), await ator(req), await corpoJson(req))));
+export const gravarAlergenicosDoIngrediente = seguroComId(async (req, p) => {
+  const corpo = await corpoJson(req);
+  // O id do endereço manda; o domínio valida tudo depois de conferir a permissão.
+  const dados = corpo && typeof corpo === "object" && !Array.isArray(corpo) ? { ...corpo, ingredienteId: Number(p.id) } : corpo;
+  return json(await salvarAlergenicosDoIngrediente(obterBanco(), await ator(req), dados));
 });
 
 // ---------- cadastro rápido (ideia nº 4) ----------

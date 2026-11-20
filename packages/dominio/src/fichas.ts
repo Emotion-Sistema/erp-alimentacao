@@ -8,9 +8,11 @@
  */
 import { z } from "zod";
 import { sql, type Banco } from "@erp/banco";
+import { alergenicosDosIngredientes, alergenicosSemFicha, catalogoDeAlergenicos, comNomes, type Alergenico, type AlergenicosDaFicha } from "./alergenicos";
 import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
 import {
+  alergenicosDasFichas,
   analisarFichas,
   Fracao,
   custoSobrePreco,
@@ -374,6 +376,8 @@ export type ResumoDaFicha = {
   custoPbDelivery: number | null;
   /** O que a ficha descreve saiu do cardápio (produto, tamanho ou adicional desativado). */
   foraDoCardapio: boolean;
+  /** Alergênicos herdados dos ingredientes (S1, decisão 0026). Na dúvida: em conferência. */
+  alergenicos: AlergenicosDaFicha;
 };
 
 export type PainelDeFichas = {
@@ -390,6 +394,8 @@ export type PainelDeFichas = {
   adicionais: { id: number; nome: string; grupo: string; ativo: boolean }[];
   /** Ingredientes ativos com nomes que parecem o mesmo item ("Frango" e "Peito de frango"). */
   nomesParecidos: { a: { id: number; nome: string }; b: { id: number; nome: string } }[];
+  /** Catálogo de alergênicos (ativos e desativados), para a aba "Alergênicos". */
+  alergenicos: Alergenico[];
 };
 
 type Precos = { loja: number | null; delivery: number | null };
@@ -460,6 +466,7 @@ function resumir(
   verCusto: boolean,
   preco: Precos | undefined,
   fora: boolean,
+  alergenicos: AlergenicosDaFicha,
 ): ResumoDaFicha {
   return {
     id: l.id,
@@ -479,7 +486,21 @@ function resumir(
     custoPbLoja: verCusto && preco ? custoSobrePreco(a.custoCentavos, preco.loja) : null,
     custoPbDelivery: verCusto && preco ? custoSobrePreco(a.custoCentavos, preco.delivery) : null,
     foraDoCardapio: fora,
+    alergenicos,
   };
+}
+
+/** Alergênicos das fichas pedidas, com os nomes do catálogo (regra única: `alergenicosDasFichas`). */
+async function alergenicosDe(
+  db: Banco,
+  fichas: Map<number, FichaParaConta>,
+  ingredientes: Map<number, IngredienteParaConta>,
+  ids: number[],
+  catalogo?: Alergenico[],
+): Promise<Map<number, AlergenicosDaFicha>> {
+  const [ings, cat] = await Promise.all([alergenicosDosIngredientes(db, [...ingredientes.keys()]), catalogo ?? catalogoDeAlergenicos(db)]);
+  const calc = alergenicosDasFichas(fichas, ings, ids);
+  return new Map([...calc].map(([k, a]) => [k, comNomes(a, cat)]));
 }
 
 /** Tudo o que a tela de fichas mostra. */
@@ -497,10 +518,18 @@ export async function painelDeFichas(db: Banco, ator: Ator | null): Promise<Pain
     todas.map((l) => l.id),
   );
   const { precos, fora } = await precosDosAlvos(db, todas);
+  const catalogo = await catalogoDeAlergenicos(db);
+  const alergenicos = await alergenicosDe(
+    db,
+    fichas,
+    ingredientes,
+    todas.map((l) => l.id),
+    catalogo,
+  );
   const resumo = todas
     .map((l) => {
       const f = fichas.get(l.id)!;
-      return resumir(l, f.nome, l.versaoAtualId ? versoes.get(l.versaoAtualId)! : null, analise.get(l.id)!, verCusto, precos.get(l.id), fora.has(l.id));
+      return resumir(l, f.nome, l.versaoAtualId ? versoes.get(l.versaoAtualId)! : null, analise.get(l.id)!, verCusto, precos.get(l.id), fora.has(l.id), alergenicos.get(l.id)!);
     })
     .sort((a, b) => Number(b.ativo) - Number(a.ativo) || a.nome.localeCompare(b.nome, "pt-BR"));
 
@@ -565,6 +594,7 @@ export async function painelDeFichas(db: Banco, ator: Ator | null): Promise<Pain
     tamanhos,
     adicionais,
     nomesParecidos: nomesParecidos(ings.filter((g) => g.ativo)),
+    alergenicos: catalogo,
   };
 }
 
@@ -613,6 +643,7 @@ export async function verFicha(db: Banco, ator: Ator | null, idDaFicha: unknown)
   const analise = analisarFichas(fichas, ingredientes, [fichaId, ...preparosDosItens]);
   const a = analise.get(fichaId)!;
   const { precos, fora } = await precosDosAlvos(db, [l]);
+  const alergenicos = await alergenicosDe(db, fichas, ingredientes, [fichaId]);
   const historico = await db
     .selectFrom("ficha_versao as v")
     .innerJoin("usuario as u", "u.id", "v.criada_por")
@@ -637,7 +668,7 @@ export async function verFicha(db: Banco, ator: Ator | null, idDaFicha: unknown)
   );
   const custoDosItens = (v?.itens ?? []).map((i) => custoDoItem(i, ingredientes, analise));
   return {
-    resumo: resumir(l, f.nome, v, a, verCusto, precos.get(l.id), fora.has(l.id)),
+    resumo: resumir(l, f.nome, v, a, verCusto, precos.get(l.id), fora.has(l.id), alergenicos.get(fichaId)!),
     versao: v,
     pendencias: a.pendencias,
     consumo: a.consumo,
@@ -1069,4 +1100,26 @@ export async function consumoDaFicha(
   const a = analisarFichas(fichas, ingredientes, [fichaId]).get(fichaId)!;
   if (!a.completa || !l.versaoAtualId) throw new ErroDeRegra("conflito", `A ficha tem pendências: ${a.pendencias.map((p) => p.texto).join(" ")}`);
   return { fichaId, versaoId: l.versaoAtualId, consumo: a.consumoDireto };
+}
+
+/**
+ * Alergênicos de um item do cardápio (para o cardápio, o site e o delivery). Com tamanho: a ficha
+ * ativa do tamanho, se houver; senão, a do produto (decisão 0025). Sem ficha ativa: em conferência
+ * (nunca "não contém"). Quem chama já conferiu a permissão (ou é público e só lê o que pode mostrar).
+ */
+export async function alergenicosDoProduto(db: Banco, produtoId: number, tamanhoId?: number | null): Promise<AlergenicosDaFicha> {
+  const produto = await db.selectFrom("produto").select("id").where("id", "=", produtoId).executeTakeFirst();
+  if (!produto) throw new ErroDeRegra("nao_encontrado", "Produto não encontrado.");
+  let fichaId: number | undefined;
+  if (tamanhoId != null) {
+    const t = await db.selectFrom("produto_tamanho").select("id").where("id", "=", tamanhoId).where("produto_id", "=", produtoId).executeTakeFirst();
+    if (!t) throw new ErroDeRegra("nao_encontrado", "Tamanho não encontrado neste produto.");
+    fichaId = (
+      await db.selectFrom("ficha").select("id").where("tipo", "=", "tamanho").where("tamanho_id", "=", tamanhoId).where("ativo", "=", true).executeTakeFirst()
+    )?.id;
+  }
+  fichaId ??= (await db.selectFrom("ficha").select("id").where("tipo", "=", "produto").where("produto_id", "=", produtoId).where("ativo", "=", true).executeTakeFirst())?.id;
+  if (fichaId === undefined) return alergenicosSemFicha("Este item ainda não tem ficha técnica.");
+  const { fichas, ingredientes } = await carregarParaConta(db, [fichaId]);
+  return (await alergenicosDe(db, fichas, ingredientes, [fichaId])).get(fichaId)!;
 }

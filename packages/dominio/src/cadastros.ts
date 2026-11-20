@@ -224,6 +224,11 @@ export type Ingrediente = {
   fornecedor: string | null;
   ativo: boolean;
   conversoes: Conversao[];
+  /** Alergênicos marcados (S1, decisão 0026): códigos do catálogo. */
+  alergenicos: { codigo: string; tipo: "contem" | "tracos" }[];
+  /** Nulo = ainda não conferido (os pratos com ele ficam "em conferência"). */
+  alergenicosConferidosEm: string | null;
+  alergenicosConferidosPor: string | null;
 };
 
 export type UnidadePadrao = { codigo: string; nome: string; grandeza: string; fator: string };
@@ -236,7 +241,19 @@ export async function listarIngredientes(
   const linhas = await db
     .selectFrom("ingrediente as i")
     .leftJoin("fornecedor as f", "f.id", "i.fornecedor_id")
-    .select(["i.id", "i.nome", "i.unidade_base", "i.unidade_exibicao", "i.area_estoque", "i.fornecedor_id", "f.nome as fornecedor", "i.ativo"])
+    .leftJoin("usuario as u", "u.id", "i.alergenicos_conferidos_por")
+    .select([
+      "i.id",
+      "i.nome",
+      "i.unidade_base",
+      "i.unidade_exibicao",
+      "i.area_estoque",
+      "i.fornecedor_id",
+      "f.nome as fornecedor",
+      "i.ativo",
+      "i.alergenicos_conferidos_em",
+      "u.nome as conferidoPor",
+    ])
     .orderBy("i.ativo", "desc")
     .orderBy(sql`lower(i.nome)`)
     .execute();
@@ -246,6 +263,14 @@ export async function listarIngredientes(
     .orderBy("ativo", "desc")
     .orderBy(sql`lower(nome)`)
     .execute();
+  const marcas = await db
+    .selectFrom("ingrediente_alergenico")
+    .select(["ingrediente_id", "alergenico_codigo as codigo", "tipo"])
+    .where("ativo", "=", true)
+    .orderBy("alergenico_codigo")
+    .execute();
+  const porIngrediente = new Map<number, { codigo: string; tipo: "contem" | "tracos" }[]>();
+  for (const m of marcas) porIngrediente.set(m.ingrediente_id, [...(porIngrediente.get(m.ingrediente_id) ?? []), { codigo: m.codigo, tipo: m.tipo }]);
   const unidades = await db.selectFrom("unidade_medida").select(["codigo", "nome", "grandeza", "fator"]).orderBy("grandeza").orderBy("fator").execute();
   return {
     ingredientes: linhas.map((l) => ({
@@ -260,6 +285,9 @@ export async function listarIngredientes(
       conversoes: conversoes
         .filter((c) => c.ingrediente_id === l.id)
         .map((c) => ({ id: c.id, nome: c.nome, quantidadeBase: decimalLimpo(c.quantidade_base), ativo: c.ativo, modeloId: c.modelo_id })),
+      alergenicos: porIngrediente.get(l.id) ?? [],
+      alergenicosConferidosEm: l.alergenicos_conferidos_em ? new Date(l.alergenicos_conferidos_em).toISOString() : null,
+      alergenicosConferidosPor: l.alergenicos_conferidos_em ? l.conferidoPor : null,
     })),
     unidades: unidades.map((u) => ({ ...u, fator: decimalLimpo(u.fator) })),
   };
