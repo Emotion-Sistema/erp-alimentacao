@@ -1402,8 +1402,12 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
       const r = await trx.selectFrom("estoque_movimento_item").select(sql<string>`sum(valor_centavos)::text`.as("v")).where("movimento_id", "=", ja.movimentoId).executeTakeFirst();
       return { ...ja, aplicadoCentavos: r?.v ?? "0" };
     }
+    // Mesma trava do desfazer: correção e desfazer da mesma entrada não passam juntos.
+    await sql`SELECT pg_advisory_xact_lock(hashtext(${"estoque_estorno:" + d.movimentoId}))`.execute(trx);
     const m = await trx.selectFrom("estoque_movimento").select(["id", "tipo"]).where("id", "=", d.movimentoId).executeTakeFirst();
     if (!m || (m.tipo !== "entrada" && m.tipo !== "saldo_inicial")) throw new ErroDeRegra("nao_encontrado", "Entrada não encontrada.");
+    if (await trx.selectFrom("estoque_movimento").select("id").where("estorno_de", "=", d.movimentoId).executeTakeFirst())
+      throw new ErroDeRegra("conflito", "Esta entrada foi desfeita: não há custo para corrigir.");
     const ids = await garantirItens(trx, d.itens);
     if (new Set(ids).size !== ids.length) throw new ErroDeRegra("dados_invalidos", "Cada item aparece uma vez só na correção.");
     const itens = await travarItens(trx, ids);
@@ -1607,6 +1611,8 @@ const esquemaProducao = z.object(
     previsto: quantidade,
     /** Quanto saiu de verdade (pesado ou contado). Diferente do previsto: o custo se ajusta. */
     rendimento: quantidade,
+    /** Rendeu mais que o dobro do previsto (ou menos de um décimo): só com esta confirmação. */
+    confirmarRendimento: z.boolean({ error: "Confirmar rendimento: sim ou não." }).optional(),
     local: local.optional(),
     /** Sem ela, hoje + a validade da ficha (se a ficha tiver). */
     validade: data.optional(),
@@ -1633,6 +1639,9 @@ export type ResultadoDaProducao = Lancado & {
 export async function produzirPreparo(db: Banco, ator: Ator | null, dados: unknown): Promise<ResultadoDaProducao> {
   if (!ator) await exigir(db, ator, "estoque.cozinha");
   const d = validar(esquemaProducao, dados);
+  const [qPrev, qRend] = [q4DoBanco(d.previsto), q4DoBanco(d.rendimento)];
+  if (!d.confirmarRendimento && (qRend > 2n * qPrev || qRend * 10n < qPrev))
+    throw new ErroDeRegra("dados_invalidos", `Rendeu ${d.rendimento} para ${d.previsto} previsto: confira o número (erro de digitação muda o custo do preparo). Se estiver certo, confirme.`);
   const [areaDoPreparo] = await areasPadrao(db, [{ preparoId: d.preparoId }]);
   const quem = await exigirAreas(db, ator, [areaDoPreparo!]);
   const comValor = pode(quem.cargoAtivo, "custos.ver");
@@ -1769,11 +1778,11 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
       .where("movimento_id", "=", d.movimentoId)
       .orderBy("id", "desc")
       .execute();
-    // Correções de custo de uma entrada desfeita saem junto.
+    const itens = await travarItens(trx, resumo.map((r) => r.item_id));
+    // Correções de custo de uma entrada desfeita saem junto (lidas já com a trava).
     const correcoes = await sql<{ item_id: number; v: string }>`
       SELECT ci.item_id, sum(ci.valor_centavos)::text AS v FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
       WHERE c.tipo = 'custo' AND c.corrige_custo_de = ${d.movimentoId}::bigint GROUP BY ci.item_id`.execute(trx);
-    const itens = await travarItens(trx, resumo.map((r) => r.item_id));
     const mov = await novoMovimento(trx, {
       tipo: "estorno",
       autorId: quem.usuarioId,
@@ -1814,10 +1823,37 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
     for (const p of ordem) await l.mexer(p.item_id, p.lote_id, p.area, p.local, p.bloqueado, -p.q);
     for (const r of resumo) {
       const corr = correcoes.rows.find((c) => c.item_id === r.item_id);
-      const dv = -(BigInt(r.valor_centavos) + (corr ? BigInt(corr.v) : 0n));
+      const valor = BigInt(r.valor_centavos) + (corr ? BigInt(corr.v) : 0n);
+      // O que entrou com valor sai pela parte que ainda resta pelo custo médio (as saídas
+      // depois dele já levaram a parte delas); o que saiu volta com o valor com que saiu.
+      let dv = -valor;
+      if (valor > 0n) {
+        const { fica } = await quantoFicaDaEntrada(trx, r.item_id, d.movimentoId, ESCALA_DA_FRACAO);
+        dv = -((valor * fica + ESCALA_DA_FRACAO / 2n) / ESCALA_DA_FRACAO);
+      }
       l.desfazer(r.item_id, -q4DoBanco(r.quantidade), dv);
     }
     await l.fechar();
+    // O último custo volta para a entrada válida mais recente (o desfeito pode ter preço errado).
+    for (const r of resumo) {
+      if (q4DoBanco(r.quantidade) <= 0n) continue;
+      const u = await sql<{ c: string; q: string }>`
+        SELECT coalesce((SELECT ci.valor_informado FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+                         WHERE c.tipo = 'custo' AND c.corrige_custo_de = o.movimento_id AND ci.item_id = o.item_id ORDER BY c.id DESC LIMIT 1),
+                        o.valor_centavos)::text AS c, o.quantidade::text AS q
+        FROM estoque_movimento_item o JOIN estoque_movimento om ON om.id = o.movimento_id
+        WHERE o.item_id = ${r.item_id} AND om.tipo IN ('entrada', 'saldo_inicial', 'producao') AND o.quantidade > 0
+          AND NOT EXISTS (SELECT 1 FROM estoque_movimento x WHERE x.estorno_de = om.id)
+          AND (NOT o.custo_estimado OR EXISTS (SELECT 1 FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+                                               WHERE c.tipo = 'custo' AND c.corrige_custo_de = o.movimento_id AND ci.item_id = o.item_id))
+        ORDER BY o.movimento_id DESC LIMIT 1`.execute(trx);
+      const x = u.rows[0];
+      await trx
+        .updateTable("estoque_item")
+        .set(x ? { ultimo_custo_centavos: x.c, ultimo_custo_quantidade: x.q } : { ultimo_custo_centavos: null, ultimo_custo_quantidade: null })
+        .where("id", "=", r.item_id)
+        .execute();
+    }
     return { movimentoId: mov, repetido: false };
   });
 }

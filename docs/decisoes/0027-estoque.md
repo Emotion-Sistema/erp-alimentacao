@@ -80,7 +80,12 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
    movimento "estorno" ligado ao original, linha por linha no mesmo lote e lugar; cada movimento
    uma vez só; observação obrigatória. Não se desfaz correção de custo, estorno nem consumo de
    pedido (o cancelamento do pedido, na E11, cuida). Se o que entrou já foi usado ou mudou de
-   lugar, recusa e diz o quê. Desfazer uma entrada leva junto o valor das correções de custo dela.
+   lugar, recusa e diz o quê. Desfazer uma entrada leva junto o valor das correções de custo dela,
+   mas só a parte que ainda resta pelo custo médio (as saídas depois dela já levaram a parte delas),
+   e o "último custo" volta para a entrada válida mais recente. Entrada desfeita não recebe correção
+   de custo (correção e desfazer da mesma entrada usam a mesma trava). A exigência da área de cada
+   linha é defesa a mais: hoje só cargos que cuidam de todas as áreas têm `estoque.desfazer`.
+   Produção com rendimento acima do dobro do previsto (ou abaixo de um décimo) pede confirmação.
 
 ## Alternativas descartadas
 - Saldo calculado só pela soma das linhas: lento e difícil de travar; o saldo materializado com
