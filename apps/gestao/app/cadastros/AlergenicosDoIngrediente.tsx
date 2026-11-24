@@ -82,6 +82,8 @@ export function AlergenicosDoIngrediente({
       tracos: lista.filter(([, v]) => v === "tracos").map(([c]) => c),
       // A conferência que esta tela viu: se outra pessoa gravou nesse meio-tempo, o servidor recusa.
       conferidoEmVisto: ingrediente.alergenicosConferidosEm,
+      // Os alergênicos que esta tela mostrou: se a lista ganhou outro, o servidor recusa.
+      catalogoVisto: visiveis.map((a) => a.codigo),
     });
     setGravando(false);
     if (!r.ok) return setErro(r.mensagem);

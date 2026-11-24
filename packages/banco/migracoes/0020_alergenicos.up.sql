@@ -15,7 +15,7 @@ CREATE TABLE alergenico (
   ativo         boolean NOT NULL DEFAULT true,
   -- Desde quando está na lista (criado ou reativado). Ingrediente conferido ANTES disso não está
   -- conferido para este alergênico: o prato volta a "em conferência" (decisão 0026).
-  na_lista_desde timestamptz NOT NULL DEFAULT now(),
+  na_lista_desde timestamptz NOT NULL DEFAULT clock_timestamp(),
   criado_em     timestamptz NOT NULL DEFAULT now(),
   atualizado_em timestamptz NOT NULL DEFAULT now()
 );

@@ -64,12 +64,27 @@ const esquemaDoIngrediente = z.object(
      * A conferência que a tela viu (`conferidoEm`; nulo se nunca conferido). Se mudou desde então
      * (outra pessoa gravou, ou a conferência foi zerada), recusa: ninguém grava por cima sem ver.
      */
+    /**
+     * Os códigos que a tela mostrou. Se a lista ganhou um alergênico ativo que a pessoa não viu
+     * (cadastrado ou reativado enquanto ela conferia), recusa: ninguém confere o que não viu.
+     */
+    catalogoVisto: z.array(codigo, { error: "Falta a lista de alergênicos que a tela mostrou. Abra o ingrediente de novo." }).max(500, "Lista de alergênicos grande demais."),
     conferidoEmVisto: z.union([z.iso.datetime({ offset: true, error: "Data da conferência em formato inválido." }), z.null()], {
       error: "Falta a conferência que a tela viu. Abra o ingrediente de novo.",
     }),
   },
   { error: "Alergênicos do ingrediente em formato inválido." },
 );
+
+/**
+ * Trava da LISTA de alergênicos. Quem muda a lista (criar, reativar) pega a trava exclusiva; quem
+ * confere um ingrediente pega a compartilhada. Assim, ou a conferência vê o alergênico novo (e
+ * recusa, se a tela não o mostrou), ou o alergênico entra depois da conferência (e a reabre).
+ */
+async function travarLista(trx: Banco, modo: "mudar" | "conferir"): Promise<void> {
+  if (modo === "mudar") await sql`SELECT pg_advisory_xact_lock(hashtext('alergenicos:lista'))`.execute(trx);
+  else await sql`SELECT pg_advisory_xact_lock_shared(hashtext('alergenicos:lista'))`.execute(trx);
+}
 
 function validar<T>(esquema: z.ZodType<T>, dados: unknown): T {
   const p = esquema.safeParse(dados);
@@ -100,6 +115,7 @@ export async function salvarAlergenico(db: Banco, ator: Ator | null, dados: unkn
   const d = validar(esquemaAlergenico, dados);
   try {
     return await db.transaction().execute(async (trx) => {
+      await travarLista(trx, "mudar");
       const antes = await trx
         .selectFrom("alergenico")
         .select(["codigo", "nome", "descricao", "ordem", "ativo"])
@@ -113,7 +129,15 @@ export async function salvarAlergenico(db: Banco, ator: Ator | null, dados: unkn
         const ultima = await trx.selectFrom("alergenico").select((e) => e.fn.max("ordem").as("m")).executeTakeFirst();
         depois = await trx
           .insertInto("alergenico")
-          .values({ codigo: d.codigo, nome: d.nome, descricao: d.descricao ?? null, ordem: Math.min(9999, (ultima?.m ?? 0) + 10), ativo: d.ativo ?? true })
+          .values({
+            codigo: d.codigo,
+            nome: d.nome,
+            descricao: d.descricao ?? null,
+            ordem: Math.min(9999, (ultima?.m ?? 0) + 10),
+            ativo: d.ativo ?? true,
+            // Hora do relógio (não a do início da transação): vem depois de qualquer conferência já feita.
+            na_lista_desde: sql<Date>`clock_timestamp()`,
+          })
           .returning(["codigo", "nome", "descricao", "ordem", "ativo"])
           .executeTakeFirstOrThrow();
       } else {
@@ -128,7 +152,7 @@ export async function salvarAlergenico(db: Banco, ator: Ator | null, dados: unkn
         const voltou = d.ativo === true && !antes.ativo;
         depois = await trx
           .updateTable("alergenico")
-          .set({ ...mudancas, ...(voltou ? { na_lista_desde: sql<Date>`now()` } : {}), atualizado_em: sql`now()` })
+          .set({ ...mudancas, ...(voltou ? { na_lista_desde: sql<Date>`clock_timestamp()` } : {}), atualizado_em: sql`now()` })
           .where("codigo", "=", d.codigo)
           .returning(["codigo", "nome", "descricao", "ordem", "ativo"])
           .executeTakeFirstOrThrow();
@@ -206,8 +230,14 @@ export async function salvarAlergenicosDoIngrediente(db: Banco, ator: Ator | nul
   if (nosDois.length) throw new ErroDeRegra("dados_invalidos", "Cada alergênico é Contém OU Pode conter traços, não os dois.");
   try {
     return await db.transaction().execute(async (trx) => {
+      await travarLista(trx, "conferir");
       const ing = await trx.selectFrom("ingrediente").select("id").where("id", "=", d.ingredienteId).forUpdate().executeTakeFirst();
       if (!ing) throw new ErroDeRegra("nao_encontrado", "Ingrediente não encontrado.");
+      // A lista inteira, travada até o fim: ninguém desativa nem reativa enquanto isto grava.
+      const lista = await trx.selectFrom("alergenico").select(["codigo", "ativo"]).forShare().execute();
+      const vistos = new Set(d.catalogoVisto);
+      if (lista.some((a) => a.ativo && !vistos.has(a.codigo)))
+        throw new ErroDeRegra("conflito", "A lista de alergênicos mudou enquanto você conferia. Abra de novo.");
       const antes = await lerDoIngrediente(trx, d.ingredienteId);
       const visto = d.conferidoEmVisto === null ? null : new Date(d.conferidoEmVisto).toISOString();
       if (visto !== antes.conferidoEm) throw new ErroDeRegra("conflito", "Outra pessoa mudou os alergênicos deste ingrediente. Abra de novo.");
@@ -240,7 +270,7 @@ export async function salvarAlergenicosDoIngrediente(db: Banco, ator: Ator | nul
       await tirar.execute();
       await trx
         .updateTable("ingrediente")
-        .set({ alergenicos_conferidos_em: sql`now()`, alergenicos_conferidos_por: quem.usuarioId })
+        .set({ alergenicos_conferidos_em: sql`clock_timestamp()`, alergenicos_conferidos_por: quem.usuarioId })
         .where("id", "=", d.ingredienteId)
         .execute();
       const depois = await lerDoIngrediente(trx, d.ingredienteId);

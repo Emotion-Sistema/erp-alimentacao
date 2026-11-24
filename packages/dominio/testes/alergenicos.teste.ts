@@ -64,9 +64,13 @@ const conferidoAgora = async (ingredienteId: number): Promise<string | null> => 
   const r = await db.selectFrom("ingrediente").select("alergenicos_conferidos_em as em").where("id", "=", ingredienteId).executeTakeFirst();
   return r?.em ? new Date(r.em).toISOString() : null;
 };
-/** Marca como a tela faria: abre (vê a conferência atual) e grava. */
+/** Os códigos que a tela mostraria agora (os ativos do catálogo). */
+const catalogoAgora = async (): Promise<string[]> => (await db.selectFrom("alergenico").select("codigo").where("ativo", "=", true).execute()).map((a) => a.codigo);
+/** O que a tela tem ao abrir a janela do ingrediente. */
+const abrirTela = async (ingredienteId: number) => ({ conferidoEmVisto: await conferidoAgora(ingredienteId), catalogoVisto: await catalogoAgora() });
+/** Marca como a tela faria: abre (vê a conferência e a lista atuais) e grava. */
 const marcar = async (ingredienteId: number, contem: string[] = [], tracos: string[] = [], ator: Ator = gerente) =>
-  salvarAlergenicosDoIngrediente(db, ator, { ingredienteId, contem, tracos, conferidoEmVisto: await conferidoAgora(ingredienteId) });
+  salvarAlergenicosDoIngrediente(db, ator, { ingredienteId, contem, tracos, ...(await abrirTela(ingredienteId)) });
 const produto = async (extra: Record<string, unknown> = {}) => salvarProduto(db, gerente, { nome: nome("Prato"), categoriaId: cat, precoCentavos: 2000, ...extra });
 type Item = { ingredienteId?: number; preparoId?: number; quantidade: string | null; opcional?: boolean };
 const receita = (itens: Item[], rende: string | null = "1") => ({ rende, itens });
@@ -453,22 +457,23 @@ describe("conferência que deixa de valer (revisão)", () => {
     const x = await ingrediente("Mel");
     const telaA = await conferidoAgora(x); // nulo: nunca conferido
     await marcar(x, ["leite"]);
-    const conflito = await erroDe(salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], conferidoEmVisto: telaA }));
+    const conflito = await erroDe(salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], conferidoEmVisto: telaA, catalogoVisto: await catalogoAgora() }));
     expect(conflito.codigo).toBe("conflito");
     expect(conflito.message).toBe("Outra pessoa mudou os alergênicos deste ingrediente. Abra de novo.");
     const visto = await conferidoAgora(x);
-    expect((await erroDe(salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], conferidoEmVisto: "2001-01-01T00:00:00.000Z" }))).codigo).toBe("conflito");
-    expect((await erroDe(salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [] }))).codigo).toBe("dados_invalidos");
-    expect((await erroDe(salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], conferidoEmVisto: "ontem" }))).codigo).toBe("dados_invalidos");
+    expect((await erroDe(salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], conferidoEmVisto: "2001-01-01T00:00:00.000Z", catalogoVisto: await catalogoAgora() }))).codigo).toBe("conflito");
+    expect((await erroDe(salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], catalogoVisto: await catalogoAgora() }))).codigo).toBe("dados_invalidos");
+    expect((await erroDe(salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], conferidoEmVisto: visto }))).codigo).toBe("dados_invalidos");
+    expect((await erroDe(salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], conferidoEmVisto: "ontem", catalogoVisto: await catalogoAgora() }))).codigo).toBe("dados_invalidos");
     // Nada mudou com as recusas; com a conferência certa, grava.
     expect((await listarIngredientes(db, gerente)).ingredientes.find((i) => i.id === x)!.alergenicos).toEqual([{ codigo: "leite", tipo: "contem" }]);
-    expect((await salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], conferidoEmVisto: visto })).contem).toEqual([]);
+    expect((await salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], conferidoEmVisto: visto, catalogoVisto: await catalogoAgora() })).contem).toEqual([]);
   });
 
   it("duas gravações ao mesmo tempo no mesmo ingrediente: uma vence, a outra dá conflito, e o estado fica coerente", async () => {
     const x = await ingrediente("Margarina");
     await marcar(x, ["leite"]);
-    const visto = await conferidoAgora(x);
+    const tela = await abrirTela(x);
     const gravacoes = () =>
       db
         .selectFrom("auditoria")
@@ -479,8 +484,8 @@ describe("conferência que deixa de valer (revisão)", () => {
         .executeTakeFirstOrThrow();
     const audAntes = await gravacoes();
     const r = await Promise.allSettled([
-      salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: ["soja"], tracos: [], conferidoEmVisto: visto }),
-      salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: ["leite"], conferidoEmVisto: visto }),
+      salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: ["soja"], tracos: [], ...tela }),
+      salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: ["leite"], ...tela }),
     ]);
     const ok = r.filter((y): y is PromiseFulfilledResult<Awaited<ReturnType<typeof salvarAlergenicosDoIngrediente>>> => y.status === "fulfilled");
     const recusas = r.filter((y): y is PromiseRejectedResult => y.status === "rejected");
@@ -560,5 +565,60 @@ describe("conferência que deixa de valer (revisão)", () => {
     expect((await verFicha(db, gerente, f.resumo.id)).resumo.alergenicos.situacao).toBe("em_conferencia");
     // Não deixa o alergênico de teste ativo para os outros testes.
     await salvarAlergenico(db, gerente, { codigo, ativo: false });
+  });
+
+  it("janela aberta com a lista antiga: alguém cadastra um alergênico, a conferência é recusada e o prato segue em conferência", async () => {
+    const tahine = await ingrediente("Tahine B");
+    const p = await produto();
+    const f = await salvarFicha(db, gerente, { tipo: "produto", produtoId: p.id, receita: receita([{ ingredienteId: tahine, quantidade: "15" }]) });
+    expect(f.resumo.alergenicos.situacao).toBe("em_conferencia");
+    const telaDeB = await abrirTela(tahine); // B abre a janela do Tahine
+    const codigo = `gergelim_b_${sufixo}`;
+    await salvarAlergenico(db, gerente, { codigo, novo: true, nome: `Gergelim B ${sufixo}` }); // A cadastra
+    const recusa = await erroDe(salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: tahine, contem: [], tracos: [], ...telaDeB })); // B: Conferido
+    expect(recusa.codigo).toBe("conflito");
+    expect(recusa.message).toBe("A lista de alergênicos mudou enquanto você conferia. Abra de novo.");
+    const a = (await verFicha(db, gerente, f.resumo.id)).resumo.alergenicos;
+    expect(a.situacao).toBe("em_conferencia");
+    expect(a.emConferencia.map((x) => x.ingredienteId)).toEqual([tahine]);
+    expect((await listarIngredientes(db, gerente)).ingredientes.find((i) => i.id === tahine)!.alergenicosConferidosEm).toBeNull();
+    // Aberta de novo (já com o gergelim na lista), a conferência passa.
+    await marcar(tahine, [codigo]);
+    expect((await verFicha(db, gerente, f.resumo.id)).resumo.alergenicos.situacao).toBe("conferido");
+    await salvarAlergenico(db, gerente, { codigo, ativo: false });
+  });
+
+  it("janela aberta e alguém reativa um alergênico: a conferência é recusada", async () => {
+    const codigo = `pimenta_b_${sufixo}`;
+    await salvarAlergenico(db, gerente, { codigo, novo: true, nome: `Pimenta B ${sufixo}` });
+    await salvarAlergenico(db, gerente, { codigo, ativo: false });
+    const x = await ingrediente("Molho B");
+    await marcar(x, ["soja"]);
+    const p = await produto();
+    const f = await salvarFicha(db, gerente, { tipo: "produto", produtoId: p.id, receita: receita([{ ingredienteId: x, quantidade: "20" }]) });
+    expect(f.resumo.alergenicos.situacao).toBe("conferido");
+    const telaDeB = await abrirTela(x);
+    await salvarAlergenico(db, gerente, { codigo, ativo: true }); // A reativa
+    // O prato já reabre (o alergênico voltou depois da conferência) e B não consegue conferir sem ver.
+    expect((await verFicha(db, gerente, f.resumo.id)).resumo.alergenicos.situacao).toBe("em_conferencia");
+    const recusa = await erroDe(salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], ...telaDeB }));
+    expect(recusa.codigo).toBe("conflito");
+    expect(recusa.message).toBe("A lista de alergênicos mudou enquanto você conferia. Abra de novo.");
+    expect((await verFicha(db, gerente, f.resumo.id)).resumo.alergenicos.situacao).toBe("em_conferencia");
+    expect((await listarIngredientes(db, gerente)).ingredientes.find((i) => i.id === x)!.alergenicos).toEqual([{ codigo: "soja", tipo: "contem" }]);
+    await salvarAlergenico(db, gerente, { codigo, ativo: false });
+  });
+
+  it("alergênico que entrou na lista e já saiu (desativado) não reabre a conferência", async () => {
+    const x = await ingrediente("Arroz B");
+    await marcar(x);
+    const p = await produto();
+    const f = await salvarFicha(db, gerente, { tipo: "produto", produtoId: p.id, receita: receita([{ ingredienteId: x, quantidade: "80" }]) });
+    const codigo = `canela_b_${sufixo}`;
+    await salvarAlergenico(db, gerente, { codigo, novo: true, nome: `Canela B ${sufixo}` });
+    expect((await verFicha(db, gerente, f.resumo.id)).resumo.alergenicos.situacao).toBe("em_conferencia");
+    await salvarAlergenico(db, gerente, { codigo, ativo: false });
+    expect((await verFicha(db, gerente, f.resumo.id)).resumo.alergenicos.situacao).toBe("conferido");
+    expect((await listarIngredientes(db, gerente)).ingredientes.find((i) => i.id === x)!.alergenicosNovosNaLista).toEqual([]);
   });
 });

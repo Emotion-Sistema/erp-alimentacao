@@ -53,6 +53,12 @@ no banco não apaga linha (decisão 0014, RC-17).
    se nunca conferido); se mudou, o servidor recusa com conflito ("Outra pessoa mudou os alergênicos
    deste ingrediente. Abra de novo."). O ingrediente fica travado (FOR UPDATE) durante a gravação:
    duas gravações ao mesmo tempo com a mesma versão vista terminam com uma gravada e a outra recusada.
+   A tela também manda os códigos que mostrou (`catalogoVisto`): se a lista tem um alergênico ativo
+   que a pessoa não viu (cadastrado ou reativado com a janela aberta), recusa com conflito ("A lista
+   de alergênicos mudou enquanto você conferia. Abra de novo."). A lista é lida com FOR SHARE e sob
+   uma trava da lista (compartilhada para conferir, exclusiva para criar e reativar), e as horas de
+   `alergenicos_conferidos_em` e `na_lista_desde` são `clock_timestamp()`: ou a conferência vê o
+   alergênico novo e recusa, ou ele entra depois e reabre a conferência.
 8. **Trocar o nome ou o fornecedor do ingrediente zera a conferência** (hipótese segura: pode ser
    outro produto, com outro rótulo). As marcas ficam para quem for conferir; a auditoria do
    ingrediente registra `alergenicosReabertos`. Trocar área, unidade de mostrar ou ativo não zera.
