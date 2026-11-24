@@ -187,6 +187,9 @@ export interface IngredienteTabela {
   custo_ref_centavos: ColumnType<number | null, number | null | undefined, number | null>;
   custo_ref_quantidade: ColumnType<string | null, string | null | undefined, string | null>;
   custo_ref_em: ColumnType<Date | null, Date | string | null | undefined, Date | string | null>;
+  /** Alergênicos conferidos (migração 0020): nulo = ainda não conferido. Os dois juntos. */
+  alergenicos_conferidos_em: ColumnType<Date | null, Date | string | null | undefined, Date | string | null>;
+  alergenicos_conferidos_por: ColumnType<number | null, number | null | undefined, number | null>;
 }
 
 export interface IngredienteConversaoTabela {
@@ -549,6 +552,28 @@ export interface FichaConfigTabela {
   atualizado_por: number | null;
 }
 
+/** Catálogo de alergênicos (migração 0020; decisão 0026). Código só letras minúsculas e _. */
+export interface AlergenicoTabela {
+  codigo: string;
+  nome: string;
+  descricao: string | null;
+  ordem: Generated<number>;
+  ativo: Generated<boolean>;
+  /** Criado ou reativado em (migração 0020): conferência anterior não vale para ele. */
+  na_lista_desde: Instante;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface IngredienteAlergenicoTabela {
+  ingrediente_id: number;
+  alergenico_codigo: string;
+  tipo: "contem" | "tracos";
+  ativo: Generated<boolean>;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
 export interface BancoTabelas {
   empresa: EmpresaTabela;
   unidade: UnidadeTabela;
@@ -595,4 +620,6 @@ export interface BancoTabelas {
   ficha_item: FichaItemTabela;
   ficha_pendencia: FichaPendenciaTabela;
   ficha_config: FichaConfigTabela;
+  alergenico: AlergenicoTabela;
+  ingrediente_alergenico: IngredienteAlergenicoTabela;
 }

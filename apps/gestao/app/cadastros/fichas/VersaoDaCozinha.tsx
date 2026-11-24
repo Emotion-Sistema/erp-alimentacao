@@ -3,7 +3,7 @@
 /**
  * Versão para a cozinha: a receita limpa, para ler no tablet ou imprimir (`@media print` em
  * fichas.css deixa só este bloco no papel). Ingredientes, modo de preparo, tempo, equipamentos e a
- * foto do produto, se houver. Nada de custo aqui. "Fazer 1x / 2x / 3x / outro" multiplica as
+ * foto do produto, se houver, e os alergênicos (S1). Nada de custo aqui. "Fazer 1x / 2x / 3x / outro" multiplica as
  * quantidades com `escalarQuantidade` (fração exata, nada de float); a medida caseira fica a de 1x.
  */
 import { useState } from "react";
@@ -12,6 +12,7 @@ import type { FichaCompleta } from "@erp/dominio";
 import { escalarQuantidade } from "@erp/dominio/fichas";
 import { BotaoExemplos, Campo, Grupo, OpcaoDoGrupo } from "../../Campo";
 import { enderecoDaFoto } from "../produtos/FotoDoProduto";
+import { SelosDeAlergenicos } from "./AlergenicosDaFicha";
 import { quantidadeAmigavel, vezesDoTexto } from "./contas";
 import { TF } from "./textos";
 
@@ -67,6 +68,10 @@ export function VersaoDaCozinha({ ficha, fotoId, aoFechar }: { ficha: FichaCompl
           </div>
         </header>
         {!ficha.resumo.completa && <p className="fichas-cozinha__alerta">{K.pendente}</p>}
+        <div data-testid="alergenicos-cozinha">
+          <h3>{TF.alergenicos.cozinha}</h3>
+          <SelosDeAlergenicos alergenicos={ficha.resumo.alergenicos} />
+        </div>
         <dl className="fichas-cozinha__dados">
           {v?.rende && (
             <div>

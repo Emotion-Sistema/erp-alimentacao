@@ -73,7 +73,9 @@ test.describe("telas internas do administrador", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByRole("button", { name: "Editar Ovo", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Editar Ovo" })).toBeVisible();
-    await conferirAjuda(page, "editar ingrediente", 5);
+    // Os 5 campos do ingrediente e os 10 alergênicos da lista inicial (S1).
+    await expect(page.getByTestId("alergenicos-do-ingrediente").getByRole("combobox", { name: "Glúten" })).toBeVisible();
+    await conferirAjuda(page, "editar ingrediente", 15);
     await page.getByRole("button", { name: /^Mostrar Embalagens/ }).click();
     await page.getByRole("button", { name: "Escolher do catálogo" }).click();
     await page.getByRole("checkbox", { name: "Saco 25 kg" }).check();
@@ -231,6 +233,10 @@ test.describe("telas internas do administrador", () => {
     await page.getByRole("button", { name: /^Editar o preço de / }).first().click();
     // Limite do alerta, preço, quantidade e unidade.
     await conferirAjuda(page, "fichas (custos)", 4);
+    await page.getByRole("tab", { name: /^Alergênicos/ }).click();
+    await page.getByRole("button", { name: /^Editar / }).first().click();
+    // Novo alergênico (nome e descrição) e a edição de um (nome e descrição).
+    await conferirAjuda(page, "fichas (alergênicos)", 4);
     await page.getByRole("button", { name: "Importar fichas" }).click();
     await expect(page.getByRole("dialog", { name: "Importar fichas de uma planilha" })).toBeVisible();
     // Arquivo e as duas escolhas (criar ingredientes, gravar as boas).

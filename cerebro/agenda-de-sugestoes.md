@@ -20,7 +20,7 @@ Detalhe de cada uma: `docs/requisitos/RC-07-sugestoes-no-dia-a-dia.md`.
 | 2 | S7 | Agenda de eventos | E25.5 (CMS completo) | pendente |
 | 3 | S3 | Cardápio impresso em PDF | Logo depois da E25 (precisa da foto no produto) | pendente |
 | 3 | S10 | Proposta em PDF para empresas | Logo depois da E25.3 (Para empresas) | pendente |
-| 4 | S1 | Alergênicos calculados da ficha | Logo depois da E08 (fichas técnicas) | pendente |
+| 4 | S1 | Alergênicos calculados da ficha | Logo depois da E08 (fichas técnicas) | **feita** em 20/11/2026 (branch `feat/s1-alergenicos`, migração 0020, decisão 0026; PR a abrir). Lista inicial e "quem marca" a confirmar com o responsável e um nutricionista. Falta, junto do cardápio público (site/delivery): mostrar os selos lá com `alergenicosDoProduto` e o aviso ao gerente de prato "em conferência" |
 | 5 | S5 | Cardápio por QR Code na mesa | **Absorvida pela ideia nº 11 (RC-20)**: a comanda pela mesa entra na E13; a geração dos QR pelo mapa de mesas, na E17 | pendente |
 | 5 | S6 | Reserva de mesa e do espaço | Logo depois da E17 | pendente |
 | 5 | S8 | QR Code de avaliação no recibo | Logo depois da E17 (e S4 feito) | pendente |

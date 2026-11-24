@@ -6,7 +6,7 @@
  * falta (pendências automáticas e anotadas), itens com quantidade, medida caseira, opcional e, só
  * para quem vê custo (o servidor manda nulo para os outros), o custo de cada item; rendimento,
  * porção, tempo, validade, modo de preparo, equipamentos, observações, consumo por porção,
- * "usado em" (preparos) e o histórico. Quem gerencia edita (versão nova), desativa e reativa.
+ * "usado em" (preparos) e o histórico; os alergênicos herdados (S1), com os ingredientes a conferir. Quem gerencia edita (versão nova), desativa e reativa.
  * "Versão para a cozinha" abre a receita limpa e imprimível.
  */
 import Link from "next/link";
@@ -17,6 +17,7 @@ import { NOME_DO_TIPO_DE_FICHA } from "@erp/dominio/fichas";
 import type { Produto } from "@erp/dominio/produtos";
 import { chamar } from "../../chamar";
 import { AvisoComDesfazer, type AvisoRapido } from "../embalagens/AvisoComDesfazer";
+import { BlocoDeAlergenicos } from "./AlergenicosDaFicha";
 import { PercentualDoPreco, SeloDaSituacao } from "./CartaoDaFicha";
 import { quando, quantidadeAmigavel, quantidadeLegivel, textoDoCusto } from "./contas";
 import { EditorDaFicha } from "./EditorDaFicha";
@@ -155,6 +156,8 @@ export function FichaAberta({ id, podeGerenciar, podeVerCusto }: { id: string; p
           </>
         )}
       </section>
+
+      <BlocoDeAlergenicos alergenicos={r.alergenicos} />
 
       <section className="hor-secao" aria-labelledby="ficha-itens">
         <h2 id="ficha-itens">{F.itens}</h2>

@@ -30,3 +30,4 @@ export * from "./clube-comum";
 export * from "./fichas";
 export * from "./fichas-comum";
 export * from "./fichas-importar";
+export * from "./alergenicos";

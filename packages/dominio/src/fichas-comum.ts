@@ -460,3 +460,191 @@ export function compararVersoes(antes: VersaoDaFicha, depois: VersaoDaFicha): Mu
   for (const p of pa) if (!pd.has(p)) m.push({ tipo: "saiu", texto: `Pendência resolvida: ${p}` });
   return m;
 }
+
+// ---------------------------------------------------------------- alergênicos (S1; decisão 0026)
+
+/**
+ * Informação de SAÚDE do cliente: na dúvida, nunca "não contém"; sempre "em conferência".
+ * O ingrediente é marcado uma vez (contém ou pode conter traços); o prato herda pela ficha.
+ */
+export type TipoDeAlergenico = "contem" | "tracos";
+export const TIPOS_DE_ALERGENICO = ["contem", "tracos"] as const;
+export const NOME_DO_TIPO_DE_ALERGENICO: Readonly<Record<TipoDeAlergenico | "nao", string>> = {
+  nao: "Não contém",
+  contem: "Contém",
+  tracos: "Pode conter traços",
+};
+/** Código do catálogo: só letras minúsculas e "_", começando por letra (2 a 40). */
+export const CODIGO_DE_ALERGENICO = /^[a-z][a-z_]{1,39}$/;
+
+/** "Castanha-do-pará" -> "castanha_do_para". Vazio se não sobrar letra. */
+export function codigoDeAlergenico(nome: string): string {
+  const c = nome
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40)
+    .replace(/_+$/, "");
+  return CODIGO_DE_ALERGENICO.test(c) ? c : "";
+}
+
+export type IngredienteParaAlergenicos = {
+  id: number;
+  nome: string;
+  ativo: boolean;
+  /**
+   * A conferência vale para a lista ATUAL do catálogo: alguém conferiu e nenhum alergênico ativo
+   * entrou (ou voltou) na lista depois disso.
+   */
+  conferido: boolean;
+  /** Por que não está conferido (para a tela): "conferido antes de Gergelim entrar na lista". */
+  motivo?: string | null;
+  alergenicos: { codigo: string; tipo: TipoDeAlergenico }[];
+};
+
+export type AlergenicosCalculados = {
+  /** "conferido" só quando TUDO o que a receita alcança foi conferido e nada impede saber. */
+  situacao: "conferido" | "em_conferencia";
+  /** Códigos que o prato contém (de itens que sempre vão). */
+  contem: string[];
+  /** Pode conter traços (sem repetir os de `contem`). */
+  tracos: string[];
+  /** Só vêm de itens opcionais: "contém se pedir X". `itens` = nomes dos itens opcionais da ficha. */
+  opcionais: { codigo: string; tipo: TipoDeAlergenico; itens: string[] }[];
+  /** Ingredientes ainda não conferidos (ou desativados): enquanto houver, o prato está em conferência. */
+  emConferencia: { ingredienteId: number; nome: string; motivo: string }[];
+  /** O que mais impede saber tudo: ficha sem receita, preparo desativado, receita circular... */
+  pendencias: string[];
+};
+
+type AcumuladoDeAlergenicos = {
+  sempre: Map<string, TipoDeAlergenico>;
+  opcional: Map<string, Map<TipoDeAlergenico, Set<string>>>;
+  conferir: Map<number, { nome: string; motivo: string }>;
+  pendencias: Set<string>;
+  altura: number;
+  profunda: boolean;
+};
+
+const somarTipo = (m: Map<string, TipoDeAlergenico>, codigo: string, tipo: TipoDeAlergenico) => {
+  if (m.get(codigo) !== "contem") m.set(codigo, tipo);
+};
+const somarOpcional = (m: AcumuladoDeAlergenicos["opcional"], codigo: string, tipo: TipoDeAlergenico, item: string) => {
+  const porTipo = m.get(codigo) ?? new Map<TipoDeAlergenico, Set<string>>();
+  m.set(codigo, porTipo);
+  const itens = porTipo.get(tipo) ?? new Set<string>();
+  porTipo.set(tipo, itens);
+  itens.add(item);
+};
+
+/**
+ * A regra única dos alergênicos. Percorre TODOS os ingredientes alcançáveis pela versão atual de
+ * cada ficha pedida: itens sem quantidade, opcionais e os de dentro dos preparos (mesmo de ficha
+ * incompleta ou de preparo desativado: aviso de saúde não some por pendência). Ciclo e
+ * profundidade protegidos como em `analisarFichas`. Item opcional leva tudo o que traz para
+ * `opcionais`, com o nome dele (o de mais fora, que é o que o cliente pede). Ingrediente não
+ * conferido, desativado ou que não veio = em conferência. `fichas` e `ingredientes` precisam conter
+ * tudo o que é alcançável (quem chama carrega).
+ */
+export function alergenicosDasFichas(
+  fichas: ReadonlyMap<number, FichaParaConta>,
+  ingredientes: ReadonlyMap<number, IngredienteParaAlergenicos>,
+  ids: readonly number[],
+): Map<number, AlergenicosCalculados> {
+  const memo = new Map<number, AcumuladoDeAlergenicos>();
+  const caminho: number[] = [];
+  const vazio = (): AcumuladoDeAlergenicos => ({
+    sempre: new Map(),
+    opcional: new Map(),
+    conferir: new Map(),
+    pendencias: new Set(),
+    altura: 0,
+    profunda: false,
+  });
+
+  function juntar(id: number): AcumuladoDeAlergenicos {
+    const ja = memo.get(id);
+    if (ja && caminho.length + ja.altura < PROFUNDIDADE_MAXIMA) return ja;
+    const a = vazio();
+    const ficha = fichas.get(id);
+    if (!ficha) {
+      a.pendencias.add("Uma ficha usada na receita não foi encontrada.");
+      return a;
+    }
+    if (caminho.includes(id)) {
+      a.pendencias.add(`O preparo "${ficha.nome}" acaba usando a si mesmo.`);
+      return a;
+    }
+    if (caminho.length >= PROFUNDIDADE_MAXIMA) {
+      a.pendencias.add(`Preparo dentro de preparo passou de ${PROFUNDIDADE_MAXIMA} níveis.`);
+      a.profunda = true;
+      return a;
+    }
+    caminho.push(id);
+    try {
+      const v = ficha.versao;
+      if (!v) a.pendencias.add(`${ficha.nome}: ainda não tem receita.`);
+      else if (!v.itens.length) a.pendencias.add(`${ficha.nome}: a receita não tem nenhum item.`);
+      for (const item of v?.itens ?? []) {
+        if (item.ingredienteId !== null) {
+          const ing = ingredientes.get(item.ingredienteId);
+          if (!ing) a.conferir.set(item.ingredienteId, { nome: item.nome, motivo: "não encontrado no cadastro" });
+          else if (!ing.ativo) a.conferir.set(ing.id, { nome: ing.nome, motivo: "desativado no cadastro" });
+          else if (!ing.conferido) a.conferir.set(ing.id, { nome: ing.nome, motivo: ing.motivo ?? "ainda não conferido" });
+          for (const x of ing?.alergenicos ?? []) {
+            if (item.opcional) somarOpcional(a.opcional, x.codigo, x.tipo, item.nome);
+            else somarTipo(a.sempre, x.codigo, x.tipo);
+          }
+        } else if (item.preparoId !== null) {
+          const prep = fichas.get(item.preparoId);
+          if (prep && !prep.ativo) a.pendencias.add(`${item.nome}: preparo desativado.`);
+          const sub = juntar(item.preparoId);
+          a.altura = Math.max(a.altura, sub.altura + 1);
+          if (sub.profunda) a.profunda = true;
+          for (const [k, x] of sub.conferir) a.conferir.set(k, x);
+          for (const p of sub.pendencias) a.pendencias.add(p);
+          for (const [codigo, tipo] of sub.sempre) {
+            if (item.opcional) somarOpcional(a.opcional, codigo, tipo, item.nome);
+            else somarTipo(a.sempre, codigo, tipo);
+          }
+          for (const [codigo, porTipo] of sub.opcional)
+            for (const [tipo, itens] of porTipo)
+              for (const nome of itens) somarOpcional(a.opcional, codigo, tipo, item.opcional ? item.nome : nome);
+        }
+      }
+      // "Profunda demais" depende do caminho até aqui: não guarda.
+      if (!a.profunda) memo.set(id, a);
+      return a;
+    } finally {
+      caminho.pop();
+    }
+  }
+
+  const saida = new Map<number, AlergenicosCalculados>();
+  const ordemDoNome = (x: string, y: string) => x.localeCompare(y, "pt-BR");
+  for (const id of ids) {
+    const a = juntar(id);
+    const opcionais: AlergenicosCalculados["opcionais"] = [];
+    for (const [codigo, porTipo] of [...a.opcional].sort(([x], [y]) => ordemDoNome(x, y)))
+      for (const tipo of TIPOS_DE_ALERGENICO) {
+        const itens = porTipo.get(tipo);
+        if (!itens) continue;
+        // Já vem sempre: não repete como opcional (contém sempre cobre tudo; traços sempre cobre traços).
+        const sempre = a.sempre.get(codigo);
+        if (sempre === "contem" || (sempre === "tracos" && tipo === "tracos")) continue;
+        opcionais.push({ codigo, tipo, itens: [...itens].sort(ordemDoNome) });
+      }
+    const conferir = [...a.conferir].map(([ingredienteId, x]) => ({ ingredienteId, nome: x.nome, motivo: x.motivo })).sort((x, y) => ordemDoNome(x.nome, y.nome));
+    saida.set(id, {
+      situacao: conferir.length || a.pendencias.size ? "em_conferencia" : "conferido",
+      contem: [...a.sempre].filter(([, t]) => t === "contem").map(([c]) => c).sort(ordemDoNome),
+      tracos: [...a.sempre].filter(([, t]) => t === "tracos").map(([c]) => c).sort(ordemDoNome),
+      opcionais,
+      emConferencia: conferir,
+      pendencias: [...a.pendencias],
+    });
+  }
+  return saida;
+}
