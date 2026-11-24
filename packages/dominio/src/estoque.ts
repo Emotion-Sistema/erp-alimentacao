@@ -523,6 +523,20 @@ async function exigirAreas(db: Banco, ator: Ator | null, areas: Iterable<AreaEst
 }
 
 const nomeDaArea = (a: AreaEstoque) => NOME_DA_AREA[a];
+
+/**
+ * ": há 3 un" na mensagem de recusa, ou nada enquanto há contagem aberta do item na área e a
+ * pessoa não é da gestão (a contagem é cega também nas mensagens).
+ */
+async function quantoHa(trx: Trx, ator: Ator, item: ItemTravado, area: AreaEstoque, q: bigint, prefixo = ": há "): Promise<string> {
+  if (!pode(ator.cargoAtivo, "estoque.desfazer")) {
+    const r = await sql<{ ok: boolean }>`
+      SELECT EXISTS (SELECT 1 FROM estoque_contagem c JOIN estoque_contagem_item ci ON ci.contagem_id = c.id
+        WHERE ci.item_id = ${item.id} AND c.area = ${area} AND NOT EXISTS (SELECT 1 FROM estoque_contagem_fim f WHERE f.contagem_id = c.id)) AS ok`.execute(trx);
+    if (r.rows[0]!.ok) return prefixo === ": há " ? " (o item está em contagem)" : ", item em contagem,";
+  }
+  return `${prefixo}${comUnidade(q, item)}`;
+}
 const comUnidade = (q: bigint, i: ItemTravado) => `${textoQ4(q)} ${i.unidade}`;
 
 /** Quantidade informada (com unidade opcional) -> dez-milésimos na unidade do estoque do item. */
@@ -710,7 +724,7 @@ export async function transferir(db: Banco, ator: Ator | null, dados: unknown): 
     if (tirado < q)
       throw new ErroDeRegra(
         "conflito",
-        `Não há ${comUnidade(q, item)} de "${item.nome}" livre em ${nomeDaArea(d.de.area)} (${NOME_DO_LOCAL[d.de.local].toLowerCase()}): há ${comUnidade(tirado, item)}.`,
+        `Não há ${comUnidade(q, item)} de "${item.nome}" livre em ${nomeDaArea(d.de.area)} (${NOME_DO_LOCAL[d.de.local].toLowerCase()})${await quantoHa(trx, ator!, item, d.de.area, tirado)}.`,
       );
     for (const x of de) await l.mexer(item.id, x.p.loteId, d.para.area, d.para.local, false, x.q);
     await l.fechar();
@@ -781,7 +795,7 @@ export async function registrarPerda(db: Banco, ator: Ator | null, dados: unknow
     if (tirado < q)
       throw new ErroDeRegra(
         "conflito",
-        `Não há ${comUnidade(q, item)} de "${item.nome}"${d.doBloqueado ? " bloqueado" : ""} em ${nomeDaArea(d.area)} (${NOME_DO_LOCAL[d.local].toLowerCase()}): há ${comUnidade(tirado, item)}.`,
+        `Não há ${comUnidade(q, item)} de "${item.nome}"${d.doBloqueado ? " bloqueado" : ""} em ${nomeDaArea(d.area)} (${NOME_DO_LOCAL[d.local].toLowerCase()})${await quantoHa(trx, ator!, item, d.area, tirado)}.`,
       );
     l.saida(item.id, q);
     await l.fechar();
@@ -844,7 +858,7 @@ async function mudarSituacao(db: Banco, ator: Ator | null, dados: unknown, tipo:
     if (tirado < q)
       throw new ErroDeRegra(
         "conflito",
-        `Não há ${comUnidade(q, item)} de "${item.nome}" ${tipo === "bloqueio" ? "livre" : "bloqueado"} em ${nomeDaArea(d.area)} (${NOME_DO_LOCAL[d.local].toLowerCase()}): há ${comUnidade(tirado, item)}.`,
+        `Não há ${comUnidade(q, item)} de "${item.nome}" ${tipo === "bloqueio" ? "livre" : "bloqueado"} em ${nomeDaArea(d.area)} (${NOME_DO_LOCAL[d.local].toLowerCase()})${await quantoHa(trx, ator!, item, d.area, tirado)}.`,
       );
     for (const x of de) await l.mexer(item.id, x.p.loteId, d.area, d.local, tipo === "bloqueio", x.q);
     await l.fechar();
@@ -1714,7 +1728,7 @@ export async function produzirPreparo(db: Banco, ator: Ator | null, dados: unkno
       if (item.id === ids[0]) throw new ErroDeRegra("conflito", "O preparo não pode gastar ele mesmo.");
       const { falta } = await gastarDaArea(trx, l, item.id, areaDoPreparo!, g.q);
       if (falta > 0n) {
-        semSaldo.push(`"${item.nome}" (precisa ${comUnidade(g.q, item)}, há ${comUnidade(g.q - falta, item)} livre em ${nomeDaArea(areaDoPreparo!)})`);
+        semSaldo.push(`"${item.nome}" (precisa ${comUnidade(g.q, item)}${await quantoHa(trx, quem, item, areaDoPreparo!, g.q - falta, ", há ")} livre em ${nomeDaArea(areaDoPreparo!)})`);
         continue;
       }
       valor += l.saida(item.id, g.q);

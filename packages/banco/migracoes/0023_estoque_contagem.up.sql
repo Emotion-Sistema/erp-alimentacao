@@ -48,6 +48,8 @@ CREATE TABLE estoque_contagem_fim (
   situacao     text NOT NULL CHECK (situacao IN ('fechada', 'cancelada')),
   movimento_id bigint REFERENCES estoque_movimento (id),
   observacao   text CHECK (length(btrim(observacao)) BETWEEN 1 AND 500 AND observacao !~ '[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]'),
+  -- Valor lançado por linha da contagem (id do item da contagem -> centavos, com sinal).
+  valores      jsonb NOT NULL DEFAULT '{}' CHECK (jsonb_typeof(valores) = 'object'),
   por          integer NOT NULL REFERENCES usuario (id),
   em           timestamptz NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT estoque_contagem_fim_ajuste CHECK (situacao = 'fechada' OR movimento_id IS NULL)

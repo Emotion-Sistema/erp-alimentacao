@@ -18,6 +18,8 @@ import {
   historicoDoItem,
   listarContagens,
   painelDoEstoque,
+  registrarPerda,
+  transferir,
   registrarContagem,
   registrarEntrada,
   salvarIngrediente,
@@ -186,6 +188,13 @@ describe("revisão do PR 4", () => {
     expect(h.every((m) => m.quantidade === null && m.quantidadeDepois === null)).toBe(true);
     expect(JSON.stringify([p, i, h])).not.toMatch(/37/);
     expect((await estoqueDoItem(db, gerente, { ingredienteId: x })).total).toBe("37");
+    // Nem as mensagens de recusa dizem quanto há.
+    const e1 = await erroDe(registrarPerda(db, cozinheira, { ingredienteId: x, quantidade: "99999", area: "cozinha", local: "em_uso", motivo: "estragou" }));
+    const e2 = await erroDe(transferir(db, cozinheira, { ingredienteId: x, quantidade: "99999", de: { area: "cozinha", local: "em_uso" }, para: { area: "cozinha", local: "guardado" } }));
+    for (const e of [e1, e2]) {
+      expect(e.message).toMatch(/em contagem/);
+      expect(e.message).not.toMatch(/37/);
+    }
     await cancelarContagem(db, gerente, { contagemId: c.id, observacao: "teste" });
     expect((await estoqueDoItem(db, cozinheira, { ingredienteId: x })).total).toBe("37");
   });
@@ -208,6 +217,19 @@ describe("revisão do PR 4", () => {
     await fecharContagem(db, gerente, { contagemId: c2.id });
     const area = (await estoqueDoItem(db, gerente, { ingredienteId: y })).areas[0]!;
     expect([area.bloqueado, area.livre]).toEqual(["4", "2"]);
+  });
+
+  it("valor por linha: falta num local e sobra no outro mostram cada um o seu", async () => {
+    const x = await ingrediente("Leite", "un");
+    await entrada(x, "10", "em_uso", 1000);
+    await entrada(x, "10", "guardado", 1000);
+    const c = await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x }] });
+    const nm = await nomeDe(x);
+    await contar(c, linha(c, nm, "em_uso").contagemItemId, "8", gerente);
+    await contar(c, linha(c, nm, "guardado").contagemItemId, "12", gerente);
+    await fecharContagem(db, gerente, { contagemId: c.id });
+    const v = await verContagem(db, gerente, { contagemId: c.id });
+    expect([linha(v, nm, "em_uso").valorDaDiferenca, linha(v, nm, "guardado").valorDaDiferenca]).toEqual(["-200", "200"]);
   });
 
   it("concorrência: contar espera o consumo; rápida do dia ao mesmo tempo é uma só; fechar e cancelar juntos, um vale", async () => {

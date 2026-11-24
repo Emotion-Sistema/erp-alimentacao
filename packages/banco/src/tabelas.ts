@@ -690,6 +690,7 @@ export interface EstoqueContagemFimTabela {
   contagem_id: number;
   situacao: "fechada" | "cancelada";
   movimento_id: Inteirao | null;
+  valores: ColumnType<Record<string, string>, string | undefined, never>;
   observacao: string | null;
   por: number;
   em: Instante;
