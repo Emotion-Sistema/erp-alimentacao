@@ -202,6 +202,32 @@ describe("revisão do PR 2", () => {
     expect(u.ultimo_custo_centavos).toBe("900");
   });
 
+  it("correção de entrada antiga, com muitas saídas: rápida e exata", async () => {
+    const x = await ingrediente("Guardanapo", "un");
+    const e = await registrarEntrada(db, gerente, { itens: [{ ingredienteId: x.id, quantidade: "100000", local: "em_uso", valorCentavos: 0 }] });
+    // 300 saídas de 7 un (frações que não fecham) e uma compra no meio.
+    for (let k = 0; k < 300; k++) {
+      await consumir(x.id, "7");
+      if (k === 150) await registrarEntrada(db, gerente, { itens: [{ ingredienteId: x.id, quantidade: "333", local: "em_uso", valorCentavos: 999 }] });
+    }
+    const inicio = Date.now();
+    const c = await corrigirCustoDaEntrada(db, gerente, { movimentoId: e.movimentoId, itens: [{ ingredienteId: x.id, valorCentavos: 1_000_000 }] });
+    expect(Date.now() - inicio).toBeLessThan(3000);
+    // Conta à mão (fração exata): 1.000.000 x produto(depois/antes) das saídas.
+    const r = await db.selectFrom("estoque_movimento_item").select(["quantidade", "quantidade_depois"]).where("item_id", "=", (await db.selectFrom("estoque_item").select("id").where("ingrediente_id", "=", x.id).executeTakeFirstOrThrow()).id).where("movimento_id", ">", e.movimentoId).where("quantidade", "<", "0").orderBy("movimento_id").execute();
+    let num = 1n;
+    let den = 1n;
+    for (const s of r) {
+      const depois = BigInt(Math.round(Number(s.quantidade_depois) * 10000));
+      const antes = depois - BigInt(Math.round(Number(s.quantidade) * 10000));
+      num *= depois;
+      den *= antes;
+    }
+    const esperado = (1_000_000n * num * 2n + den) / (2n * den);
+    expect(BigInt(c.aplicadoCentavos) - esperado).toBeGreaterThanOrEqual(-1n);
+    expect(BigInt(c.aplicadoCentavos) - esperado).toBeLessThanOrEqual(1n);
+  }, 60000);
+
   it("foto da nota comprida demais é recusada", async () => {
     const x = await ingrediente("Óleo", "ml");
     const r = await registrarEntrada(db, gerente, { itens: [{ ingredienteId: x.id, quantidade: "900", local: "guardado" }] });
@@ -261,6 +287,8 @@ describe("saldo inicial por planilha", () => {
     expect(g2).toMatchObject({ movimentoId: g.movimentoId, repetido: true });
     expect(await total(x.id)).toEqual({ q: "500", v: "123456" });
     expect((await estoqueDoItem(db, gerente, { ingredienteId: x.id })).lotes[0]!.validade).toBe("2099-12-31");
+    // Mesma chave com outro conteúdo (ex.: correção feita depois): recusa, não finge que gravou.
+    expect((await erroDe(importarSaldoInicial(db, gerente, { arquivo, aplicar: true, chave: c.chave, correcoes: [{ linha: 2, coluna: 1, valor: "5000" }] }))).codigo).toBe("conflito");
     // Desativado: entra com aviso (o que está na loja é contado).
     const c2 = await importarSaldoInicial(db, gerente, { arquivo: csv([["Item", "Quantidade"], [x.nome, "10"]]) });
     expect(c2.linhas[0]).toMatchObject({ situacao: "ok" });
