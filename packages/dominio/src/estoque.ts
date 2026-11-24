@@ -41,6 +41,8 @@ type Trx = Banco;
 const MAIOR_ID = 2_147_483_647;
 const VALOR_MAXIMO_CENTAVOS = 10_000_000_000; // R$ 100 milhões num lançamento
 const ITENS_POR_LANCAMENTO = 200;
+/** Saldo inicial vem de planilha: até o limite de linhas da importação. */
+const ITENS_DO_SALDO_INICIAL = 2000;
 
 // ---------------------------------------------------------------- validação
 
@@ -222,7 +224,7 @@ async function pedacos(trx: Trx, itemId: number, f: Filtro): Promise<Pedaco[]> {
 
 // ---------------------------------------------------------------- lançamento
 
-type Estado = { q: bigint; v: bigint; dq: bigint; dv: bigint; faltou: bigint; estimado: boolean; tocado: boolean; ultimo: { c: bigint; q: bigint } | null };
+type Estado = { q: bigint; v: bigint; dq: bigint; dv: bigint; faltou: bigint; estimado: boolean; tocado: boolean; ultimo: { c: bigint; q: bigint } | null; informado: bigint | null };
 
 /** Um movimento em construção: muda saldos, cria lotes e, no fim, grava o resumo por item. */
 class Lancamento {
@@ -243,7 +245,7 @@ class Lancamento {
     let e = this.estados.get(itemId);
     if (!e) {
       const i = this.item(itemId);
-      e = { q: i.q, v: i.v, dq: 0n, dv: 0n, faltou: 0n, estimado: false, tocado: false, ultimo: null };
+      e = { q: i.q, v: i.v, dq: 0n, dv: 0n, faltou: 0n, estimado: false, tocado: false, ultimo: null, informado: null };
       this.estados.set(itemId, e);
     }
     return e;
@@ -308,6 +310,19 @@ class Lancamento {
     if (ultimoCusto && q > 0n) e.ultimo = { c: v, q };
   }
 
+  /** Só valor (correção de custo): soma `dv`, sem deixar o valor negativo nem dar valor a item zerado. */
+  ajustarValor(itemId: number, dv: bigint, informado: bigint, ultimo: { c: bigint; q: bigint } | null): bigint {
+    const e = this.estado(itemId);
+    let aplicado = e.q === 0n ? 0n : dv;
+    if (e.v + aplicado < 0n) aplicado = -e.v;
+    e.v += aplicado;
+    e.dv += aplicado;
+    e.tocado = true;
+    e.informado = informado;
+    if (ultimo) e.ultimo = ultimo;
+    return aplicado;
+  }
+
   faltou(itemId: number, q: bigint): void {
     const e = this.estado(itemId);
     e.faltou += q;
@@ -349,6 +364,7 @@ class Lancamento {
           valor_depois: e.v.toString(),
           faltou: textoQ4(e.faltou),
           custo_estimado: e.estimado,
+          valor_informado: e.informado === null ? null : e.informado.toString(),
         })
         .execute();
       await this.trx
@@ -509,7 +525,7 @@ const esquemaEntrada = z.object(
         { error: "Itens da entrada em formato inválido." },
       )
       .min(1, "Informe ao menos um item.")
-      .max(ITENS_POR_LANCAMENTO, `No máximo ${ITENS_POR_LANCAMENTO} itens por entrada.`),
+      .max(ITENS_DO_SALDO_INICIAL, `No máximo ${ITENS_DO_SALDO_INICIAL} itens de uma vez.`),
   },
   { error: "Entrada em formato inválido." },
 );
@@ -532,6 +548,7 @@ export async function registrarSaldoInicial(db: Banco, ator: Ator | null, dados:
 async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo: "entrada" | "saldo_inicial"): Promise<Lancado> {
   if (!ator) await exigir(db, ator, "estoque.cozinha");
   const d = validar(esquemaEntrada, dados);
+  if (tipo === "entrada" && d.itens.length > ITENS_POR_LANCAMENTO) throw new ErroDeRegra("dados_invalidos", `No máximo ${ITENS_POR_LANCAMENTO} itens por entrada.`);
   if (d.itens.some((i) => i.valorCentavos !== undefined)) await exigir(db, ator, "custos.ver", { tipo: "estoque_entrada" });
   return db.transaction().execute(async (trx) => {
     const assinatura = assinar(tipo, ator!.usuarioId, d);
@@ -1193,4 +1210,227 @@ export async function conferirEstoque(db: Banco): Promise<string[]> {
     UNION ALL
     SELECT 'lote ' || l.id || ' de outro item' FROM estoque_movimento_linha x JOIN estoque_lote l ON l.id = x.lote_id WHERE l.item_id <> x.item_id`.execute(db);
   return r.rows.map((x) => x.problema);
+}
+
+// ---------------------------------------------------------------- compras: lista e correção de custo
+
+/** Áreas tocadas por um movimento (pelas linhas). */
+async function areasDoMovimento(db: Banco, movimentoId: string): Promise<AreaEstoque[]> {
+  const r = await sql<{ area: AreaEstoque }>`SELECT DISTINCT area FROM estoque_movimento_linha WHERE movimento_id = ${movimentoId}::bigint ORDER BY area`.execute(db);
+  return r.rows.map((x) => x.area);
+}
+
+/**
+ * Quem cuida de alguma área tocada pela entrada pode vê-la (e anexar a foto da nota). Recusa com
+ * "não encontrada" o que não é entrada; sem área em comum, recusa por cargo (auditado).
+ */
+export async function exigirEntradaVisivel(db: Banco, ator: Ator | null, movimentoId: string): Promise<{ ator: Ator; tipo: "entrada" | "saldo_inicial" }> {
+  const { ator: a, areas } = await exigirAlgumaArea(db, ator);
+  const m = await db.selectFrom("estoque_movimento").select("tipo").where("id", "=", movimentoId).executeTakeFirst();
+  if (!m || (m.tipo !== "entrada" && m.tipo !== "saldo_inicial")) throw new ErroDeRegra("nao_encontrado", "Entrada não encontrada.");
+  const tocadas = await areasDoMovimento(db, movimentoId);
+  if (!tocadas.some((t) => areas.includes(t))) await exigir(db, a, acaoDaArea(tocadas[0] ?? "cozinha"), { tipo: "estoque_movimento", id: movimentoId });
+  return { ator: a, tipo: m.tipo };
+}
+
+const idDoMovimento = z
+  .union([z.string(), z.number()], { error: "Movimento não encontrado." })
+  .transform((v) => String(v))
+  .refine((v) => /^[1-9][0-9]{0,17}$/.test(v), "Movimento não encontrado.");
+
+const esquemaCorrecaoDeCusto = z.object(
+  {
+    chave: chave.optional(),
+    movimentoId: idDoMovimento,
+    itens: z
+      .array(
+        z
+          .object(
+            {
+              ...referencia,
+              /** O valor total CERTO desta linha da entrada (o que foi pago), em centavos. */
+              valorCentavos: z
+                .number({ error: "Valor em centavos, um número inteiro." })
+                .int("Valor em centavos, um número inteiro.")
+                .min(0, "Valor não pode ser negativo.")
+                .max(VALOR_MAXIMO_CENTAVOS, "Valor grande demais."),
+            },
+            { error: "Item em formato inválido." },
+          )
+          .refine(umItem, MSG_UM_ITEM),
+        { error: "Itens em formato inválido." },
+      )
+      .min(1, "Informe ao menos um item.")
+      .max(ITENS_POR_LANCAMENTO, "Itens demais."),
+    observacao: textoLivre("Observação", 500).optional(),
+  },
+  { error: "Correção de custo em formato inválido." },
+);
+
+/**
+ * Corrige o custo de uma entrada (preço que chegou depois, valor estimado, erro de digitação).
+ * Só com `custos.ver`. A diferença entre o valor certo e o que a entrada vale hoje vai para o
+ * estoque na proporção do que ainda resta dos lotes daquela entrada (o que já saiu saiu com o
+ * custo da época). Nada se reescreve: nasce um movimento "custo" ligado à entrada.
+ */
+export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados: unknown): Promise<Lancado & { aplicadoCentavos: string }> {
+  const quem = await exigir(db, ator, "custos.ver", { tipo: "estoque_custo" });
+  const d = validar(esquemaCorrecaoDeCusto, dados);
+  return db.transaction().execute(async (trx) => {
+    const assinatura = assinar("custo", quem.usuarioId, d);
+    const ja = await jaLancado(trx, d.chave, assinatura);
+    if (ja) {
+      const r = await trx.selectFrom("estoque_movimento_item").select(sql<string>`sum(valor_centavos)::text`.as("v")).where("movimento_id", "=", ja.movimentoId).executeTakeFirst();
+      return { ...ja, aplicadoCentavos: r?.v ?? "0" };
+    }
+    const m = await trx.selectFrom("estoque_movimento").select(["id", "tipo"]).where("id", "=", d.movimentoId).executeTakeFirst();
+    if (!m || (m.tipo !== "entrada" && m.tipo !== "saldo_inicial")) throw new ErroDeRegra("nao_encontrado", "Entrada não encontrada.");
+    const ids = await garantirItens(trx, d.itens);
+    if (new Set(ids).size !== ids.length) throw new ErroDeRegra("dados_invalidos", "Cada item aparece uma vez só na correção.");
+    const itens = await travarItens(trx, ids);
+    const mov = await novoMovimento(trx, {
+      tipo: "custo",
+      autorId: quem.usuarioId,
+      observacao: d.observacao ?? null,
+      chave: d.chave ?? null,
+      assinatura: d.chave ? assinatura : null,
+      corrigeCustoDe: d.movimentoId,
+    });
+    const l = new Lancamento(trx, mov, itens);
+    let aplicado = 0n;
+    for (const [k, linha] of d.itens.entries()) {
+      const item = l.item(ids[k]!);
+      const r = await sql<{ entrou: string | null; valor_atual: string | null; resta: string; ultima: boolean }>`
+        SELECT mi.quantidade::text AS entrou,
+          mi.valor_centavos::text AS valor_atual,
+          coalesce((SELECT sum(s.quantidade) FROM estoque_saldo s JOIN estoque_lote lo ON lo.id = s.lote_id
+                    WHERE lo.movimento_id = mi.movimento_id AND lo.item_id = mi.item_id), 0)::text AS resta,
+          NOT EXISTS (SELECT 1 FROM estoque_movimento_item o JOIN estoque_movimento om ON om.id = o.movimento_id
+                      WHERE o.item_id = mi.item_id AND om.tipo IN ('entrada', 'saldo_inicial') AND o.movimento_id > mi.movimento_id
+                        AND NOT o.custo_estimado) AS ultima
+        FROM estoque_movimento_item mi WHERE mi.movimento_id = ${d.movimentoId}::bigint AND mi.item_id = ${item.id}`.execute(trx);
+      const x = r.rows[0];
+      if (!x || x.entrou === null) throw new ErroDeRegra("dados_invalidos", `"${item.nome}" não está nesta entrada.`);
+      // Valor que a entrada tem hoje: o da última correção, ou o original.
+      const ultimaCorrecao = await trx
+        .selectFrom("estoque_movimento_item as ci")
+        .innerJoin("estoque_movimento as cm", "cm.id", "ci.movimento_id")
+        .select("ci.valor_informado")
+        .where("cm.tipo", "=", "custo")
+        .where("cm.corrige_custo_de", "=", d.movimentoId)
+        .where("ci.item_id", "=", item.id)
+        .orderBy("ci.movimento_id", "desc")
+        .limit(1)
+        .executeTakeFirst();
+      const atual = ultimaCorrecao?.valor_informado != null ? BigInt(ultimaCorrecao.valor_informado) : BigInt(x.valor_atual!);
+      const entrou = q4DoBanco(x.entrou);
+      const resta = q4DoBanco(x.resta);
+      const novo = BigInt(linha.valorCentavos);
+      const diferenca = novo - atual;
+      // Parte que ainda está no estoque: diferença x (o que resta dos lotes / o que entrou).
+      const parte = resta >= entrou ? diferenca : (diferenca < 0n ? -valorPeloCusto(resta, -diferenca, entrou) : valorPeloCusto(resta, diferenca, entrou));
+      aplicado += l.ajustarValor(item.id, parte, novo, x.ultima ? { c: novo, q: entrou } : null);
+    }
+    await l.fechar();
+    return { movimentoId: mov, repetido: false, aplicadoCentavos: aplicado.toString() };
+  });
+}
+
+export type EntradaDaLista = {
+  movimentoId: string;
+  tipo: "entrada" | "saldo_inicial";
+  quando: string;
+  autor: string;
+  fornecedor: string | null;
+  notaNumero: string | null;
+  notaData: string | null;
+  observacao: string | null;
+  fotos: number[];
+  itens: {
+    itemId: number;
+    nome: string;
+    unidade: string;
+    quantidade: string;
+    /** Só com custos.ver: o valor que a entrada tem hoje (corrigido, se houve correção). */
+    valorCentavos: string | null;
+    estimado: boolean;
+    corrigido: boolean;
+  }[];
+};
+
+const esquemaListaDeEntradas = z.object(
+  {
+    desde: data.optional(),
+    ate: data.optional(),
+    fornecedorId: id("Fornecedor não encontrado.").optional(),
+    /** Só as que têm custo estimado e ainda sem correção (para alguém pôr o preço). */
+    soEstimadas: z.boolean({ error: "Só estimadas: sim ou não." }).optional(),
+    antesDe: idDoMovimento.optional(),
+    limite: z.number({ error: "Limite inválido." }).int().min(1).max(100).optional(),
+  },
+  { error: "Filtro em formato inválido." },
+);
+
+/** Entradas (compras e saldo inicial) das áreas da pessoa, a mais nova primeiro. */
+export async function listarEntradas(db: Banco, ator: Ator | null, filtro: unknown = {}): Promise<EntradaDaLista[]> {
+  const f = validar(esquemaListaDeEntradas, filtro);
+  const { ator: a, areas } = await exigirAlgumaArea(db, ator);
+  const comValor = pode(a.cargoAtivo, "custos.ver");
+  const movs = await sql<{
+    id: string;
+    tipo: "entrada" | "saldo_inicial";
+    quando: string;
+    autor: string;
+    fornecedor: string | null;
+    nota_numero: string | null;
+    nota_data: string | null;
+    observacao: string | null;
+  }>`
+    SELECT m.id::text AS id, m.tipo, to_char(m.criado_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS quando, u.nome AS autor,
+      fo.nome AS fornecedor, m.nota_numero, to_char(m.nota_data, 'YYYY-MM-DD') AS nota_data, m.observacao
+    FROM estoque_movimento m JOIN usuario u ON u.id = m.autor_id LEFT JOIN fornecedor fo ON fo.id = m.fornecedor_id
+    WHERE m.tipo IN ('entrada', 'saldo_inicial')
+      AND EXISTS (SELECT 1 FROM estoque_movimento_linha l WHERE l.movimento_id = m.id AND l.area = ANY(${areas}::text[]))
+      AND (${f.desde ?? null}::date IS NULL OR (m.criado_em AT TIME ZONE coalesce((SELECT fuso_horario FROM unidade ORDER BY id LIMIT 1), 'America/Sao_Paulo'))::date >= ${f.desde ?? null}::date)
+      AND (${f.ate ?? null}::date IS NULL OR (m.criado_em AT TIME ZONE coalesce((SELECT fuso_horario FROM unidade ORDER BY id LIMIT 1), 'America/Sao_Paulo'))::date <= ${f.ate ?? null}::date)
+      AND (${f.fornecedorId ?? null}::int IS NULL OR m.fornecedor_id = ${f.fornecedorId ?? null}::int)
+      AND (${f.antesDe ?? null}::bigint IS NULL OR m.id < ${f.antesDe ?? null}::bigint)
+      AND (NOT ${f.soEstimadas ?? false} OR EXISTS (
+        SELECT 1 FROM estoque_movimento_item mi WHERE mi.movimento_id = m.id AND mi.custo_estimado
+          AND NOT EXISTS (SELECT 1 FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+                          WHERE c.tipo = 'custo' AND c.corrige_custo_de = m.id AND ci.item_id = mi.item_id)))
+    ORDER BY m.id DESC LIMIT ${f.limite ?? 30}`.execute(db);
+  if (movs.rows.length === 0) return [];
+  const ids = movs.rows.map((m) => m.id);
+  const itens = await sql<{ movimento_id: string; item_id: number; nome: string; unidade: string; quantidade: string; valor: string; estimado: boolean; informado: string | null }>`
+    SELECT mi.movimento_id::text AS movimento_id, mi.item_id, coalesce(i.nome, f.nome) AS nome, coalesce(i.unidade_base, f.unidade_rendimento) AS unidade,
+      mi.quantidade::text AS quantidade, mi.valor_centavos::text AS valor, mi.custo_estimado AS estimado,
+      (SELECT ci.valor_informado::text FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+        WHERE c.tipo = 'custo' AND c.corrige_custo_de = mi.movimento_id AND ci.item_id = mi.item_id ORDER BY c.id DESC LIMIT 1) AS informado
+    FROM estoque_movimento_item mi JOIN estoque_item e ON e.id = mi.item_id
+    LEFT JOIN ingrediente i ON i.id = e.ingrediente_id LEFT JOIN ficha f ON f.id = e.preparo_id
+    WHERE mi.movimento_id = ANY(${ids}::bigint[]) ORDER BY lower(coalesce(i.nome, f.nome))`.execute(db);
+  const fotos = await db.selectFrom("estoque_nota_foto").select(["id", "movimento_id"]).where("movimento_id", "in", ids).orderBy("id").execute();
+  return movs.rows.map((m) => ({
+    movimentoId: m.id,
+    tipo: m.tipo,
+    quando: m.quando,
+    autor: m.autor,
+    fornecedor: m.fornecedor,
+    notaNumero: m.nota_numero,
+    notaData: m.nota_data,
+    observacao: m.observacao,
+    fotos: fotos.filter((x) => String(x.movimento_id) === m.id).map((x) => x.id),
+    itens: itens.rows
+      .filter((x) => x.movimento_id === m.id)
+      .map((x) => ({
+        itemId: x.item_id,
+        nome: x.nome,
+        unidade: x.unidade,
+        quantidade: textoQ4(q4DoBanco(x.quantidade)),
+        valorCentavos: comValor ? (x.informado ?? x.valor) : null,
+        estimado: x.estimado,
+        corrigido: x.informado !== null,
+      })),
+  }));
 }

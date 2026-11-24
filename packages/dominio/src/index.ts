@@ -33,3 +33,5 @@ export * from "./fichas-importar";
 export * from "./alergenicos";
 export * from "./estoque";
 export * from "./estoque-comum";
+export * from "./estoque-compras";
+export * from "./estoque-importar";
