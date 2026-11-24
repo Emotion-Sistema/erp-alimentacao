@@ -1034,12 +1034,15 @@ async function exigirAlgumaArea(db: Banco, ator: Ator | null): Promise<{ ator: A
 
 export type SaldoDaArea = {
   area: AreaEstoque;
-  emUso: string;
-  guardado: string;
-  bloqueado: string;
-  vencido: string;
+  /** Quantidades: nulas enquanto há contagem aberta do item nesta área (contagem cega; só a gestão vê). */
+  emUso: string | null;
+  guardado: string | null;
+  bloqueado: string | null;
+  vencido: string | null;
   /** Livre para usar agora (sem bloqueado e sem vencido). A reserva entra na E11. */
-  livre: string;
+  livre: string | null;
+  /** Há contagem aberta do item nesta área. */
+  emContagem: boolean;
   /** Só com custos.ver: valor proporcional ao custo médio. */
   valorCentavos: string | null;
 };
@@ -1051,9 +1054,11 @@ export type ItemDoPainel = {
   nome: string;
   unidade: string;
   areaPadrao: AreaEstoque;
-  total: string;
+  /** Nulo enquanto há contagem aberta do item numa área da pessoa (contagem cega). */
+  total: string | null;
   valorCentavos: string | null;
   custoMedioCentavos: string | null;
+  emContagem: boolean;
   /** Menor validade com saldo (para "vence logo"). */
   proximaValidade: string | null;
   areas: SaldoDaArea[];
@@ -1093,6 +1098,7 @@ function montarAreas(linhas: readonly LinhaDoSaldo[], areasVisiveis: readonly Ar
       vencido: textoQ4(a.vencido),
       livre: textoQ4(a.emUso + a.guardado - a.bloqueado - a.vencido),
       valorCentavos: comValor ? valorDaSaida(qTotal, vTotal, a.emUso + a.guardado).toString() : null,
+      emContagem: false,
     }));
 }
 
@@ -1105,7 +1111,7 @@ export async function painelDoEstoque(db: Banco, ator: Ator | null, filtro: unkn
   const { ator: a, areas: visiveis } = await exigirAlgumaArea(db, ator);
   if (f.area && !visiveis.includes(f.area)) await exigir(db, ator, acaoDaArea(f.area), { tipo: "estoque_area", id: f.area });
   const areas = f.area ? [f.area] : visiveis;
-  return carregarPainel(db, areas, pode(a.cargoAtivo, "custos.ver"));
+  return esconderEmContagem(db, a, await carregarPainel(db, areas, pode(a.cargoAtivo, "custos.ver")));
 }
 
 async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor: boolean, ref?: Referencia): Promise<ItemDoPainel[]> {
@@ -1155,8 +1161,33 @@ async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor
       valorCentavos: comValor ? valorDaSaida(qT, vT, qVisivel).toString() : null,
       custoMedioCentavos: comValor ? custoMedioPorUnidade(qT, vT) : null,
       proximaValidade: validades.length ? validades.sort()[0]! : null,
+      emContagem: false,
       areas: montarAreas(linhas, areas, qT, vT, comValor),
     };
+  });
+}
+
+/**
+ * Contagem cega fora da tela da contagem: enquanto houver contagem aberta de um item numa área,
+ * quem não é da gestão (sem `estoque.desfazer`) não vê as quantidades dele nessa área, no painel,
+ * no item nem no histórico.
+ */
+async function esconderEmContagem<T extends ItemDoPainel>(db: Banco, ator: Ator, itens: T[]): Promise<T[]> {
+  if (pode(ator.cargoAtivo, "estoque.desfazer")) return itens;
+  const ids = itens.flatMap((i) => (i.itemId === null ? [] : [i.itemId]));
+  if (!ids.length) return itens;
+  const abertas = await sql<{ item_id: number; area: AreaEstoque }>`
+    SELECT DISTINCT ci.item_id, c.area FROM estoque_contagem c JOIN estoque_contagem_item ci ON ci.contagem_id = c.id
+    WHERE ci.item_id = ANY(${ids}::int[]) AND NOT EXISTS (SELECT 1 FROM estoque_contagem_fim f WHERE f.contagem_id = c.id)`.execute(db);
+  if (!abertas.rows.length) return itens;
+  const chaves = new Set(abertas.rows.map((x) => `${x.item_id}:${x.area}`));
+  return itens.map((i) => {
+    if (i.itemId === null) return i;
+    const areas = i.areas.map((a) =>
+      chaves.has(`${i.itemId}:${a.area}`) ? { ...a, emUso: null, guardado: null, bloqueado: null, vencido: null, livre: null, valorCentavos: null, emContagem: true } : a,
+    );
+    const algum = areas.some((a) => a.emContagem) || chaves.has(`${i.itemId}:${i.areaPadrao}`);
+    return algum ? { ...i, areas, total: null, valorCentavos: null, emContagem: true } : i;
   });
 }
 
@@ -1166,7 +1197,7 @@ export type LoteDoItem = {
   vencido: boolean;
   codigo: string | null;
   entrouEm: string;
-  saldos: { area: AreaEstoque; local: LocalDoEstoque; bloqueado: boolean; quantidade: string }[];
+  saldos: { area: AreaEstoque; local: LocalDoEstoque; bloqueado: boolean; quantidade: string | null }[];
 };
 
 export type EstoqueDoItem = ItemDoPainel & { lotes: LoteDoItem[] };
@@ -1204,7 +1235,9 @@ export async function estoqueDoItem(db: Banco, ator: Ator | null, ref: unknown):
       lote.saldos.push({ area: x.area, local: x.local, bloqueado: x.bloqueado, quantidade: textoQ4(q4DoBanco(x.quantidade)) });
     }
   }
-  return { ...item, lotes };
+  const [visto] = await esconderEmContagem(db, a, [item]);
+  const escondidas = new Set(visto!.areas.filter((x) => x.emContagem).map((x) => x.area));
+  return { ...visto!, lotes: lotes.map((l) => ({ ...l, saldos: l.saldos.map((x) => (escondidas.has(x.area) ? { ...x, quantidade: null } : x)) })) };
 }
 
 export type MovimentoDoHistorico = {
@@ -1214,8 +1247,8 @@ export type MovimentoDoHistorico = {
   observacao: string | null;
   quando: string;
   autor: string;
-  /** A mudança (nas áreas que a pessoa vê). */
-  quantidade: string;
+  /** A mudança (nas áreas que a pessoa vê). Nula durante contagem aberta do item (contagem cega). */
+  quantidade: string | null;
   /** Total depois do movimento; nulo para quem não vê todas as áreas. */
   quantidadeDepois: string | null;
   valorCentavos: string | null;
@@ -1243,6 +1276,8 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
   );
   const item = await estoqueDoItem(db, ator, { ingredienteId: d.ingredienteId, preparoId: d.preparoId });
   if (item.itemId === null) return [];
+  // Contagem cega: com contagem aberta do item, quem conta não vê as quantidades no histórico.
+  const cego = item.emContagem;
   const comValor = pode(ator!.cargoAtivo, "custos.ver");
   // Quem não vê todas as áreas vê só os movimentos com linha nas suas áreas, com a mudança só
   // delas e sem o "depois" (que é o total de todas as áreas).
@@ -1284,8 +1319,8 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
     observacao: x.observacao,
     quando: x.quando,
     autor: x.autor,
-    quantidade: textoQ4(q4DoBanco(x.quantidade)),
-    quantidadeDepois: todas ? textoQ4(q4DoBanco(x.quantidade_depois)) : null,
+    quantidade: cego ? null : textoQ4(q4DoBanco(x.quantidade)),
+    quantidadeDepois: todas && !cego ? textoQ4(q4DoBanco(x.quantidade_depois)) : null,
     valorCentavos: comValor && todas ? x.valor : null,
     valorDepois: comValor && todas ? x.valor_depois : null,
     faltou: textoQ4(q4DoBanco(x.faltou)),

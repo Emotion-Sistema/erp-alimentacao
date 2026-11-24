@@ -95,7 +95,15 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
    bloqueado e vencido do local); recontar acrescenta registro e vale o último. Ao fechar, um
    movimento "ajuste" (ligado à contagem) lança contado - esperado: falta sai do vencido, depois
    do que vence antes, depois do bloqueado, nunca além do que há agora; sobra entra num lote novo
-   pelo custo médio (estimado). Item não contado não muda. Fechar ou cancelar acontece uma vez.
+   pelo custo médio (estimado), com a validade mais próxima do que já está no local. Item não
+   contado não muda. Fechar ou cancelar acontece uma vez. A cegueira vale também fora da tela da
+   contagem: enquanto houver contagem aberta do item numa área, quem não é da gestão (sem
+   `estoque.desfazer`) não vê as quantidades dele nessa área no painel, no item nem no histórico.
+   Se outra contagem ajustou (ou alguém desfez algo) depois de contado, o fechamento pede para
+   contar de novo (nada de ajuste em dobro). Na contagem fechada aparecem o que o ajuste aplicou
+   de fato e o valor lançado. A rápida pede 5 itens por padrão (a tela pode pedir até 20); a do
+   dia cancelada não abre outra no mesmo dia (hipótese). `motorDoEstoque` é exportado para os
+   outros arquivos do domínio; os apps não o usam (as rotas chamam só as ações com permissão).
 
 ## Alternativas descartadas
 - Saldo calculado só pela soma das linhas: lento e difícil de travar; o saldo materializado com
