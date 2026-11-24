@@ -32,3 +32,25 @@ CREATE TRIGGER estoque_nota_foto_imutavel BEFORE UPDATE OR DELETE ON estoque_not
 -- Correção de custo (movimento tipo 'custo'): o valor total certo daquela linha da entrada. O valor
 -- que o movimento aplica (valor_centavos) é a parte que ainda está no estoque.
 ALTER TABLE estoque_movimento_item ADD COLUMN valor_informado bigint CHECK (valor_informado >= 0);
+
+CREATE TRIGGER estoque_nota_foto_sem_truncate BEFORE TRUNCATE ON estoque_nota_foto
+  FOR EACH STATEMENT EXECUTE FUNCTION recusar_alteracao();
+
+-- O valor informado só existe na correção de custo, e a correção aponta para uma entrada.
+CREATE FUNCTION estoque_correcao_de_custo_certa() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'estoque_movimento' THEN
+    IF NEW.corrige_custo_de IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM estoque_movimento WHERE id = NEW.corrige_custo_de AND tipo IN ('entrada', 'saldo_inicial')) THEN
+      RAISE EXCEPTION 'A correção de custo é de uma entrada.' USING ERRCODE = 'check_violation';
+    END IF;
+  ELSIF NEW.valor_informado IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM estoque_movimento WHERE id = NEW.movimento_id AND tipo = 'custo') THEN
+    RAISE EXCEPTION 'Valor informado só na correção de custo.' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER estoque_movimento_correcao_certa BEFORE INSERT ON estoque_movimento
+  FOR EACH ROW EXECUTE FUNCTION estoque_correcao_de_custo_certa();
+CREATE TRIGGER estoque_movimento_item_informado_certo BEFORE INSERT ON estoque_movimento_item
+  FOR EACH ROW EXECUTE FUNCTION estoque_correcao_de_custo_certa();

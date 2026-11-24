@@ -103,12 +103,13 @@ export function refazerFoto(
   return naVez(() => refazer(original, qualidades, { ...LIMITES_DO_CARDAPIO, ...limites }));
 }
 
-export type LimitesDaFoto = { ladoMaximo: number; ladoMinimo: number; proporcaoMaxima: number; gravadaMaxima: number };
+export type LimitesDaFoto = { ladoMaximo: number; ladoMinimo: number; proporcaoMaxima: number; gravadaMaxima: number; detalheDemais: string };
 const LIMITES_DO_CARDAPIO: LimitesDaFoto = {
   ladoMaximo: FOTO_LADO_MAXIMO,
   ladoMinimo: FOTO_LADO_MINIMO,
   proporcaoMaxima: FOTO_PROPORCAO_MAXIMA,
   gravadaMaxima: FOTO_GRAVADA_MAXIMO,
+  detalheDemais: "Foto com detalhe demais para o cardápio. Tente outra foto.",
 };
 
 async function refazer(original: Buffer, qualidades: readonly number[], lim: LimitesDaFoto): Promise<{ conteudo: Buffer; largura: number; altura: number }> {
@@ -145,7 +146,7 @@ async function refazer(original: Buffer, qualidades: readonly number[], lim: Lim
     }
     if (r.data.length <= lim.gravadaMaxima) return { conteudo: r.data, largura: r.info.width, altura: r.info.height };
   }
-  throw new ErroDeRegra("dados_invalidos", "Foto com detalhe demais para o cardápio. Tente outra foto.");
+  throw new ErroDeRegra("dados_invalidos", lim.detalheDemais);
 }
 
 /** Envia (ou troca) a foto do produto. A anterior fica inativa. */
