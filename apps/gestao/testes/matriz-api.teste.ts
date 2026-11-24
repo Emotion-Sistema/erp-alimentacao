@@ -22,6 +22,13 @@ interface Rota {
   caminho: string;
   /** Ação exigida; "publica", "sessao" (qualquer pessoa logada) ou "estacao" (cookie do tablet). */
   acao: Acao | "publica" | "sessao" | "estacao";
+  /**
+   * Outras ações que também abrem a rota (basta uma). Estoque: quem cuida de qualquer área (cozinha OU
+   * salão) passa; quem não cuida de nenhuma é recusado por `acao` (estoque.cozinha), como o domínio.
+   */
+  ou?: readonly Acao[];
+  /** Ações exigidas ALÉM das acima (todas). Ex.: valor do estoque = custos.ver E cuidar de uma área. */
+  tambem?: readonly Acao[];
   chamar?: Chamada;
 }
 
@@ -31,6 +38,8 @@ function req(caminho: string, metodo: string, cookie?: string, corpo?: unknown) 
   if (corpo !== undefined) headers.set("content-type", "application/json");
   return new Request(BASE + caminho, { method: metodo, headers, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
 }
+
+const AREA = { acao: "estoque.cozinha", ou: ["estoque.salao"] } as const;
 
 // Cada chamada é feita de modo a não mudar nada quando permitida (corpo vazio ou alvo
 // inexistente): a permissão é conferida antes de qualquer outra coisa.
@@ -113,6 +122,32 @@ const ROTAS: Rota[] = [
   { metodo: "GET", caminho: "/api/estacoes", acao: "estacoes.ver", chamar: (c) => r.verEstacoes(req("/api/estacoes", "GET", c)) },
   { metodo: "POST", caminho: "/api/estacoes", acao: "estacoes.gerenciar", chamar: (c) => r.cadastrarEsteAparelho(req("/api/estacoes", "POST", c, {})) },
   { metodo: "POST", caminho: "/api/estacoes/[id]/revogar", acao: "estacoes.gerenciar", chamar: (c) => r.revogar(req(`/api/estacoes/${INEXISTENTE}/revogar`, "POST", c, {}), { id: INEXISTENTE }) },
+  // Estoque (E09, decisão 0027). AREA = cuidar de alguma área (cozinha ou salão).
+  { metodo: "GET", caminho: "/api/estoque", ...AREA, chamar: (c) => r.verPainelDoEstoque(req("/api/estoque?area=inventada", "GET", c)) },
+  { metodo: "GET", caminho: "/api/estoque/item", ...AREA, chamar: (c) => r.verItemDoEstoque(req(`/api/estoque/item?ingredienteId=${INEXISTENTE}`, "GET", c)) },
+  { metodo: "GET", caminho: "/api/estoque/item/historico", ...AREA, chamar: (c) => r.verHistoricoDoItem(req(`/api/estoque/item/historico?ingredienteId=${INEXISTENTE}`, "GET", c)) },
+  { metodo: "GET", caminho: "/api/estoque/entradas", ...AREA, chamar: (c) => r.verEntradas(req("/api/estoque/entradas?limite=1&desde=2000-01-01&ate=2000-01-01", "GET", c)) },
+  { metodo: "POST", caminho: "/api/estoque/entradas", ...AREA, chamar: (c) => r.darEntrada(req("/api/estoque/entradas", "POST", c, {})) },
+  { metodo: "POST", caminho: "/api/estoque/entradas/custo", acao: "custos.ver", chamar: (c) => r.corrigirCusto(req("/api/estoque/entradas/custo", "POST", c, {})) },
+  { metodo: "POST", caminho: "/api/estoque/entradas/foto", ...AREA, chamar: (c) => r.enviarFotoDaNota(req("/api/estoque/entradas/foto", "POST", c, {})) },
+  { metodo: "GET", caminho: "/api/estoque/entradas/foto/[id]", ...AREA, chamar: (c) => r.verFotoDaNota(req(`/api/estoque/entradas/foto/${INEXISTENTE}`, "GET", c), { id: INEXISTENTE }) },
+  { metodo: "POST", caminho: "/api/estoque/transferir", ...AREA, chamar: (c) => r.transferirNoEstoque(req("/api/estoque/transferir", "POST", c, {})) },
+  { metodo: "POST", caminho: "/api/estoque/perda", ...AREA, chamar: (c) => r.lancarPerda(req("/api/estoque/perda", "POST", c, {})) },
+  { metodo: "POST", caminho: "/api/estoque/bloquear", ...AREA, chamar: (c) => r.bloquearNoEstoque(req("/api/estoque/bloquear", "POST", c, {})) },
+  { metodo: "POST", caminho: "/api/estoque/desbloquear", ...AREA, chamar: (c) => r.desbloquearNoEstoque(req("/api/estoque/desbloquear", "POST", c, {})) },
+  { metodo: "POST", caminho: "/api/estoque/produzir", ...AREA, chamar: (c) => r.produzirUmPreparo(req("/api/estoque/produzir", "POST", c, {})) },
+  { metodo: "POST", caminho: "/api/estoque/desfazer", acao: "estoque.desfazer", chamar: (c) => r.desfazerUmMovimento(req("/api/estoque/desfazer", "POST", c, {})) },
+  { metodo: "POST", caminho: "/api/estoque/saldo-inicial", ...AREA, chamar: (c) => r.saldoInicialDaPlanilha(req("/api/estoque/saldo-inicial", "POST", c, {})) },
+  { metodo: "GET", caminho: "/api/estoque/contagens", ...AREA, chamar: (c) => r.verContagens(req("/api/estoque/contagens?situacao=inventada", "GET", c)) },
+  { metodo: "POST", caminho: "/api/estoque/contagens", ...AREA, chamar: (c) => r.novaContagem(req("/api/estoque/contagens", "POST", c, {})) },
+  { metodo: "POST", caminho: "/api/estoque/contagens/rapida", ...AREA, chamar: (c) => r.contagemRapida(req("/api/estoque/contagens/rapida", "POST", c, {})) },
+  { metodo: "GET", caminho: "/api/estoque/contagens/[id]", ...AREA, chamar: (c) => r.verUmaContagem(req(`/api/estoque/contagens/${INEXISTENTE}`, "GET", c), { id: INEXISTENTE }) },
+  { metodo: "POST", caminho: "/api/estoque/contagens/contar", ...AREA, chamar: (c) => r.contarItem(req("/api/estoque/contagens/contar", "POST", c, {})) },
+  { metodo: "POST", caminho: "/api/estoque/contagens/fechar", ...AREA, chamar: (c) => r.fecharUmaContagem(req("/api/estoque/contagens/fechar", "POST", c, {})) },
+  { metodo: "POST", caminho: "/api/estoque/contagens/cancelar", ...AREA, chamar: (c) => r.cancelarUmaContagem(req("/api/estoque/contagens/cancelar", "POST", c, {})) },
+  { metodo: "GET", caminho: "/api/estoque/relatorios/perdas", ...AREA, chamar: (c) => r.verRelatorioDePerdas(req("/api/estoque/relatorios/perdas", "GET", c)) },
+  { metodo: "GET", caminho: "/api/estoque/relatorios/contagens", ...AREA, chamar: (c) => r.verRelatorioDeContagens(req("/api/estoque/relatorios/contagens", "GET", c)) },
+  { metodo: "GET", caminho: "/api/estoque/relatorios/valor", ...AREA, tambem: ["custos.ver"], chamar: (c) => r.verValorDoEstoque(req("/api/estoque/relatorios/valor", "GET", c)) },
   { metodo: "GET", caminho: "/api/estacao", acao: "estacao" },
   { metodo: "POST", caminho: "/api/estacao/entrar", acao: "estacao" },
   { metodo: "POST", caminho: "/api/estacao/ativar", acao: "estacao" },
@@ -155,8 +190,10 @@ describe("matriz pela API: cada cargo x cada rota protegida", () => {
     const cookie = await entrarComo(loginDo(cargo));
     const eu = (await (await r.quemSouEu(req("/api/eu", "GET", cookie))).json()) as { id: number; acoes: string[] };
     for (const rota of protegidas) {
-      const permitido = pode(cargo, rota.acao);
-      expect(eu.acoes.includes(rota.acao), `${cargo} menu ${rota.acao}`).toBe(permitido);
+      const acoes = [rota.acao, ...(rota.ou ?? [])];
+      const tambem = rota.tambem ?? [];
+      const permitido = acoes.some((x) => pode(cargo, x)) && tambem.every((x) => pode(cargo, x));
+      expect(acoes.some((x) => eu.acoes.includes(x)) && tambem.every((x) => eu.acoes.includes(x)), `${cargo} menu ${acoes.join(" ou ")}`).toBe(permitido);
       const antes = await db.selectFrom("auditoria").select((eb) => eb.fn.max("id").as("max")).executeTakeFirstOrThrow();
       const resposta = await rota.chamar(cookie);
       const nome = `${cargo} ${rota.metodo} ${rota.caminho}`;
@@ -168,7 +205,7 @@ describe("matriz pela API: cada cargo x cada rota protegida", () => {
           .selectFrom("auditoria")
           .select(["usuario_id", "resultado"])
           .where("id", ">", antes.max ?? "0")
-          .where("acao", "=", rota.acao)
+          .where("acao", "in", [...acoes, ...tambem])
           .executeTakeFirst();
         expect(recusa, `${nome}: recusa registrada`).toEqual({ usuario_id: eu.id, resultado: "recusado" });
       }
