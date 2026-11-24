@@ -75,6 +75,7 @@ export const ACOES = [
   "compras.gerenciar", // compras do estoque (ingredientes, bebidas): gerente geral
   "compras.materiais", // material físico, utensílios, eletrodomésticos (fora do estoque de comida)
   "custos.ver", // custos da área: compras, custo dos itens, perdas, custo do prato
+  "estoque.desfazer", // desfazer um movimento de estoque lançado errado (movimento contrário; E09)
   // Caixa
   "caixa.operar", // a própria sessão e a movimentação do dia
   "pagamento.marcar_pago",

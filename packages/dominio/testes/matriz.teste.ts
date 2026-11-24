@@ -11,7 +11,7 @@ const GESTAO_SEM_FINANCEIRO: Acao[] = [
   "comunicados.enviar", "horarios.gerenciar", "cadastros.ver", "cadastros.gerenciar", "clube.ver", "clube.gerenciar",
   "pedidos.lancar", "pedidos.ver_proprios", "pedidos.ver_todos", "pedidos.alterar", "pedidos.cancelar",
   "producao.ver", "estoque.cozinha", "estoque.salao", "compras.gerenciar", "compras.materiais", "custos.ver",
-  "caixa.autorizar", "motoboys.organizar",
+  "estoque.desfazer", "caixa.autorizar", "motoboys.organizar",
 ];
 const FINANCEIRO: Acao[] = ["financeiro.ver", "financeiro.gerenciar", "faturamento.ver", "caixa.fechamentos_ver", "contabil.ver"];
 

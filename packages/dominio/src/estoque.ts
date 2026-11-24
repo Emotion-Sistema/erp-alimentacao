@@ -34,6 +34,7 @@ import {
   type LocalDoEstoque,
 } from "./estoque-comum";
 import { Fracao } from "./fichas-comum";
+import { consumoDaFicha } from "./fichas";
 import { pode } from "./permissoes";
 import { exigir, type Ator } from "./sessao";
 
@@ -353,6 +354,19 @@ class Lancamento {
     e.informado = informado;
     if (ultimo) e.ultimo = ultimo;
     return aplicado;
+  }
+
+  /** Estorno: muda o total em `dq` e o valor em `dv` (o valor nunca fica negativo; zerou, zera). */
+  desfazer(itemId: number, dq: bigint, dv: bigint): void {
+    const e = this.estado(itemId);
+    e.q += dq;
+    let v = dv;
+    if (e.v + v < 0n) v = -e.v;
+    if (e.q === 0n) v = -e.v;
+    e.v += v;
+    e.dq += dq;
+    e.dv += v;
+    e.tocado = true;
   }
 
   faltou(itemId: number, q: bigint): void {
@@ -946,20 +960,7 @@ export async function consumirNaTransacao(trx: Trx, dados: DadosDoConsumo): Prom
   for (const p of pedidos.sort((a, b) => a.itemId - b.itemId || a.area.localeCompare(b.area))) {
     if (p.q === 0n) continue;
     const item = l.item(p.itemId);
-    const emUso = await pedacos(trx, item.id, { area: p.area, local: "em_uso", modo: "livre" });
-    const r1 = await l.tirar(item.id, emUso, p.q);
-    let falta = p.q - r1.tirado;
-    let trazido = 0n;
-    if (falta > 0n) {
-      const guardado = await pedacos(trx, item.id, { area: p.area, local: "guardado", modo: "livre" });
-      const r2 = await l.tirar(item.id, guardado, falta, true);
-      for (const x of r2.de) {
-        await l.mexer(item.id, x.p.loteId, p.area, "em_uso", false, x.q, true);
-        await l.mexer(item.id, x.p.loteId, p.area, "em_uso", false, -x.q);
-      }
-      trazido = r2.tirado;
-      falta -= r2.tirado;
-    }
+    const { falta, trazido } = await gastarDaArea(trx, l, item.id, p.area, p.q);
     if (trazido > 0n) usouGuardado.push({ itemId: item.id, nome: item.nome, unidade: item.unidade, quantidade: textoQ4(trazido) });
     if (falta > 0n) {
       if (!d.permitirFalta) {
@@ -975,6 +976,28 @@ export async function consumirNaTransacao(trx: Trx, dados: DadosDoConsumo): Prom
   if (pedidos.every((p) => p.q === 0n)) throw new ErroDeRegra("dados_invalidos", "Nada para consumir (as quantidades deram zero).");
   await l.fechar();
   return { movimentoId: mov, repetido: false, faltas, usouGuardado };
+}
+
+/**
+ * Gasta `q` do em uso livre da área (o que vence primeiro antes); se faltar, traz do guardado
+ * (linhas automáticas) e gasta. Não mexe no valor. Devolve o que faltou e o que veio do guardado.
+ */
+async function gastarDaArea(trx: Trx, l: Lancamento, itemId: number, area: AreaEstoque, q: bigint): Promise<{ falta: bigint; trazido: bigint }> {
+  const emUso = await pedacos(trx, itemId, { area, local: "em_uso", modo: "livre" });
+  const r1 = await l.tirar(itemId, emUso, q);
+  let falta = q - r1.tirado;
+  let trazido = 0n;
+  if (falta > 0n) {
+    const guardado = await pedacos(trx, itemId, { area, local: "guardado", modo: "livre" });
+    const r2 = await l.tirar(itemId, guardado, falta, true);
+    for (const x of r2.de) {
+      await l.mexer(itemId, x.p.loteId, area, "em_uso", false, x.q, true);
+      await l.mexer(itemId, x.p.loteId, area, "em_uso", false, -x.q);
+    }
+    trazido = r2.tirado;
+    falta -= r2.tirado;
+  }
+  return { falta, trazido };
 }
 
 async function resumoDoConsumo(trx: Trx, movimentoId: string): Promise<Pick<ResultadoDoConsumo, "faltas" | "usouGuardado">> {
@@ -1379,8 +1402,12 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
       const r = await trx.selectFrom("estoque_movimento_item").select(sql<string>`sum(valor_centavos)::text`.as("v")).where("movimento_id", "=", ja.movimentoId).executeTakeFirst();
       return { ...ja, aplicadoCentavos: r?.v ?? "0" };
     }
+    // Mesma trava do desfazer: correção e desfazer da mesma entrada não passam juntos.
+    await sql`SELECT pg_advisory_xact_lock(hashtext(${"estoque_estorno:" + d.movimentoId}))`.execute(trx);
     const m = await trx.selectFrom("estoque_movimento").select(["id", "tipo"]).where("id", "=", d.movimentoId).executeTakeFirst();
     if (!m || (m.tipo !== "entrada" && m.tipo !== "saldo_inicial")) throw new ErroDeRegra("nao_encontrado", "Entrada não encontrada.");
+    if (await trx.selectFrom("estoque_movimento").select("id").where("estorno_de", "=", d.movimentoId).executeTakeFirst())
+      throw new ErroDeRegra("conflito", "Esta entrada foi desfeita: não há custo para corrigir.");
     const ids = await garantirItens(trx, d.itens);
     if (new Set(ids).size !== ids.length) throw new ErroDeRegra("dados_invalidos", "Cada item aparece uma vez só na correção.");
     const itens = await travarItens(trx, ids);
@@ -1572,4 +1599,267 @@ export async function listarEntradas(db: Banco, ator: Ator | null, filtro: unkno
         corrigido: x.informado !== null,
       })),
   }));
+}
+
+// ---------------------------------------------------------------- produção de preparo
+
+const esquemaProducao = z.object(
+  {
+    chave: chave.optional(),
+    preparoId: id("Preparo não encontrado."),
+    /** Quanto a receita manda fazer (na unidade do preparo): é por aqui que os ingredientes saem. */
+    previsto: quantidade,
+    /** Quanto saiu de verdade (pesado ou contado). Diferente do previsto: o custo se ajusta. */
+    rendimento: quantidade,
+    /** Rendeu mais que o dobro do previsto (ou menos de um décimo): só com esta confirmação. */
+    confirmarRendimento: z.boolean({ error: "Confirmar rendimento: sim ou não." }).optional(),
+    local: local.optional(),
+    /** Sem ela, hoje + a validade da ficha (se a ficha tiver). */
+    validade: data.optional(),
+    lote: textoCurto("Código do lote", 60).optional(),
+    observacao: textoLivre("Observação", 500).optional(),
+  },
+  { error: "Produção em formato inválido." },
+);
+
+export type ResultadoDaProducao = Lancado & {
+  /** rendimento - previsto, na unidade do preparo (negativo = rendeu menos). */
+  diferenca: string;
+  /** Só com custos.ver: custo total da produção e de 1 unidade do preparo. */
+  custoCentavos: string | null;
+  custoPorUnidade: string | null;
+};
+
+/**
+ * Produção de um preparo da casa (molho, massa, recheio): gasta o que a ficha manda para o
+ * `previsto` (ingredientes e preparos de dentro, do em uso e, se faltar, do guardado da área do
+ * preparo) e cria um lote do preparo com o `rendimento` real. O valor do lote é o valor do que
+ * saiu: rendeu menos, cada grama fica mais cara. Sem saldo de algum item: recusa e diz quanto falta.
+ */
+export async function produzirPreparo(db: Banco, ator: Ator | null, dados: unknown): Promise<ResultadoDaProducao> {
+  if (!ator) await exigir(db, ator, "estoque.cozinha");
+  const d = validar(esquemaProducao, dados);
+  const [qPrev, qRend] = [q4DoBanco(d.previsto), q4DoBanco(d.rendimento)];
+  if (!d.confirmarRendimento && (qRend > 2n * qPrev || qRend * 10n < qPrev))
+    throw new ErroDeRegra("dados_invalidos", `Rendeu ${d.rendimento} para ${d.previsto} previsto: confira o número (erro de digitação muda o custo do preparo). Se estiver certo, confirme.`);
+  const [areaDoPreparo] = await areasPadrao(db, [{ preparoId: d.preparoId }]);
+  const quem = await exigirAreas(db, ator, [areaDoPreparo!]);
+  const comValor = pode(quem.cargoAtivo, "custos.ver");
+  const ficha = await consumoDaFicha(db, d.preparoId);
+  const versao = await db.selectFrom("ficha_versao").select(["validade_dias"]).where("id", "=", ficha.versaoId).executeTakeFirstOrThrow();
+  const previsto = Fracao.decimal(d.previsto);
+  return db.transaction().execute(async (trx) => {
+    const assinatura = assinar("producao", d);
+    const ja = await jaLancado(trx, d.chave, assinatura);
+    if (ja) return { ...ja, ...(await resumoDaProducao(trx, ja.movimentoId, d.preparoId, comValor)) };
+    const gastos = ficha.consumo.map((c) => ({ ingredienteId: c.ingredienteId ?? undefined, preparoId: c.preparoId ?? undefined, q: q4DaFracao(fracaoDe(c.exata).vezes(previsto)) }));
+    const refs: Referencia[] = [{ preparoId: d.preparoId }, ...gastos];
+    const ids = await garantirItens(trx, refs);
+    const itens = await travarItens(trx, ids);
+    const dia = await hoje(trx);
+    const validade = d.validade ?? (versao.validade_dias !== null ? somarDias(dia, versao.validade_dias) : null);
+    if (validade !== null && validade < dia) throw new ErroDeRegra("dados_invalidos", "A validade já passou.");
+    const mov = await novoMovimento(trx, {
+      tipo: "producao",
+      autorId: quem.usuarioId,
+      observacao: d.observacao ?? null,
+      chave: d.chave ?? null,
+      assinatura: d.chave ? assinatura : null,
+      fichaVersaoId: ficha.versaoId,
+      previsto: d.previsto,
+    });
+    const l = new Lancamento(trx, mov, itens);
+    let valor = 0n;
+    const semSaldo: string[] = [];
+    for (const [k, g] of gastos.entries()) {
+      if (g.q === 0n) continue;
+      const item = l.item(ids[k + 1]!);
+      if (item.id === ids[0]) throw new ErroDeRegra("conflito", "O preparo não pode gastar ele mesmo.");
+      const { falta } = await gastarDaArea(trx, l, item.id, areaDoPreparo!, g.q);
+      if (falta > 0n) {
+        semSaldo.push(`"${item.nome}" (precisa ${comUnidade(g.q, item)}, há ${comUnidade(g.q - falta, item)} livre em ${nomeDaArea(areaDoPreparo!)})`);
+        continue;
+      }
+      valor += l.saida(item.id, g.q);
+    }
+    if (semSaldo.length) throw new ErroDeRegra("conflito", `Falta para produzir: ${semSaldo.join("; ")}.`);
+    const prep = l.item(ids[0]!);
+    const rendimento = q4DoBanco(d.rendimento);
+    const lote = await l.novoLote(prep.id, validade, d.lote ?? null);
+    await l.mexer(prep.id, lote, areaDoPreparo!, d.local ?? "em_uso", false, rendimento);
+    l.entrada(prep.id, rendimento, valor, { ultimoCusto: true });
+    await l.fechar();
+    return {
+      movimentoId: mov,
+      repetido: false,
+      diferenca: textoQ4(rendimento - q4DoBanco(d.previsto)),
+      custoCentavos: comValor ? valor.toString() : null,
+      custoPorUnidade: comValor ? custoMedioPorUnidade(rendimento, valor) : null,
+    };
+  });
+}
+
+/** "n/d" (fração exata da ficha) ou decimal -> fração exata. */
+function fracaoDe(t: string): Fracao {
+  const m = /^(-?\d+)\/(\d+)$/.exec(t);
+  return m ? new Fracao(BigInt(m[1]!), BigInt(m[2]!)) : Fracao.decimal(t);
+}
+
+function somarDias(dia: string, dias: number): string {
+  const [a, m, d] = dia.split("-").map(Number);
+  const dt = new Date(Date.UTC(a!, m! - 1, d! + dias));
+  return dt.toISOString().slice(0, 10);
+}
+
+async function resumoDaProducao(trx: Trx, movimentoId: string, preparoId: number, comValor: boolean): Promise<Omit<ResultadoDaProducao, keyof Lancado>> {
+  const r = await sql<{ quantidade: string; valor: string; previsto: string }>`
+    SELECT mi.quantidade::text AS quantidade, mi.valor_centavos::text AS valor, m.previsto::text AS previsto
+    FROM estoque_movimento m JOIN estoque_movimento_item mi ON mi.movimento_id = m.id JOIN estoque_item e ON e.id = mi.item_id
+    WHERE m.id = ${movimentoId}::bigint AND e.preparo_id = ${preparoId}`.execute(trx);
+  const x = r.rows[0]!;
+  const q = q4DoBanco(x.quantidade);
+  return {
+    diferenca: textoQ4(q - q4DoBanco(x.previsto)),
+    custoCentavos: comValor ? x.valor : null,
+    custoPorUnidade: comValor ? custoMedioPorUnidade(q, BigInt(x.valor)) : null,
+  };
+}
+
+// ---------------------------------------------------------------- desfazer (estorno)
+
+const TIPOS_QUE_SE_DESFAZEM = ["entrada", "saldo_inicial", "transferencia", "perda", "bloqueio", "desbloqueio", "producao", "ajuste", "consumo"] as const;
+
+const esquemaDesfazer = z.object(
+  {
+    chave: chave.optional(),
+    movimentoId: z
+      .union([z.string(), z.number()], { error: "Movimento não encontrado." })
+      .transform((v) => String(v))
+      .refine((v) => /^[1-9][0-9]{0,17}$/.test(v), "Movimento não encontrado."),
+    /** Por que está desfazendo (obrigatório: fica no histórico). */
+    observacao: z
+      .string({ error: "Escreva por que está desfazendo." })
+      .trim()
+      .min(3, "Escreva por que está desfazendo.")
+      .max(500, "Observação com no máximo 500 letras.")
+      .refine((v) => !/[^\P{Cc}\n\r\t]/u.test(v), "Observação com caractere inválido."),
+  },
+  { error: "Pedido em formato inválido." },
+);
+
+/**
+ * Desfaz um movimento lançado errado (`estoque.desfazer` e a área de cada linha): lança o
+ * movimento contrário, linha por linha, no mesmo lote e lugar. O original fica no histórico,
+ * marcado como desfeito. Cada movimento se desfaz uma vez só. Não se desfaz: correção de custo
+ * (corrija de novo), estorno (lance de novo) e consumo de pedido (o cancelamento do pedido cuida).
+ * Se parte do que entrou já foi usada (ou mudou de lugar), recusa e diz o quê.
+ */
+export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unknown): Promise<Lancado> {
+  const quem = await exigir(db, ator, "estoque.desfazer", { tipo: "estoque_movimento" });
+  const d = validar(esquemaDesfazer, dados);
+  const m = await db.selectFrom("estoque_movimento").select(["id", "tipo", "origem_tipo"]).where("id", "=", d.movimentoId).executeTakeFirst();
+  if (!m) throw new ErroDeRegra("nao_encontrado", "Movimento não encontrado.");
+  if (!(TIPOS_QUE_SE_DESFAZEM as readonly string[]).includes(m.tipo))
+    throw new ErroDeRegra("conflito", m.tipo === "custo" ? "Correção de custo não se desfaz: corrija o custo de novo." : "Este movimento já é um desfazer: lance de novo o que for preciso.");
+  if (m.tipo === "consumo" && m.origem_tipo !== null) throw new ErroDeRegra("conflito", "Consumo de pedido não se desfaz aqui: cancele o pedido.");
+  await exigirAreas(db, quem, await areasDoMovimento(db, d.movimentoId));
+  return db.transaction().execute(async (trx) => {
+    const assinatura = assinar("estorno", d);
+    const ja = await jaLancado(trx, d.chave, assinatura);
+    if (ja) return ja;
+    // Um desfazer por vez para o mesmo movimento (o UNIQUE de estorno_de também garante).
+    await sql`SELECT pg_advisory_xact_lock(hashtext(${"estoque_estorno:" + d.movimentoId}))`.execute(trx);
+    const antes = await trx.selectFrom("estoque_movimento").select("id").where("estorno_de", "=", d.movimentoId).executeTakeFirst();
+    if (antes) throw new ErroDeRegra("conflito", "Este movimento já foi desfeito.");
+    const resumo = await trx.selectFrom("estoque_movimento_item").select(["item_id", "quantidade", "valor_centavos"]).where("movimento_id", "=", d.movimentoId).execute();
+    const linhas = await trx
+      .selectFrom("estoque_movimento_linha")
+      .select(["item_id", "lote_id", "area", "local", "bloqueado", "quantidade"])
+      .where("movimento_id", "=", d.movimentoId)
+      .orderBy("id", "desc")
+      .execute();
+    const itens = await travarItens(trx, resumo.map((r) => r.item_id));
+    // Correções de custo de uma entrada desfeita saem junto (lidas já com a trava).
+    const correcoes = await sql<{ id: string; item_id: number; v: string }>`
+      SELECT c.id::text AS id, ci.item_id, ci.valor_centavos::text AS v FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+      WHERE c.tipo = 'custo' AND c.corrige_custo_de = ${d.movimentoId}::bigint ORDER BY c.id`.execute(trx);
+    const mov = await novoMovimento(trx, {
+      tipo: "estorno",
+      autorId: quem.usuarioId,
+      observacao: d.observacao,
+      estornoDe: d.movimentoId,
+      chave: d.chave ?? null,
+      assinatura: d.chave ? assinatura : null,
+    });
+    const l = new Lancamento(trx, mov, itens);
+    // Junta por pedaço de saldo (o mesmo pedaço pode ter várias linhas) e confere antes de mexer.
+    const porPedaco = new Map<string, { item_id: number; lote_id: number; area: AreaEstoque; local: LocalDoEstoque; bloqueado: boolean; q: bigint }>();
+    for (const x of linhas) {
+      const k = `${x.lote_id}|${x.area}|${x.local}|${x.bloqueado}`;
+      const atual = porPedaco.get(k);
+      if (atual) atual.q += q4DoBanco(x.quantidade);
+      else porPedaco.set(k, { item_id: x.item_id, lote_id: x.lote_id, area: x.area, local: x.local, bloqueado: x.bloqueado, q: q4DoBanco(x.quantidade) });
+    }
+    const faltando: string[] = [];
+    for (const p of porPedaco.values()) {
+      if (p.q <= 0n) continue;
+      const r = await trx
+        .selectFrom("estoque_saldo")
+        .select("quantidade")
+        .where("lote_id", "=", p.lote_id)
+        .where("area", "=", p.area)
+        .where("local", "=", p.local)
+        .where("bloqueado", "=", p.bloqueado)
+        .executeTakeFirst();
+      const tem = r ? q4DoBanco(r.quantidade) : 0n;
+      if (tem < p.q) {
+        const item = l.item(p.item_id);
+        faltando.push(`"${item.nome}" em ${nomeDaArea(p.area)} (${NOME_DO_LOCAL[p.local].toLowerCase()}${p.bloqueado ? ", bloqueado" : ""}): precisa ${comUnidade(p.q, item)}, há ${comUnidade(tem, item)}`);
+      }
+    }
+    if (faltando.length) throw new ErroDeRegra("conflito", `Não dá para desfazer: parte já foi usada ou mudou de lugar. ${faltando.join("; ")}. Lance uma perda ou um ajuste no lugar.`);
+    // Primeiro o que sai (o que tinha entrado), depois o que volta.
+    const ordem = [...porPedaco.values()].filter((p) => p.q !== 0n).sort((a, b) => Number(b.q > 0n) - Number(a.q > 0n));
+    for (const p of ordem) await l.mexer(p.item_id, p.lote_id, p.area, p.local, p.bloqueado, -p.q);
+    for (const r of resumo) {
+      // O que entrou com valor sai pela parte que ainda resta pelo custo médio (as saídas
+      // depois dele já levaram a parte delas); cada correção de custo, pela parte que resta
+      // desde ELA (o que ela aplicou já era só o que restava na época). O que saiu volta com o
+      // valor com que saiu.
+      const original = BigInt(r.valor_centavos);
+      const restaDesde = async (desde: string, v: bigint) => {
+        if (v === 0n) return 0n;
+        const { fica } = await quantoFicaDaEntrada(trx, r.item_id, desde, ESCALA_DA_FRACAO);
+        return new Fracao(v * fica, ESCALA_DA_FRACAO).arredondado();
+      };
+      let dv: bigint;
+      if (original > 0n || correcoes.rows.some((c) => c.item_id === r.item_id)) {
+        dv = -(original > 0n ? await restaDesde(d.movimentoId, original) : original);
+        for (const c of correcoes.rows.filter((x) => x.item_id === r.item_id)) dv -= await restaDesde(c.id, BigInt(c.v));
+      } else dv = -original;
+      l.desfazer(r.item_id, -q4DoBanco(r.quantidade), dv);
+    }
+    await l.fechar();
+    // O último custo volta para a entrada válida mais recente (o desfeito pode ter preço errado).
+    for (const r of resumo) {
+      if (q4DoBanco(r.quantidade) <= 0n) continue;
+      const u = await sql<{ c: string; q: string }>`
+        SELECT coalesce((SELECT ci.valor_informado FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+                         WHERE c.tipo = 'custo' AND c.corrige_custo_de = o.movimento_id AND ci.item_id = o.item_id ORDER BY c.id DESC LIMIT 1),
+                        o.valor_centavos)::text AS c, o.quantidade::text AS q
+        FROM estoque_movimento_item o JOIN estoque_movimento om ON om.id = o.movimento_id
+        WHERE o.item_id = ${r.item_id} AND om.tipo IN ('entrada', 'saldo_inicial', 'producao') AND o.quantidade > 0
+          AND NOT EXISTS (SELECT 1 FROM estoque_movimento x WHERE x.estorno_de = om.id)
+          AND (NOT o.custo_estimado OR EXISTS (SELECT 1 FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+                                               WHERE c.tipo = 'custo' AND c.corrige_custo_de = o.movimento_id AND ci.item_id = o.item_id))
+        ORDER BY o.movimento_id DESC LIMIT 1`.execute(trx);
+      const x = u.rows[0];
+      await trx
+        .updateTable("estoque_item")
+        .set(x ? { ultimo_custo_centavos: x.c, ultimo_custo_quantidade: x.q } : { ultimo_custo_centavos: null, ultimo_custo_quantidade: null })
+        .where("id", "=", r.item_id)
+        .execute();
+    }
+    return { movimentoId: mov, repetido: false };
+  });
 }

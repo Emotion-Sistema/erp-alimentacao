@@ -71,6 +71,22 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
    gravação com a mesma chave devolve a já gravada, mesmo que o cadastro tenha mudado. Item
    desativado entra com aviso, como no lançamento à mão.
 
+12. **Produção de preparo (PR 3)**: gasta pela ficha (versão atual, sem pendência) o que o
+   `previsto` manda, da área do preparo (em uso e, se faltar, guardado), e cria um lote com o
+   **rendimento real**; o valor do lote é o valor do que saiu (rendeu menos, cada grama custa mais).
+   Preparo dentro de preparo gasta o preparo pronto. Validade: a informada ou hoje + a da ficha.
+   Sem saldo: recusa com o que falta (produção não tem "venda autorizada").
+13. **Desfazer** (`estoque.desfazer`: dono, administrador, gerente geral; e a área de cada linha):
+   movimento "estorno" ligado ao original, linha por linha no mesmo lote e lugar; cada movimento
+   uma vez só; observação obrigatória. Não se desfaz correção de custo, estorno nem consumo de
+   pedido (o cancelamento do pedido, na E11, cuida). Se o que entrou já foi usado ou mudou de
+   lugar, recusa e diz o quê. Desfazer uma entrada leva junto o valor das correções de custo dela,
+   mas só a parte que ainda resta pelo custo médio (as saídas depois dela já levaram a parte delas),
+   e o "último custo" volta para a entrada válida mais recente. Entrada desfeita não recebe correção
+   de custo (correção e desfazer da mesma entrada usam a mesma trava). A exigência da área de cada
+   linha é defesa a mais: hoje só cargos que cuidam de todas as áreas têm `estoque.desfazer`.
+   Produção com rendimento acima do dobro do previsto (ou abaixo de um décimo) pede confirmação.
+
 ## Alternativas descartadas
 - Saldo calculado só pela soma das linhas: lento e difícil de travar; o saldo materializado com
   a linha ao lado dá as duas coisas.
