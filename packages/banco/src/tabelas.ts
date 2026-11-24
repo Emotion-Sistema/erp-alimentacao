@@ -574,6 +574,101 @@ export interface IngredienteAlergenicoTabela {
   atualizado_em: Instante;
 }
 
+type Area = "cozinha" | "bebidas_salao" | "cafeteria" | "sorvete";
+type LocalDoEstoque = "em_uso" | "guardado";
+/** numeric do PostgreSQL chega como texto (decimal exato); grava texto ou número. */
+type DecimalDoEstoque = ColumnType<string, string | number, string | number>;
+type Inteirao = ColumnType<string, string | number | bigint, string | number | bigint>;
+
+/** Item de estoque: um ingrediente ou um preparo da casa (migração 0021; decisão 0027). */
+export interface EstoqueItemTabela {
+  id: Generated<number>;
+  ingrediente_id: number | null;
+  preparo_id: number | null;
+  area_preparo: Area | null;
+  quantidade: ColumnType<string, string | number | undefined, string | number>;
+  valor_centavos: ColumnType<string, string | number | bigint | undefined, string | number | bigint>;
+  ultimo_custo_centavos: Inteirao | null;
+  ultimo_custo_quantidade: DecimalDoEstoque | null;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export type TipoDeMovimento =
+  | "entrada"
+  | "saldo_inicial"
+  | "transferencia"
+  | "perda"
+  | "bloqueio"
+  | "desbloqueio"
+  | "consumo"
+  | "producao"
+  | "ajuste"
+  | "custo"
+  | "estorno";
+
+export interface EstoqueMovimentoTabela {
+  id: Generated<string>;
+  tipo: TipoDeMovimento;
+  motivo: string | null;
+  observacao: string | null;
+  autor_id: number;
+  recebido_por: number | null;
+  estorno_de: Inteirao | null;
+  corrige_custo_de: Inteirao | null;
+  chave: string | null;
+  assinatura: string | null;
+  origem_tipo: string | null;
+  origem_id: string | null;
+  fornecedor_id: number | null;
+  nota_numero: string | null;
+  nota_data: ColumnType<string, string | null | undefined, string | null> | null;
+  ficha_versao_id: number | null;
+  previsto: DecimalDoEstoque | null;
+  criado_em: Instante;
+}
+
+export interface EstoqueLoteTabela {
+  id: Generated<number>;
+  item_id: number;
+  validade: ColumnType<string, string | null | undefined, string | null> | null;
+  codigo: string | null;
+  movimento_id: Inteirao;
+  criado_em: Instante;
+}
+
+export interface EstoqueSaldoTabela {
+  lote_id: number;
+  area: Area;
+  local: LocalDoEstoque;
+  bloqueado: boolean;
+  item_id: number;
+  quantidade: DecimalDoEstoque;
+}
+
+export interface EstoqueMovimentoItemTabela {
+  movimento_id: Inteirao;
+  item_id: number;
+  quantidade: DecimalDoEstoque;
+  valor_centavos: Inteirao;
+  quantidade_depois: DecimalDoEstoque;
+  valor_depois: Inteirao;
+  faltou: ColumnType<string, string | number | undefined, never>;
+  custo_estimado: Generated<boolean>;
+}
+
+export interface EstoqueMovimentoLinhaTabela {
+  id: Generated<string>;
+  movimento_id: Inteirao;
+  item_id: number;
+  lote_id: number;
+  area: Area;
+  local: LocalDoEstoque;
+  bloqueado: boolean;
+  quantidade: DecimalDoEstoque;
+  automatica: Generated<boolean>;
+}
+
 export interface BancoTabelas {
   empresa: EmpresaTabela;
   unidade: UnidadeTabela;
@@ -622,4 +717,10 @@ export interface BancoTabelas {
   ficha_config: FichaConfigTabela;
   alergenico: AlergenicoTabela;
   ingrediente_alergenico: IngredienteAlergenicoTabela;
+  estoque_item: EstoqueItemTabela;
+  estoque_movimento: EstoqueMovimentoTabela;
+  estoque_lote: EstoqueLoteTabela;
+  estoque_saldo: EstoqueSaldoTabela;
+  estoque_movimento_item: EstoqueMovimentoItemTabela;
+  estoque_movimento_linha: EstoqueMovimentoLinhaTabela;
 }
