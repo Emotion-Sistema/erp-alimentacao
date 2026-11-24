@@ -321,9 +321,13 @@ describe("cada um vê só a própria área (RC-09 seção 4)", () => {
     expect(h).toHaveLength(1);
     expect(h[0]).toMatchObject({ tipo: "transferencia", quantidade: "1", quantidadeDepois: null });
     expect(JSON.stringify(h)).not.toContain("secreta");
+    // A cafeteria zera: o supervisor continua vendo o histórico da área dele.
+    await registrarPerda(db, supervisor, { ingredienteId: leite, quantidade: "1", area: "cafeteria", local: "em_uso", motivo: "estragou" });
+    expect((await historicoDoItem(db, supervisor, { ingredienteId: leite })).map((m) => m.tipo)).toEqual(["perda", "transferencia"]);
     // O gerente vê tudo, com o total depois.
     const hg = await historicoDoItem(db, gerente, { ingredienteId: leite });
     expect(hg.map((x) => [x.tipo, x.quantidade, x.quantidadeDepois])).toEqual([
+      ["perda", "-1", "8999"],
       ["transferencia", "0", "9000"],
       ["entrada", "9000", "9000"],
     ]);
@@ -376,6 +380,13 @@ describe("histórico imutável e repetição", () => {
     await expect(sql`DELETE FROM estoque_movimento_linha WHERE movimento_id = ${r.movimentoId}::bigint`.execute(db)).rejects.toThrow(/não muda/);
     await expect(sql`DELETE FROM estoque_saldo s USING estoque_item e WHERE e.id = s.item_id AND e.ingrediente_id = ${x}`.execute(db)).rejects.toThrow(/não é apagado/);
     await expect(sql`UPDATE estoque_saldo s SET quantidade = -1 FROM estoque_item e WHERE e.id = s.item_id AND e.ingrediente_id = ${x}`.execute(db)).rejects.toThrow(/check/);
+    await expect(sql`UPDATE estoque_saldo s SET area = 'cafeteria' FROM estoque_item e WHERE e.id = s.item_id AND e.ingrediente_id = ${x}`.execute(db)).rejects.toThrow(/Só a quantidade/);
+    await expect(sql`TRUNCATE estoque_movimento_linha`.execute(db)).rejects.toThrow();
+    const outro = await ingrediente("Outro");
+    const [it] = await sql<{ id: number }>`SELECT id FROM estoque_item WHERE ingrediente_id = ${x}`.execute(db).then((r) => r.rows);
+    await registrarEntrada(db, gerente, { itens: [{ ingredienteId: outro, quantidade: "1", local: "em_uso" }] });
+    const [lo] = await sql<{ id: number }>`SELECT l.id FROM estoque_lote l JOIN estoque_item e ON e.id = l.item_id WHERE e.ingrediente_id = ${outro}`.execute(db).then((r) => r.rows);
+    await expect(sql`INSERT INTO estoque_saldo (lote_id, area, local, bloqueado, item_id, quantidade) VALUES (${lo!.id}, 'cozinha', 'guardado', false, ${it!.id}, 1)`.execute(db)).rejects.toThrow(/item do lote/);
   });
 
   it("mesma chave: um movimento só; conteúdo diferente com a mesma chave é recusado", async () => {
@@ -395,6 +406,9 @@ describe("histórico imutável e repetição", () => {
     const c3 = await consumir({ chave: ck, origemTipo: "pedido", origemId: "1", itens: [{ ingredienteId: x, quantidade: "100" }] }, cozinheira.usuarioId);
     expect(c3).toMatchObject({ movimentoId: c1.movimentoId, repetido: true });
     expect((await saldo(x)).total).toBe("400");
+    // Área inexistente e quantidade zero são recusadas.
+    expect((await erroDe(consumir({ itens: [{ ingredienteId: x, quantidade: "1", area: "lua" as never }], permitirFalta: true }))).codigo).toBe("dados_invalidos");
+    expect((await erroDe(consumir({ itens: [{ ingredienteId: x, quantidade: "0" }] }))).message).toMatch(/zero/);
     // Consumo sem chave é recusado (a baixa acontece uma vez só).
     await expect(db.transaction().execute((trx) => consumirNaTransacao(trx, { autorId: gerente.usuarioId, itens: [{ ingredienteId: x, quantidade: "1" }] } as unknown as DadosDoConsumo))).rejects.toThrow(/Chave/);
   });
