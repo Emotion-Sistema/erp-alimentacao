@@ -66,7 +66,7 @@ const total = async (ingredienteId: number) => {
   return { q: i.total, v: i.valorCentavos };
 };
 const consumir = (ingredienteId: number, quantidade: string) =>
-  db.transaction().execute((trx) => consumirNaTransacao(trx, { autorId: gerente.usuarioId, itens: [{ ingredienteId, quantidade }] }));
+  db.transaction().execute((trx) => consumirNaTransacao(trx, { autorId: gerente.usuarioId, chave: `teste-${randomUUID()}`, itens: [{ ingredienteId, quantidade }] }));
 
 const foto = async (w: number, h: number, cor = "#334455") => (await sharp({ create: { width: w, height: h, channels: 3, background: cor } }).jpeg().toBuffer()).toString("base64");
 

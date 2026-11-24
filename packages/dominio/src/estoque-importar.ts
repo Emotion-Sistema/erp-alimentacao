@@ -164,14 +164,14 @@ export async function importarSaldoInicial(db: Banco, ator: Ator | null, dados: 
   const mapa: Partial<Record<Campo, number>> = {};
   const usadas = new Set<number>();
   for (const c of CAMPOS_DO_SALDO_INICIAL) {
-    const i = cabecalhos.findIndex((h, k) => !usadas.has(k) && (c.apelidos as readonly string[]).includes(chaveDeBusca(h).replace(/[()$]/g, "").trim()));
+    const i = cabecalhos.findIndex((h, k) => !usadas.has(k) && [chaveDeBusca(h), chaveDeBusca(h).replace(/ r$/, "")].some((k) => (c.apelidos as readonly string[]).includes(k)));
     if (i >= 0) {
       mapa[c.campo] = i;
       usadas.add(i);
     }
   }
   const faltamColunas = CAMPOS_DO_SALDO_INICIAL.filter((c) => c.obrigatorio && mapa[c.campo] === undefined).map((c) => c.rotulo);
-  const comValor = pode(ator.cargoAtivo, "custos.ver");
+  const comValor = pode(ator!.cargoAtivo, "custos.ver");
   const itens = await carregarItens(db);
   const hoje = (await sql<{ d: string }>`SELECT to_char(hoje_na_loja(), 'YYYY-MM-DD') AS d`.execute(db)).rows[0]!.d;
   const pulando = new Set(d.pular);
@@ -236,8 +236,10 @@ export async function importarSaldoInicial(db: Banco, ator: Ator | null, dados: 
     if (vTexto) {
       const dt = dataDoTexto(vTexto);
       if (!dt) erro("validade", `Validade "${vTexto.slice(0, 20)}": use dd/mm/aaaa.`);
-      else if (dt < hoje) erro("validade", `Validade ${vTexto} já passou: vencido não entra no estoque.`);
-      else validade = dt;
+      else {
+        if (dt < hoje) avisos.push(`Validade ${vTexto} já passou: entra BLOQUEADO (dê baixa como perda depois).`);
+        validade = dt;
+      }
     }
     const lote = v("lote") || undefined;
     if (lote && lote.length > 60) erro("lote", "Lote com mais de 60 letras.");

@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS estoque_saldo;
 DROP TABLE IF EXISTS estoque_lote;
 DROP TABLE IF EXISTS estoque_movimento;
 DROP TABLE IF EXISTS estoque_item;
+DROP FUNCTION IF EXISTS estoque_saldo_so_quantidade();
 DROP FUNCTION IF EXISTS estoque_saldo_nao_some();
 DROP FUNCTION IF EXISTS estoque_historico_imutavel();
 DROP FUNCTION IF EXISTS estoque_item_de_preparo();

@@ -116,15 +116,24 @@ type ItemTravado = {
 
 /** Garante a linha de `estoque_item` de cada referência e devolve os ids, na ordem recebida. */
 async function garantirItens(trx: Trx, refs: readonly Referencia[]): Promise<number[]> {
-  const ids: number[] = [];
-  for (const r of refs) {
-    const coluna = r.ingredienteId !== undefined ? "ingrediente_id" : "preparo_id";
-    const valor = (r.ingredienteId ?? r.preparoId)!;
-    const existe = await trx.selectFrom("estoque_item").select("id").where(coluna, "=", valor).executeTakeFirst();
-    if (existe) {
-      ids.push(existe.id);
-      continue;
-    }
+  const chaveDe = (r: Referencia) => (r.ingredienteId !== undefined ? `i${r.ingredienteId}` : `p${r.preparoId!}`);
+  const buscar = async () => {
+    const ing = refs.flatMap((r) => (r.ingredienteId !== undefined ? [r.ingredienteId] : []));
+    const prep = refs.flatMap((r) => (r.preparoId !== undefined ? [r.preparoId] : []));
+    const linhas = await trx
+      .selectFrom("estoque_item")
+      .select(["id", "ingrediente_id", "preparo_id"])
+      .where((eb) => eb.or([eb("ingrediente_id", "in", ing.length ? ing : [0]), eb("preparo_id", "in", prep.length ? prep : [0])]))
+      .execute();
+    return new Map(linhas.map((l) => [l.ingrediente_id !== null ? `i${l.ingrediente_id}` : `p${l.preparo_id!}`, l.id]));
+  };
+  let mapa = await buscar();
+  // Os que faltam nascem em ordem fixa (ingredientes, depois preparos, por id): dois lançamentos
+  // com itens novos em ordem trocada não esperam um pelo outro na chave única.
+  const faltam = [...new Map(refs.filter((r) => !mapa.has(chaveDe(r))).map((r) => [chaveDe(r), r])).values()].sort(
+    (x, y) => Number(x.ingredienteId === undefined) - Number(y.ingredienteId === undefined) || (x.ingredienteId ?? x.preparoId!) - (y.ingredienteId ?? y.preparoId!),
+  );
+  for (const r of faltam) {
     if (r.ingredienteId !== undefined) {
       const ing = await trx.selectFrom("ingrediente").select("id").where("id", "=", r.ingredienteId).executeTakeFirst();
       if (!ing) throw new ErroDeRegra("nao_encontrado", "Ingrediente não encontrado.");
@@ -134,9 +143,32 @@ async function garantirItens(trx: Trx, refs: readonly Referencia[]): Promise<num
       if (!f) throw new ErroDeRegra("nao_encontrado", "Preparo não encontrado.");
       await sql`INSERT INTO estoque_item (preparo_id, area_preparo) VALUES (${r.preparoId!}, 'cozinha') ON CONFLICT (preparo_id) DO NOTHING`.execute(trx);
     }
-    ids.push((await trx.selectFrom("estoque_item").select("id").where(coluna, "=", valor).executeTakeFirstOrThrow()).id);
   }
-  return ids;
+  if (faltam.length) mapa = await buscar();
+  return refs.map((r) => mapa.get(chaveDe(r))!);
+}
+
+/** Área padrão de cada referência, sem travar nada (para conferir a permissão antes da transação). */
+async function areasPadrao(db: Banco, refs: readonly Referencia[]): Promise<AreaEstoque[]> {
+  const saida: AreaEstoque[] = [];
+  for (const r of refs) {
+    if (r.ingredienteId !== undefined) {
+      const i = await db.selectFrom("ingrediente").select("area_estoque").where("id", "=", r.ingredienteId).executeTakeFirst();
+      if (!i) throw new ErroDeRegra("nao_encontrado", "Ingrediente não encontrado.");
+      saida.push(i.area_estoque as AreaEstoque);
+    } else {
+      const f = await db
+        .selectFrom("ficha as f")
+        .leftJoin("estoque_item as e", "e.preparo_id", "f.id")
+        .select("e.area_preparo")
+        .where("f.id", "=", r.preparoId!)
+        .where("f.tipo", "=", "preparo")
+        .executeTakeFirst();
+      if (!f) throw new ErroDeRegra("nao_encontrado", "Preparo não encontrado.");
+      saida.push(f.area_preparo ?? "cozinha");
+    }
+  }
+  return saida;
 }
 
 type LinhaDoItem = {
@@ -446,8 +478,11 @@ async function novoMovimento(trx: Trx, c: Cabecalho): Promise<string> {
 /** Resultado de todo lançamento. `repetido` = a mesma chave já tinha sido gravada (nada mudou agora). */
 export type Lancado = { movimentoId: string; repetido: boolean };
 
-const assinar = (tipo: string, autorId: number, dados: unknown) =>
-  createHash("sha256").update(JSON.stringify([tipo, autorId, dados])).digest("hex");
+/**
+ * Assinatura do conteúdo (sem o autor: o reenvio do mesmo pedido por outro aparelho ou pelo worker
+ * é o mesmo lançamento). A chave já distingue um lançamento do outro.
+ */
+const assinar = (tipo: string, dados: unknown) => createHash("sha256").update(JSON.stringify([tipo, dados])).digest("hex");
 
 /**
  * Com chave: trava a chave e, se ela já foi gravada, devolve o movimento (mesmo conteúdo) ou
@@ -549,20 +584,23 @@ async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo:
   if (!ator) await exigir(db, ator, "estoque.cozinha");
   const d = validar(esquemaEntrada, dados);
   if (tipo === "entrada" && d.itens.length > ITENS_POR_LANCAMENTO) throw new ErroDeRegra("dados_invalidos", `No máximo ${ITENS_POR_LANCAMENTO} itens por entrada.`);
+  // Permissão antes de tudo (antes da chave e das travas): quem não pode não descobre nada.
+  const padrao = await areasPadrao(db, d.itens);
+  const areas = d.itens.map((i, k) => i.area ?? padrao[k]!);
+  await exigirAreas(db, ator, areas);
   if (d.itens.some((i) => i.valorCentavos !== undefined)) await exigir(db, ator, "custos.ver", { tipo: "estoque_entrada" });
+  if (tipo === "entrada" && d.itens.some((i) => i.preparoId !== undefined))
+    throw new ErroDeRegra("dados_invalidos", "Preparo da casa não entra por compra: registre a produção dele.");
   return db.transaction().execute(async (trx) => {
-    const assinatura = assinar(tipo, ator!.usuarioId, d);
+    const assinatura = assinar(tipo, d);
     const ja = await jaLancado(trx, d.chave, assinatura);
     if (ja) return ja;
-    if (tipo === "entrada" && d.itens.some((i) => i.preparoId !== undefined))
-      throw new ErroDeRegra("dados_invalidos", "Preparo da casa não entra por compra: registre a produção dele.");
     const ids = await garantirItens(trx, d.itens);
     const itens = await travarItens(trx, ids);
-    const areas = d.itens.map((i, k) => i.area ?? itens.get(ids[k]!)!.areaPadrao);
-    await exigirAreas(db, ator, areas);
     if (d.fornecedorId !== undefined) {
       const f = await trx.selectFrom("fornecedor").select("ativo").where("id", "=", d.fornecedorId).executeTakeFirst();
       if (!f) throw new ErroDeRegra("nao_encontrado", "Fornecedor não encontrado.");
+      if (!f.ativo) throw new ErroDeRegra("conflito", "O fornecedor está desativado. Reative em Fornecedores ou escolha outro.");
     }
     const dia = await hoje(trx);
     const mov = await novoMovimento(trx, {
@@ -578,12 +616,15 @@ async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo:
     const l = new Lancamento(trx, mov, itens);
     for (const [k, linha] of d.itens.entries()) {
       const item = l.item(ids[k]!);
-      if (!item.ativo) throw new ErroDeRegra("conflito", `"${item.nome}" está desativado. Reative no cadastro antes de dar entrada.`);
-      if (linha.validade !== undefined && linha.validade < dia)
+      if (!item.ativo && tipo === "entrada") throw new ErroDeRegra("conflito", `"${item.nome}" está desativado. Reative no cadastro antes de dar entrada.`);
+      // Compra vencida não entra. No saldo inicial, o vencido que já está na loja entra BLOQUEADO
+      // (para a contagem bater e alguém dar baixa como perda).
+      const vencido = linha.validade !== undefined && linha.validade < dia;
+      if (vencido && tipo === "entrada")
         throw new ErroDeRegra("dados_invalidos", `A validade de "${item.nome}" (${linha.validade}) já passou. Produto vencido não entra no estoque.`);
       const q = await quantidadeNaBase(trx, item, linha.quantidade, linha.unidade);
       const lote = await l.novoLote(item.id, linha.validade ?? null, linha.lote ?? null);
-      await l.mexer(item.id, lote, areas[k]!, linha.local, false, q);
+      await l.mexer(item.id, lote, areas[k]!, linha.local, vencido, q);
       if (linha.valorCentavos !== undefined) l.entrada(item.id, q, BigInt(linha.valorCentavos), { ultimoCusto: true });
       else l.entrada(item.id, q, l.estimar(item.id, q), { estimado: true });
     }
@@ -625,7 +666,7 @@ export async function transferir(db: Banco, ator: Ator | null, dados: unknown): 
   const d = validar(esquemaTransferencia, dados);
   await exigirAreas(db, ator, [d.de.area]);
   return db.transaction().execute(async (trx) => {
-    const assinatura = assinar("transferencia", ator!.usuarioId, d);
+    const assinatura = assinar("transferencia", d);
     const ja = await jaLancado(trx, d.chave, assinatura);
     if (ja) return ja;
     if (d.recebidoPor !== undefined && d.de.area !== d.para.area) await conferirQuemRecebe(trx, d.recebidoPor, d.para.area);
@@ -697,7 +738,7 @@ export async function registrarPerda(db: Banco, ator: Ator | null, dados: unknow
   const d = validar(esquemaPerda, dados);
   await exigirAreas(db, ator, [d.area]);
   return db.transaction().execute(async (trx) => {
-    const assinatura = assinar("perda", ator!.usuarioId, d);
+    const assinatura = assinar("perda", d);
     const ja = await jaLancado(trx, d.chave, assinatura);
     if (ja) return ja;
     const [itemId] = await garantirItens(trx, [d]);
@@ -760,7 +801,7 @@ async function mudarSituacao(db: Banco, ator: Ator | null, dados: unknown, tipo:
   if (d.motivo === "outro" && !d.observacao) throw new ErroDeRegra("dados_invalidos", "Escreva o motivo na observação.");
   await exigirAreas(db, ator, [d.area]);
   return db.transaction().execute(async (trx) => {
-    const assinatura = assinar(tipo, ator!.usuarioId, d);
+    const assinatura = assinar(tipo, d);
     const ja = await jaLancado(trx, d.chave, assinatura);
     if (ja) return ja;
     const [itemId] = await garantirItens(trx, [d]);
@@ -803,12 +844,31 @@ export type DadosDoConsumo = {
   itens: readonly ItemDoConsumo[];
   /** Venda autorizada sem saldo (só loja física, com autorização): registra o que faltou. */
   permitirFalta?: boolean;
-  chave?: string;
+  /**
+   * Obrigatória: a baixa acontece UMA vez (RC-01). O pedido usa a dele (ex.: "pedido:123:r2"); o
+   * mesmo consumo de novo devolve o já gravado, venha de quem vier.
+   */
+  chave: string;
   origemTipo?: string;
   origemId?: string;
   motivo?: string;
   observacao?: string;
 };
+
+const esquemaDoConsumo = z
+  .object(
+    {
+      autorId: id("Autor do consumo inválido."),
+      permitirFalta: z.boolean().optional(),
+      chave,
+      origemTipo: z.string().regex(/^[a-z_]{2,30}$/, "Origem do consumo inválida.").optional(),
+      origemId: z.string().min(1, "Origem do consumo inválida.").max(60, "Origem do consumo inválida.").refine((v) => !/\p{Cc}/u.test(v), "Origem do consumo inválida.").optional(),
+      motivo: z.string().trim().min(1, "Motivo inválido.").max(40, "Motivo com no máximo 40 letras.").refine((v) => !/\p{Cc}/u.test(v), "Motivo inválido.").optional(),
+      observacao: textoLivre("Observação", 500).optional(),
+    },
+    { error: "Consumo em formato inválido." },
+  )
+  .refine((c) => (c.origemTipo === undefined) === (c.origemId === undefined), "Origem do consumo: tipo e número juntos.");
 
 export type ResultadoDoConsumo = Lancado & {
   /** O que não havia (só com `permitirFalta`). */
@@ -824,8 +884,10 @@ export type ResultadoDoConsumo = Lancado & {
  * `permitirFalta`, consome o que há e registra o que faltou (para a contagem).
  * Quem chama já conferiu a permissão. Lote vencido ou bloqueado nunca é consumido.
  */
-export async function consumirNaTransacao(trx: Trx, d: DadosDoConsumo): Promise<ResultadoDoConsumo> {
-  if (d.itens.length === 0) throw new ErroDeRegra("dados_invalidos", "Nada para consumir.");
+export async function consumirNaTransacao(trx: Trx, dados: DadosDoConsumo): Promise<ResultadoDoConsumo> {
+  const extra = validar(esquemaDoConsumo, { ...dados, itens: undefined });
+  const d = { ...extra, itens: dados.itens };
+  if (!Array.isArray(d.itens) || d.itens.length === 0) throw new ErroDeRegra("dados_invalidos", "Nada para consumir.");
   if (d.itens.length > ITENS_POR_LANCAMENTO) throw new ErroDeRegra("dados_invalidos", "Itens demais num consumo.");
   for (const i of d.itens) if (!umItem(i)) throw new ErroDeRegra("dados_invalidos", MSG_UM_ITEM);
   // Fração exata por linha; o mesmo item (mesma área) soma exato e só então arredonda.
@@ -834,11 +896,11 @@ export async function consumirNaTransacao(trx: Trx, d: DadosDoConsumo): Promise<
     if (f === null || f.n < 0n) throw new ErroDeRegra("dados_invalidos", "Quantidade do consumo inválida.");
     return f;
   });
-  const assinatura = assinar(
-    "consumo",
-    d.autorId,
-    d.itens.map((i, k) => [i.ingredienteId ?? null, i.preparoId ?? null, i.area ?? null, `${exatas[k]!.n}/${exatas[k]!.d}`]).concat([[d.permitirFalta ?? false, d.origemTipo ?? null, d.origemId ?? null]]),
-  );
+  const assinatura = assinar("consumo", {
+    itens: d.itens.map((i, k) => [i.ingredienteId ?? null, i.preparoId ?? null, i.area ?? null, `${exatas[k]!.n}/${exatas[k]!.d}`]),
+    permitirFalta: d.permitirFalta ?? false,
+    origem: [d.origemTipo ?? null, d.origemId ?? null],
+  });
   const ja = await jaLancado(trx, d.chave, assinatura);
   if (ja) return { ...ja, ...(await resumoDoConsumo(trx, ja.movimentoId)) };
   const ids = await garantirItens(trx, d.itens);
@@ -848,8 +910,8 @@ export async function consumirNaTransacao(trx: Trx, d: DadosDoConsumo): Promise<
     autorId: d.autorId,
     motivo: d.motivo ?? null,
     observacao: d.observacao ?? null,
-    chave: d.chave ?? null,
-    assinatura: d.chave ? assinatura : null,
+    chave: d.chave,
+    assinatura,
     origemTipo: d.origemTipo ?? null,
     origemId: d.origemId ?? null,
   });
@@ -1045,6 +1107,8 @@ async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor
     const vT = BigInt(x.valor);
     const linhas = x.item_id === null ? [] : (porItem.get(x.item_id) ?? []);
     const validades = linhas.filter((s) => s.validade !== null && areas.includes(s.area)).map((s) => s.validade!);
+    // Só o que está nas áreas que a pessoa vê (o total das outras áreas não aparece).
+    const qVisivel = linhas.filter((s) => areas.includes(s.area)).reduce((t, s) => t + q4DoBanco(s.quantidade), 0n);
     return {
       itemId: x.item_id,
       ingredienteId: x.ingrediente_id,
@@ -1052,8 +1116,8 @@ async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor
       nome: x.nome,
       unidade: x.unidade,
       areaPadrao: x.area,
-      total: textoQ4(qT),
-      valorCentavos: comValor ? vT.toString() : null,
+      total: textoQ4(qVisivel),
+      valorCentavos: comValor ? valorDaSaida(qT, vT, qVisivel).toString() : null,
       custoMedioCentavos: comValor ? custoMedioPorUnidade(qT, vT) : null,
       proximaValidade: validades.length ? validades.sort()[0]! : null,
       areas: montarAreas(linhas, areas, qT, vT, comValor),
@@ -1112,8 +1176,10 @@ export type MovimentoDoHistorico = {
   observacao: string | null;
   quando: string;
   autor: string;
+  /** A mudança (nas áreas que a pessoa vê). */
   quantidade: string;
-  quantidadeDepois: string;
+  /** Total depois do movimento; nulo para quem não vê todas as áreas. */
+  quantidadeDepois: string | null;
   valorCentavos: string | null;
   valorDepois: string | null;
   faltou: string;
@@ -1130,7 +1196,7 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
         {
           ...referencia,
           antesDe: z.string().regex(/^\d{1,18}$/, "Página inválida.").optional(),
-          limite: z.number().int().min(1).max(200).optional(),
+          limite: z.number({ error: "Limite inválido." }).int("Limite inválido.").min(1, "Limite inválido.").max(200, "Limite de no máximo 200.").optional(),
         },
         { error: "Consulta em formato inválido." },
       )
@@ -1140,6 +1206,10 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
   const item = await estoqueDoItem(db, ator, { ingredienteId: d.ingredienteId, preparoId: d.preparoId });
   if (item.itemId === null) return [];
   const comValor = pode(ator!.cargoAtivo, "custos.ver");
+  // Quem não vê todas as áreas vê só os movimentos com linha nas suas áreas, com a mudança só
+  // delas e sem o "depois" (que é o total de todas as áreas).
+  const areas = areasDoAtor(ator);
+  const todas = areas.length === AREAS_ESTOQUE.length;
   const r = await sql<{
     id: string;
     tipo: string;
@@ -1157,12 +1227,17 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
     desfeito_por: string | null;
   }>`
     SELECT m.id::text AS id, m.tipo, m.motivo, m.observacao, to_char(m.criado_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS quando,
-      u.nome AS autor, mi.quantidade::text AS quantidade, mi.quantidade_depois::text AS quantidade_depois,
+      u.nome AS autor,
+      (CASE WHEN ${todas} THEN mi.quantidade
+            ELSE (SELECT coalesce(sum(l.quantidade), 0) FROM estoque_movimento_linha l
+                  WHERE l.movimento_id = m.id AND l.item_id = mi.item_id AND l.area = ANY(${areas}::text[])) END)::text AS quantidade,
+      mi.quantidade_depois::text AS quantidade_depois,
       mi.valor_centavos::text AS valor, mi.valor_depois::text AS valor_depois, mi.faltou::text AS faltou, mi.custo_estimado,
       EXISTS (SELECT 1 FROM estoque_movimento_linha l WHERE l.movimento_id = m.id AND l.item_id = mi.item_id AND l.automatica) AS usou_guardado,
       (SELECT e.id::text FROM estoque_movimento e WHERE e.estorno_de = m.id) AS desfeito_por
     FROM estoque_movimento_item mi JOIN estoque_movimento m ON m.id = mi.movimento_id JOIN usuario u ON u.id = m.autor_id
     WHERE mi.item_id = ${item.itemId} AND (${d.antesDe ?? null}::bigint IS NULL OR m.id < ${d.antesDe ?? null}::bigint)
+      AND (${todas} OR EXISTS (SELECT 1 FROM estoque_movimento_linha l WHERE l.movimento_id = m.id AND l.item_id = mi.item_id AND l.area = ANY(${areas}::text[])))
     ORDER BY m.id DESC LIMIT ${d.limite ?? 50}`.execute(db);
   return r.rows.map((x) => ({
     movimentoId: x.id,
@@ -1172,9 +1247,9 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
     quando: x.quando,
     autor: x.autor,
     quantidade: textoQ4(q4DoBanco(x.quantidade)),
-    quantidadeDepois: textoQ4(q4DoBanco(x.quantidade_depois)),
-    valorCentavos: comValor ? x.valor : null,
-    valorDepois: comValor ? x.valor_depois : null,
+    quantidadeDepois: todas ? textoQ4(q4DoBanco(x.quantidade_depois)) : null,
+    valorCentavos: comValor && todas ? x.valor : null,
+    valorDepois: comValor && todas ? x.valor_depois : null,
     faltou: textoQ4(q4DoBanco(x.faltou)),
     custoEstimado: x.custo_estimado,
     usouGuardado: x.usou_guardado,
@@ -1277,7 +1352,7 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
   const quem = await exigir(db, ator, "custos.ver", { tipo: "estoque_custo" });
   const d = validar(esquemaCorrecaoDeCusto, dados);
   return db.transaction().execute(async (trx) => {
-    const assinatura = assinar("custo", quem.usuarioId, d);
+    const assinatura = assinar("custo", d);
     const ja = await jaLancado(trx, d.chave, assinatura);
     if (ja) {
       const r = await trx.selectFrom("estoque_movimento_item").select(sql<string>`sum(valor_centavos)::text`.as("v")).where("movimento_id", "=", ja.movimentoId).executeTakeFirst();
