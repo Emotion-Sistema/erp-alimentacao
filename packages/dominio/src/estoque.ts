@@ -523,6 +523,20 @@ async function exigirAreas(db: Banco, ator: Ator | null, areas: Iterable<AreaEst
 }
 
 const nomeDaArea = (a: AreaEstoque) => NOME_DA_AREA[a];
+
+/**
+ * ": há 3 un" na mensagem de recusa, ou nada enquanto há contagem aberta do item na área e a
+ * pessoa não é da gestão (a contagem é cega também nas mensagens).
+ */
+async function quantoHa(trx: Trx, ator: Ator, item: ItemTravado, area: AreaEstoque, q: bigint, prefixo = ": há "): Promise<string> {
+  if (!pode(ator.cargoAtivo, "estoque.desfazer")) {
+    const r = await sql<{ ok: boolean }>`
+      SELECT EXISTS (SELECT 1 FROM estoque_contagem c JOIN estoque_contagem_item ci ON ci.contagem_id = c.id
+        WHERE ci.item_id = ${item.id} AND c.area = ${area} AND NOT EXISTS (SELECT 1 FROM estoque_contagem_fim f WHERE f.contagem_id = c.id)) AS ok`.execute(trx);
+    if (r.rows[0]!.ok) return prefixo === ": há " ? " (o item está em contagem)" : ", item em contagem,";
+  }
+  return `${prefixo}${comUnidade(q, item)}`;
+}
 const comUnidade = (q: bigint, i: ItemTravado) => `${textoQ4(q)} ${i.unidade}`;
 
 /** Quantidade informada (com unidade opcional) -> dez-milésimos na unidade do estoque do item. */
@@ -710,7 +724,7 @@ export async function transferir(db: Banco, ator: Ator | null, dados: unknown): 
     if (tirado < q)
       throw new ErroDeRegra(
         "conflito",
-        `Não há ${comUnidade(q, item)} de "${item.nome}" livre em ${nomeDaArea(d.de.area)} (${NOME_DO_LOCAL[d.de.local].toLowerCase()}): há ${comUnidade(tirado, item)}.`,
+        `Não há ${comUnidade(q, item)} de "${item.nome}" livre em ${nomeDaArea(d.de.area)} (${NOME_DO_LOCAL[d.de.local].toLowerCase()})${await quantoHa(trx, ator!, item, d.de.area, tirado)}.`,
       );
     for (const x of de) await l.mexer(item.id, x.p.loteId, d.para.area, d.para.local, false, x.q);
     await l.fechar();
@@ -781,7 +795,7 @@ export async function registrarPerda(db: Banco, ator: Ator | null, dados: unknow
     if (tirado < q)
       throw new ErroDeRegra(
         "conflito",
-        `Não há ${comUnidade(q, item)} de "${item.nome}"${d.doBloqueado ? " bloqueado" : ""} em ${nomeDaArea(d.area)} (${NOME_DO_LOCAL[d.local].toLowerCase()}): há ${comUnidade(tirado, item)}.`,
+        `Não há ${comUnidade(q, item)} de "${item.nome}"${d.doBloqueado ? " bloqueado" : ""} em ${nomeDaArea(d.area)} (${NOME_DO_LOCAL[d.local].toLowerCase()})${await quantoHa(trx, ator!, item, d.area, tirado)}.`,
       );
     l.saida(item.id, q);
     await l.fechar();
@@ -844,7 +858,7 @@ async function mudarSituacao(db: Banco, ator: Ator | null, dados: unknown, tipo:
     if (tirado < q)
       throw new ErroDeRegra(
         "conflito",
-        `Não há ${comUnidade(q, item)} de "${item.nome}" ${tipo === "bloqueio" ? "livre" : "bloqueado"} em ${nomeDaArea(d.area)} (${NOME_DO_LOCAL[d.local].toLowerCase()}): há ${comUnidade(tirado, item)}.`,
+        `Não há ${comUnidade(q, item)} de "${item.nome}" ${tipo === "bloqueio" ? "livre" : "bloqueado"} em ${nomeDaArea(d.area)} (${NOME_DO_LOCAL[d.local].toLowerCase()})${await quantoHa(trx, ator!, item, d.area, tirado)}.`,
       );
     for (const x of de) await l.mexer(item.id, x.p.loteId, d.area, d.local, tipo === "bloqueio", x.q);
     await l.fechar();
@@ -1714,7 +1728,7 @@ export async function produzirPreparo(db: Banco, ator: Ator | null, dados: unkno
       if (item.id === ids[0]) throw new ErroDeRegra("conflito", "O preparo não pode gastar ele mesmo.");
       const { falta } = await gastarDaArea(trx, l, item.id, areaDoPreparo!, g.q);
       if (falta > 0n) {
-        semSaldo.push(`"${item.nome}" (precisa ${comUnidade(g.q, item)}, há ${comUnidade(g.q - falta, item)} livre em ${nomeDaArea(areaDoPreparo!)})`);
+        semSaldo.push(`"${item.nome}" (precisa ${comUnidade(g.q, item)}${await quantoHa(trx, quem, item, areaDoPreparo!, g.q - falta, ", há ")} livre em ${nomeDaArea(areaDoPreparo!)})`);
         continue;
       }
       valor += l.saida(item.id, g.q);
@@ -1817,9 +1831,9 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
       .execute();
     const itens = await travarItens(trx, resumo.map((r) => r.item_id));
     // Correções de custo de uma entrada desfeita saem junto (lidas já com a trava).
-    const correcoes = await sql<{ item_id: number; v: string }>`
-      SELECT ci.item_id, sum(ci.valor_centavos)::text AS v FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
-      WHERE c.tipo = 'custo' AND c.corrige_custo_de = ${d.movimentoId}::bigint GROUP BY ci.item_id`.execute(trx);
+    const correcoes = await sql<{ id: string; item_id: number; v: string }>`
+      SELECT c.id::text AS id, ci.item_id, ci.valor_centavos::text AS v FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+      WHERE c.tipo = 'custo' AND c.corrige_custo_de = ${d.movimentoId}::bigint ORDER BY c.id`.execute(trx);
     const mov = await novoMovimento(trx, {
       tipo: "estorno",
       autorId: quem.usuarioId,
@@ -1859,15 +1873,21 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
     const ordem = [...porPedaco.values()].filter((p) => p.q !== 0n).sort((a, b) => Number(b.q > 0n) - Number(a.q > 0n));
     for (const p of ordem) await l.mexer(p.item_id, p.lote_id, p.area, p.local, p.bloqueado, -p.q);
     for (const r of resumo) {
-      const corr = correcoes.rows.find((c) => c.item_id === r.item_id);
-      const valor = BigInt(r.valor_centavos) + (corr ? BigInt(corr.v) : 0n);
       // O que entrou com valor sai pela parte que ainda resta pelo custo médio (as saídas
-      // depois dele já levaram a parte delas); o que saiu volta com o valor com que saiu.
-      let dv = -valor;
-      if (valor > 0n) {
-        const { fica } = await quantoFicaDaEntrada(trx, r.item_id, d.movimentoId, ESCALA_DA_FRACAO);
-        dv = -((valor * fica + ESCALA_DA_FRACAO / 2n) / ESCALA_DA_FRACAO);
-      }
+      // depois dele já levaram a parte delas); cada correção de custo, pela parte que resta
+      // desde ELA (o que ela aplicou já era só o que restava na época). O que saiu volta com o
+      // valor com que saiu.
+      const original = BigInt(r.valor_centavos);
+      const restaDesde = async (desde: string, v: bigint) => {
+        if (v === 0n) return 0n;
+        const { fica } = await quantoFicaDaEntrada(trx, r.item_id, desde, ESCALA_DA_FRACAO);
+        return new Fracao(v * fica, ESCALA_DA_FRACAO).arredondado();
+      };
+      let dv: bigint;
+      if (original > 0n || correcoes.rows.some((c) => c.item_id === r.item_id)) {
+        dv = -(original > 0n ? await restaDesde(d.movimentoId, original) : original);
+        for (const c of correcoes.rows.filter((x) => x.item_id === r.item_id)) dv -= await restaDesde(c.id, BigInt(c.v));
+      } else dv = -original;
       l.desfazer(r.item_id, -q4DoBanco(r.quantidade), dv);
     }
     await l.fechar();

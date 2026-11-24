@@ -98,10 +98,13 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
    pelo custo médio (estimado), com a validade mais próxima do que já está no local. Item não
    contado não muda. Fechar ou cancelar acontece uma vez. A cegueira vale também fora da tela da
    contagem: enquanto houver contagem aberta do item numa área, quem não é da gestão (sem
-   `estoque.desfazer`) não vê as quantidades dele nessa área no painel, no item nem no histórico.
+   `estoque.desfazer`) não vê as quantidades dele nessa área no painel, no item, no histórico nem
+   nas mensagens de recusa (perda, transferência, bloqueio, produção). Hipótese a confirmar com o
+   responsável: a gestão (dono, administrador, gerente geral) continua vendo; se um gerente contar,
+   para ele a contagem não é cega.
    Se outra contagem ajustou (ou alguém desfez algo) depois de contado, o fechamento pede para
    contar de novo (nada de ajuste em dobro). Na contagem fechada aparecem o que o ajuste aplicou
-   de fato e o valor lançado. A rápida pede 5 itens por padrão (a tela pode pedir até 20); a do
+   de fato e o valor lançado em cada linha (gravado no fechamento). A rápida pede 5 itens por padrão (a tela pode pedir até 20); a do
    dia cancelada não abre outra no mesmo dia (hipótese). `motorDoEstoque` é exportado para os
    outros arquivos do domínio; os apps não o usam (as rotas chamam só as ações com permissão).
 
