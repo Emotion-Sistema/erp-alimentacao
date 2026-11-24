@@ -576,8 +576,8 @@ export interface IngredienteAlergenicoTabela {
 
 type Area = "cozinha" | "bebidas_salao" | "cafeteria" | "sorvete";
 type LocalDoEstoque = "em_uso" | "guardado";
-/** numeric do PostgreSQL chega como texto (decimal exato). */
-type Decimal = ColumnType<string, string | number, string | number>;
+/** numeric do PostgreSQL chega como texto (decimal exato); grava texto ou número. */
+type DecimalDoEstoque = ColumnType<string, string | number, string | number>;
 type Inteirao = ColumnType<string, string | number | bigint, string | number | bigint>;
 
 /** Item de estoque: um ingrediente ou um preparo da casa (migração 0021; decisão 0027). */
@@ -589,7 +589,7 @@ export interface EstoqueItemTabela {
   quantidade: ColumnType<string, string | number | undefined, string | number>;
   valor_centavos: ColumnType<string, string | number | bigint | undefined, string | number | bigint>;
   ultimo_custo_centavos: Inteirao | null;
-  ultimo_custo_quantidade: Decimal | null;
+  ultimo_custo_quantidade: DecimalDoEstoque | null;
   criado_em: Instante;
   atualizado_em: Instante;
 }
@@ -624,7 +624,7 @@ export interface EstoqueMovimentoTabela {
   nota_numero: string | null;
   nota_data: ColumnType<string, string | null | undefined, string | null> | null;
   ficha_versao_id: number | null;
-  previsto: Decimal | null;
+  previsto: DecimalDoEstoque | null;
   criado_em: Instante;
 }
 
@@ -643,15 +643,15 @@ export interface EstoqueSaldoTabela {
   local: LocalDoEstoque;
   bloqueado: boolean;
   item_id: number;
-  quantidade: Decimal;
+  quantidade: DecimalDoEstoque;
 }
 
 export interface EstoqueMovimentoItemTabela {
   movimento_id: Inteirao;
   item_id: number;
-  quantidade: Decimal;
+  quantidade: DecimalDoEstoque;
   valor_centavos: Inteirao;
-  quantidade_depois: Decimal;
+  quantidade_depois: DecimalDoEstoque;
   valor_depois: Inteirao;
   faltou: ColumnType<string, string | number | undefined, never>;
   custo_estimado: Generated<boolean>;
@@ -665,7 +665,7 @@ export interface EstoqueMovimentoLinhaTabela {
   area: Area;
   local: LocalDoEstoque;
   bloqueado: boolean;
-  quantidade: Decimal;
+  quantidade: DecimalDoEstoque;
   automatica: Generated<boolean>;
 }
 

@@ -37,15 +37,22 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
    quem leva tudo leva o valor todo, e quantidade zero tem valor zero. Entrada sem preço usa custo
    médio, último custo ou custo de referência, e fica marcada como **estimada**.
 6. **Vencido** não é consumido nem transferido; conta como bloqueado no livre. Na perda, o vencido
-   sai primeiro. Entrada com validade passada é recusada.
+   sai primeiro. Compra com validade passada é recusada; no saldo inicial, o vencido que já está
+   na loja entra **bloqueado** (para a contagem bater e alguém dar baixa como perda).
 7. **Concorrência**: todo lançamento trava as linhas de `estoque_item` (FOR UPDATE) em ordem de id;
-   sem impasse entre pedidos com itens em ordem diferente.
-8. **Repetição**: `chave` única por movimento com assinatura do conteúdo; reenvio devolve o
-   movimento gravado; mesma chave com outro conteúdo é recusada (trava consultiva pela chave).
+   itens novos nascem em ordem fixa. A permissão é conferida antes da chave e das travas.
+8. **Repetição**: `chave` única por movimento com assinatura do conteúdo (sem o autor: o reenvio
+   do mesmo pedido por outro aparelho é o mesmo lançamento); reenvio devolve o movimento gravado;
+   mesma chave com outro conteúdo é recusada (trava consultiva pela chave). No consumo a chave é
+   **obrigatória** (RC-01: a baixa acontece uma vez).
 9. **Permissão por área**: cozinha = `estoque.cozinha`; bebidas do salão, cafeteria e sorvete =
    `estoque.salao`. Cada lançamento confere a área de onde sai (e a de onde entra, na entrada).
-   Entre áreas, quem recebeu tem de cuidar da área de destino. Valor em reais (informar ou ver)
-   só com `custos.ver`.
+   Entre áreas, quem recebeu tem de cuidar da área de destino (hipótese: quem registra indica quem
+   recebeu, sem confirmação no aparelho de quem recebe; confirmação pode vir depois). Valor em
+   reais (informar ou ver) só com `custos.ver`.
+10. **Cada um vê só a própria área**: painel, item e histórico mostram o saldo das áreas da pessoa;
+   quem não vê todas as áreas não vê o total geral, o "depois" nem os movimentos sem linha nas
+   suas áreas.
 
 ## Alternativas descartadas
 - Saldo calculado só pela soma das linhas: lento e difícil de travar; o saldo materializado com
@@ -67,5 +74,7 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
 consumo 10 → passagem automática de 4; custo médio e zerar; o que vence primeiro sai primeiro;
 vencido e bloqueado fora do consumo; permissão por área e de custos; repetição; última porção
 disputada (quem chega depois espera e recebe "sem saldo"); pedidos em ordem trocada sem impasse;
-20 consumos simultâneos com passagem do guardado fecham exato. Testes de mutação: sem a trava do
-item ou sem a trava da chave, os testes de concorrência falham.
+20 consumos simultâneos com passagem do guardado fecham exato; supervisor não vê o total nem o
+histórico da cozinha; reenvio do consumo por outro autor. Testes de mutação: sem a trava do item ou
+sem a trava da chave, os testes de concorrência falham. A ordem das travas é defesa a mais (um
+único SELECT ... FOR UPDATE já trava na ordem lida); nenhum teste a isola.

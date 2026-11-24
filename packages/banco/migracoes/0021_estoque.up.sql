@@ -173,3 +173,31 @@ CREATE TRIGGER estoque_saldo_sem_apagar BEFORE DELETE ON estoque_saldo
 CREATE FUNCTION hoje_na_loja() RETURNS date LANGUAGE sql STABLE AS $$
   SELECT (now() AT TIME ZONE coalesce((SELECT fuso_horario FROM unidade ORDER BY id LIMIT 1), 'America/Sao_Paulo'))::date
 $$;
+
+-- O saldo só muda de quantidade; o pedaço (lote, área, local, situação, item) é fixo, e o item é
+-- o do lote.
+CREATE FUNCTION estoque_saldo_so_quantidade() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NOT EXISTS (SELECT 1 FROM estoque_lote WHERE id = NEW.lote_id AND item_id = NEW.item_id) THEN
+      RAISE EXCEPTION 'O saldo tem de ser do item do lote.' USING ERRCODE = 'check_violation';
+    END IF;
+  ELSIF (NEW.lote_id, NEW.area, NEW.local, NEW.bloqueado, NEW.item_id) IS DISTINCT FROM (OLD.lote_id, OLD.area, OLD.local, OLD.bloqueado, OLD.item_id) THEN
+    RAISE EXCEPTION 'Só a quantidade do saldo muda.' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER estoque_saldo_pedaco_fixo BEFORE INSERT OR UPDATE ON estoque_saldo
+  FOR EACH ROW EXECUTE FUNCTION estoque_saldo_so_quantidade();
+
+-- Nem TRUNCATE apaga o histórico.
+CREATE TRIGGER estoque_movimento_sem_truncate BEFORE TRUNCATE ON estoque_movimento
+  FOR EACH STATEMENT EXECUTE FUNCTION recusar_alteracao();
+CREATE TRIGGER estoque_movimento_item_sem_truncate BEFORE TRUNCATE ON estoque_movimento_item
+  FOR EACH STATEMENT EXECUTE FUNCTION recusar_alteracao();
+CREATE TRIGGER estoque_movimento_linha_sem_truncate BEFORE TRUNCATE ON estoque_movimento_linha
+  FOR EACH STATEMENT EXECUTE FUNCTION recusar_alteracao();
+CREATE TRIGGER estoque_lote_sem_truncate BEFORE TRUNCATE ON estoque_lote
+  FOR EACH STATEMENT EXECUTE FUNCTION recusar_alteracao();
+CREATE TRIGGER estoque_saldo_sem_truncate BEFORE TRUNCATE ON estoque_saldo
+  FOR EACH STATEMENT EXECUTE FUNCTION recusar_alteracao();

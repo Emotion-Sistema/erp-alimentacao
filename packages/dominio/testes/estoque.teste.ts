@@ -23,6 +23,7 @@ import {
   salvarConversao,
   salvarCustoDeReferencia,
   salvarFicha,
+  salvarFornecedor,
   salvarIngrediente,
   textoQ4,
   transferir,
@@ -69,8 +70,8 @@ async function ingrediente(base: string, unidadeBase: "g" | "ml" | "un" = "g", a
   return (await salvarIngrediente(db, gerente, { nome: nome(base), unidadeBase, area })).id;
 }
 
-const consumir = (d: Omit<DadosDoConsumo, "autorId">, autorId = gerente.usuarioId) =>
-  db.transaction().execute((trx) => consumirNaTransacao(trx, { autorId, ...d }));
+const consumir = (d: Omit<DadosDoConsumo, "autorId" | "chave"> & { chave?: string }, autorId = gerente.usuarioId) =>
+  db.transaction().execute((trx) => consumirNaTransacao(trx, { autorId, chave: `teste-${randomUUID()}`, ...d }));
 
 async function saldo(ingredienteId: number) {
   const item = await estoqueDoItem(db, gerente, { ingredienteId });
@@ -252,6 +253,12 @@ describe("consumo (RC-09 seção 1)", () => {
       const s = await saldo(creme);
       expect(s.item.areas[0]).toMatchObject({ vencido: "2", livre: "3" });
       expect((await erroDe(consumir({ itens: [{ ingredienteId: creme, quantidade: "4" }] }))).message).toMatch(/Sem saldo/);
+      expect((await erroDe(transferir(db, gerente, { ingredienteId: creme, quantidade: "4", de: { area: "cozinha", local: "em_uso" }, para: { area: "cozinha", local: "guardado" } }))).message).toMatch(/há 3 un/);
+      // Saldo inicial de algo já vencido na loja: entra bloqueado (compra vencida, não).
+      const r2 = await sql<{ d: string }>`SELECT to_char(hoje_na_loja() - 1, 'YYYY-MM-DD') AS d`.execute(db);
+      await registrarSaldoInicial(db, gerente, { itens: [{ ingredienteId: creme, quantidade: "1", local: "guardado", validade: r2.rows[0]!.d }] });
+      expect((await saldo(creme)).item.areas[0]).toMatchObject({ bloqueado: "1", livre: "3" });
+      await registrarPerda(db, gerente, { ingredienteId: creme, quantidade: "1", area: "cozinha", local: "guardado", motivo: "venceu", doBloqueado: true });
       await registrarPerda(db, gerente, { ingredienteId: creme, quantidade: "2", area: "cozinha", local: "em_uso", motivo: "venceu" });
       const depois = await saldo(creme);
       expect(depois.item.lotes.map((l) => l.vencido)).toEqual([false]);
@@ -299,6 +306,68 @@ describe("transferência e perda", () => {
   });
 });
 
+describe("cada um vê só a própria área (RC-09 seção 4)", () => {
+  it("o supervisor não vê o total, o histórico nem a observação da cozinha", async () => {
+    const leite = await ingrediente("Leite", "ml");
+    await registrarEntrada(db, gerente, { observacao: "nota secreta da cozinha", itens: [{ ingredienteId: leite, quantidade: "9000", local: "guardado", valorCentavos: 9000 }] });
+    await transferir(db, gerente, { ingredienteId: leite, quantidade: "1", de: { area: "cozinha", local: "guardado" }, para: { area: "cafeteria", local: "em_uso" }, recebidoPor: supervisor.usuarioId });
+    const p = (await painelDoEstoque(db, supervisor)).find((x) => x.ingredienteId === leite)!;
+    expect(p.total).toBe("1");
+    expect(p.valorCentavos).toBeNull();
+    const item = await estoqueDoItem(db, supervisor, { ingredienteId: leite });
+    expect(item.total).toBe("1");
+    expect(item.lotes.flatMap((l) => l.saldos.map((x) => x.area))).toEqual(["cafeteria"]);
+    const h = await historicoDoItem(db, supervisor, { ingredienteId: leite });
+    expect(h).toHaveLength(1);
+    expect(h[0]).toMatchObject({ tipo: "transferencia", quantidade: "1", quantidadeDepois: null });
+    expect(JSON.stringify(h)).not.toContain("secreta");
+    // O gerente vê tudo, com o total depois.
+    const hg = await historicoDoItem(db, gerente, { ingredienteId: leite });
+    expect(hg.map((x) => [x.tipo, x.quantidade, x.quantidadeDepois])).toEqual([
+      ["transferencia", "0", "9000"],
+      ["entrada", "9000", "9000"],
+    ]);
+  });
+
+  it("bloqueio, desbloqueio e perda só na própria área; sem custos, nada de valor", async () => {
+    const x = await ingrediente("Presunto");
+    await entrada(x, "500", "em_uso", { valorCentavos: 2000 });
+    const base = { ingredienteId: x, quantidade: "100", area: "cozinha", local: "em_uso" };
+    expect((await erroDe(bloquear(db, supervisor, { ...base, motivo: "quarentena" }))).codigo).toBe("sem_permissao");
+    await bloquear(db, cozinheira, { ...base, motivo: "quarentena" });
+    expect((await erroDe(desbloquear(db, supervisor, base))).codigo).toBe("sem_permissao");
+    expect((await erroDe(registrarPerda(db, supervisor, { ...base, motivo: "estragou" }))).codigo).toBe("sem_permissao");
+    const item = await estoqueDoItem(db, cozinheira, { ingredienteId: x });
+    expect([item.valorCentavos, item.custoMedioCentavos, item.areas[0]!.valorCentavos]).toEqual([null, null, null]);
+    const h = await historicoDoItem(db, cozinheira, { ingredienteId: x });
+    expect(h.every((m) => m.valorCentavos === null && m.valorDepois === null)).toBe(true);
+    // A perda que zera leva o valor todo.
+    await desbloquear(db, cozinheira, base);
+    await registrarPerda(db, cozinheira, { ...base, quantidade: "500", motivo: "estragou" });
+    expect((await saldo(x)).valor).toBe("0");
+  });
+
+  it("consumo de outra área usa o saldo daquela área", async () => {
+    const x = await ingrediente("Leite condensado", "ml");
+    await entrada(x, "300", "em_uso", { area: "cafeteria" });
+    expect((await erroDe(consumir({ itens: [{ ingredienteId: x, quantidade: "100" }] }))).message).toMatch(/Sem saldo/);
+    await consumir({ itens: [{ ingredienteId: x, quantidade: "100", area: "cafeteria" }] });
+    const p = (await painelDoEstoque(db, gerente)).find((i) => i.ingredienteId === x)!;
+    expect(p.areas).toEqual([expect.objectContaining({ area: "cafeteria", emUso: "200" })]);
+  });
+
+  it("valor no saldo inicial pede custos; quem não pode não descobre a chave; fornecedor desativado é recusado", async () => {
+    const x = await ingrediente("Fermento");
+    expect((await erroDe(registrarSaldoInicial(db, cozinheira, { itens: [{ ingredienteId: x, quantidade: "10", local: "em_uso", valorCentavos: 100 }] }))).codigo).toBe("sem_permissao");
+    const chave = `teste-${randomUUID()}`;
+    await registrarEntrada(db, gerente, { chave, itens: [{ ingredienteId: x, quantidade: "10", local: "em_uso" }] });
+    expect((await erroDe(registrarEntrada(db, atendente, { chave, itens: [{ ingredienteId: x, quantidade: "99", local: "em_uso" }] }))).codigo).toBe("sem_permissao");
+    const f = await salvarFornecedor(db, gerente, { nome: nome("Fornecedor parado") });
+    await salvarFornecedor(db, gerente, { id: f.id, nome: f.nome, ativo: false });
+    expect((await erroDe(registrarEntrada(db, gerente, { fornecedorId: f.id, itens: [{ ingredienteId: x, quantidade: "1", local: "em_uso" }] }))).message).toMatch(/desativado/);
+  });
+});
+
 describe("histórico imutável e repetição", () => {
   it("movimento, linha e lote não mudam nem somem", async () => {
     const x = await ingrediente("Açúcar");
@@ -322,7 +391,12 @@ describe("histórico imutável e repetição", () => {
     const c1 = await consumir({ chave: ck, origemTipo: "pedido", origemId: "1", itens: [{ ingredienteId: x, quantidade: "100" }] });
     const c2 = await consumir({ chave: ck, origemTipo: "pedido", origemId: "1", itens: [{ ingredienteId: x, quantidade: "100" }] });
     expect(c2).toMatchObject({ movimentoId: c1.movimentoId, repetido: true });
+    // Reenvio do mesmo pedido por outro aparelho (outro autor): o mesmo consumo, sem baixar de novo.
+    const c3 = await consumir({ chave: ck, origemTipo: "pedido", origemId: "1", itens: [{ ingredienteId: x, quantidade: "100" }] }, cozinheira.usuarioId);
+    expect(c3).toMatchObject({ movimentoId: c1.movimentoId, repetido: true });
     expect((await saldo(x)).total).toBe("400");
+    // Consumo sem chave é recusado (a baixa acontece uma vez só).
+    await expect(db.transaction().execute((trx) => consumirNaTransacao(trx, { autorId: gerente.usuarioId, itens: [{ ingredienteId: x, quantidade: "1" }] } as unknown as DadosDoConsumo))).rejects.toThrow(/Chave/);
   });
 
   it("mesma chave ao mesmo tempo: uma grava, a outra recebe a gravada", async () => {
@@ -361,12 +435,12 @@ describe("concorrência (RC-09 critério 10)", () => {
       let consumiu!: () => void;
       const consumido = new Promise<void>((r) => (consumiu = r));
       const a = db.transaction().execute(async (trx) => {
-        await consumirNaTransacao(trx, { autorId: gerente.usuarioId, itens: [{ ingredienteId: x, quantidade: "1" }] });
+        await consumirNaTransacao(trx, { autorId: gerente.usuarioId, chave: `teste-${randomUUID()}`, itens: [{ ingredienteId: x, quantidade: "1" }] });
         consumiu();
         await solto;
       });
       await consumido;
-      const b = outra.transaction().execute((trx) => consumirNaTransacao(trx, { autorId: gerente.usuarioId, itens: [{ ingredienteId: x, quantidade: "1" }] }));
+      const b = outra.transaction().execute((trx) => consumirNaTransacao(trx, { autorId: gerente.usuarioId, chave: `teste-${randomUUID()}`, itens: [{ ingredienteId: x, quantidade: "1" }] }));
       b.catch(() => undefined);
       await esperarPresos(1);
       soltar();
@@ -391,6 +465,7 @@ describe("concorrência (RC-09 critério 10)", () => {
           (k % 2 ? outra : db).transaction().execute((trx) =>
             consumirNaTransacao(trx, {
               autorId: gerente.usuarioId,
+              chave: `teste-${randomUUID()}`,
               itens: k % 2 ? [{ ingredienteId: a, quantidade: "10" }, { ingredienteId: b, quantidade: "10" }] : [{ ingredienteId: b, quantidade: "10" }, { ingredienteId: a, quantidade: "10" }],
             }),
           ),
@@ -410,7 +485,7 @@ describe("concorrência (RC-09 critério 10)", () => {
     const outra = bancoDeTeste();
     try {
       const r = await Promise.allSettled(
-        Array.from({ length: 20 }, (_, k) => (k % 2 ? outra : db).transaction().execute((trx) => consumirNaTransacao(trx, { autorId: gerente.usuarioId, itens: [{ ingredienteId: x, quantidade: "10" }] }))),
+        Array.from({ length: 20 }, (_, k) => (k % 2 ? outra : db).transaction().execute((trx) => consumirNaTransacao(trx, { autorId: gerente.usuarioId, chave: `teste-${randomUUID()}`, itens: [{ ingredienteId: x, quantidade: "10" }] }))),
       );
       expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(15);
       expect(r.filter((x) => x.status === "rejected").every((x) => (x as PromiseRejectedResult).reason instanceof ErroDeRegra)).toBe(true);
