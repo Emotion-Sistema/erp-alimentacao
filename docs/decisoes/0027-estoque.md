@@ -82,6 +82,16 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
    pedido (o cancelamento do pedido, na E11, cuida). Se o que entrou já foi usado ou mudou de
    lugar, recusa e diz o quê. Desfazer uma entrada leva junto o valor das correções de custo dela.
 
+14. **Contagem (PR 4, migração 0023)**: de itens (ex.: depois de "acabou" ou de venda sem
+   saldo), **rápida do dia** (uma por área por dia, com até 5 itens escolhidos nesta ordem: faltou
+   numa venda nos últimos 7 dias, mais divergiu nas contagens dos últimos 30, maior valor na área,
+   mais tempo sem contar) e **inventário** da área. **Cega**: enquanto aberta, ninguém recebe o
+   esperado. Ao contar, guarda-se o esperado daquele momento (sob a trava do item, somando livre,
+   bloqueado e vencido do local); recontar acrescenta registro e vale o último. Ao fechar, um
+   movimento "ajuste" (ligado à contagem) lança contado - esperado: falta sai do vencido, depois
+   do que vence antes, depois do bloqueado, nunca além do que há agora; sobra entra num lote novo
+   pelo custo médio (estimado). Item não contado não muda. Fechar ou cancelar acontece uma vez.
+
 ## Alternativas descartadas
 - Saldo calculado só pela soma das linhas: lento e difícil de travar; o saldo materializado com
   a linha ao lado dá as duas coisas.

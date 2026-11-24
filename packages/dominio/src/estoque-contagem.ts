@@ -12,8 +12,8 @@ import { z } from "zod";
 import { sql, type Banco } from "@erp/banco";
 import { AREAS_ESTOQUE, NOME_DA_AREA, type AreaEstoque } from "./cadastros";
 import { ErroDeRegra } from "./erros";
-import { motorDoEstoque as m, type Lancado } from "./estoque";
-import { LOCAIS, q4, q4DoBanco, QUANTIDADE_MAXIMA, textoQ4, valorDaSaida, type LocalDoEstoque } from "./estoque-comum";
+import { motorDoEstoque as m } from "./estoque";
+import { LOCAIS, q4, q4DoBanco, QUANTIDADE_MAXIMA, textoQ4, valorDaSaida, valorPeloCusto, type LocalDoEstoque } from "./estoque-comum";
 import { pode } from "./permissoes";
 import { type Ator } from "./sessao";
 
@@ -294,7 +294,7 @@ export async function verContagem(db: Banco, ator: Ator | null, dados: unknown):
         esperado: fechada && x.esperado !== null ? textoQ4(q4DoBanco(x.esperado)) : null,
         diferenca: dif === null ? null : textoQ4(dif),
         valorDaDiferenca:
-          dif === null || !comValor ? null : (dif < 0n ? -valorDaSaida(qI, vI, -dif) : qI > 0n ? valorDaSaida(qI, vI, dif > qI ? qI : dif) * (dif > qI ? dif : 1n) / (dif > qI ? qI : 1n) : 0n).toString(),
+          dif === null || !comValor ? null : (dif < 0n ? -valorDaSaida(qI, vI, -dif) : valorPeloCusto(dif, vI, qI)).toString(),
       };
     }),
   };
@@ -366,7 +366,7 @@ export type AjusteDaContagem = { itemId: number; nome: string; unidade: string; 
  * primeiro o vencido, depois o que vence antes, depois o bloqueado (nunca além do que há agora).
  * Sobra: entra num lote novo, pelo custo médio (estimado). Item não contado não muda.
  */
-export async function fecharContagem(db: Banco, ator: Ator | null, dados: unknown): Promise<Lancado & { movimentoId: string | null; ajustes: AjusteDaContagem[] }> {
+export async function fecharContagem(db: Banco, ator: Ator | null, dados: unknown): Promise<{ movimentoId: string | null; repetido: false; ajustes: AjusteDaContagem[] }> {
   if (!ator) await m.exigirAlgumaArea(db, ator);
   const d = validar(esquemaFim, dados);
   const { ator: quem, c } = await carregar(db, ator, d.contagemId);
