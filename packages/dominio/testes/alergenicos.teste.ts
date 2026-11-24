@@ -5,7 +5,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Banco } from "@erp/banco";
+import { sql, type Banco } from "@erp/banco";
 import {
   alergenicosDasFichas,
   alergenicosDoProduto,
@@ -22,6 +22,7 @@ import {
   salvarIngrediente,
   salvarProduto,
   verFicha,
+  TRAVA_DA_LISTA_DE_ALERGENICOS,
   type Ator,
   type FichaParaConta,
   type IngredienteParaAlergenicos,
@@ -620,5 +621,112 @@ describe("conferência que deixa de valer (revisão)", () => {
     await salvarAlergenico(db, gerente, { codigo, ativo: false });
     expect((await verFicha(db, gerente, f.resumo.id)).resumo.alergenicos.situacao).toBe("conferido");
     expect((await listarIngredientes(db, gerente)).ingredientes.find((i) => i.id === x)!.alergenicosNovosNaLista).toEqual([]);
+  });
+});
+
+/**
+ * Segura uma transação aberta numa conexão SEPARADA (outra pessoa no meio de uma gravação).
+ * `soltar(confirmar)` termina a transação e fecha a conexão; chame sempre num finally.
+ */
+async function outraTransacao(passos: (c: Banco) => Promise<void>): Promise<{ soltar: (confirmar: boolean) => Promise<void> }> {
+  const outro = bancoDeTeste();
+  let fim!: (confirmar: boolean) => void;
+  const terminar = new Promise<boolean>((r) => (fim = r));
+  let pronta!: (erro?: unknown) => void;
+  const aberta = new Promise<unknown>((r) => (pronta = r));
+  const tarefa = outro.connection().execute(async (c) => {
+    await sql`BEGIN`.execute(c);
+    try {
+      await passos(c);
+    } catch (e) {
+      await sql`ROLLBACK`.execute(c);
+      pronta(e);
+      return;
+    }
+    pronta();
+    await sql.raw((await terminar) ? "COMMIT" : "ROLLBACK").execute(c);
+  });
+  const erro = await aberta;
+  let solta = false;
+  const soltar = async (confirmar: boolean) => {
+    if (solta) return;
+    solta = true;
+    fim(confirmar);
+    await tarefa;
+    await outro.destroy();
+  };
+  if (erro) {
+    await soltar(false);
+    throw erro;
+  }
+  return { soltar };
+}
+
+/** A promessa ainda não terminou depois de `ms` (está esperando uma trava). */
+const aindaEsperando = async (p: Promise<unknown>, ms = 300) =>
+  Promise.race([p.then(() => false, () => false), new Promise<boolean>((r) => setTimeout(() => r(true), ms))]);
+
+describe("trava da lista de alergênicos (duas conexões, ordem forçada)", () => {
+  it("quem cria vem primeiro: a conferência espera e, quando a criação confirma, dá conflito", async () => {
+    const x = await ingrediente("Pasta A");
+    const p = await produto();
+    const f = await salvarFicha(db, gerente, { tipo: "produto", produtoId: p.id, receita: receita([{ ingredienteId: x, quantidade: "30" }]) });
+    const tela = await abrirTela(x);
+    const codigo = `trava_a_${sufixo}`;
+    const criacao = await outraTransacao(async (c) => {
+      await sql`SELECT pg_advisory_xact_lock(hashtext(${TRAVA_DA_LISTA_DE_ALERGENICOS}))`.execute(c);
+      await sql`INSERT INTO alergenico (codigo, nome, ativo) VALUES (${codigo}, ${`Trava A ${sufixo}`}, true)`.execute(c);
+    });
+    let conferencia: Promise<unknown> | undefined;
+    try {
+      conferencia = salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], ...tela });
+      conferencia.catch(() => undefined);
+      expect(await aindaEsperando(conferencia)).toBe(true);
+    } finally {
+      await criacao.soltar(true);
+    }
+    const recusa = await erroDe(conferencia!);
+    expect(recusa.codigo).toBe("conflito");
+    expect(recusa.message).toBe("A lista de alergênicos mudou enquanto você conferia. Abra de novo.");
+    expect((await verFicha(db, gerente, f.resumo.id)).resumo.alergenicos.situacao).toBe("em_conferencia");
+    await salvarAlergenico(db, gerente, { codigo, ativo: false });
+  });
+
+  it("quem confere vem primeiro: a criação espera e entra depois, reabrindo a conferência", async () => {
+    const x = await ingrediente("Pasta B");
+    const p = await produto();
+    const f = await salvarFicha(db, gerente, { tipo: "produto", produtoId: p.id, receita: receita([{ ingredienteId: x, quantidade: "30" }]) });
+    const tela = await abrirTela(x);
+    const codigo = `trava_b_${sufixo}`;
+    const nomeNovo = `Trava B ${sufixo}`;
+    // Outra conexão segura o ingrediente: a conferência pega a trava da lista e para no FOR UPDATE.
+    const segura = await outraTransacao(async (c) => {
+      await sql`SELECT id FROM ingrediente WHERE id = ${x} FOR UPDATE`.execute(c);
+    });
+    let conferencia: Promise<unknown> | undefined;
+    let criacao: Promise<unknown> | undefined;
+    try {
+      conferencia = salvarAlergenicosDoIngrediente(db, gerente, { ingredienteId: x, contem: [], tracos: [], ...tela });
+      conferencia.catch(() => undefined);
+      // Espera (sem adivinhar tempo) a conferência estar com a trava compartilhada da lista.
+      for (let i = 0; ; i++) {
+        const r = await sql<{ n: string }>`SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND mode = 'ShareLock' AND granted`.execute(db);
+        if (Number(r.rows[0]!.n) > 0) break;
+        if (i > 200) throw new Error("a conferência não pegou a trava da lista");
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      criacao = salvarAlergenico(db, gerente, { codigo, novo: true, nome: nomeNovo });
+      criacao.catch(() => undefined);
+      expect(await aindaEsperando(criacao)).toBe(true);
+      expect(await aindaEsperando(conferencia, 50)).toBe(true);
+    } finally {
+      await segura.soltar(false);
+    }
+    await conferencia;
+    await criacao;
+    const a = (await verFicha(db, gerente, f.resumo.id)).resumo.alergenicos;
+    expect(a.situacao).toBe("em_conferencia");
+    expect(a.emConferencia).toEqual([{ ingredienteId: x, nome: expect.any(String), motivo: `conferido antes de ${nomeNovo} entrar na lista` }]);
+    await salvarAlergenico(db, gerente, { codigo, ativo: false });
   });
 });

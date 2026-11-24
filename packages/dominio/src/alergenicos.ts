@@ -81,9 +81,10 @@ const esquemaDoIngrediente = z.object(
  * confere um ingrediente pega a compartilhada. Assim, ou a conferência vê o alergênico novo (e
  * recusa, se a tela não o mostrou), ou o alergênico entra depois da conferência (e a reabre).
  */
+export const TRAVA_DA_LISTA_DE_ALERGENICOS = "alergenicos:lista";
 async function travarLista(trx: Banco, modo: "mudar" | "conferir"): Promise<void> {
-  if (modo === "mudar") await sql`SELECT pg_advisory_xact_lock(hashtext('alergenicos:lista'))`.execute(trx);
-  else await sql`SELECT pg_advisory_xact_lock_shared(hashtext('alergenicos:lista'))`.execute(trx);
+  if (modo === "mudar") await sql`SELECT pg_advisory_xact_lock(hashtext(${TRAVA_DA_LISTA_DE_ALERGENICOS}))`.execute(trx);
+  else await sql`SELECT pg_advisory_xact_lock_shared(hashtext(${TRAVA_DA_LISTA_DE_ALERGENICOS}))`.execute(trx);
 }
 
 function validar<T>(esquema: z.ZodType<T>, dados: unknown): T {
