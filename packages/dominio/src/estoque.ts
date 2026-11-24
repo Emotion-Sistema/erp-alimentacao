@@ -872,7 +872,10 @@ export async function consumirNaTransacao(trx: Trx, dados: DadosDoConsumo): Prom
   const d = { ...extra, itens: dados.itens };
   if (!Array.isArray(d.itens) || d.itens.length === 0) throw new ErroDeRegra("dados_invalidos", "Nada para consumir.");
   if (d.itens.length > ITENS_POR_LANCAMENTO) throw new ErroDeRegra("dados_invalidos", "Itens demais num consumo.");
-  for (const i of d.itens) if (!umItem(i)) throw new ErroDeRegra("dados_invalidos", MSG_UM_ITEM);
+  for (const i of d.itens) {
+    if (!umItem(i)) throw new ErroDeRegra("dados_invalidos", MSG_UM_ITEM);
+    validar(z.object({ ...referencia, area: area.optional() }, { error: "Item do consumo em formato inválido." }), { ingredienteId: i.ingredienteId, preparoId: i.preparoId, area: i.area });
+  }
   // Fração exata por linha; o mesmo item (mesma área) soma exato e só então arredonda.
   const exatas = d.itens.map((i) => {
     const f = typeof i.quantidade === "string" ? (q4(i.quantidade) === null ? null : new Fracao(q4(i.quantidade)!, ESCALA)) : i.quantidade;
@@ -946,6 +949,7 @@ export async function consumirNaTransacao(trx: Trx, dados: DadosDoConsumo): Prom
     l.saida(item.id, p.q - falta);
   }
   if (semSaldo.length) throw new ErroDeRegra("conflito", `Sem saldo: ${semSaldo.join("; ")}.`);
+  if (pedidos.every((p) => p.q === 0n)) throw new ErroDeRegra("dados_invalidos", "Nada para consumir (as quantidades deram zero).");
   await l.fechar();
   return { movimentoId: mov, repetido: false, faltas, usouGuardado };
 }
@@ -1128,8 +1132,11 @@ export async function estoqueDoItem(db: Banco, ator: Ator | null, ref: unknown):
   const { ator: a, areas } = await exigirAlgumaArea(db, ator);
   const [item] = await carregarPainel(db, areas, pode(a.cargoAtivo, "custos.ver"), r);
   if (!item) throw new ErroDeRegra("nao_encontrado", "Item não encontrado.");
-  if (!areas.includes(item.areaPadrao) && item.areas.length === 0)
-    await exigir(db, a, acaoDaArea(item.areaPadrao), { tipo: "estoque_area", id: item.areaPadrao });
+  if (!areas.includes(item.areaPadrao) && item.areas.length === 0 && item.itemId !== null) {
+    // Sem saldo agora nas áreas da pessoa: ainda vê se já houve movimento nelas (o histórico não some).
+    const teve = await sql<{ ok: boolean }>`SELECT EXISTS (SELECT 1 FROM estoque_movimento_linha WHERE item_id = ${item.itemId} AND area = ANY(${areas}::text[])) AS ok`.execute(db);
+    if (!teve.rows[0]!.ok) await exigir(db, a, acaoDaArea(item.areaPadrao), { tipo: "estoque_area", id: item.areaPadrao });
+  } else if (!areas.includes(item.areaPadrao) && item.areas.length === 0) await exigir(db, a, acaoDaArea(item.areaPadrao), { tipo: "estoque_area", id: item.areaPadrao });
   const lotes: LoteDoItem[] = [];
   if (item.itemId !== null) {
     const l = await sql<{ id: number; validade: string | null; vencido: boolean; codigo: string | null; entrou: string; area: AreaEstoque; local: LocalDoEstoque; bloqueado: boolean; quantidade: string }>`

@@ -39,6 +39,8 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
 6. **Vencido** não é consumido nem transferido; conta como bloqueado no livre. Na perda, o vencido
    sai primeiro. Compra com validade passada é recusada; no saldo inicial, o vencido que já está
    na loja entra **bloqueado** (para a contagem bater e alguém dar baixa como perda).
+   O saldo inicial aceita item desativado no cadastro (o que está na loja tem de ser contado);
+   a compra, não.
 7. **Concorrência**: todo lançamento trava as linhas de `estoque_item` (FOR UPDATE) em ordem de id;
    itens novos nascem em ordem fixa. A permissão é conferida antes da chave e das travas.
 8. **Repetição**: `chave` única por movimento com assinatura do conteúdo (sem o autor: o reenvio
