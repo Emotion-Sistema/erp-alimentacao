@@ -130,6 +130,16 @@ describe("produção de preparo", () => {
     expect((await total({ preparoId: lasanha.resumo.id })).q).toBe("480");
   });
 
+  it("rendimento muito fora do previsto pede confirmação; validade passada é recusada", async () => {
+    const { tomate, sal, molhoId } = await molho();
+    await entrada(tomate, "1000");
+    await entrada(sal, "20");
+    expect((await erroDe(produzirPreparo(db, gerente, { preparoId: molhoId, previsto: "1000", rendimento: "18000" }))).message).toMatch(/confira o número/);
+    expect((await erroDe(produzirPreparo(db, gerente, { preparoId: molhoId, previsto: "1000", rendimento: "900", validade: "2020-01-01" }))).message).toMatch(/validade já passou/);
+    await produzirPreparo(db, gerente, { preparoId: molhoId, previsto: "1000", rendimento: "2500", confirmarRendimento: true });
+    expect((await total({ preparoId: molhoId })).q).toBe("2500");
+  });
+
   it("mesma chave: produz uma vez só", async () => {
     const { tomate, sal, molhoId } = await molho();
     await entrada(tomate, "1000");
@@ -199,6 +209,19 @@ describe("desfazer movimento", () => {
     expect(await total({ ingredienteId: x })).toEqual({ q: "2000", v: "7000" });
     await desfazerMovimento(db, gerente, { movimentoId: e.movimentoId, ...obs });
     expect(await total({ ingredienteId: x })).toEqual({ q: "1000", v: "3000" });
+  });
+
+  it("desfazer entrada depois de saída leva só a parte que resta pela média; volta o último custo; entrada desfeita não tem custo corrigido", async () => {
+    const x = await ingrediente("Pimenta", "un");
+    await entrada(x, "10", 100);
+    const b = await entrada(x, "10", 9999); // preço errado
+    await consumir(x, "5");
+    // Antes de desfazer: 20 un, 10099; saem 5 = 2525 (média). Fica 15 un, 7574; parte de B = 9999 x 15/20 = 7499.
+    await desfazerMovimento(db, gerente, { movimentoId: b.movimentoId, observacao: "preço errado" });
+    expect(await total({ ingredienteId: x })).toEqual({ q: "5", v: "75" });
+    const u = await db.selectFrom("estoque_item").select(["ultimo_custo_centavos", "ultimo_custo_quantidade"]).where("ingrediente_id", "=", x).executeTakeFirstOrThrow();
+    expect([u.ultimo_custo_centavos, Number(u.ultimo_custo_quantidade)]).toEqual(["100", 10]);
+    expect((await erroDe(corrigirCustoDaEntrada(db, gerente, { movimentoId: b.movimentoId, itens: [{ ingredienteId: x, valorCentavos: 300 }] }))).message).toMatch(/foi desfeita/);
   });
 
   it("dois desfazer do mesmo movimento ao mesmo tempo: um só vale", async () => {
