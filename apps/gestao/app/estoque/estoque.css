@@ -1,0 +1,76 @@
+/*
+ * Telas do estoque (E09). Só variáveis do tema (packages/interface/src/tema.css); nenhuma cor
+ * escrita aqui. Prefixo "est-". Feito para o celular Android da equipe: botões e cartões grandes.
+ */
+.est-tela { gap: var(--espaco-4); }
+.est-painel { display: grid; gap: var(--espaco-4); min-width: 0; }
+.est-painel > * { min-width: 0; margin: 0; }
+.est-filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: var(--espaco-3); align-items: start; }
+
+/* ---------- cartões dos itens ---------- */
+.est-itens { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); gap: var(--espaco-3); }
+.est-item { min-width: 0; }
+.est-item__botao {
+  display: grid; gap: var(--espaco-2); width: 100%; min-height: var(--alvo-toque); text-align: left; cursor: pointer; font: inherit; color: var(--cor-texto);
+  padding: var(--espaco-3) var(--espaco-4); background: var(--cor-cartao); border: 1px solid var(--cor-borda-suave); border-left: 6px solid var(--cor-primaria);
+  border-radius: var(--raio); box-shadow: var(--sombra-1); transition: border-color var(--transicao), background var(--transicao);
+}
+.est-item__botao:hover { border-color: var(--cor-texto-suave); border-left-color: var(--cor-primaria); }
+.est-item__botao:focus-visible { outline: 3px solid var(--cor-primaria); outline-offset: 2px; }
+.est-item__cabeca { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--espaco-1) var(--espaco-3); min-width: 0; }
+.est-item__nome { font-weight: var(--peso-forte); font-size: var(--texto-grande); overflow-wrap: anywhere; }
+.est-item__livre { font-weight: var(--peso-forte); font-size: var(--texto-grande); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.est-item__rotulo { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); font-weight: normal; }
+.est-item__selos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); margin: 0; min-width: 0; }
+.est-item__numeros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--espaco-2); }
+.est-item__rodape { display: flex; flex-wrap: wrap; gap: var(--espaco-1) var(--espaco-3); font-size: var(--texto-pequeno); color: var(--cor-texto-suave); font-variant-numeric: tabular-nums; }
+.est-numero { display: grid; gap: 2px; min-width: 0; }
+.est-numero__rotulo { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
+.est-numero__valor { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.est-numero--destaque .est-numero__valor { color: var(--cor-perigo); font-weight: var(--peso-forte); }
+@media (max-width: 40rem) {
+  .est-item__numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---------- detalhe ---------- */
+.est-detalhe { display: grid; gap: var(--espaco-4); min-width: 0; }
+.est-detalhe > * { margin: 0; min-width: 0; }
+.est-bloco { display: grid; gap: var(--espaco-3); min-width: 0; }
+.est-bloco > * { margin: 0; min-width: 0; }
+.est-saldos { display: grid; gap: var(--espaco-2); margin: 0; }
+.est-saldos__area { padding: var(--espaco-3); background: var(--cor-superficie); border: 1px solid var(--cor-borda-suave); border-radius: var(--raio); }
+.est-saldos__area dt { font-weight: var(--peso-forte); }
+.est-saldos__area dd { margin: var(--espaco-1) 0 0; font-variant-numeric: tabular-nums; }
+.est-acoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); }
+.est-acoes > * { flex: 1 1 10rem; justify-content: center; }
+.est-acoes--grandes > * { min-height: calc(var(--alvo-toque) * 1.25); font-size: var(--texto-grande); }
+.est-lotes, .est-historico, .est-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); min-width: 0; }
+.est-lote, .est-mov, .est-linha {
+  display: grid; gap: var(--espaco-1); min-width: 0; padding: var(--espaco-3);
+  background: var(--cor-cartao); border: 1px solid var(--cor-borda-suave); border-radius: var(--raio);
+}
+.est-lote__cabeca, .est-mov__cabeca, .est-linha__cabeca { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-1) var(--espaco-3); min-width: 0; }
+.est-lote__quando, .est-mov__quando, .est-linha__texto, .est-mov__obs { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); overflow-wrap: anywhere; margin: 0; }
+.est-lote__saldos { margin: 0; padding-left: var(--espaco-4); font-variant-numeric: tabular-nums; }
+.est-mov__qtd { margin-left: auto; font-weight: var(--peso-forte); font-variant-numeric: tabular-nums; }
+.est-mov__desfazer { justify-self: start; }
+.est-form { display: grid; gap: var(--espaco-3); min-width: 0; padding: var(--espaco-3); background: var(--cor-superficie); border: 1px solid var(--cor-borda-suave); border-radius: var(--raio); }
+.est-form > * { margin: 0; min-width: 0; }
+.est-form__linha { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--espaco-3); align-items: end; min-width: 0; }
+
+/* ---------- contagem e compras ---------- */
+.est-contagens { display: grid; gap: var(--espaco-4); min-width: 0; }
+.est-contagens > * { margin: 0; min-width: 0; }
+.est-contar { display: grid; gap: var(--espaco-3); min-width: 0; }
+.est-contar > * { margin: 0; min-width: 0; }
+.est-contar__linha { margin: 0; min-width: 0; }
+.est-contar__grupo { border: 0; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); min-width: 0; }
+.est-contar__grupo > legend { font-weight: var(--peso-forte); font-size: var(--texto-grande); padding: 0; }
+.est-entrada__campos { border: 0; margin: 0; padding: 0; display: grid; gap: var(--espaco-3); min-width: 0; }
+.est-entrada__campos > legend { font-weight: var(--peso-forte); padding: 0; margin-bottom: var(--espaco-2); }
+.est-foto { display: grid; gap: var(--espaco-2); min-width: 0; }
+.est-destaque { font-size: var(--texto-grande); }
+.est-total { margin: 0; font-weight: var(--peso-forte); font-variant-numeric: tabular-nums; }
+@media (max-width: 40rem) {
+  .est-acoes > *, .est-mov__desfazer { width: 100%; }
+}

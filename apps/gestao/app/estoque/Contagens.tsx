@@ -221,6 +221,8 @@ function TelaDeContar({ contagem: c, preparos, contexto, aoVoltar, aoMudar }: { 
     setOcupado(false);
     if (!r.ok) {
       setErro(r.mensagem);
+      // "Conte de novo: ...": a contagem segue aberta; os números novos aparecem ao recarregar.
+      if (r.status === 409) await recarregar();
       return false;
     }
     await recarregar();
@@ -273,6 +275,7 @@ function TelaDeContar({ contagem: c, preparos, contexto, aoVoltar, aoMudar }: { 
                   <span className="est-linha__texto">
                     {l.contado === null ? T.naoContado : T.contado(qtd(l.contado, l.unidade), l.contadoPor ?? "")}
                     {l.esperado !== null && `. ${T.esperado(qtd(l.esperado, l.unidade))}`}
+                    {l.aplicado !== null && l.diferenca !== null && l.diferenca !== "0" && `. ${T.aplicado(qtdComSinal(l.aplicado, l.unidade))}`}
                     {l.valorDaDiferenca !== null && l.diferenca !== "0" && `. ${T.valorDaDiferenca(reais(l.valorDaDiferenca))}`}
                   </span>
                 </>

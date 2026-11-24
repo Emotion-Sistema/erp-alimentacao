@@ -94,12 +94,16 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
                 .map((a) => (
                   <div key={a.area} className="est-saldos__area">
                     <dt>{contexto.nomeDaArea[a.area]}</dt>
-                    <dd>
-                      {TE.painel.livre}: <strong>{qtd(a.livre, item.unidade)}</strong>. {TE.painel.emUso}: {qtd(a.emUso, item.unidade)}. {TE.painel.guardado}: {qtd(a.guardado, item.unidade)}.
-                      {a.bloqueado !== "0" && ` ${TE.painel.bloqueado}: ${qtd(a.bloqueado, item.unidade)}.`}
-                      {a.vencido !== "0" && ` ${TE.painel.vencido}: ${qtd(a.vencido, item.unidade)}.`}
-                      {a.valorCentavos !== null && ` ${TE.painel.valor}: ${reais(a.valorCentavos)}.`}
-                    </dd>
+                    {a.emContagem || a.livre === null ? (
+                      <dd data-testid="em-contagem">{TE.painel.emContagemExplicacao}</dd>
+                    ) : (
+                      <dd>
+                        {TE.painel.livre}: <strong>{qtd(a.livre, item.unidade)}</strong>. {TE.painel.emUso}: {qtd(a.emUso, item.unidade)}. {TE.painel.guardado}: {qtd(a.guardado, item.unidade)}.
+                        {a.bloqueado !== null && a.bloqueado !== "0" && ` ${TE.painel.bloqueado}: ${qtd(a.bloqueado, item.unidade)}.`}
+                        {a.vencido !== null && a.vencido !== "0" && ` ${TE.painel.vencido}: ${qtd(a.vencido, item.unidade)}.`}
+                        {a.valorCentavos !== null && ` ${TE.painel.valor}: ${reais(a.valorCentavos)}.`}
+                      </dd>
+                    )}
                   </div>
                 ))}
               {item.custoMedioCentavos && (
@@ -153,7 +157,7 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
                       <ul className="est-lote__saldos">
                         {l.saldos.map((x) => (
                           <li key={`${x.area}-${x.local}-${x.bloqueado}`}>
-                            {NOME_DO_LOCAL[x.local]}, {contexto.nomeDaArea[x.area]}: <strong>{qtd(x.quantidade, item.unidade)}</strong>
+                            {NOME_DO_LOCAL[x.local]}, {contexto.nomeDaArea[x.area]}: <strong>{x.quantidade === null ? TE.painel.emContagem : qtd(x.quantidade, item.unidade)}</strong>
                             {x.bloqueado && ` (${TE.painel.bloqueado.toLowerCase()})`}
                           </li>
                         ))}
@@ -178,7 +182,7 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
                       <li key={m.movimentoId} className="est-mov" data-testid={`movimento-${m.movimentoId}`}>
                         <span className="est-mov__cabeca">
                           <strong>{NOME_DO_MOVIMENTO[m.tipo] ?? m.tipo}</strong>
-                          <span className="est-mov__qtd">{qtdComSinal(m.quantidade, item.unidade)}</span>
+                          <span className="est-mov__qtd">{m.quantidade === null ? TE.painel.emContagem : qtdComSinal(m.quantidade, item.unidade)}</span>
                         </span>
                         <span className="est-mov__quando">{TE.item.por(m.autor, quando)}</span>
                         {(m.motivo || m.observacao) && <span className="est-mov__obs">{[motivoLegivel(m, contexto), m.observacao].filter(Boolean).join(": ")}</span>}
@@ -271,12 +275,15 @@ function FormDoLancamento({ acao, item, contexto, areas, aoCancelar, aoGravar }:
   const [validade, setValidade] = useState("");
   const [codigoLote, setCodigoLote] = useState("");
   const { enviar, ocupado, erro } = useEnvio();
+  // Rendimento muito longe do previsto: o servidor pede para conferir; a pessoa confirma e reenvia.
+  const [confirmar, setConfirmar] = useState(false);
+  const pedeConfirmacao = acao === "producao" && /confira o número/i.test(erro);
   const para = local === "em_uso" ? "guardado" : "em_uso";
   const bloqueadoNoLote = acao === "desbloqueio" || (acao === "perda" && doBloqueado);
   const lotes = item.lotes.filter((l) => l.saldos.some((x) => x.area === area && x.local === local && x.bloqueado === bloqueadoNoLote && x.quantidade !== "0"));
   const opcoesDeLocal = Object.entries(NOME_DO_LOCAL).map(([valor, texto]) => ({ valor, texto }));
 
-  async function gravar() {
+  async function gravar(confirmarRendimento = false) {
     const comum = {
       ...(item.ingredienteId !== null ? { ingredienteId: item.ingredienteId } : { preparoId: item.preparoId }),
       ...(observacao.trim() ? { observacao } : {}),
@@ -284,7 +291,7 @@ function FormDoLancamento({ acao, item, contexto, areas, aoCancelar, aoGravar }:
     };
     let corpo: Record<string, unknown>;
     if (acao === "producao")
-      corpo = { preparoId: item.preparoId, previsto: quantidade, rendimento, local, ...(validade ? { validade } : {}), ...(codigoLote.trim() ? { lote: codigoLote } : {}), ...(observacao.trim() ? { observacao } : {}) };
+      corpo = { preparoId: item.preparoId, previsto: quantidade, rendimento, local, ...(confirmarRendimento ? { confirmarRendimento: true } : {}), ...(validade ? { validade } : {}), ...(codigoLote.trim() ? { lote: codigoLote } : {}), ...(observacao.trim() ? { observacao } : {}) };
     else if (acao === "transferencia") corpo = { ...comum, quantidade, unidade, de: { area, local }, para: { area, local: para } };
     else if (acao === "perda") corpo = { ...comum, quantidade, unidade, area, local, motivo, ...(doBloqueado ? { doBloqueado: true } : {}) };
     else if (acao === "bloqueio") corpo = { ...comum, quantidade, unidade, area, local, motivo };
@@ -362,6 +369,21 @@ function FormDoLancamento({ acao, item, contexto, areas, aoCancelar, aoGravar }:
         <Aviso tipo="perigo" data-testid="erro-do-lancamento">
           {erro}
         </Aviso>
+      )}
+      {pedeConfirmacao && (
+        <div className="est-form" data-testid="confirmar-rendimento">
+          <p>
+            <strong>{TE.form.confirmarRendimento}</strong> {TE.form.confirmarRendimentoTexto(qtd(rendimento.replace(",", "."), item.unidade), qtd(quantidade.replace(",", "."), item.unidade))}
+          </p>
+          <div className="hor-secao__botoes">
+            <Botao disabled={ocupado || confirmar} onClick={() => {
+              setConfirmar(true);
+              void gravar(true).finally(() => setConfirmar(false));
+            }}>
+              {TE.form.confirmarRendimentoSim}
+            </Botao>
+          </div>
+        </div>
       )}
       <div className="hor-secao__botoes">
         <Botao type="submit" disabled={ocupado} aria-busy={ocupado}>

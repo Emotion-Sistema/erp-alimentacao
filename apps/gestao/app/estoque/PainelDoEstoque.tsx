@@ -25,13 +25,18 @@ const DIAS_DO_VENCE_LOGO = 3;
 
 /** Soma das áreas visíveis nesta tela (o servidor já manda só as áreas da pessoa). */
 export function somaDasAreas(i: ItemDoPainel, areas: readonly string[]) {
-  const s = { emUso: 0n, guardado: 0n, bloqueado: 0n, vencido: 0n, livre: 0n, valor: null as bigint | null };
+  const s = { emUso: 0n, guardado: 0n, bloqueado: 0n, vencido: 0n, livre: 0n, valor: null as bigint | null, emContagem: false };
   for (const a of i.areas) {
     if (!areas.includes(a.area)) continue;
-    s.emUso += q4(a.emUso);
-    s.guardado += q4(a.guardado);
-    s.bloqueado += q4(a.bloqueado);
-    s.vencido += q4(a.vencido);
+    // Contagem cega: com contagem aberta do item nesta área, o servidor não manda os números.
+    if (a.emContagem || a.livre === null) {
+      s.emContagem = true;
+      continue;
+    }
+    s.emUso += q4(a.emUso ?? "0");
+    s.guardado += q4(a.guardado ?? "0");
+    s.bloqueado += q4(a.bloqueado ?? "0");
+    s.vencido += q4(a.vencido ?? "0");
     s.livre += q4(a.livre);
     if (a.valorCentavos !== null) s.valor = (s.valor ?? 0n) + BigInt(a.valorCentavos);
   }
@@ -149,6 +154,9 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
 
 function CartaoDoItem({ item, areas, contexto, limite, aoAbrir }: { item: ItemDoPainel; areas: readonly string[]; contexto: ContextoDoEstoque; limite: string; aoAbrir: () => void }) {
   const s = somaDasAreas(item, areas);
+  // Em contagem (cega): no lugar dos números, "Em contagem".
+  const cego = s.emContagem || (item.emContagem && areas.includes(item.areaPadrao) && item.areas.every((a) => !areas.includes(a.area) || a.emContagem));
+  const n = (v: bigint) => (cego ? TE.painel.emContagem : qtd(textoQ4(v), item.unidade));
   const total = s.emUso + s.guardado;
   const venceLogo = item.proximaValidade !== null && item.proximaValidade <= limite;
   return (
@@ -157,7 +165,7 @@ function CartaoDoItem({ item, areas, contexto, limite, aoAbrir }: { item: ItemDo
         <span className="est-item__cabeca">
           <span className="est-item__nome">{item.nome}</span>
           <span className="est-item__livre" data-testid="livre">
-            <span className="est-item__rotulo">{TE.painel.livre}</span> {qtd(textoQ4(s.livre), item.unidade)}
+            <span className="est-item__rotulo">{TE.painel.livre}</span> {n(s.livre)}
           </span>
         </span>
         <span className="est-item__selos">
@@ -173,13 +181,14 @@ function CartaoDoItem({ item, areas, contexto, limite, aoAbrir }: { item: ItemDo
               {TE.painel.venceLogo(dia(item.proximaValidade))}
             </Selo>
           )}
-          {total === 0n && <Selo>{TE.painel.zerado}</Selo>}
+          {cego && <Selo variante="info">{TE.painel.emContagem}</Selo>}
+          {total === 0n && !cego && <Selo>{TE.painel.zerado}</Selo>}
         </span>
         <span className="est-item__numeros">
-          <Numero rotulo={TE.painel.emUso} valor={qtd(textoQ4(s.emUso), item.unidade)} />
-          <Numero rotulo={TE.painel.guardado} valor={qtd(textoQ4(s.guardado), item.unidade)} />
-          <Numero rotulo={TE.painel.bloqueado} valor={qtd(textoQ4(s.bloqueado), item.unidade)} destaque={s.bloqueado > 0n} />
-          <Numero rotulo={TE.painel.vencido} valor={qtd(textoQ4(s.vencido), item.unidade)} destaque={s.vencido > 0n} />
+          <Numero rotulo={TE.painel.emUso} valor={n(s.emUso)} />
+          <Numero rotulo={TE.painel.guardado} valor={n(s.guardado)} />
+          <Numero rotulo={TE.painel.bloqueado} valor={n(s.bloqueado)} destaque={s.bloqueado > 0n} />
+          <Numero rotulo={TE.painel.vencido} valor={n(s.vencido)} destaque={s.vencido > 0n} />
         </span>
         {(item.proximaValidade || s.valor !== null || item.custoMedioCentavos) && (
           <span className="est-item__rodape">
