@@ -655,6 +655,21 @@ export interface EstoqueMovimentoItemTabela {
   valor_depois: Inteirao;
   faltou: ColumnType<string, string | number | undefined, never>;
   custo_estimado: Generated<boolean>;
+  /** Só na correção de custo (migração 0022): o valor total certo da linha da entrada. */
+  valor_informado: Inteirao | null;
+}
+
+/** Foto da nota de compra (migração 0022). */
+export interface EstoqueNotaFotoTabela {
+  id: Generated<number>;
+  movimento_id: Inteirao;
+  tipo: Generated<"image/webp">;
+  conteudo: Buffer;
+  largura: number;
+  altura: number;
+  sha256: string;
+  enviada_por: number;
+  criado_em: Instante;
 }
 
 export interface EstoqueMovimentoLinhaTabela {
@@ -723,4 +738,5 @@ export interface BancoTabelas {
   estoque_saldo: EstoqueSaldoTabela;
   estoque_movimento_item: EstoqueMovimentoItemTabela;
   estoque_movimento_linha: EstoqueMovimentoLinhaTabela;
+  estoque_nota_foto: EstoqueNotaFotoTabela;
 }

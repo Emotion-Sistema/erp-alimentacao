@@ -56,6 +56,21 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
    quem não vê todas as áreas não vê o total geral, o "depois" nem os movimentos sem linha nas
    suas áreas.
 
+11. **Compras (PR 2, migração 0022)**: a entrada guarda fornecedor (ativo), número e data da nota,
+   digitados; até 5 fotos da nota por entrada (WebP refeito, até 2000 px, um lado até 10 vezes o
+   outro, 2 MB; a mesma foto não duplica). **Correção de custo** (`custos.ver`): movimento "custo"
+   ligado à entrada, com o valor certo da linha (`valor_informado`); a diferença entra no estoque
+   na parte que ainda resta **pelo custo médio**: cada saída depois da entrada leva "saída /
+   quantidade antes" do valor (os lotes saem por validade, mas o valor sai pela média; o que já
+   saiu saiu com o custo da época); nunca deixa valor negativo nem dá valor a item zerado. Quem
+   corrige: `custos.ver` **e** cuidar de uma área da entrada (hoje: dono, administrador e gerente
+   geral; o financeiro, que não cuida de área, não corrige o que não vê). Na lista de entradas,
+   cada um vê só os itens das próprias áreas, e valores só quem vê todas as áreas. **Saldo inicial por planilha**:
+   conferir e gravar, com correção no painel (ideia nº 13); um movimento por gravação, com a chave
+   da conferência; avisa quando já houve saldo inicial (gravar de novo soma). Reenviar a
+   gravação com a mesma chave devolve a já gravada, mesmo que o cadastro tenha mudado. Item
+   desativado entra com aviso, como no lançamento à mão.
+
 ## Alternativas descartadas
 - Saldo calculado só pela soma das linhas: lento e difícil de travar; o saldo materializado com
   a linha ao lado dá as duas coisas.

@@ -77,7 +77,7 @@ function validar<T>(esquema: z.ZodType<T>, dados: unknown): T {
 const RECUSA = "Envie uma foto em JPG, PNG ou WebP.";
 
 /** Base64 estrito: só os caracteres do alfabeto, com o tamanho certo. */
-function decodificar(base64: string): Buffer {
+export function decodificarFoto(base64: string): Buffer {
   const limpo = base64.replace(/\s+/g, "");
   if (limpo.length > Math.ceil(FOTO_BYTES_MAXIMO / 3) * 4) throw new ErroDeRegra("dados_invalidos", "Foto grande demais: o máximo é 8 MB.");
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(limpo) || limpo.length % 4 !== 0) throw new ErroDeRegra("dados_invalidos", "Arquivo da foto inválido.");
@@ -97,11 +97,22 @@ export function refazerFoto(
   original: Buffer,
   /** Só para teste: as qualidades tentadas (padrão: QUALIDADES). */
   qualidades: readonly number[] = QUALIDADES,
+  /** Limites de outro uso (ex.: foto da nota de compra, comprida e com letra miúda). */
+  limites: Partial<LimitesDaFoto> = {},
 ): Promise<{ conteudo: Buffer; largura: number; altura: number }> {
-  return naVez(() => refazer(original, qualidades));
+  return naVez(() => refazer(original, qualidades, { ...LIMITES_DO_CARDAPIO, ...limites }));
 }
 
-async function refazer(original: Buffer, qualidades: readonly number[]): Promise<{ conteudo: Buffer; largura: number; altura: number }> {
+export type LimitesDaFoto = { ladoMaximo: number; ladoMinimo: number; proporcaoMaxima: number; gravadaMaxima: number; detalheDemais: string };
+const LIMITES_DO_CARDAPIO: LimitesDaFoto = {
+  ladoMaximo: FOTO_LADO_MAXIMO,
+  ladoMinimo: FOTO_LADO_MINIMO,
+  proporcaoMaxima: FOTO_PROPORCAO_MAXIMA,
+  gravadaMaxima: FOTO_GRAVADA_MAXIMO,
+  detalheDemais: "Foto com detalhe demais para o cardápio. Tente outra foto.",
+};
+
+async function refazer(original: Buffer, qualidades: readonly number[], lim: LimitesDaFoto): Promise<{ conteudo: Buffer; largura: number; altura: number }> {
   if (!original.length) throw new ErroDeRegra("dados_invalidos", "Envie o arquivo da foto.");
   if (original.length > FOTO_BYTES_MAXIMO) throw new ErroDeRegra("dados_invalidos", "Foto grande demais: o máximo é 8 MB.");
   const formato = formatoPelosBytes(original);
@@ -117,25 +128,25 @@ async function refazer(original: Buffer, qualidades: readonly number[]): Promise
   const w = info.width ?? 0;
   const h = info.height ?? 0;
   if (!w || !h || w * h > PIXELS_MAXIMO) throw new ErroDeRegra("dados_invalidos", "Foto grande demais em pixels.");
-  if (Math.min(w, h) < FOTO_LADO_MINIMO)
-    throw new ErroDeRegra("dados_invalidos", `Foto pequena demais: o lado menor precisa de pelo menos ${FOTO_LADO_MINIMO} pixels.`);
-  if (Math.max(w, h) > FOTO_PROPORCAO_MAXIMA * Math.min(w, h))
-    throw new ErroDeRegra("dados_invalidos", "Foto comprida demais: um lado pode ter no máximo 4 vezes o outro. Recorte a foto.");
+  if (Math.min(w, h) < lim.ladoMinimo)
+    throw new ErroDeRegra("dados_invalidos", `Foto pequena demais: o lado menor precisa de pelo menos ${lim.ladoMinimo} pixels.`);
+  if (Math.max(w, h) > lim.proporcaoMaxima * Math.min(w, h))
+    throw new ErroDeRegra("dados_invalidos", `Foto comprida demais: um lado pode ter no máximo ${lim.proporcaoMaxima} vezes o outro. Recorte a foto.`);
   for (const qualidade of qualidades) {
     let r: { data: Buffer; info: OutputInfo };
     try {
       r = await abrir()
         .rotate() // orientação da câmera (EXIF)
-        .resize({ width: FOTO_LADO_MAXIMO, height: FOTO_LADO_MAXIMO, fit: "inside", withoutEnlargement: true })
+        .resize({ width: lim.ladoMaximo, height: lim.ladoMaximo, fit: "inside", withoutEnlargement: true })
         .flatten({ background: "#ffffff" }) // transparência vira fundo branco
         .webp({ quality: qualidade, effort: 4 }) // sem keepMetadata: a saída não leva EXIF, GPS nem ICC
         .toBuffer({ resolveWithObject: true });
     } catch {
       throw new ErroDeRegra("dados_invalidos", "Não foi possível abrir a foto. Tente outro arquivo.");
     }
-    if (r.data.length <= FOTO_GRAVADA_MAXIMO) return { conteudo: r.data, largura: r.info.width, altura: r.info.height };
+    if (r.data.length <= lim.gravadaMaxima) return { conteudo: r.data, largura: r.info.width, altura: r.info.height };
   }
-  throw new ErroDeRegra("dados_invalidos", "Foto com detalhe demais para o cardápio. Tente outra foto.");
+  throw new ErroDeRegra("dados_invalidos", lim.detalheDemais);
 }
 
 /** Envia (ou troca) a foto do produto. A anterior fica inativa. */
@@ -143,7 +154,7 @@ export async function salvarFotoDoProduto(db: Banco, ator: Ator | null, dados: u
   const quem = await exigir(db, ator, "cadastros.gerenciar", { tipo: "produto_foto" });
   const d = validar(esquemaEnvio, dados);
   // Refaz fora da transação (trabalho pesado não segura trava do banco).
-  const foto = await refazerFoto(decodificar(d.arquivo));
+  const foto = await refazerFoto(decodificarFoto(d.arquivo));
   const sha256 = createHash("sha256").update(foto.conteudo).digest("hex");
   return db.transaction().execute(async (trx) => {
     const p = await trx.selectFrom("produto").select("id").where("id", "=", d.produtoId).forNoKeyUpdate().executeTakeFirst();
