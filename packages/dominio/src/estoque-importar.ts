@@ -9,17 +9,17 @@
  *     grava duas vezes.
  * Permissão: cuidar da área de cada linha; informar valor exige `custos.ver`.
  */
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { sql, type Banco } from "@erp/banco";
 import { AREAS_ESTOQUE, converterParaBase, NOME_DA_AREA, type AreaEstoque } from "./cadastros";
 import { chaveDeBusca } from "./catalogo-ingredientes";
 import { ErroDeRegra } from "./erros";
-import { areasDoAtor, exigirEntradaVisivel, registrarSaldoInicial } from "./estoque";
+import { areasDoAtor, exigirEntradaVisivel, registrarSaldoInicialDaPlanilha } from "./estoque";
 import { q4, textoQ4 } from "./estoque-comum";
 import { Fracao } from "./fichas-comum";
 import { LIMITE_DE_BYTES, letraDaColuna } from "./importar-comum";
-import { aplicarCorrecoes, correcoesQueValem, esquemaCorrecoes, limitadorDeCelulas, tabelaParaDevolver, type CelulasDevolvidas } from "./planilha-corrigir";
+import { aplicarCorrecoes, assinaturaDasCorrecoes, correcoesQueValem, esquemaCorrecoes, limitadorDeCelulas, tabelaParaDevolver, type CelulasDevolvidas } from "./planilha-corrigir";
 import { lerArquivoDePlanilha } from "./planilha-ler";
 import { pode } from "./permissoes";
 import { centavosDoTexto } from "./produtos-comum";
@@ -157,10 +157,17 @@ export async function importarSaldoInicial(db: Banco, ator: Ator | null, dados: 
   if (!p.success) throw new ErroDeRegra("dados_invalidos", [...new Set(p.error.issues.map((i) => i.message))].join(" "));
   const d = p.data;
   if (d.aplicar && !d.chave) throw new ErroDeRegra("dados_invalidos", "Confira a planilha antes de gravar.");
+  // Resumo do pedido (arquivo, correções e linhas puladas): o reenvio só é "o mesmo" se bater.
+  const resumoDoPedido = createHash("sha256")
+    .update(createHash("sha256").update(d.arquivo.conteudo).digest("hex"))
+    .update(`\n${assinaturaDasCorrecoes(d.correcoes)}\n${[...new Set(d.pular)].sort((a, b) => a - b).join(",")}`)
+    .digest("hex")
+    .slice(0, 60);
   // Reenvio de uma gravação que já aconteceu (a resposta se perdeu): devolve a gravada, mesmo que o
   // cadastro tenha mudado desde então. Só quem cuida de uma área tocada por ela recebe.
   if (d.aplicar) {
-    const ja = await db.selectFrom("estoque_movimento").select("id").where("chave", "=", `planilha:${d.chave}`).executeTakeFirst();
+    const ja = await db.selectFrom("estoque_movimento").select(["id", "origem_id"]).where("chave", "=", `planilha:${d.chave}`).executeTakeFirst();
+    if (ja && ja.origem_id !== resumoDoPedido) throw new ErroDeRegra("conflito", "Esta conferência já foi gravada com outra planilha ou outras correções. Confira de novo.");
     if (ja) {
       await exigirEntradaVisivel(db, ator, String(ja.id));
       return {
@@ -357,7 +364,7 @@ export async function importarSaldoInicial(db: Banco, ator: Ator | null, dados: 
         .join(" ")} Corrija ou pule e grave de novo.`,
     );
   if (!prontas.length) throw new ErroDeRegra("dados_invalidos", "Nada para gravar: nenhuma linha pronta.");
-  const r = await registrarSaldoInicial(db, ator, {
+  const r = await registrarSaldoInicialDaPlanilha(db, ator, {
     chave: `planilha:${d.chave}`,
     observacao: `Planilha ${d.arquivo.nome.slice(0, 120)}`,
     itens: prontas.map((x) => ({
@@ -370,6 +377,6 @@ export async function importarSaldoInicial(db: Banco, ator: Ator | null, dados: 
       ...(x.lote ? { lote: x.lote } : {}),
       ...(x.valorCentavos !== undefined ? { valorCentavos: x.valorCentavos } : {}),
     })),
-  });
+  }, resumoDoPedido);
   return { ...conferencia, aplicado: true, movimentoId: r.movimentoId, repetido: r.repetido };
 }

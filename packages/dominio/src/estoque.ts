@@ -594,7 +594,12 @@ export async function registrarSaldoInicial(db: Banco, ator: Ator | null, dados:
   return lancarEntrada(db, ator, dados, "saldo_inicial");
 }
 
-async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo: "entrada" | "saldo_inicial"): Promise<Lancado> {
+/** Saldo inicial gravado pela planilha: guarda o resumo do pedido (para o reenvio). Uso de estoque-importar. */
+export async function registrarSaldoInicialDaPlanilha(db: Banco, ator: Ator | null, dados: unknown, resumoDoPedido: string): Promise<Lancado> {
+  return lancarEntrada(db, ator, dados, "saldo_inicial", resumoDoPedido);
+}
+
+async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo: "entrada" | "saldo_inicial", resumoDaPlanilha?: string): Promise<Lancado> {
   if (!ator) await exigir(db, ator, "estoque.cozinha");
   const d = validar(esquemaEntrada, dados);
   if (tipo === "entrada" && d.itens.length > ITENS_POR_LANCAMENTO) throw new ErroDeRegra("dados_invalidos", `No máximo ${ITENS_POR_LANCAMENTO} itens por entrada.`);
@@ -626,6 +631,7 @@ async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo:
       fornecedorId: d.fornecedorId ?? null,
       notaNumero: d.notaNumero ?? null,
       notaData: d.notaData ?? null,
+      ...(resumoDaPlanilha ? { origemTipo: "planilha", origemId: resumoDaPlanilha } : {}),
     });
     const l = new Lancamento(trx, mov, itens);
     for (const [k, linha] of d.itens.entries()) {
@@ -1383,6 +1389,12 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
   const d = validar(esquemaCorrecaoDeCusto, dados);
   // Além de ver custos, tem de cuidar de uma área da entrada (quem corrige vê o que corrige).
   await exigirEntradaVisivel(db, quem, d.movimentoId);
+  // Conta pesada fora da trava (as vendas do item não esperam por ela).
+  const previa = new Map<number, { fica: bigint; ultimo: string }>();
+  for (const i of d.itens) {
+    const e = await db.selectFrom("estoque_item").select("id").where(i.ingredienteId !== undefined ? "ingrediente_id" : "preparo_id", "=", (i.ingredienteId ?? i.preparoId)!).executeTakeFirst();
+    if (e) previa.set(e.id, await quantoFicaDaEntrada(db, e.id, d.movimentoId, ESCALA_DA_FRACAO));
+  }
   return db.transaction().execute(async (trx) => {
     const assinatura = assinar("custo", d);
     const ja = await jaLancado(trx, d.chave, assinatura);
@@ -1436,16 +1448,10 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
       // Parte da diferença que ainda está no estoque, pelo custo médio: cada saída depois da
       // entrada leva "saída / quantidade antes" do valor que havia (lotes saem por validade, mas
       // o valor sai pela média; por isso a conta é pelas saídas, não pelos lotes).
-      const saidas = await sql<{ q: string; depois: string }>`
-        SELECT quantidade::text AS q, quantidade_depois::text AS depois FROM estoque_movimento_item
-        WHERE item_id = ${item.id} AND movimento_id > ${d.movimentoId}::bigint AND quantidade < 0 ORDER BY movimento_id`.execute(trx);
-      let fica = Fracao.UM;
-      for (const sd of saidas.rows) {
-        const depois = q4DoBanco(sd.depois);
-        const antes = depois - q4DoBanco(sd.q);
-        fica = depois === 0n ? Fracao.ZERO : fica.vezes(new Fracao(depois, antes));
-      }
-      const parte = new Fracao(diferenca).vezes(fica).arredondado();
+      // O grosso foi contado antes da trava; aqui só as saídas que chegaram depois.
+      const antes = previa.get(item.id) ?? { fica: ESCALA_DA_FRACAO, ultimo: d.movimentoId };
+      const { fica } = await quantoFicaDaEntrada(trx, item.id, antes.ultimo, antes.fica);
+      const parte = (diferenca * fica + (diferenca < 0n ? -ESCALA_DA_FRACAO / 2n : ESCALA_DA_FRACAO / 2n)) / ESCALA_DA_FRACAO;
       aplicado += l.ajustarValor(item.id, parte, novo, x.ultima ? { c: novo, q: entrou } : null);
     }
     await l.fechar();
@@ -1454,6 +1460,34 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
 }
 
 const ITENS_NA_LISTA = 50;
+
+/** Escala da fração "quanto fica" (10^18): erro final bem abaixo de 1 centavo. */
+const ESCALA_DA_FRACAO = 10n ** 18n;
+
+/**
+ * Quanto do valor de uma entrada ainda está no estoque, pelo custo médio: produto de
+ * "depois / antes" das saídas do item depois de `desde` (movimentos em ordem, pois todo
+ * lançamento trava o item antes de nascer). Inteiro com escala fixa, arredondado a cada passo;
+ * para cedo quando zera. Devolve também o último movimento contado, para continuar dali.
+ */
+async function quantoFicaDaEntrada(db: Banco, itemId: number, desde: string, fica0: bigint): Promise<{ fica: bigint; ultimo: string }> {
+  let fica = fica0;
+  let ultimo = desde;
+  for (;;) {
+    if (fica === 0n) return { fica, ultimo };
+    const r = await sql<{ id: string; q: string; depois: string }>`
+      SELECT movimento_id::text AS id, quantidade::text AS q, quantidade_depois::text AS depois FROM estoque_movimento_item
+      WHERE item_id = ${itemId} AND movimento_id > ${ultimo}::bigint AND quantidade < 0 ORDER BY movimento_id LIMIT 5000`.execute(db);
+    for (const sd of r.rows) {
+      const depois = q4DoBanco(sd.depois);
+      const antes = depois - q4DoBanco(sd.q);
+      fica = depois === 0n ? 0n : (fica * depois + antes / 2n) / antes;
+      ultimo = sd.id;
+      if (fica === 0n) break;
+    }
+    if (r.rows.length < 5000) return { fica, ultimo };
+  }
+}
 
 export type EntradaDaLista = {
   movimentoId: string;
