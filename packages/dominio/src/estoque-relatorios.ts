@@ -143,7 +143,7 @@ export async function relatorioDeContagens(db: Banco, ator: Ator | null, dados: 
   return { linhas, faltaCentavos: comValor ? falta.toString() : null, sobraCentavos: comValor ? sobra.toString() : null };
 }
 
-/** Valor do estoque por área (e o total), pelo custo médio. Só com `custos.ver`. */
+/** Valor do estoque por área (e o total), pelo custo médio. Exige `custos.ver` e cuidar de alguma área (o financeiro, sem área, não vê). */
 export async function valorDoEstoquePorArea(db: Banco, ator: Ator | null): Promise<{ areas: { area: AreaEstoque; valorCentavos: string; itens: number }[]; totalCentavos: string }> {
   const quem = await exigir(db, ator, "custos.ver", { tipo: "estoque_valor" });
   const painel = await painelDoEstoque(db, quem, {});
