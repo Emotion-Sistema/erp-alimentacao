@@ -596,7 +596,12 @@ export async function registrarSaldoInicial(db: Banco, ator: Ator | null, dados:
   return lancarEntrada(db, ator, dados, "saldo_inicial");
 }
 
-async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo: "entrada" | "saldo_inicial"): Promise<Lancado> {
+/** Saldo inicial gravado pela planilha: guarda o resumo do pedido (para o reenvio). Uso de estoque-importar. */
+export async function registrarSaldoInicialDaPlanilha(db: Banco, ator: Ator | null, dados: unknown, resumoDoPedido: string): Promise<Lancado> {
+  return lancarEntrada(db, ator, dados, "saldo_inicial", resumoDoPedido);
+}
+
+async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo: "entrada" | "saldo_inicial", resumoDaPlanilha?: string): Promise<Lancado> {
   if (!ator) await exigir(db, ator, "estoque.cozinha");
   const d = validar(esquemaEntrada, dados);
   if (tipo === "entrada" && d.itens.length > ITENS_POR_LANCAMENTO) throw new ErroDeRegra("dados_invalidos", `No máximo ${ITENS_POR_LANCAMENTO} itens por entrada.`);
@@ -628,6 +633,7 @@ async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo:
       fornecedorId: d.fornecedorId ?? null,
       notaNumero: d.notaNumero ?? null,
       notaData: d.notaData ?? null,
+      ...(resumoDaPlanilha ? { origemTipo: "planilha", origemId: resumoDaPlanilha } : {}),
     });
     const l = new Lancamento(trx, mov, itens);
     for (const [k, linha] of d.itens.entries()) {
@@ -1028,12 +1034,15 @@ async function exigirAlgumaArea(db: Banco, ator: Ator | null): Promise<{ ator: A
 
 export type SaldoDaArea = {
   area: AreaEstoque;
-  emUso: string;
-  guardado: string;
-  bloqueado: string;
-  vencido: string;
+  /** Quantidades: nulas enquanto há contagem aberta do item nesta área (contagem cega; só a gestão vê). */
+  emUso: string | null;
+  guardado: string | null;
+  bloqueado: string | null;
+  vencido: string | null;
   /** Livre para usar agora (sem bloqueado e sem vencido). A reserva entra na E11. */
-  livre: string;
+  livre: string | null;
+  /** Há contagem aberta do item nesta área. */
+  emContagem: boolean;
   /** Só com custos.ver: valor proporcional ao custo médio. */
   valorCentavos: string | null;
 };
@@ -1045,9 +1054,11 @@ export type ItemDoPainel = {
   nome: string;
   unidade: string;
   areaPadrao: AreaEstoque;
-  total: string;
+  /** Nulo enquanto há contagem aberta do item numa área da pessoa (contagem cega). */
+  total: string | null;
   valorCentavos: string | null;
   custoMedioCentavos: string | null;
+  emContagem: boolean;
   /** Menor validade com saldo (para "vence logo"). */
   proximaValidade: string | null;
   areas: SaldoDaArea[];
@@ -1087,6 +1098,7 @@ function montarAreas(linhas: readonly LinhaDoSaldo[], areasVisiveis: readonly Ar
       vencido: textoQ4(a.vencido),
       livre: textoQ4(a.emUso + a.guardado - a.bloqueado - a.vencido),
       valorCentavos: comValor ? valorDaSaida(qTotal, vTotal, a.emUso + a.guardado).toString() : null,
+      emContagem: false,
     }));
 }
 
@@ -1099,7 +1111,7 @@ export async function painelDoEstoque(db: Banco, ator: Ator | null, filtro: unkn
   const { ator: a, areas: visiveis } = await exigirAlgumaArea(db, ator);
   if (f.area && !visiveis.includes(f.area)) await exigir(db, ator, acaoDaArea(f.area), { tipo: "estoque_area", id: f.area });
   const areas = f.area ? [f.area] : visiveis;
-  return carregarPainel(db, areas, pode(a.cargoAtivo, "custos.ver"));
+  return esconderEmContagem(db, a, await carregarPainel(db, areas, pode(a.cargoAtivo, "custos.ver")));
 }
 
 async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor: boolean, ref?: Referencia): Promise<ItemDoPainel[]> {
@@ -1149,8 +1161,33 @@ async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor
       valorCentavos: comValor ? valorDaSaida(qT, vT, qVisivel).toString() : null,
       custoMedioCentavos: comValor ? custoMedioPorUnidade(qT, vT) : null,
       proximaValidade: validades.length ? validades.sort()[0]! : null,
+      emContagem: false,
       areas: montarAreas(linhas, areas, qT, vT, comValor),
     };
+  });
+}
+
+/**
+ * Contagem cega fora da tela da contagem: enquanto houver contagem aberta de um item numa área,
+ * quem não é da gestão (sem `estoque.desfazer`) não vê as quantidades dele nessa área, no painel,
+ * no item nem no histórico.
+ */
+async function esconderEmContagem<T extends ItemDoPainel>(db: Banco, ator: Ator, itens: T[]): Promise<T[]> {
+  if (pode(ator.cargoAtivo, "estoque.desfazer")) return itens;
+  const ids = itens.flatMap((i) => (i.itemId === null ? [] : [i.itemId]));
+  if (!ids.length) return itens;
+  const abertas = await sql<{ item_id: number; area: AreaEstoque }>`
+    SELECT DISTINCT ci.item_id, c.area FROM estoque_contagem c JOIN estoque_contagem_item ci ON ci.contagem_id = c.id
+    WHERE ci.item_id = ANY(${ids}::int[]) AND NOT EXISTS (SELECT 1 FROM estoque_contagem_fim f WHERE f.contagem_id = c.id)`.execute(db);
+  if (!abertas.rows.length) return itens;
+  const chaves = new Set(abertas.rows.map((x) => `${x.item_id}:${x.area}`));
+  return itens.map((i) => {
+    if (i.itemId === null) return i;
+    const areas = i.areas.map((a) =>
+      chaves.has(`${i.itemId}:${a.area}`) ? { ...a, emUso: null, guardado: null, bloqueado: null, vencido: null, livre: null, valorCentavos: null, emContagem: true } : a,
+    );
+    const algum = areas.some((a) => a.emContagem) || chaves.has(`${i.itemId}:${i.areaPadrao}`);
+    return algum ? { ...i, areas, total: null, valorCentavos: null, emContagem: true } : i;
   });
 }
 
@@ -1160,7 +1197,7 @@ export type LoteDoItem = {
   vencido: boolean;
   codigo: string | null;
   entrouEm: string;
-  saldos: { area: AreaEstoque; local: LocalDoEstoque; bloqueado: boolean; quantidade: string }[];
+  saldos: { area: AreaEstoque; local: LocalDoEstoque; bloqueado: boolean; quantidade: string | null }[];
 };
 
 export type EstoqueDoItem = ItemDoPainel & { lotes: LoteDoItem[] };
@@ -1198,7 +1235,9 @@ export async function estoqueDoItem(db: Banco, ator: Ator | null, ref: unknown):
       lote.saldos.push({ area: x.area, local: x.local, bloqueado: x.bloqueado, quantidade: textoQ4(q4DoBanco(x.quantidade)) });
     }
   }
-  return { ...item, lotes };
+  const [visto] = await esconderEmContagem(db, a, [item]);
+  const escondidas = new Set(visto!.areas.filter((x) => x.emContagem).map((x) => x.area));
+  return { ...visto!, lotes: lotes.map((l) => ({ ...l, saldos: l.saldos.map((x) => (escondidas.has(x.area) ? { ...x, quantidade: null } : x)) })) };
 }
 
 export type MovimentoDoHistorico = {
@@ -1208,8 +1247,8 @@ export type MovimentoDoHistorico = {
   observacao: string | null;
   quando: string;
   autor: string;
-  /** A mudança (nas áreas que a pessoa vê). */
-  quantidade: string;
+  /** A mudança (nas áreas que a pessoa vê). Nula durante contagem aberta do item (contagem cega). */
+  quantidade: string | null;
   /** Total depois do movimento; nulo para quem não vê todas as áreas. */
   quantidadeDepois: string | null;
   valorCentavos: string | null;
@@ -1237,6 +1276,8 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
   );
   const item = await estoqueDoItem(db, ator, { ingredienteId: d.ingredienteId, preparoId: d.preparoId });
   if (item.itemId === null) return [];
+  // Contagem cega: com contagem aberta do item, quem conta não vê as quantidades no histórico.
+  const cego = item.emContagem;
   const comValor = pode(ator!.cargoAtivo, "custos.ver");
   // Quem não vê todas as áreas vê só os movimentos com linha nas suas áreas, com a mudança só
   // delas e sem o "depois" (que é o total de todas as áreas).
@@ -1278,8 +1319,8 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
     observacao: x.observacao,
     quando: x.quando,
     autor: x.autor,
-    quantidade: textoQ4(q4DoBanco(x.quantidade)),
-    quantidadeDepois: todas ? textoQ4(q4DoBanco(x.quantidade_depois)) : null,
+    quantidade: cego ? null : textoQ4(q4DoBanco(x.quantidade)),
+    quantidadeDepois: todas && !cego ? textoQ4(q4DoBanco(x.quantidade_depois)) : null,
     valorCentavos: comValor && todas ? x.valor : null,
     valorDepois: comValor && todas ? x.valor_depois : null,
     faltou: textoQ4(q4DoBanco(x.faltou)),
@@ -1385,6 +1426,12 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
   const d = validar(esquemaCorrecaoDeCusto, dados);
   // Além de ver custos, tem de cuidar de uma área da entrada (quem corrige vê o que corrige).
   await exigirEntradaVisivel(db, quem, d.movimentoId);
+  // Conta pesada fora da trava (as vendas do item não esperam por ela).
+  const previa = new Map<number, { fica: bigint; ultimo: string }>();
+  for (const i of d.itens) {
+    const e = await db.selectFrom("estoque_item").select("id").where(i.ingredienteId !== undefined ? "ingrediente_id" : "preparo_id", "=", (i.ingredienteId ?? i.preparoId)!).executeTakeFirst();
+    if (e) previa.set(e.id, await quantoFicaDaEntrada(db, e.id, d.movimentoId, ESCALA_DA_FRACAO));
+  }
   return db.transaction().execute(async (trx) => {
     const assinatura = assinar("custo", d);
     const ja = await jaLancado(trx, d.chave, assinatura);
@@ -1392,8 +1439,12 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
       const r = await trx.selectFrom("estoque_movimento_item").select(sql<string>`sum(valor_centavos)::text`.as("v")).where("movimento_id", "=", ja.movimentoId).executeTakeFirst();
       return { ...ja, aplicadoCentavos: r?.v ?? "0" };
     }
+    // Mesma trava do desfazer: correção e desfazer da mesma entrada não passam juntos.
+    await sql`SELECT pg_advisory_xact_lock(hashtext(${"estoque_estorno:" + d.movimentoId}))`.execute(trx);
     const m = await trx.selectFrom("estoque_movimento").select(["id", "tipo"]).where("id", "=", d.movimentoId).executeTakeFirst();
     if (!m || (m.tipo !== "entrada" && m.tipo !== "saldo_inicial")) throw new ErroDeRegra("nao_encontrado", "Entrada não encontrada.");
+    if (await trx.selectFrom("estoque_movimento").select("id").where("estorno_de", "=", d.movimentoId).executeTakeFirst())
+      throw new ErroDeRegra("conflito", "Esta entrada foi desfeita: não há custo para corrigir.");
     const ids = await garantirItens(trx, d.itens);
     if (new Set(ids).size !== ids.length) throw new ErroDeRegra("dados_invalidos", "Cada item aparece uma vez só na correção.");
     const itens = await travarItens(trx, ids);
@@ -1438,16 +1489,10 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
       // Parte da diferença que ainda está no estoque, pelo custo médio: cada saída depois da
       // entrada leva "saída / quantidade antes" do valor que havia (lotes saem por validade, mas
       // o valor sai pela média; por isso a conta é pelas saídas, não pelos lotes).
-      const saidas = await sql<{ q: string; depois: string }>`
-        SELECT quantidade::text AS q, quantidade_depois::text AS depois FROM estoque_movimento_item
-        WHERE item_id = ${item.id} AND movimento_id > ${d.movimentoId}::bigint AND quantidade < 0 ORDER BY movimento_id`.execute(trx);
-      let fica = Fracao.UM;
-      for (const sd of saidas.rows) {
-        const depois = q4DoBanco(sd.depois);
-        const antes = depois - q4DoBanco(sd.q);
-        fica = depois === 0n ? Fracao.ZERO : fica.vezes(new Fracao(depois, antes));
-      }
-      const parte = new Fracao(diferenca).vezes(fica).arredondado();
+      // O grosso foi contado antes da trava; aqui só as saídas que chegaram depois.
+      const antes = previa.get(item.id) ?? { fica: ESCALA_DA_FRACAO, ultimo: d.movimentoId };
+      const { fica } = await quantoFicaDaEntrada(trx, item.id, antes.ultimo, antes.fica);
+      const parte = (diferenca * fica + (diferenca < 0n ? -ESCALA_DA_FRACAO / 2n : ESCALA_DA_FRACAO / 2n)) / ESCALA_DA_FRACAO;
       aplicado += l.ajustarValor(item.id, parte, novo, x.ultima ? { c: novo, q: entrou } : null);
     }
     await l.fechar();
@@ -1456,6 +1501,34 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
 }
 
 const ITENS_NA_LISTA = 50;
+
+/** Escala da fração "quanto fica" (10^18): erro final bem abaixo de 1 centavo. */
+const ESCALA_DA_FRACAO = 10n ** 18n;
+
+/**
+ * Quanto do valor de uma entrada ainda está no estoque, pelo custo médio: produto de
+ * "depois / antes" das saídas do item depois de `desde` (movimentos em ordem, pois todo
+ * lançamento trava o item antes de nascer). Inteiro com escala fixa, arredondado a cada passo;
+ * para cedo quando zera. Devolve também o último movimento contado, para continuar dali.
+ */
+async function quantoFicaDaEntrada(db: Banco, itemId: number, desde: string, fica0: bigint): Promise<{ fica: bigint; ultimo: string }> {
+  let fica = fica0;
+  let ultimo = desde;
+  for (;;) {
+    if (fica === 0n) return { fica, ultimo };
+    const r = await sql<{ id: string; q: string; depois: string }>`
+      SELECT movimento_id::text AS id, quantidade::text AS q, quantidade_depois::text AS depois FROM estoque_movimento_item
+      WHERE item_id = ${itemId} AND movimento_id > ${ultimo}::bigint AND quantidade < 0 ORDER BY movimento_id LIMIT 5000`.execute(db);
+    for (const sd of r.rows) {
+      const depois = q4DoBanco(sd.depois);
+      const antes = depois - q4DoBanco(sd.q);
+      fica = depois === 0n ? 0n : (fica * depois + antes / 2n) / antes;
+      ultimo = sd.id;
+      if (fica === 0n) break;
+    }
+    if (r.rows.length < 5000) return { fica, ultimo };
+  }
+}
 
 export type EntradaDaLista = {
   movimentoId: string;
@@ -1575,6 +1648,8 @@ const esquemaProducao = z.object(
     previsto: quantidade,
     /** Quanto saiu de verdade (pesado ou contado). Diferente do previsto: o custo se ajusta. */
     rendimento: quantidade,
+    /** Rendeu mais que o dobro do previsto (ou menos de um décimo): só com esta confirmação. */
+    confirmarRendimento: z.boolean({ error: "Confirmar rendimento: sim ou não." }).optional(),
     local: local.optional(),
     /** Sem ela, hoje + a validade da ficha (se a ficha tiver). */
     validade: data.optional(),
@@ -1601,6 +1676,9 @@ export type ResultadoDaProducao = Lancado & {
 export async function produzirPreparo(db: Banco, ator: Ator | null, dados: unknown): Promise<ResultadoDaProducao> {
   if (!ator) await exigir(db, ator, "estoque.cozinha");
   const d = validar(esquemaProducao, dados);
+  const [qPrev, qRend] = [q4DoBanco(d.previsto), q4DoBanco(d.rendimento)];
+  if (!d.confirmarRendimento && (qRend > 2n * qPrev || qRend * 10n < qPrev))
+    throw new ErroDeRegra("dados_invalidos", `Rendeu ${d.rendimento} para ${d.previsto} previsto: confira o número (erro de digitação muda o custo do preparo). Se estiver certo, confirme.`);
   const [areaDoPreparo] = await areasPadrao(db, [{ preparoId: d.preparoId }]);
   const quem = await exigirAreas(db, ator, [areaDoPreparo!]);
   const comValor = pode(quem.cargoAtivo, "custos.ver");
@@ -1737,11 +1815,11 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
       .where("movimento_id", "=", d.movimentoId)
       .orderBy("id", "desc")
       .execute();
-    // Correções de custo de uma entrada desfeita saem junto.
+    const itens = await travarItens(trx, resumo.map((r) => r.item_id));
+    // Correções de custo de uma entrada desfeita saem junto (lidas já com a trava).
     const correcoes = await sql<{ item_id: number; v: string }>`
       SELECT ci.item_id, sum(ci.valor_centavos)::text AS v FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
       WHERE c.tipo = 'custo' AND c.corrige_custo_de = ${d.movimentoId}::bigint GROUP BY ci.item_id`.execute(trx);
-    const itens = await travarItens(trx, resumo.map((r) => r.item_id));
     const mov = await novoMovimento(trx, {
       tipo: "estorno",
       autorId: quem.usuarioId,
@@ -1782,10 +1860,37 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
     for (const p of ordem) await l.mexer(p.item_id, p.lote_id, p.area, p.local, p.bloqueado, -p.q);
     for (const r of resumo) {
       const corr = correcoes.rows.find((c) => c.item_id === r.item_id);
-      const dv = -(BigInt(r.valor_centavos) + (corr ? BigInt(corr.v) : 0n));
+      const valor = BigInt(r.valor_centavos) + (corr ? BigInt(corr.v) : 0n);
+      // O que entrou com valor sai pela parte que ainda resta pelo custo médio (as saídas
+      // depois dele já levaram a parte delas); o que saiu volta com o valor com que saiu.
+      let dv = -valor;
+      if (valor > 0n) {
+        const { fica } = await quantoFicaDaEntrada(trx, r.item_id, d.movimentoId, ESCALA_DA_FRACAO);
+        dv = -((valor * fica + ESCALA_DA_FRACAO / 2n) / ESCALA_DA_FRACAO);
+      }
       l.desfazer(r.item_id, -q4DoBanco(r.quantidade), dv);
     }
     await l.fechar();
+    // O último custo volta para a entrada válida mais recente (o desfeito pode ter preço errado).
+    for (const r of resumo) {
+      if (q4DoBanco(r.quantidade) <= 0n) continue;
+      const u = await sql<{ c: string; q: string }>`
+        SELECT coalesce((SELECT ci.valor_informado FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+                         WHERE c.tipo = 'custo' AND c.corrige_custo_de = o.movimento_id AND ci.item_id = o.item_id ORDER BY c.id DESC LIMIT 1),
+                        o.valor_centavos)::text AS c, o.quantidade::text AS q
+        FROM estoque_movimento_item o JOIN estoque_movimento om ON om.id = o.movimento_id
+        WHERE o.item_id = ${r.item_id} AND om.tipo IN ('entrada', 'saldo_inicial', 'producao') AND o.quantidade > 0
+          AND NOT EXISTS (SELECT 1 FROM estoque_movimento x WHERE x.estorno_de = om.id)
+          AND (NOT o.custo_estimado OR EXISTS (SELECT 1 FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+                                               WHERE c.tipo = 'custo' AND c.corrige_custo_de = o.movimento_id AND ci.item_id = o.item_id))
+        ORDER BY o.movimento_id DESC LIMIT 1`.execute(trx);
+      const x = u.rows[0];
+      await trx
+        .updateTable("estoque_item")
+        .set(x ? { ultimo_custo_centavos: x.c, ultimo_custo_quantidade: x.q } : { ultimo_custo_centavos: null, ultimo_custo_quantidade: null })
+        .where("id", "=", r.item_id)
+        .execute();
+    }
     return { movimentoId: mov, repetido: false };
   });
 }

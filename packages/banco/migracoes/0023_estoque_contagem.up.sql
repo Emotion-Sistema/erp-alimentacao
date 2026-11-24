@@ -47,13 +47,15 @@ CREATE TABLE estoque_contagem_fim (
   contagem_id  integer PRIMARY KEY REFERENCES estoque_contagem (id),
   situacao     text NOT NULL CHECK (situacao IN ('fechada', 'cancelada')),
   movimento_id bigint REFERENCES estoque_movimento (id),
-  observacao   text CHECK (length(btrim(observacao)) BETWEEN 1 AND 500),
+  observacao   text CHECK (length(btrim(observacao)) BETWEEN 1 AND 500 AND observacao !~ '[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]'),
   por          integer NOT NULL REFERENCES usuario (id),
   em           timestamptz NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT estoque_contagem_fim_ajuste CHECK (situacao = 'fechada' OR movimento_id IS NULL)
 );
 
 ALTER TABLE estoque_movimento ADD COLUMN contagem_id integer REFERENCES estoque_contagem (id);
+CREATE INDEX estoque_movimento_contagem ON estoque_movimento (contagem_id) WHERE contagem_id IS NOT NULL;
+CREATE INDEX estoque_contagem_item_do_item ON estoque_contagem_item (item_id);
 
 CREATE TRIGGER estoque_contagem_imutavel BEFORE UPDATE OR DELETE ON estoque_contagem
   FOR EACH ROW EXECUTE FUNCTION estoque_historico_imutavel();

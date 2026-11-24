@@ -4,9 +4,10 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { type Banco } from "@erp/banco";
+import { sql, type Banco } from "@erp/banco";
 import {
   abrirContagem,
+  bloquear,
   cancelarContagem,
   conferirEstoque,
   consumirNaTransacao,
@@ -16,6 +17,7 @@ import {
   fecharContagem,
   historicoDoItem,
   listarContagens,
+  painelDoEstoque,
   registrarContagem,
   registrarEntrada,
   salvarIngrediente,
@@ -154,6 +156,101 @@ describe("inventário e contagem rápida", () => {
     expect(c.linhas.filter((l) => l.nome === nm).map((l) => l.motivo)).toEqual(["faltou", "faltou"]);
     expect(new Set(c.linhas.map((l) => l.itemId)).size).toBeLessThanOrEqual(3);
     expect((await listarContagens(db, supervisor, { area })).some((x) => x.id === c.id)).toBe(true);
+  });
+});
+
+describe("revisão do PR 4", () => {
+  it("duas contagens abertas do mesmo item: a segunda a fechar pede recontagem (sem ajuste em dobro)", async () => {
+    const x = await ingrediente("Farinha", "g");
+    await entrada(x, "10");
+    const c1 = await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x, local: "em_uso" }] });
+    const c2 = await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x, local: "em_uso" }] });
+    await contar(c1, c1.linhas[0]!.contagemItemId, "8", gerente);
+    await contar(c2, c2.linhas[0]!.contagemItemId, "8", gerente);
+    await fecharContagem(db, gerente, { contagemId: c1.id });
+    expect((await erroDe(fecharContagem(db, gerente, { contagemId: c2.id }))).message).toMatch(/Conte de novo/);
+    await contar(c2, c2.linhas[0]!.contagemItemId, "8", gerente);
+    await fecharContagem(db, gerente, { contagemId: c2.id });
+    expect((await estoqueDoItem(db, gerente, { ingredienteId: x })).total).toBe("8");
+  });
+
+  it("cega também no painel, no item e no histórico para quem conta; a gestão vê", async () => {
+    const x = await ingrediente("Arroz", "g");
+    await entrada(x, "37");
+    const c = await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x, local: "em_uso" }] });
+    const p = (await painelDoEstoque(db, cozinheira)).find((i) => i.ingredienteId === x)!;
+    expect([p.emContagem, p.total, p.areas[0]!.emUso, p.areas[0]!.livre]).toEqual([true, null, null, null]);
+    const i = await estoqueDoItem(db, cozinheira, { ingredienteId: x });
+    expect(i.lotes.flatMap((l) => l.saldos.map((s) => s.quantidade))).toEqual([null]);
+    const h = await historicoDoItem(db, cozinheira, { ingredienteId: x });
+    expect(h.every((m) => m.quantidade === null && m.quantidadeDepois === null)).toBe(true);
+    expect(JSON.stringify([p, i, h])).not.toMatch(/37/);
+    expect((await estoqueDoItem(db, gerente, { ingredienteId: x })).total).toBe("37");
+    await cancelarContagem(db, gerente, { contagemId: c.id, observacao: "teste" });
+    expect((await estoqueDoItem(db, cozinheira, { ingredienteId: x })).total).toBe("37");
+  });
+
+  it("contagem fechada mostra o que o ajuste aplicou de fato e o valor lançado; falta tira o livre antes do bloqueado", async () => {
+    const x = await ingrediente("Presunto");
+    await entrada(x, "5", "em_uso", 500);
+    const c = await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x, local: "em_uso" }] });
+    await contar(c, c.linhas[0]!.contagemItemId, "0", gerente);
+    await consumir(x, "3");
+    await fecharContagem(db, gerente, { contagemId: c.id });
+    expect((await verContagem(db, gerente, { contagemId: c.id })).linhas[0]).toMatchObject({ diferenca: "-5", aplicado: "-2", valorDaDiferenca: "-200" });
+    const y = await ingrediente("Queijo ralado");
+    await entrada(y, "4");
+    await entrada(y, "4");
+    const lotes = (await estoqueDoItem(db, gerente, { ingredienteId: y })).lotes;
+    await bloquear(db, gerente, { ingredienteId: y, quantidade: "4", area: "cozinha", local: "em_uso", motivo: "quarentena", loteId: lotes[0]!.loteId });
+    const c2 = await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: y, local: "em_uso" }] });
+    await contar(c2, c2.linhas[0]!.contagemItemId, "6", gerente);
+    await fecharContagem(db, gerente, { contagemId: c2.id });
+    const area = (await estoqueDoItem(db, gerente, { ingredienteId: y })).areas[0]!;
+    expect([area.bloqueado, area.livre]).toEqual(["4", "2"]);
+  });
+
+  it("concorrência: contar espera o consumo; rápida do dia ao mesmo tempo é uma só; fechar e cancelar juntos, um vale", async () => {
+    const x = await ingrediente("Batata palha", "g");
+    await entrada(x, "100");
+    const c = await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x, local: "em_uso" }] });
+    const outra = bancoDeTeste();
+    try {
+      let soltar!: () => void;
+      const solto = new Promise<void>((r) => (soltar = r));
+      let pronto!: () => void;
+      const consumido = new Promise<void>((r) => (pronto = r));
+      const venda = db.transaction().execute(async (trx) => {
+        await consumirNaTransacao(trx, { autorId: gerente.usuarioId, chave: `teste-${randomUUID()}`, itens: [{ ingredienteId: x, quantidade: "30" }] });
+        pronto();
+        await solto;
+      });
+      await consumido;
+      const contando = registrarContagem(outra, gerente, { contagemId: c.id, contagemItemId: c.linhas[0]!.contagemItemId, quantidade: "70" });
+      for (let k = 0; k < 100; k++) {
+        const r = await sql<{ n: number }>`SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`.execute(db);
+        if (r.rows[0]!.n >= 1) break;
+        await new Promise((r) => setTimeout(r, 30));
+      }
+      soltar();
+      await venda;
+      await contando;
+      // Contou 70 depois da venda de 30: esperado 70, sem diferença.
+      const f = await fecharContagem(db, gerente, { contagemId: c.id });
+      expect(f.ajustes).toEqual([]);
+      const area = "bebidas_salao";
+      const y = await ingrediente("Suco", "un", area);
+      await registrarEntrada(db, gerente, { itens: [{ ingredienteId: y, quantidade: "5", local: "guardado", area }] });
+      const [r1, r2] = await Promise.all([contagemRapidaDoDia(db, supervisor, { area }), contagemRapidaDoDia(outra, supervisor, { area })]);
+      expect(r1.id).toBe(r2.id);
+      const c3 = await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x, local: "em_uso" }] });
+      await contar(c3, c3.linhas[0]!.contagemItemId, "70", gerente);
+      const r = await Promise.allSettled([fecharContagem(db, gerente, { contagemId: c3.id }), cancelarContagem(outra, gerente, { contagemId: c3.id, observacao: "junto" })]);
+      expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(1);
+    } finally {
+      await outra.destroy();
+    }
+    expect((await estoqueDoItem(db, gerente, { ingredienteId: x })).total).toBe("70");
   });
 });
 

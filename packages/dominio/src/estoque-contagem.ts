@@ -13,7 +13,8 @@ import { sql, type Banco } from "@erp/banco";
 import { AREAS_ESTOQUE, NOME_DA_AREA, type AreaEstoque } from "./cadastros";
 import { ErroDeRegra } from "./erros";
 import { motorDoEstoque as m } from "./estoque";
-import { LOCAIS, q4, q4DoBanco, QUANTIDADE_MAXIMA, textoQ4, valorDaSaida, valorPeloCusto, type LocalDoEstoque } from "./estoque-comum";
+import { LOCAIS, q4, q4DoBanco, QUANTIDADE_MAXIMA, textoQ4, type LocalDoEstoque } from "./estoque-comum";
+import { Fracao } from "./fichas-comum";
 import { pode } from "./permissoes";
 import { type Ator } from "./sessao";
 
@@ -212,7 +213,9 @@ export type LinhaDaContagem = {
   /** Só depois de fechada (a contagem é cega). */
   esperado: string | null;
   diferenca: string | null;
-  /** Só depois de fechada e com custos.ver: valor da diferença pelo custo médio de agora. */
+  /** Só depois de fechada: quanto o ajuste lançou de fato (a falta nunca passa do que havia). */
+  aplicado: string | null;
+  /** Só depois de fechada e com custos.ver: valor lançado no ajuste para esta linha. */
   valorDaDiferenca: string | null;
 };
 
@@ -253,13 +256,17 @@ export async function verContagem(db: Banco, ator: Ator | null, dados: unknown):
     esperado: string | null;
     por: string | null;
     em: string | null;
-    q_item: string;
-    v_item: string;
+    aplicado: string | null;
+    aplicado_item: string | null;
+    valor_item: string | null;
   }>`
     SELECT ci.id, ci.item_id, coalesce(i.nome, f.nome) AS nome, coalesce(i.unidade_base, f.unidade_rendimento) AS unidade, ci.local, ci.motivo,
       r.contado::text AS contado, r.esperado::text AS esperado, u.nome AS por, to_char(r.contado_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS em,
-      e.quantidade::text AS q_item, e.valor_centavos::text AS v_item
-    FROM estoque_contagem_item ci JOIN estoque_item e ON e.id = ci.item_id
+      (SELECT sum(l.quantidade) FROM estoque_movimento_linha l WHERE l.movimento_id = fi.movimento_id AND l.item_id = ci.item_id AND l.area = c.area AND l.local = ci.local)::text AS aplicado,
+      (SELECT sum(l.quantidade) FROM estoque_movimento_linha l WHERE l.movimento_id = fi.movimento_id AND l.item_id = ci.item_id)::text AS aplicado_item,
+      (SELECT mi.valor_centavos FROM estoque_movimento_item mi WHERE mi.movimento_id = fi.movimento_id AND mi.item_id = ci.item_id)::text AS valor_item
+    FROM estoque_contagem_item ci JOIN estoque_contagem c ON c.id = ci.contagem_id LEFT JOIN estoque_contagem_fim fi ON fi.contagem_id = c.id
+    JOIN estoque_item e ON e.id = ci.item_id
     LEFT JOIN ingrediente i ON i.id = e.ingrediente_id LEFT JOIN ficha f ON f.id = e.preparo_id
     LEFT JOIN LATERAL (SELECT * FROM estoque_contagem_registro r WHERE r.contagem_item_id = ci.id ORDER BY r.id DESC LIMIT 1) r ON true
     LEFT JOIN usuario u ON u.id = r.contado_por
@@ -279,8 +286,10 @@ export async function verContagem(db: Banco, ator: Ator | null, dados: unknown):
     contados: linhas.rows.filter((x) => x.contado !== null).length,
     linhas: linhas.rows.map((x) => {
       const dif = fechada && x.contado !== null ? q4DoBanco(x.contado) - q4DoBanco(x.esperado!) : null;
-      const qI = q4DoBanco(x.q_item);
-      const vI = BigInt(x.v_item);
+      const aplicado = fechada && x.contado !== null ? (x.aplicado === null ? 0n : q4DoBanco(x.aplicado)) : null;
+      const apItem = x.aplicado_item === null ? 0n : q4DoBanco(x.aplicado_item);
+      // Valor da linha: a parte dela no valor que o ajuste lançou para o item (os dois locais).
+      const valor = aplicado === null || x.valor_item === null || apItem === 0n ? (aplicado === null ? null : 0n) : new Fracao(BigInt(x.valor_item) * aplicado, apItem).arredondado();
       return {
         contagemItemId: x.id,
         itemId: x.item_id,
@@ -293,8 +302,8 @@ export async function verContagem(db: Banco, ator: Ator | null, dados: unknown):
         contadoEm: x.em,
         esperado: fechada && x.esperado !== null ? textoQ4(q4DoBanco(x.esperado)) : null,
         diferenca: dif === null ? null : textoQ4(dif),
-        valorDaDiferenca:
-          dif === null || !comValor ? null : (dif < 0n ? -valorDaSaida(qI, vI, -dif) : valorPeloCusto(dif, vI, qI)).toString(),
+        aplicado: aplicado === null ? null : textoQ4(aplicado),
+        valorDaDiferenca: valor === null || !comValor ? null : valor.toString(),
       };
     }),
   };
@@ -374,12 +383,24 @@ export async function fecharContagem(db: Banco, ator: Ator | null, dados: unknow
     await sql`SELECT pg_advisory_xact_lock(hashtext(${`estoque_contagem:${c.id}`}))`.execute(trx);
     const fim = await trx.selectFrom("estoque_contagem_fim").select("situacao").where("contagem_id", "=", c.id).executeTakeFirst();
     if (fim) throw new ErroDeRegra("conflito", fim.situacao === "fechada" ? "A contagem já foi fechada." : "A contagem foi cancelada.");
-    const contadas = await sql<{ item_id: number; local: LocalDoEstoque; contado: string; esperado: string }>`
-      SELECT ci.item_id, ci.local, r.contado::text AS contado, r.esperado::text AS esperado
+    const contadas = await sql<{ item_id: number; local: LocalDoEstoque; contado: string; esperado: string; nome: string; mexeu: boolean }>`
+      SELECT ci.item_id, ci.local, r.contado::text AS contado, r.esperado::text AS esperado, coalesce(i.nome, f.nome) AS nome,
+        -- Ajuste (de outra contagem) ou desfazer depois de contar: o esperado guardado não vale mais.
+        EXISTS (SELECT 1 FROM estoque_movimento m JOIN estoque_movimento_linha l ON l.movimento_id = m.id
+                WHERE l.item_id = ci.item_id AND l.area = ${c.area} AND l.local = ci.local
+                  AND m.tipo IN ('ajuste', 'estorno') AND m.criado_em > r.contado_em) AS mexeu
       FROM estoque_contagem_item ci
       JOIN LATERAL (SELECT * FROM estoque_contagem_registro r WHERE r.contagem_item_id = ci.id ORDER BY r.id DESC LIMIT 1) r ON true
+      JOIN estoque_item e ON e.id = ci.item_id LEFT JOIN ingrediente i ON i.id = e.ingrediente_id LEFT JOIN ficha f ON f.id = e.preparo_id
       WHERE ci.contagem_id = ${c.id} ORDER BY ci.item_id, ci.local`.execute(trx);
     if (contadas.rows.length === 0) throw new ErroDeRegra("conflito", "Nada foi contado ainda. Conte ao menos um item ou cancele a contagem.");
+    // Item que outra contagem ajustou (ou alguém desfez algo dele) depois de contado: conte de novo.
+    const recontar = contadas.rows.filter((x) => x.mexeu);
+    if (recontar.length)
+      throw new ErroDeRegra(
+        "conflito",
+        `Conte de novo: ${recontar.map((x) => `"${x.nome}" (${x.local === "em_uso" ? "em uso" : "guardado"})`).join(", ")}. O estoque deles foi ajustado ou desfeito depois da contagem.`,
+      );
     const difs = contadas.rows.map((x) => ({ ...x, dif: q4DoBanco(x.contado) - q4DoBanco(x.esperado) })).filter((x) => x.dif !== 0n);
     let movimentoId: string | null = null;
     const ajustes: AjusteDaContagem[] = [];
@@ -402,7 +423,11 @@ export async function fecharContagem(db: Banco, ator: Ator | null, dados: unknow
           if (r.tirado > 0n) l.saida(item.id, r.tirado);
           ajustes.push({ itemId: item.id, nome: item.nome, unidade: item.unidade, local: x.local, diferenca: textoQ4(x.dif), aplicado: textoQ4(-r.tirado) });
         } else {
-          const lote = await l.novoLote(item.id, null, "contagem");
+          // A sobra herda a validade mais próxima do que já está ali (perecível não vira "sem validade").
+          const perto = await sql<{ v: string | null }>`
+            SELECT to_char(min(lo.validade), 'YYYY-MM-DD') AS v FROM estoque_saldo s JOIN estoque_lote lo ON lo.id = s.lote_id
+            WHERE s.item_id = ${item.id} AND s.area = ${c.area} AND s.local = ${x.local} AND s.quantidade > 0 AND lo.validade >= hoje_na_loja()`.execute(trx);
+          const lote = await l.novoLote(item.id, perto.rows[0]?.v ?? null, "contagem");
           await l.mexer(item.id, lote, c.area, x.local, false, x.dif);
           l.entrada(item.id, x.dif, l.estimar(item.id, x.dif), { estimado: true });
           ajustes.push({ itemId: item.id, nome: item.nome, unidade: item.unidade, local: x.local, diferenca: textoQ4(x.dif), aplicado: textoQ4(x.dif) });
