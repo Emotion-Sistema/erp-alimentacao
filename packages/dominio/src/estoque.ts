@@ -1780,9 +1780,9 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
       .execute();
     const itens = await travarItens(trx, resumo.map((r) => r.item_id));
     // Correções de custo de uma entrada desfeita saem junto (lidas já com a trava).
-    const correcoes = await sql<{ item_id: number; v: string }>`
-      SELECT ci.item_id, sum(ci.valor_centavos)::text AS v FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
-      WHERE c.tipo = 'custo' AND c.corrige_custo_de = ${d.movimentoId}::bigint GROUP BY ci.item_id`.execute(trx);
+    const correcoes = await sql<{ id: string; item_id: number; v: string }>`
+      SELECT c.id::text AS id, ci.item_id, ci.valor_centavos::text AS v FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+      WHERE c.tipo = 'custo' AND c.corrige_custo_de = ${d.movimentoId}::bigint ORDER BY c.id`.execute(trx);
     const mov = await novoMovimento(trx, {
       tipo: "estorno",
       autorId: quem.usuarioId,
@@ -1822,15 +1822,21 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
     const ordem = [...porPedaco.values()].filter((p) => p.q !== 0n).sort((a, b) => Number(b.q > 0n) - Number(a.q > 0n));
     for (const p of ordem) await l.mexer(p.item_id, p.lote_id, p.area, p.local, p.bloqueado, -p.q);
     for (const r of resumo) {
-      const corr = correcoes.rows.find((c) => c.item_id === r.item_id);
-      const valor = BigInt(r.valor_centavos) + (corr ? BigInt(corr.v) : 0n);
       // O que entrou com valor sai pela parte que ainda resta pelo custo médio (as saídas
-      // depois dele já levaram a parte delas); o que saiu volta com o valor com que saiu.
-      let dv = -valor;
-      if (valor > 0n) {
-        const { fica } = await quantoFicaDaEntrada(trx, r.item_id, d.movimentoId, ESCALA_DA_FRACAO);
-        dv = -((valor * fica + ESCALA_DA_FRACAO / 2n) / ESCALA_DA_FRACAO);
-      }
+      // depois dele já levaram a parte delas); cada correção de custo, pela parte que resta
+      // desde ELA (o que ela aplicou já era só o que restava na época). O que saiu volta com o
+      // valor com que saiu.
+      const original = BigInt(r.valor_centavos);
+      const restaDesde = async (desde: string, v: bigint) => {
+        if (v === 0n) return 0n;
+        const { fica } = await quantoFicaDaEntrada(trx, r.item_id, desde, ESCALA_DA_FRACAO);
+        return new Fracao(v * fica, ESCALA_DA_FRACAO).arredondado();
+      };
+      let dv: bigint;
+      if (original > 0n || correcoes.rows.some((c) => c.item_id === r.item_id)) {
+        dv = -(original > 0n ? await restaDesde(d.movimentoId, original) : original);
+        for (const c of correcoes.rows.filter((x) => x.item_id === r.item_id)) dv -= await restaDesde(c.id, BigInt(c.v));
+      } else dv = -original;
       l.desfazer(r.item_id, -q4DoBanco(r.quantidade), dv);
     }
     await l.fechar();

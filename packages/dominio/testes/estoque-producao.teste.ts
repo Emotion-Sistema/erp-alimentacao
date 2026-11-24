@@ -224,6 +224,18 @@ describe("desfazer movimento", () => {
     expect((await erroDe(corrigirCustoDaEntrada(db, gerente, { movimentoId: b.movimentoId, itens: [{ ingredienteId: x, valorCentavos: 300 }] }))).message).toMatch(/foi desfeita/);
   });
 
+  it("desfazer entrada corrigida depois de uma saída: cada parte pela média desde ela", async () => {
+    const x = await ingrediente("Cravo", "un");
+    await entrada(x, "30", 300);
+    const b = await entrada(x, "10", 100);
+    await consumir(x, "20"); // 20 un, R$ 2,00
+    await corrigirCustoDaEntrada(db, gerente, { movimentoId: b.movimentoId, itens: [{ ingredienteId: x, valorCentavos: 300 }] }); // +100
+    expect(await total({ ingredienteId: x })).toEqual({ q: "20", v: "300" });
+    await desfazerMovimento(db, gerente, { movimentoId: b.movimentoId, observacao: "não veio" });
+    // B: 100 x 1/2 = 50, mais a correção de 100 inteira (nada saiu depois dela) = 150.
+    expect(await total({ ingredienteId: x })).toEqual({ q: "10", v: "150" });
+  });
+
   it("dois desfazer do mesmo movimento ao mesmo tempo: um só vale", async () => {
     const x = await ingrediente("Ovo", "un");
     const e = await entrada(x, "12");
