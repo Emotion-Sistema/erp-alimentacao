@@ -28,6 +28,7 @@ A sessão principal roda em Opus 5.5 e coordena. Regras em `docs/05-uso-dos-mode
 | `ensaio-restauracao` | Backup e recuperação |
 | `matriz-de-permissoes` | Rota nova, ação nova, mudar o que um cargo pode (criada na E03) |
 | `pagina-publica` | Toda página, formulário ou rota aberta ao público: site, delivery, QR da mesa (criada em 18/11/2026) |
+| `find-skills` | Procurar skill pronta na internet ("existe skill para X?"); externa, de vercel-labs/skills, instalada em 24/11/2026 com `npx skills add` (arquivo em `.agents/skills/`, versão em `skills-lock.json`). Só sugere: instalar outra skill continua pedindo o ok do responsável |
 
 ## Skills recomendadas (criar quando a fase chegar)
 | Skill | Para quê | Etapa |
