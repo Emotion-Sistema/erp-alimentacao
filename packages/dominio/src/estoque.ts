@@ -461,6 +461,7 @@ type Cabecalho = {
   previsto?: string | null;
   estornoDe?: string | null;
   corrigeCustoDe?: string | null;
+  contagemId?: number | null;
 };
 
 async function novoMovimento(trx: Trx, c: Cabecalho): Promise<string> {
@@ -483,6 +484,7 @@ async function novoMovimento(trx: Trx, c: Cabecalho): Promise<string> {
       previsto: c.previsto ?? null,
       estorno_de: c.estornoDe ?? null,
       corrige_custo_de: c.corrigeCustoDe ?? null,
+      contagem_id: c.contagemId ?? null,
     })
     .returning("id")
     .executeTakeFirstOrThrow();
@@ -1764,3 +1766,21 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
     return { movimentoId: mov, repetido: false };
   });
 }
+
+/**
+ * Peças internas do estoque para os outros arquivos do domínio (contagem). Não use fora de
+ * packages/dominio: quem chama confere a permissão e trava os itens antes de mexer.
+ */
+export const motorDoEstoque = {
+  Lancamento,
+  garantirItens,
+  travarItens,
+  pedacos,
+  novoMovimento,
+  jaLancado,
+  assinar,
+  exigirAreas,
+  exigirAlgumaArea,
+  hoje,
+  quantidadeNaBase,
+};
