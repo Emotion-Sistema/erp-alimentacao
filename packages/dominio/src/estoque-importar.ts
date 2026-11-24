@@ -15,7 +15,7 @@ import { sql, type Banco } from "@erp/banco";
 import { AREAS_ESTOQUE, converterParaBase, NOME_DA_AREA, type AreaEstoque } from "./cadastros";
 import { chaveDeBusca } from "./catalogo-ingredientes";
 import { ErroDeRegra } from "./erros";
-import { areasDoAtor, registrarSaldoInicial } from "./estoque";
+import { areasDoAtor, exigirEntradaVisivel, registrarSaldoInicial } from "./estoque";
 import { q4, textoQ4 } from "./estoque-comum";
 import { Fracao } from "./fichas-comum";
 import { LIMITE_DE_BYTES, letraDaColuna } from "./importar-comum";
@@ -130,6 +130,9 @@ function dataDoTexto(t: string): string | null {
   return `${a}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
+/** Mesmo teto do lançamento (R$ 100 milhões por linha). */
+const VALOR_MAXIMO = 10_000_000_000;
+
 const milharAmbiguo = (t: string) => /^\d{1,3}(\.\d{3})+$/.test(t);
 
 type Item = { tipo: "ingrediente" | "preparo"; id: number; nome: string; unidade: string; area: AreaEstoque; ativo: boolean };
@@ -154,6 +157,30 @@ export async function importarSaldoInicial(db: Banco, ator: Ator | null, dados: 
   if (!p.success) throw new ErroDeRegra("dados_invalidos", [...new Set(p.error.issues.map((i) => i.message))].join(" "));
   const d = p.data;
   if (d.aplicar && !d.chave) throw new ErroDeRegra("dados_invalidos", "Confira a planilha antes de gravar.");
+  // Reenvio de uma gravação que já aconteceu (a resposta se perdeu): devolve a gravada, mesmo que o
+  // cadastro tenha mudado desde então. Só quem cuida de uma área tocada por ela recebe.
+  if (d.aplicar) {
+    const ja = await db.selectFrom("estoque_movimento").select("id").where("chave", "=", `planilha:${d.chave}`).executeTakeFirst();
+    if (ja) {
+      await exigirEntradaVisivel(db, ator, String(ja.id));
+      return {
+        chave: d.chave!,
+        arquivo: d.arquivo.nome.slice(0, 120),
+        aplicado: true,
+        colunas: [],
+        mapa: {},
+        faltamColunas: [],
+        linhas: [],
+        resumo: { total: 0, prontas: 0, erros: 0, puladas: 0 },
+        opcoes: {},
+        correcoes: 0,
+        avisoDasCelulas: null,
+        avisoDeRepeticao: null,
+        movimentoId: String(ja.id),
+        repetido: true,
+      };
+    }
+  }
   const bytes = Buffer.from(d.arquivo.conteudo, "base64");
   if (bytes.length > LIMITE_DE_BYTES) throw new ErroDeRegra("dados_invalidos", `Arquivo grande demais: o máximo é ${LIMITE_DE_BYTES / 1024 / 1024} MB.`);
   const tabela = aplicarCorrecoes(await lerArquivoDePlanilha(bytes, d.arquivo.nome), d.correcoes);
@@ -192,7 +219,12 @@ export async function importarSaldoInicial(db: Banco, ator: Ator | null, dados: 
       const ativos = achados.filter((x) => x.ativo);
       if (ativos.length > 1) erro("item", `"${nome.slice(0, 60)}" é o nome de um ingrediente e de um preparo. Mude o nome de um deles no cadastro.`);
       else if (ativos.length === 1) item = ativos[0];
-      else if (achados.length) erro("item", `"${nome.slice(0, 60)}" está desativado no cadastro. Reative antes ou tire a linha.`);
+      else if (achados.length > 1) erro("item", `"${nome.slice(0, 60)}" está desativado e tem mais de um cadastro com esse nome. Reative o certo no cadastro.`);
+      else if (achados.length === 1) {
+        // O que está na loja tem de ser contado, mesmo desativado no cadastro (decisão 0027).
+        item = achados[0];
+        avisos.push(`"${achados[0]!.nome}" está desativado no cadastro; o saldo entra assim mesmo.`);
+      }
       else erro("item", `Não existe ingrediente nem preparo "${nome.slice(0, 60)}". Cadastre antes ou corrija o nome.`);
     }
     const qTexto = v("quantidade");
@@ -251,11 +283,16 @@ export async function importarSaldoInicial(db: Banco, ator: Ator | null, dados: 
     else if (valorTexto) {
       const c = centavosDoTexto(valorTexto);
       if (c === null) erro("valor", `Valor "${valorTexto.slice(0, 20)}": em reais, como 137,70.`);
+      else if (c > VALOR_MAXIMO) erro("valor", "Valor grande demais (máximo R$ 100 milhões por linha).");
       else valorCentavos = c;
     } else if (precoTexto) {
       const c = centavosDoTexto(precoTexto);
       if (c === null) erro("preco", `Preço "${precoTexto.slice(0, 20)}": em reais, como 45,90.`);
-      else if (quantidade) valorCentavos = Number(new Fracao(BigInt(c)).vezes(Fracao.decimal(quantidade)).arredondado());
+      else if (quantidade) {
+        const total = new Fracao(BigInt(c)).vezes(Fracao.decimal(quantidade)).arredondado();
+        if (total > BigInt(VALOR_MAXIMO)) erro("preco", "Preço vezes quantidade passa de R$ 100 milhões.");
+        else valorCentavos = Number(total);
+      }
     }
     const situacao = problemas.length ? "erro" : "ok";
     const unidadeMostrada = unidade ?? item?.unidade ?? "";

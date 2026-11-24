@@ -153,6 +153,62 @@ describe("correção de custo da entrada", () => {
   });
 });
 
+describe("revisão do PR 2", () => {
+  it("lista de entradas: cada um vê só os itens da própria área; valor só com todas as áreas", async () => {
+    const farinha = await ingrediente("Farinha");
+    const cerveja = await ingrediente("Cerveja", "un", "bebidas_salao");
+    const r = await registrarEntrada(db, gerente, {
+      itens: [
+        { ingredienteId: farinha.id, quantidade: "1000", local: "guardado", valorCentavos: 500 },
+        { ingredienteId: cerveja.id, quantidade: "12", local: "guardado", valorCentavos: 6000 },
+      ],
+    });
+    const nomes = async (a: Ator) => (await listarEntradas(db, a, {})).find((e) => e.movimentoId === r.movimentoId)!.itens.map((i) => i.nome);
+    expect(await nomes(cozinheira)).toEqual([farinha.nome]);
+    expect(await nomes(supervisor)).toEqual([cerveja.nome]);
+    expect((await nomes(gerente)).sort()).toEqual([cerveja.nome, farinha.nome].sort());
+    // O financeiro vê custos, mas não cuida de nenhuma área: não corrige o que não vê.
+    const financeiro = await atorDoCargo(db, "financeiro");
+    expect((await erroDe(corrigirCustoDaEntrada(db, financeiro, { movimentoId: r.movimentoId, itens: [{ ingredienteId: farinha.id, valorCentavos: 1 }] }))).codigo).toBe("sem_permissao");
+  });
+
+  it("correção pelo custo médio, com arredondamento, último custo e chave", async () => {
+    // Caso do revisor: E1 100 un por R$ 100,00; E2 100 un por R$ 1,00; saem 150.
+    const x = await ingrediente("Garrafa", "un");
+    const e1 = await registrarEntrada(db, gerente, { itens: [{ ingredienteId: x.id, quantidade: "100", local: "em_uso", valorCentavos: 10000 }] });
+    await registrarEntrada(db, gerente, { itens: [{ ingredienteId: x.id, quantidade: "100", local: "em_uso", valorCentavos: 100 }] });
+    await consumir(x.id, "150");
+    expect(await total(x.id)).toEqual({ q: "50", v: "2525" });
+    const c = await corrigirCustoDaEntrada(db, gerente, { movimentoId: e1.movimentoId, itens: [{ ingredienteId: x.id, valorCentavos: 0 }] });
+    expect(c.aplicadoCentavos).toBe("-2500");
+    expect(await total(x.id)).toEqual({ q: "50", v: "25" });
+    // Arredondamento não exato: 2/3 de 1000 = 666,67 -> 667.
+    const y = await ingrediente("Limão", "un");
+    const e = await registrarEntrada(db, cozinheira, { itens: [{ ingredienteId: y.id, quantidade: "3", local: "em_uso" }] });
+    await consumir(y.id, "1");
+    const chave = `teste-${randomUUID()}`;
+    const r1 = await corrigirCustoDaEntrada(db, gerente, { chave, movimentoId: e.movimentoId, itens: [{ ingredienteId: y.id, valorCentavos: 1000 }] });
+    expect(r1.aplicadoCentavos).toBe("667");
+    const r2 = await corrigirCustoDaEntrada(db, gerente, { chave, movimentoId: e.movimentoId, itens: [{ ingredienteId: y.id, valorCentavos: 1000 }] });
+    expect(r2).toMatchObject({ movimentoId: r1.movimentoId, repetido: true, aplicadoCentavos: "667" });
+    expect(await total(y.id)).toEqual({ q: "2", v: "667" });
+    // Último custo: corrigir a entrada mais antiga não volta o último custo para ela.
+    const z = await ingrediente("Mel");
+    const a1 = await registrarEntrada(db, cozinheira, { itens: [{ ingredienteId: z.id, quantidade: "100", local: "em_uso" }] });
+    const a2 = await registrarEntrada(db, cozinheira, { itens: [{ ingredienteId: z.id, quantidade: "100", local: "em_uso" }] });
+    await corrigirCustoDaEntrada(db, gerente, { movimentoId: a2.movimentoId, itens: [{ ingredienteId: z.id, valorCentavos: 900 }] });
+    await corrigirCustoDaEntrada(db, gerente, { movimentoId: a1.movimentoId, itens: [{ ingredienteId: z.id, valorCentavos: 100 }] });
+    const u = await db.selectFrom("estoque_item").select(["ultimo_custo_centavos"]).where("ingrediente_id", "=", z.id).executeTakeFirstOrThrow();
+    expect(u.ultimo_custo_centavos).toBe("900");
+  });
+
+  it("foto da nota comprida demais é recusada", async () => {
+    const x = await ingrediente("Óleo", "ml");
+    const r = await registrarEntrada(db, gerente, { itens: [{ ingredienteId: x.id, quantidade: "900", local: "guardado" }] });
+    expect((await erroDe(anexarFotoDaNota(db, gerente, { movimentoId: r.movimentoId, arquivo: await foto(200, 2200) }))).message).toMatch(/10 vezes/);
+  });
+});
+
 describe("saldo inicial por planilha", () => {
   const csv = (linhas: string[][]) => ({ nome: "saldo.csv", conteudo: Buffer.from(linhas.map((l) => l.join(";")).join("\n"), "utf8").toString("base64") });
 
@@ -189,6 +245,29 @@ describe("saldo inicial por planilha", () => {
     expect((await estoqueDoItem(db, gerente, { preparoId: prep.resumo.id })).total).toBe("500");
     // Conferir de novo avisa que gravar outra vez soma.
     expect((await importarSaldoInicial(db, gerente, { arquivo })).avisoDeRepeticao).toMatch(/SOMA/);
+  });
+
+  it("reenvio depois de mudar o cadastro devolve o gravado; desativado entra com aviso; datas e dinheiro", async () => {
+    const x = await ingrediente("Azeite", "ml");
+    const arquivo = csv([
+      ["Item", "Quantidade", "Validade", "Valor total (R$)"],
+      [x.nome, "500", "31/12/99", "R$ 1.234,56"],
+    ]);
+    const c = await importarSaldoInicial(db, gerente, { arquivo });
+    expect(c.resumo.prontas).toBe(1);
+    const g = await importarSaldoInicial(db, gerente, { arquivo, aplicar: true, chave: c.chave });
+    await salvarIngrediente(db, gerente, { id: x.id, nome: x.nome, area: "cozinha", ativo: false });
+    const g2 = await importarSaldoInicial(db, gerente, { arquivo, aplicar: true, chave: c.chave });
+    expect(g2).toMatchObject({ movimentoId: g.movimentoId, repetido: true });
+    expect(await total(x.id)).toEqual({ q: "500", v: "123456" });
+    expect((await estoqueDoItem(db, gerente, { ingredienteId: x.id })).lotes[0]!.validade).toBe("2099-12-31");
+    // Desativado: entra com aviso (o que está na loja é contado).
+    const c2 = await importarSaldoInicial(db, gerente, { arquivo: csv([["Item", "Quantidade"], [x.nome, "10"]]) });
+    expect(c2.linhas[0]).toMatchObject({ situacao: "ok" });
+    expect(c2.linhas[0]!.avisos.join(" ")).toMatch(/desativado/);
+    // Data que não existe e valor acima do teto.
+    const c3 = await importarSaldoInicial(db, gerente, { arquivo: csv([["Item", "Quantidade", "Validade", "Valor total (R$)"], [x.nome, "1", "30/02/2099", "999999999,99"]]) });
+    expect(c3.linhas[0]!.problemas.map((p) => p.texto).join(" ")).toMatch(/dd\/mm\/aaaa.*100 milhões/);
   });
 
   it("valor só para quem vê custos; área que a pessoa não cuida é erro na linha", async () => {
