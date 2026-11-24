@@ -414,7 +414,7 @@ export const TF = {
     // Aba do catálogo
     aba: (n: number) => `Alergênicos (${n})`,
     catalogoIntro:
-      "A lista que cada ingrediente usa. Lista inicial a confirmar com um nutricionista (Anvisa, RDC 26/2015, e lactose, RDC 136/2017). Desativar tira da escolha nos ingredientes, mas não apaga nem esconde o aviso dos pratos que já têm.",
+      "A lista que cada ingrediente usa. Lista inicial a confirmar com um nutricionista (Anvisa, RDC 26/2015, e lactose, RDC 136/2017). Desativar tira da escolha nos ingredientes, mas não apaga nem esconde o aviso dos pratos que já têm. Adicionar ou reativar um pede para conferir de novo os ingredientes já conferidos.",
     novo: "Adicionar alergênico",
     nome: "Nome do alergênico",
     nomeAjuda: "Como aparece para o cliente e na cozinha. De 2 a 60 letras.",
@@ -444,7 +444,10 @@ export const TF = {
     doIngredienteAjuda: "Para cada um, escolha se o ingrediente contém, pode conter traços (veja o rótulo da embalagem) ou não contém. Depois toque em Conferido.",
     doIngredienteExemplo: "Farinha de trigo: Glúten = Contém; Soja = Pode conter traços; o resto = Não contém.",
     naoConferido: "Ainda não conferido",
-    naoConferidoExplicacao: "Enquanto não for conferido, os pratos com este ingrediente aparecem como alergênicos em conferência.",
+    reconferir: "Precisa conferir de novo",
+    reconferirExplicacao: (novos: string[]) =>
+      `${novos.join(", ")} entrou na lista depois da última conferência. Até conferir de novo, os pratos com este ingrediente aparecem como alergênicos em conferência.`,
+    naoConferidoExplicacao: "Enquanto não for conferido, os pratos com este ingrediente aparecem como alergênicos em conferência. Trocar o nome ou o fornecedor do ingrediente pede para conferir de novo.",
     conferidoPor: (quem: string, quando: string) => `Conferido por ${quem} em ${quando}`,
     botaoConferido: "Conferido: este ingrediente está certo",
     gravado: "Alergênicos do ingrediente conferidos.",

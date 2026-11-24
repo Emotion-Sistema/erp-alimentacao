@@ -29,6 +29,8 @@ export type MarcasDoIngrediente = {
   alergenicos: { codigo: string; tipo: TipoDeAlergenico }[];
   alergenicosConferidosEm: string | null;
   alergenicosConferidosPor: string | null;
+  /** Entraram na lista depois da conferência: precisa conferir de novo. */
+  alergenicosNovosNaLista: string[];
 };
 
 const escolhasDe = (i: MarcasDoIngrediente) => new Map<string, Escolha>(i.alergenicos.map((a) => [a.codigo, a.tipo]));
@@ -78,6 +80,8 @@ export function AlergenicosDoIngrediente({
     const r = await chamar(`/api/cadastros/ingredientes/${ingrediente.id}/alergenicos`, "POST", {
       contem: lista.filter(([, v]) => v === "contem").map(([c]) => c),
       tracos: lista.filter(([, v]) => v === "tracos").map(([c]) => c),
+      // A conferência que esta tela viu: se outra pessoa gravou nesse meio-tempo, o servidor recusa.
+      conferidoEmVisto: ingrediente.alergenicosConferidosEm,
     });
     setGravando(false);
     if (!r.ok) return setErro(r.mensagem);
@@ -99,7 +103,11 @@ export function AlergenicosDoIngrediente({
       <h3 id={titulo} tabIndex={-1}>
         {A.titulo}
       </h3>
-      {ingrediente.alergenicosConferidosEm ? (
+      {ingrediente.alergenicosConferidosEm && ingrediente.alergenicosNovosNaLista.length > 0 ? (
+        <Aviso tipo="atencao" data-testid="situacao-alergenicos">
+          <strong>{A.reconferir}.</strong> {A.reconferirExplicacao(ingrediente.alergenicosNovosNaLista)}
+        </Aviso>
+      ) : ingrediente.alergenicosConferidosEm ? (
         <p>
           <Selo variante="sucesso" icone="ok" data-testid="situacao-alergenicos">
             {A.conferidoPor(ingrediente.alergenicosConferidosPor ?? "?", quando(ingrediente.alergenicosConferidosEm))}
@@ -132,7 +140,7 @@ export function AlergenicosDoIngrediente({
         {mudou && !erro && <p className="fichas-tabela__nota">{A.mudouSemGravar}</p>}
       </div>
       <div className="cadastros__botoes">
-        <Botao variante={mudou || !ingrediente.alergenicosConferidosEm ? "primario" : "secundario"} disabled={gravando || !catalogo} onClick={() => void conferir()}>
+        <Botao variante={mudou || !ingrediente.alergenicosConferidosEm || ingrediente.alergenicosNovosNaLista.length > 0 ? "primario" : "secundario"} disabled={gravando || !catalogo} onClick={() => void conferir()}>
           {A.botaoConferido}
         </Botao>
       </div>

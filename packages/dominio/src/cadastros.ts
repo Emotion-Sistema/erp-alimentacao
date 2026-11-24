@@ -229,6 +229,8 @@ export type Ingrediente = {
   /** Nulo = ainda não conferido (os pratos com ele ficam "em conferência"). */
   alergenicosConferidosEm: string | null;
   alergenicosConferidosPor: string | null;
+  /** Alergênicos que entraram (ou voltaram) na lista depois da conferência: precisa conferir de novo. */
+  alergenicosNovosNaLista: string[];
 };
 
 export type UnidadePadrao = { codigo: string; nome: string; grandeza: string; fator: string };
@@ -253,6 +255,10 @@ export async function listarIngredientes(
       "i.ativo",
       "i.alergenicos_conferidos_em",
       "u.nome as conferidoPor",
+      sql<string[]>`ARRAY(
+        SELECT a.nome FROM alergenico a
+        WHERE a.ativo AND i.alergenicos_conferidos_em IS NOT NULL AND a.na_lista_desde > i.alergenicos_conferidos_em
+        ORDER BY a.ordem, a.nome)`.as("novosNaLista"),
     ])
     .orderBy("i.ativo", "desc")
     .orderBy(sql`lower(i.nome)`)
@@ -288,6 +294,7 @@ export async function listarIngredientes(
       alergenicos: porIngrediente.get(l.id) ?? [],
       alergenicosConferidosEm: l.alergenicos_conferidos_em ? new Date(l.alergenicos_conferidos_em).toISOString() : null,
       alergenicosConferidosPor: l.alergenicos_conferidos_em ? l.conferidoPor : null,
+      alergenicosNovosNaLista: l.novosNaLista,
     })),
     unidades: unidades.map((u) => ({ ...u, fator: decimalLimpo(u.fator) })),
   };
@@ -312,15 +319,24 @@ export async function salvarIngrediente(db: Banco, ator: Ator | null, dados: unk
       const valores = { nome: d.nome, area_estoque: d.area, fornecedor_id: d.fornecedorId, ativo: d.ativo };
       let antes: Record<string, unknown> | undefined;
       let salvo;
+      let reabrirAlergenicos = false;
       if (d.id) {
-        antes = await trx.selectFrom("ingrediente").select(colunas).where("id", "=", d.id).forUpdate().executeTakeFirst();
+        antes = await trx.selectFrom("ingrediente").select([...colunas, "alergenicos_conferidos_em"]).where("id", "=", d.id).forUpdate().executeTakeFirst();
         if (!antes) throw new ErroDeRegra("nao_encontrado", "Ingrediente não encontrado.");
         if (d.unidadeBase && d.unidadeBase !== antes.unidade_base)
           throw new ErroDeRegra("dados_invalidos", "A unidade do estoque não muda depois de criada. Desative o ingrediente e cadastre outro.");
         conferirFamilia(antes.unidade_base as UnidadeBase, d.unidadeExibicao);
+        // Outro nome ou outro fornecedor pode ser outro produto (outro rótulo): a conferência dos
+        // alergênicos deixa de valer e os pratos voltam a "em conferência" (decisão 0026).
+        reabrirAlergenicos = antes.alergenicos_conferidos_em !== null && (antes.nome !== d.nome || antes.fornecedor_id !== d.fornecedorId);
         salvo = await trx
           .updateTable("ingrediente")
-          .set({ ...valores, ...(d.unidadeExibicao ? { unidade_exibicao: d.unidadeExibicao } : {}), atualizado_em: sql`now()` })
+          .set({
+            ...valores,
+            ...(d.unidadeExibicao ? { unidade_exibicao: d.unidadeExibicao } : {}),
+            ...(reabrirAlergenicos ? { alergenicos_conferidos_em: null, alergenicos_conferidos_por: null } : {}),
+            atualizado_em: sql`now()`,
+          })
           .where("id", "=", d.id)
           .returning(colunas)
           .executeTakeFirstOrThrow();
@@ -337,7 +353,7 @@ export async function salvarIngrediente(db: Banco, ator: Ator | null, dados: unk
         resultado: "permitido",
         alvoTipo: "ingrediente",
         alvoId: salvo.id,
-        detalhes: { operacao: d.id ? "alterar" : "criar", antes: antes ?? null, depois: salvo },
+        detalhes: { operacao: d.id ? "alterar" : "criar", antes: antes ?? null, depois: salvo, ...(reabrirAlergenicos ? { alergenicosReabertos: true } : {}) },
         ip: quem.ip,
       });
       return { id: salvo.id };

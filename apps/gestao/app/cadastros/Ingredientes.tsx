@@ -43,6 +43,7 @@ type Ingrediente = {
   alergenicos: { codigo: string; tipo: "contem" | "tracos" }[];
   alergenicosConferidosEm: string | null;
   alergenicosConferidosPor: string | null;
+  alergenicosNovosNaLista: string[];
 };
 type Lista = { ingredientes: Ingrediente[]; unidades: UnidadePadrao[] };
 type Fornecedor = { id: number; nome: string; ativo: boolean };

@@ -559,6 +559,8 @@ export interface AlergenicoTabela {
   descricao: string | null;
   ordem: Generated<number>;
   ativo: Generated<boolean>;
+  /** Criado ou reativado em (migração 0020): conferência anterior não vale para ele. */
+  na_lista_desde: Instante;
   criado_em: Instante;
   atualizado_em: Instante;
 }

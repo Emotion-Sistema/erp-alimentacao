@@ -494,8 +494,13 @@ export type IngredienteParaAlergenicos = {
   id: number;
   nome: string;
   ativo: boolean;
-  /** Alguém já conferiu os alergênicos deste ingrediente. */
+  /**
+   * A conferência vale para a lista ATUAL do catálogo: alguém conferiu e nenhum alergênico ativo
+   * entrou (ou voltou) na lista depois disso.
+   */
   conferido: boolean;
+  /** Por que não está conferido (para a tela): "conferido antes de Gergelim entrar na lista". */
+  motivo?: string | null;
   alergenicos: { codigo: string; tipo: TipoDeAlergenico }[];
 };
 
@@ -509,7 +514,7 @@ export type AlergenicosCalculados = {
   /** Só vêm de itens opcionais: "contém se pedir X". `itens` = nomes dos itens opcionais da ficha. */
   opcionais: { codigo: string; tipo: TipoDeAlergenico; itens: string[] }[];
   /** Ingredientes ainda não conferidos (ou desativados): enquanto houver, o prato está em conferência. */
-  emConferencia: { ingredienteId: number; nome: string }[];
+  emConferencia: { ingredienteId: number; nome: string; motivo: string }[];
   /** O que mais impede saber tudo: ficha sem receita, preparo desativado, receita circular... */
   pendencias: string[];
 };
@@ -517,7 +522,7 @@ export type AlergenicosCalculados = {
 type AcumuladoDeAlergenicos = {
   sempre: Map<string, TipoDeAlergenico>;
   opcional: Map<string, Map<TipoDeAlergenico, Set<string>>>;
-  conferir: Map<number, string>;
+  conferir: Map<number, { nome: string; motivo: string }>;
   pendencias: Set<string>;
   altura: number;
   profunda: boolean;
@@ -585,7 +590,9 @@ export function alergenicosDasFichas(
       for (const item of v?.itens ?? []) {
         if (item.ingredienteId !== null) {
           const ing = ingredientes.get(item.ingredienteId);
-          if (!ing || !ing.ativo || !ing.conferido) a.conferir.set(item.ingredienteId, ing?.nome ?? item.nome);
+          if (!ing) a.conferir.set(item.ingredienteId, { nome: item.nome, motivo: "não encontrado no cadastro" });
+          else if (!ing.ativo) a.conferir.set(ing.id, { nome: ing.nome, motivo: "desativado no cadastro" });
+          else if (!ing.conferido) a.conferir.set(ing.id, { nome: ing.nome, motivo: ing.motivo ?? "ainda não conferido" });
           for (const x of ing?.alergenicos ?? []) {
             if (item.opcional) somarOpcional(a.opcional, x.codigo, x.tipo, item.nome);
             else somarTipo(a.sempre, x.codigo, x.tipo);
@@ -596,7 +603,7 @@ export function alergenicosDasFichas(
           const sub = juntar(item.preparoId);
           a.altura = Math.max(a.altura, sub.altura + 1);
           if (sub.profunda) a.profunda = true;
-          for (const [k, nome] of sub.conferir) a.conferir.set(k, nome);
+          for (const [k, x] of sub.conferir) a.conferir.set(k, x);
           for (const p of sub.pendencias) a.pendencias.add(p);
           for (const [codigo, tipo] of sub.sempre) {
             if (item.opcional) somarOpcional(a.opcional, codigo, tipo, item.nome);
@@ -629,7 +636,7 @@ export function alergenicosDasFichas(
         if (sempre === "contem" || (sempre === "tracos" && tipo === "tracos")) continue;
         opcionais.push({ codigo, tipo, itens: [...itens].sort(ordemDoNome) });
       }
-    const conferir = [...a.conferir].map(([ingredienteId, nome]) => ({ ingredienteId, nome })).sort((x, y) => ordemDoNome(x.nome, y.nome));
+    const conferir = [...a.conferir].map(([ingredienteId, x]) => ({ ingredienteId, nome: x.nome, motivo: x.motivo })).sort((x, y) => ordemDoNome(x.nome, y.nome));
     saida.set(id, {
       situacao: conferir.length || a.pendencias.size ? "em_conferencia" : "conferido",
       contem: [...a.sempre].filter(([, t]) => t === "contem").map(([c]) => c).sort(ordemDoNome),

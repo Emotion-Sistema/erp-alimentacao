@@ -60,6 +60,13 @@ const esquemaDoIngrediente = z.object(
     ingredienteId: z.number({ error: "Ingrediente não encontrado." }).int("Ingrediente não encontrado.").positive("Ingrediente não encontrado.").max(MAIOR_ID, "Ingrediente não encontrado."),
     contem: listaDeCodigos,
     tracos: listaDeCodigos,
+    /**
+     * A conferência que a tela viu (`conferidoEm`; nulo se nunca conferido). Se mudou desde então
+     * (outra pessoa gravou, ou a conferência foi zerada), recusa: ninguém grava por cima sem ver.
+     */
+    conferidoEmVisto: z.union([z.iso.datetime({ offset: true, error: "Data da conferência em formato inválido." }), z.null()], {
+      error: "Falta a conferência que a tela viu. Abra o ingrediente de novo.",
+    }),
   },
   { error: "Alergênicos do ingrediente em formato inválido." },
 );
@@ -117,9 +124,11 @@ export async function salvarAlergenico(db: Banco, ator: Ator | null, dados: unkn
           ...(d.ativo === undefined ? {} : { ativo: d.ativo }),
         };
         if (!Object.keys(mudancas).length) throw new ErroDeRegra("dados_invalidos", "Nada para mudar.");
+        // Voltou para a lista: a conferência de antes não cobre ele (reabre os ingredientes).
+        const voltou = d.ativo === true && !antes.ativo;
         depois = await trx
           .updateTable("alergenico")
-          .set({ ...mudancas, atualizado_em: sql`now()` })
+          .set({ ...mudancas, ...(voltou ? { na_lista_desde: sql<Date>`now()` } : {}), atualizado_em: sql`now()` })
           .where("codigo", "=", d.codigo)
           .returning(["codigo", "nome", "descricao", "ordem", "ativo"])
           .executeTakeFirstOrThrow();
@@ -137,8 +146,9 @@ export async function salvarAlergenico(db: Banco, ator: Ator | null, dados: unkn
     });
   } catch (e) {
     if (e instanceof ErroDeRegra) throw e;
-    const { code } = e as { code?: string };
-    if (code === "23505") throw new ErroDeRegra("conflito", "Já existe um alergênico com esse nome.");
+    const { code, constraint } = e as { code?: string; constraint?: string };
+    if (code === "23505")
+      throw new ErroDeRegra("conflito", constraint === "alergenico_pkey" ? "Já existe um alergênico com esse código." : "Já existe um alergênico com esse nome.");
     if (code === "23514") throw new ErroDeRegra("dados_invalidos", "Algum campo está fora do permitido. Confira os campos.");
     throw e;
   }
@@ -199,6 +209,8 @@ export async function salvarAlergenicosDoIngrediente(db: Banco, ator: Ator | nul
       const ing = await trx.selectFrom("ingrediente").select("id").where("id", "=", d.ingredienteId).forUpdate().executeTakeFirst();
       if (!ing) throw new ErroDeRegra("nao_encontrado", "Ingrediente não encontrado.");
       const antes = await lerDoIngrediente(trx, d.ingredienteId);
+      const visto = d.conferidoEmVisto === null ? null : new Date(d.conferidoEmVisto).toISOString();
+      if (visto !== antes.conferidoEm) throw new ErroDeRegra("conflito", "Outra pessoa mudou os alergênicos deste ingrediente. Abra de novo.");
       const pedidos = [...contem, ...tracos];
       if (pedidos.length) {
         // FOR SHARE: ninguém desativa o alergênico enquanto ele é marcado aqui.
@@ -253,13 +265,27 @@ export async function salvarAlergenicosDoIngrediente(db: Banco, ator: Ator | nul
 
 // ---------------------------------------------------------------- para a conta e para mostrar
 
-/** O que a regra precisa de cada ingrediente (conferido e marcas ativas). */
+/**
+ * Alergênicos ativos que entraram (ou voltaram) na lista DEPOIS da conferência do ingrediente.
+ * Conta no banco, com a precisão dele. Vazio se nunca conferido (aí o motivo é outro).
+ */
+export const novosNaListaDepoisDaConferencia = sql<string[]>`ARRAY(
+  SELECT a.nome FROM alergenico a
+  WHERE a.ativo AND ingrediente.alergenicos_conferidos_em IS NOT NULL AND a.na_lista_desde > ingrediente.alergenicos_conferidos_em
+  ORDER BY a.ordem, a.nome)`;
+
+export const motivoDosNovos = (novos: string[]) => `conferido antes de ${novos.join(", ")} entrar na lista`;
+
+/**
+ * O que a regra precisa de cada ingrediente (conferido e marcas ativas). Conferido só vale se nenhum
+ * alergênico ativo entrou na lista depois (decisão 0026).
+ */
 export async function alergenicosDosIngredientes(db: Banco, ids: number[]): Promise<Map<number, IngredienteParaAlergenicos>> {
   const saida = new Map<number, IngredienteParaAlergenicos>();
   if (!ids.length) return saida;
   const ings = await db
     .selectFrom("ingrediente")
-    .select(["id", "nome", "ativo", "alergenicos_conferidos_em as em"])
+    .select(["id", "nome", "ativo", "alergenicos_conferidos_em as em", novosNaListaDepoisDaConferencia.as("novos")])
     .where("id", "in", ids)
     .execute();
   const linhas = await db
@@ -268,7 +294,15 @@ export async function alergenicosDosIngredientes(db: Banco, ids: number[]): Prom
     .where("ingrediente_id", "in", ids)
     .where("ativo", "=", true)
     .execute();
-  for (const g of ings) saida.set(g.id, { id: g.id, nome: g.nome, ativo: g.ativo, conferido: g.em !== null, alergenicos: [] });
+  for (const g of ings)
+    saida.set(g.id, {
+      id: g.id,
+      nome: g.nome,
+      ativo: g.ativo,
+      conferido: g.em !== null && g.novos.length === 0,
+      motivo: g.em === null ? "ainda não conferido" : g.novos.length ? motivoDosNovos(g.novos) : null,
+      alergenicos: [],
+    });
   for (const l of linhas) saida.get(l.ingredienteId)?.alergenicos.push({ codigo: l.codigo, tipo: l.tipo });
   return saida;
 }

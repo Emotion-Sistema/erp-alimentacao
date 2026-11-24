@@ -138,6 +138,12 @@ test("catálogo: adicionar, desativar e reativar (nada se apaga)", async ({ page
   await novo.getByRole("button", { name: "Adicionar" }).click();
   const linha = lista.getByTestId(`alergenico-${codigo}`);
   await expect(linha).toContainText(NOVO);
+  // Alergênico novo na lista: o lanche, conferido antes, volta a "em conferência" com o motivo.
+  await page.goto(`/cadastros/fichas/${idDoLanche}`);
+  const blocoDoLanche = page.getByTestId("bloco-alergenicos");
+  await expect(blocoDoLanche.getByTestId("alergenicos-em-conferencia")).toBeVisible();
+  await expect(blocoDoLanche.getByTestId("motivo-da-conferencia").first()).toHaveText(`conferido antes de ${NOVO} entrar na lista`);
+  await page.goto("/cadastros/fichas?aba=alergenicos");
   await linha.getByRole("button", { name: `Desativar ${NOVO}` }).click();
   await expect(linha).toContainText("Desativado");
   await linha.getByRole("button", { name: `Reativar ${NOVO}` }).click();

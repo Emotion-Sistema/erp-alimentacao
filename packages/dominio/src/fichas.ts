@@ -1105,7 +1105,10 @@ export async function consumoDaFicha(
 /**
  * Alergênicos de um item do cardápio (para o cardápio, o site e o delivery). Com tamanho: a ficha
  * ativa do tamanho, se houver; senão, a do produto (decisão 0025). Sem ficha ativa: em conferência
- * (nunca "não contém"). Quem chama já conferiu a permissão (ou é público e só lê o que pode mostrar).
+ * (nunca "não contém"). Quem chama já conferiu a permissão.
+ * ATENÇÃO: a resposta tem ids e nomes internos (ingredientes a conferir, pendências). Rota pública
+ * (site, delivery, QR da mesa) precisa de uma versão filtrada: só a situação e os nomes dos
+ * alergênicos, sem ids, sem nomes de ingredientes e sem pendências (skill pagina-publica).
  */
 export async function alergenicosDoProduto(db: Banco, produtoId: number, tamanhoId?: number | null): Promise<AlergenicosDaFicha> {
   const produto = await db.selectFrom("produto").select("id").where("id", "=", produtoId).executeTakeFirst();

@@ -79,6 +79,9 @@ export function BlocoDeAlergenicos({ alergenicos }: { alergenicos: AlergenicosDa
                 {a.emConferencia.map((g) => (
                   <li key={g.ingredienteId} className="fichas-lista__item">
                     <span className="fichas-lista__nome">{g.nome}</span>
+                    <span className="fichas-tabela__nota" data-testid="motivo-da-conferencia">
+                      {g.motivo}
+                    </span>
                     <Link href={`/cadastros?ingrediente=${g.ingredienteId}`} aria-label={A.conferirUm(g.nome)}>
                       {A.conferirUm(g.nome)}
                     </Link>

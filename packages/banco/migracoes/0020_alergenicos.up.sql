@@ -13,12 +13,16 @@ CREATE TABLE alergenico (
   descricao     text CHECK (length(btrim(descricao)) BETWEEN 1 AND 300 AND descricao !~ '[[:cntrl:]]'),
   ordem         integer NOT NULL DEFAULT 0 CHECK (ordem BETWEEN 0 AND 9999),
   ativo         boolean NOT NULL DEFAULT true,
+  -- Desde quando está na lista (criado ou reativado). Ingrediente conferido ANTES disso não está
+  -- conferido para este alergênico: o prato volta a "em conferência" (decisão 0026).
+  na_lista_desde timestamptz NOT NULL DEFAULT now(),
   criado_em     timestamptz NOT NULL DEFAULT now(),
   atualizado_em timestamptz NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX alergenico_nome ON alergenico (lower(btrim(nome)));
 
-INSERT INTO alergenico (codigo, nome, descricao, ordem) VALUES
+-- A lista inicial nasce "desde sempre": a conferência de qualquer ingrediente já a cobre.
+INSERT INTO alergenico (codigo, nome, descricao, ordem, na_lista_desde) SELECT c, n, d, o, timestamptz '2000-01-01 00:00:00+00' FROM (VALUES
   ('gluten',     'Glúten',             'Trigo, centeio, cevada, aveia e derivados.', 10),
   ('crustaceos', 'Crustáceos',         'Camarão, lagosta, caranguejo, siri e derivados.', 20),
   ('ovos',       'Ovos',               'Ovos e derivados.', 30),
@@ -28,7 +32,7 @@ INSERT INTO alergenico (codigo, nome, descricao, ordem) VALUES
   ('leite',      'Leite',              'Leite de todos os mamíferos e derivados.', 70),
   ('castanhas',  'Castanhas e nozes',  'Amêndoa, avelã, castanha-de-caju, castanha-do-pará, macadâmia, nozes, pecã, pistache, pinoli e derivados.', 80),
   ('latex',      'Látex natural',      'Látex natural e derivados.', 90),
-  ('lactose',    'Lactose',            'Açúcar do leite (para quem tem intolerância).', 100);
+  ('lactose',    'Lactose',            'Açúcar do leite (para quem tem intolerância).', 100)) AS v (c, n, d, o);
 
 -- O que cada ingrediente contém ou pode conter em traços. Sem linha ativa = não contém aquele.
 -- Desmarcar não apaga (o papel do aplicativo não tem DELETE, RC-17): a linha fica inativa.
