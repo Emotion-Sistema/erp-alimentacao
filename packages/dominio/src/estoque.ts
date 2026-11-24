@@ -1358,6 +1358,8 @@ const esquemaCorrecaoDeCusto = z.object(
 export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados: unknown): Promise<Lancado & { aplicadoCentavos: string }> {
   const quem = await exigir(db, ator, "custos.ver", { tipo: "estoque_custo" });
   const d = validar(esquemaCorrecaoDeCusto, dados);
+  // Além de ver custos, tem de cuidar de uma área da entrada (quem corrige vê o que corrige).
+  await exigirEntradaVisivel(db, quem, d.movimentoId);
   return db.transaction().execute(async (trx) => {
     const assinatura = assinar("custo", d);
     const ja = await jaLancado(trx, d.chave, assinatura);
@@ -1382,14 +1384,14 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
     let aplicado = 0n;
     for (const [k, linha] of d.itens.entries()) {
       const item = l.item(ids[k]!);
-      const r = await sql<{ entrou: string | null; valor_atual: string | null; resta: string; ultima: boolean }>`
+      const r = await sql<{ entrou: string | null; valor_atual: string | null; ultima: boolean }>`
         SELECT mi.quantidade::text AS entrou,
           mi.valor_centavos::text AS valor_atual,
-          coalesce((SELECT sum(s.quantidade) FROM estoque_saldo s JOIN estoque_lote lo ON lo.id = s.lote_id
-                    WHERE lo.movimento_id = mi.movimento_id AND lo.item_id = mi.item_id), 0)::text AS resta,
           NOT EXISTS (SELECT 1 FROM estoque_movimento_item o JOIN estoque_movimento om ON om.id = o.movimento_id
                       WHERE o.item_id = mi.item_id AND om.tipo IN ('entrada', 'saldo_inicial') AND o.movimento_id > mi.movimento_id
-                        AND NOT o.custo_estimado) AS ultima
+                        AND (NOT o.custo_estimado OR EXISTS (
+                          SELECT 1 FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
+                          WHERE c.tipo = 'custo' AND c.corrige_custo_de = o.movimento_id AND ci.item_id = o.item_id))) AS ultima
         FROM estoque_movimento_item mi WHERE mi.movimento_id = ${d.movimentoId}::bigint AND mi.item_id = ${item.id}`.execute(trx);
       const x = r.rows[0];
       if (!x || x.entrou === null) throw new ErroDeRegra("dados_invalidos", `"${item.nome}" não está nesta entrada.`);
@@ -1406,17 +1408,29 @@ export async function corrigirCustoDaEntrada(db: Banco, ator: Ator | null, dados
         .executeTakeFirst();
       const atual = ultimaCorrecao?.valor_informado != null ? BigInt(ultimaCorrecao.valor_informado) : BigInt(x.valor_atual!);
       const entrou = q4DoBanco(x.entrou);
-      const resta = q4DoBanco(x.resta);
       const novo = BigInt(linha.valorCentavos);
       const diferenca = novo - atual;
-      // Parte que ainda está no estoque: diferença x (o que resta dos lotes / o que entrou).
-      const parte = resta >= entrou ? diferenca : (diferenca < 0n ? -valorPeloCusto(resta, -diferenca, entrou) : valorPeloCusto(resta, diferenca, entrou));
+      // Parte da diferença que ainda está no estoque, pelo custo médio: cada saída depois da
+      // entrada leva "saída / quantidade antes" do valor que havia (lotes saem por validade, mas
+      // o valor sai pela média; por isso a conta é pelas saídas, não pelos lotes).
+      const saidas = await sql<{ q: string; depois: string }>`
+        SELECT quantidade::text AS q, quantidade_depois::text AS depois FROM estoque_movimento_item
+        WHERE item_id = ${item.id} AND movimento_id > ${d.movimentoId}::bigint AND quantidade < 0 ORDER BY movimento_id`.execute(trx);
+      let fica = Fracao.UM;
+      for (const sd of saidas.rows) {
+        const depois = q4DoBanco(sd.depois);
+        const antes = depois - q4DoBanco(sd.q);
+        fica = depois === 0n ? Fracao.ZERO : fica.vezes(new Fracao(depois, antes));
+      }
+      const parte = new Fracao(diferenca).vezes(fica).arredondado();
       aplicado += l.ajustarValor(item.id, parte, novo, x.ultima ? { c: novo, q: entrou } : null);
     }
     await l.fechar();
     return { movimentoId: mov, repetido: false, aplicadoCentavos: aplicado.toString() };
   });
 }
+
+const ITENS_NA_LISTA = 50;
 
 export type EntradaDaLista = {
   movimentoId: string;
@@ -1428,6 +1442,8 @@ export type EntradaDaLista = {
   notaData: string | null;
   observacao: string | null;
   fotos: number[];
+  /** Itens que não couberam na lista (vêm até 50 por entrada). */
+  maisItens: number;
   itens: {
     itemId: number;
     nome: string;
@@ -1457,7 +1473,8 @@ const esquemaListaDeEntradas = z.object(
 export async function listarEntradas(db: Banco, ator: Ator | null, filtro: unknown = {}): Promise<EntradaDaLista[]> {
   const f = validar(esquemaListaDeEntradas, filtro);
   const { ator: a, areas } = await exigirAlgumaArea(db, ator);
-  const comValor = pode(a.cargoAtivo, "custos.ver");
+  // Valor só para quem vê custos E todas as áreas (o valor da linha é do item inteiro).
+  const comValor = pode(a.cargoAtivo, "custos.ver") && areas.length === AREAS_ESTOQUE.length;
   const movs = await sql<{
     id: string;
     tipo: "entrada" | "saldo_inicial";
@@ -1486,12 +1503,15 @@ export async function listarEntradas(db: Banco, ator: Ator | null, filtro: unkno
   const ids = movs.rows.map((m) => m.id);
   const itens = await sql<{ movimento_id: string; item_id: number; nome: string; unidade: string; quantidade: string; valor: string; estimado: boolean; informado: string | null }>`
     SELECT mi.movimento_id::text AS movimento_id, mi.item_id, coalesce(i.nome, f.nome) AS nome, coalesce(i.unidade_base, f.unidade_rendimento) AS unidade,
-      mi.quantidade::text AS quantidade, mi.valor_centavos::text AS valor, mi.custo_estimado AS estimado,
+      (SELECT sum(l.quantidade) FROM estoque_movimento_linha l WHERE l.movimento_id = mi.movimento_id AND l.item_id = mi.item_id AND l.area = ANY(${areas}::text[]))::text AS quantidade,
+      mi.valor_centavos::text AS valor, mi.custo_estimado AS estimado,
       (SELECT ci.valor_informado::text FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
         WHERE c.tipo = 'custo' AND c.corrige_custo_de = mi.movimento_id AND ci.item_id = mi.item_id ORDER BY c.id DESC LIMIT 1) AS informado
     FROM estoque_movimento_item mi JOIN estoque_item e ON e.id = mi.item_id
     LEFT JOIN ingrediente i ON i.id = e.ingrediente_id LEFT JOIN ficha f ON f.id = e.preparo_id
-    WHERE mi.movimento_id = ANY(${ids}::bigint[]) ORDER BY lower(coalesce(i.nome, f.nome))`.execute(db);
+    WHERE mi.movimento_id = ANY(${ids}::bigint[])
+      AND EXISTS (SELECT 1 FROM estoque_movimento_linha l WHERE l.movimento_id = mi.movimento_id AND l.item_id = mi.item_id AND l.area = ANY(${areas}::text[]))
+    ORDER BY lower(coalesce(i.nome, f.nome))`.execute(db);
   const fotos = await db.selectFrom("estoque_nota_foto").select(["id", "movimento_id"]).where("movimento_id", "in", ids).orderBy("id").execute();
   return movs.rows.map((m) => ({
     movimentoId: m.id,
@@ -1503,8 +1523,11 @@ export async function listarEntradas(db: Banco, ator: Ator | null, filtro: unkno
     notaData: m.nota_data,
     observacao: m.observacao,
     fotos: fotos.filter((x) => String(x.movimento_id) === m.id).map((x) => x.id),
+    // Até 50 itens por entrada na lista (o saldo inicial pode ter 2000); o resto, no histórico do item.
+    maisItens: Math.max(0, itens.rows.filter((x) => x.movimento_id === m.id).length - ITENS_NA_LISTA),
     itens: itens.rows
       .filter((x) => x.movimento_id === m.id)
+      .slice(0, ITENS_NA_LISTA)
       .map((x) => ({
         itemId: x.item_id,
         nome: x.nome,

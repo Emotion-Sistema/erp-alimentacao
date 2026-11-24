@@ -14,7 +14,13 @@ import { decodificarFoto, refazerFoto, QUALIDADES } from "./fotos";
 import { type Ator } from "./sessao";
 
 export const FOTOS_POR_NOTA = 5;
-const LIMITES_DA_NOTA = { ladoMaximo: 2000, ladoMinimo: 200, proporcaoMaxima: 10, gravadaMaxima: 2 * 1024 * 1024 };
+const LIMITES_DA_NOTA = {
+  ladoMaximo: 2000,
+  ladoMinimo: 200,
+  proporcaoMaxima: 10,
+  gravadaMaxima: 2 * 1024 * 1024,
+  detalheDemais: "Foto da nota pesada demais (mais de 2 MB mesmo reduzida). Tire a foto de novo, mais de perto.",
+};
 
 const esquema = z.object(
   {
