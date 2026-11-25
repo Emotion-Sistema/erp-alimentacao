@@ -52,6 +52,7 @@ const ROTAS: Rota[] = [
   { metodo: "GET", caminho: "/api/eu", acao: "sessao" },
   { metodo: "POST", caminho: "/api/eu/cargo", acao: "sessao" },
   { metodo: "POST", caminho: "/api/eu/codigo", acao: "sessao" },
+  { metodo: "POST", caminho: "/api/eu/preferencias", acao: "sessao" },
   { metodo: "GET", caminho: "/api/avisos", acao: "sessao" },
   { metodo: "POST", caminho: "/api/avisos/vistos", acao: "sessao" },
   { metodo: "POST", caminho: "/api/avisos/[id]/resolver", acao: "sessao" },

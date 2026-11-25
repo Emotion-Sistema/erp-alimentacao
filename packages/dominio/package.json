@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./catalogo": "./src/catalogo-ingredientes.ts",
+    "./preferencias": "./src/preferencias-comum.ts",
     "./unidades": "./src/unidades-do-estoque.ts",
     "./horarios": "./src/horarios-comum.ts",
     "./tipos-producao": "./src/tipos-producao-comum.ts",

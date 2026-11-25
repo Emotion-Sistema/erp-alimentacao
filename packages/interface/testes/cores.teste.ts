@@ -38,16 +38,23 @@ describe("cores.ts espelha tema.css (tema claro)", () => {
     expect(CORES_DO_TEMA_ESCURO.fundo.toLowerCase()).toBe(valorEscuro("cor-fundo")));
 });
 
-describe("fundo sempre claro (pedido do responsável, 15/11/2026)", () => {
-  it("o tema não tem modo escuro automático nem manual", () => {
+describe("claro por padrão; escuro só por escolha da pessoa (decisões 0012 e 0030)", () => {
+  it("o aparelho nunca escurece a gestão sozinho", () => {
     expect(css).not.toMatch(/prefers-color-scheme\s*:\s*dark/);
-    expect(css).not.toMatch(/data-tema/);
   });
-  it("os controles nativos também ficam claros", () => {
+  it("o escuro existe só pela escolha guardada (atributo data-tema no html)", () => {
+    expect(css).toMatch(/:root\[data-tema="escuro"\]\s*\{/);
+  });
+  it("sem escolha, os controles nativos ficam claros", () => {
     expect(css).toMatch(/:root\s*\{\s*color-scheme:\s*light;/);
     expect(css).toMatch(/html\s*\{[^}]*color-scheme:\s*light/);
   });
 });
+
+// Escuro da gestão (decisão 0030): o bloco :root[data-tema="escuro"] do tema.css.
+const blocoEscuroGestao = css.match(/:root\[data-tema="escuro"\]\s*\{([^}]*)\}/)![1]!;
+const valorEscuroGestao = (nome: string) =>
+  blocoEscuroGestao.match(new RegExp(`--${nome}:\\s*([^;]+);`))?.[1]?.trim() ?? valor(nome);
 
 function luminancia(hex: string): number {
   const canais = [1, 3, 5]
@@ -152,7 +159,7 @@ describe("etapas da produção (tela Produção, protótipo A): contraste AA", (
 });
 
 describe("modo escuro dos apps do cliente (publico.css): contraste AA", () => {
-  it("só existe no publico.css, nunca no tema da gestão", () => {
+  it("no cliente o escuro segue o aparelho (na gestão, só por escolha)", () => {
     expect(publico).toMatch(/prefers-color-scheme:\s*dark/);
     expect(publico).toMatch(/color-scheme:\s*light dark/);
   });
@@ -188,5 +195,33 @@ describe("laranja e âmbar da logo nunca como letra (contraste 3:1 só serve de 
   it("o tema não usa --cor-marca nem --cor-ambar em color:", () => {
     for (const texto of [css, publico])
       expect(texto).not.toMatch(/(^|[^-])color:\s*var\(--cor-(marca|ambar)\)/m);
+  });
+});
+
+describe("escuro da gestão (decisão 0030): mesma paleta do cliente e contraste AA", () => {
+  it("cada cor do escuro do cliente tem o mesmo valor no escuro da gestão", () => {
+    const nomes = [...blocoEscuro.matchAll(/--([a-z0-9-]+):\s*#[0-9a-f]{6}/gi)].map((m) => m[1]!);
+    expect(nomes.length).toBeGreaterThan(20);
+    for (const n of nomes) expect(valorEscuroGestao(n), n).toBe(valorEscuro(n));
+  });
+  for (const v of ["neutro", "info", "sucesso", "alerta", "perigo", "cozinha", "bebidas-salao", "cafeteria", "sorvete"]) {
+    it(`selo ${v}`, () =>
+      expect(contraste(valorEscuroGestao(`selo-${v}-fundo`)!, valorEscuroGestao(`selo-${v}-texto`)!)).toBeGreaterThanOrEqual(4.5));
+  }
+  for (const [texto, fundo] of PARES) {
+    it(`${texto} sobre ${fundo}`, () =>
+      expect(contraste(valorEscuroGestao(texto)!, valorEscuroGestao(fundo)!)).toBeGreaterThanOrEqual(4.5));
+  }
+  it("trilho: seção aberta (brasa funda sobre brasa suave) e nome das seções", () => {
+    expect(contraste(valorEscuroGestao("cor-primaria-hover")!, valorEscuroGestao("cor-brasa-suave")!)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(valorEscuroGestao("cor-texto-suave")!, valorEscuroGestao("cor-fundo")!)).toBeGreaterThanOrEqual(4.5);
+  });
+  for (const m of ["livre", "ocupada", "conta"]) {
+    it(`mesa ${m}`, () =>
+      expect(contraste(valorEscuroGestao(`mesa-${m}-fundo`)!, valorEscuroGestao(`mesa-${m}-texto`)!)).toBeGreaterThanOrEqual(4.5));
+  }
+  it("borda de campo: 3:1 ou mais no fundo e no cartão", () => {
+    for (const f of ["cor-fundo", "cor-cartao"])
+      expect(contraste(valorEscuroGestao("cor-borda")!, valorEscuroGestao(f)!), f).toBeGreaterThanOrEqual(3);
   });
 });

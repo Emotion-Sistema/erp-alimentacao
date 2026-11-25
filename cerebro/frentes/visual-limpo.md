@@ -166,3 +166,6 @@ falta de orçamento de tokens.
 
 ## Junção automática (25/11/2026)
 O responsável criou a regra `main protegida` (testes obrigatórios: "Lint, tipos, testes e build" e "Ensaio da homologação (Docker)") e ligou "Allow auto-merge". Daqui em diante: abrir o PR e ligar a junção automática (squash); o GitHub junta sozinho quando os testes passam.
+
+## Parte 4 (25/11/2026)
+Tema claro/escuro e letra normal/grande por pessoa (decisão 0030; migração 0026; `POST /api/eu/preferencias`; sol/lua no topo e "Letra grande" no menu da conta). Escuro = paleta "Noite de Torra" do cliente. Depois: acelerar o CI (dividir os testes de tela e guardar o navegador entre rodadas), pedido do responsável.

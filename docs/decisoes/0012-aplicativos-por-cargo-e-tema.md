@@ -97,3 +97,6 @@ Pedido do responsável ao ver o campo "Ordem na lista" (não ficava claro o que 
    dos ativos de 10 em 10 (`packages/dominio/src/posicao.ts`, com trava e auditoria).
    Componente: `apps/gestao/app/cadastros/PosicaoNaLista.tsx` (Categorias e Tipos de produção;
    usar o mesmo nos próximos cadastros com ordem, como Produtos).
+
+
+> Nota de 25/11/2026: "gestão sempre clara" passou a ser o padrão; cada pessoa pode escolher o escuro (decisão 0030). O navegador continua sem escurecer a gestão sozinho.

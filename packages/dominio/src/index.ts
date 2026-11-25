@@ -43,3 +43,5 @@ export * from "./estoque-reposicao-estado";
 export * from "./mesas";
 export * from "./cardapio";
 export * from "./cardapio-comum";
+export * from "./preferencias-comum";
+export * from "./preferencias";

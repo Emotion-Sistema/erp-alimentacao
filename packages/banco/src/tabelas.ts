@@ -51,6 +51,9 @@ export interface UsuarioTabela {
   totp_ultimo_passo: ColumnType<string | null, number | string | null | undefined, number | string | null>;
   totp_erros: Generated<number>;
   totp_bloqueado_ate: Instante | null;
+  /** Preferências de tela (migração 0026). */
+  tema: Generated<"claro" | "escuro">;
+  letra: Generated<"normal" | "grande">;
 }
 
 export interface UsuarioPerfilTabela {

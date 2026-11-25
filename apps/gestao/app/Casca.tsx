@@ -14,6 +14,7 @@ import {
 import { CentralDeAvisos } from "./CentralDeAvisos";
 import { BotaoSair } from "./BotaoSair";
 import { BotaoTelaCheia } from "./BotaoTelaCheia";
+import { BotaoDaLetra, BotaoDoTema } from "./Preferencias";
 import { entradaDoAplicativo } from "./aplicativos-ui";
 import { ICONE_DO_APP } from "./icones-do-menu";
 import { Menu } from "./Menu";
@@ -94,8 +95,9 @@ export function Casca({
             />
             <div className="casca__lado">
               <Relogio />
+              <BotaoDoTema />
               <CentralDeAvisos />
-              {/* A conta (trocar cargo, tela cheia, minha conta, sair) abre no botão redondo:
+              {/* A conta (trocar cargo, tela cheia, letra, minha conta, sair) abre no botão redondo:
                 janela pequena no computador, gaveta de baixo no celular (decisão 0028). */}
               <button
                 type="button"
@@ -126,6 +128,7 @@ export function Casca({
                   />
                 )}
                 <BotaoTelaCheia className="tela-cheia casca__link" />
+                <BotaoDaLetra className="casca__link" />
                 <Link href="/minha-conta" className="casca__link">
                   Minha conta
                 </Link>
