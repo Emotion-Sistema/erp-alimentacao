@@ -92,7 +92,29 @@ fotos, comanda à direita).
 - Ideias novas já no protótipo: cliente chama o atendente pelo QR (mesa 10 pisca, "Estou indo"); "vagam em
   breve" no topo. Outras sugestões registradas em `cerebro/ideias-do-cliente.md` (seção Sugestões do Claude).
 
+## Versão 10 (25/11/2026): ideias do salão aprovadas e envio do pedido
+- "Enviar para a cozinha" agora volta para o mapa de mesas, com a mesa piscando; os itens viram tickets na
+  Produção e aparecem na mesa com a etapa. (Antes só dava a mensagem: era o protótipo incompleto.)
+- **O responsável aprovou as 6 sugestões** (25/11/2026), já no protótipo: dividir a conta (inteira, por
+  pessoa com centavos distribuídos sem perder nada, por item); trocar de mesa; juntar mesas; lista de
+  espera com mesa sugerida e aviso pelo app (sem SMS pago); alerta de mesa esquecida (ocupada há 10 min
+  ou mais sem pedido); "mais uma rodada" das bebidas; card "Salão hoje" no Início de quem vê valores.
+
+## Plano de implantação proposto (aguarda o "ok" do responsável)
+Nesta frente, em PRs pequenos, só sobre o que já existe:
+1. **V1 · Decisão e casca:** registro de decisão novo (visual A; revê a 0012 "gestão sempre clara" e o
+   tamanho de letra; tema claro/escuro escolhido pela pessoa). Tema (`tema.css`: letra 15 px, bordas leves,
+   sombra suave, tokens do escuro) e casca da gestão (trilho de ícones, topo, barra de baixo no celular).
+   Testes de tela ajustados, fotos no PR, revisor (o menu nasce da matriz de permissões).
+2. **V2 · Componentes:** lista/tabela limpa, gaveta lateral de cadastro, janela (popup), chips e botões.
+3. **V3 · Telas que já existem, uma por PR:** Produtos, Fichas técnicas, Estoque, demais cadastros, avisos.
+4. **V4 · Tema por pessoa:** guardar a escolha claro/escuro no usuário (migração pequena, skill migracao-segura).
+Fica para o **chat principal**, nas etapas do roteiro, usando o protótipo como referência: Novo pedido,
+Produção (cores por etapa), Mesas e as 6 ideias do salão (E17), painel com valores do dia (ação nova
+`painel.valores`, só supervisor para cima), visão do cliente (RC-10 seção 8, RC-20).
+
 ## Falta
+- "Ok" do responsável para o plano de implantação.
 - Responsável confirmar números, lugares e as dúvidas do mapa (`cerebro/empresa/mapa-das-mesas.md`).
 - Mapa real: esboço recebido em 25/11/2026 (`cerebro/empresa/mapa-das-mesas.md`). Ao construir (E17), a
   gerência monta e muda o mapa na própria tela, sem programador.
