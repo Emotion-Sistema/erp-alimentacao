@@ -33,3 +33,5 @@ Detalhe de cada uma: `docs/requisitos/RC-07-sugestoes-no-dia-a-dia.md`.
 ## Para a E11 (anotado na E09, 25/11/2026)
 - A mensagem "Sem saldo" de `consumirNaTransacao` ainda mostra quanto há: aplicar a regra da contagem cega (como `quantoHa`) quando o pedido usar a baixa.
 - Contagem não aceita `chave` (toque duplo em "Começar a contar" só é barrado pela tela).
+- E09 relatórios (revisão do PR 137, menores): mostrar na tela/CSV a quantidade aplicada quando a falta foi limitada pelo que havia; teste com falta limitada; teste do corte de 2.000 linhas com totais; teste da recusa do valor por área para cargo com uma área só. Formulário "Produzir" fora do teste de ajuda nos campos (precisa de preparo com ficha).
+
