@@ -29,6 +29,21 @@ Detalhe de cada uma: `docs/requisitos/RC-07-sugestoes-no-dia-a-dia.md`.
 | 8 | S11 | Vale-presente | Depois da E27 (pagamento online) e com o contador | pendente |
 | 8 | S13 | Tempo de espera no site | Depois da E16 e de algumas semanas de dados reais | pendente |
 
+### Desperdício por vencimento x dinheiro perdido (ideia nº 15, aprovadas todas em 25/11/2026)
+Base já pronta na E09: perda com motivo "Venceu", relatório de perdas em R$ (custo médio), lotes com
+validade, vencido bloqueado sozinho. Não mexe no RC-01; cada item é só leitura ou aviso.
+
+| # | Sugestão | Gatilho (quando entra) | Situação |
+|---|---|---|---|
+| D1 | Dinheiro em risco: R$ que vence em 3 e 7 dias, por área e item (lote x custo médio), no painel do estoque e no resumo do dia | **E10**, num PR próprio depois das regras de reposição, junto do aviso "lote perto do vencimento" (RC-09) | pendente |
+| D7 | Lembrete de vencido bloqueado há X dias sem perda registrada (uma vez por lote, para quem cuida da área) | **E10**, mesmo PR do D1 | pendente |
+| D4a | Alerta na entrada quando a validade recebida for curta (dias mínimos por item, opcional) | **E10**, mesmo PR do D1 | pendente |
+| D2 | Ao avisar "perto do vencimento", mostrar os pratos que usam o ingrediente (fichas técnicas) e sugerir prato do dia/promoção (sugestão, nunca automático) | Logo depois da E10 (precisa do aviso D1); a promoção usa o simulador do RC-16 | pendente |
+| D3 | Compra ajustada: item com perda por "Venceu" frequente tem a sugestão da lista de compras reduzida e aviso de embalagem menor (o responsável aprova) | Na lista de compras (frente LC3), com algumas semanas de dados reais | pendente |
+| D4b | Desperdício por fornecedor (perda por vencimento e validade média na entrega) | Calculadora "Desperdício" do RC-16 | pendente |
+| D5 | Meta mensal de desperdício: perda ÷ compras, mês a mês, aviso ao gestor ao passar da meta | Calculadora "Desperdício" do RC-16 | pendente |
+| D6 | Sobra de produção ("Sobra descartada") x produzido no dia, sugerindo produzir menos | Depois da E14 (produção) e de algumas semanas de vendas reais | pendente |
+
 
 ## Para a E11 (anotado na E09, 25/11/2026)
 - A mensagem "Sem saldo" de `consumirNaTransacao` ainda mostra quanto há: aplicar a regra da contagem cega (como `quantoHa`) quando o pedido usar a baixa.
