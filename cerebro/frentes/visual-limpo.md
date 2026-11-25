@@ -61,8 +61,21 @@ fotos, comanda à direita).
   ação `painel.valores` (dono, administrador, gerente geral, supervisor) com teste por tela e pela API,
   e deixar claro que não é financeiro (gerente geral e supervisor continuam sem `faturamento.ver`).
 
+## Versão 5 (25/11/2026): tela Mesas
+- Pedido do responsável: caixa e atendentes precisam saber quantas mesas estão livres e quais; contador
+  de tempo do cliente em cada mesa (só a equipe vê, nunca o cliente); mapa bonito e organizado.
+- Tela **Mesas** (caixa, atendente, supervisor, gerente, dono; regra: `caixa.operar` ou `pedidos.lancar`):
+  mapa por área (Salão e Varanda, desenho de exemplo; o desenho real da loja falta), mesa com cadeiras
+  conforme os lugares, cor + nome da situação (Livre verde, Ocupada café, Pedindo a conta âmbar),
+  relógio "há 38 min / 1h12", avisos (pedido atrasado, pronto para levar, na cozinha), filtro e
+  "7 livres de 16". Toque abre o painel: tempo desde que sentou, pessoas, atendente, pedido, conta até
+  agora e ações (abrir mesa, lançar pedido, pediu a conta; **receber só o caixa**). No celular vira
+  grade de 3 colunas. O Início do caixa e do atendente mostra "7 de 16 mesas livres" com atalho.
+
 ## Falta
-- Responsável testar a versão 4 e dizer o que ajustar.
+- Responsável testar a versão 5 e dizer o que ajustar.
+- **Desenho real do salão** (quantas mesas, lugares de cada uma, áreas): pedir ao responsável quando o
+  mapa de mesas for construído (E17); a tela deve permitir montar o mapa sem programador.
 - Depois: registro de decisão novo (casca do A, letra 14–15 px, trilho de ícones) e PRs do visual, tela
   a tela, com fotos das telas no PR. Rever o adendo de navegação no celular da 0019 (o A usa barra de baixo).
 - Depois da escolha: registro de decisão novo, mudança no `tema.css` e na casca, tela a tela, com as

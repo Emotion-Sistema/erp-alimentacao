@@ -389,6 +389,62 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
 .pa-num-op b { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 .pa-num-op b.mel { color: var(--a-mel); } .pa-num-op b.ok { color: var(--a-ok); } .pa-num-op b.per { color: var(--a-per); }
 .pa-num-op span { color: var(--a-apoio); font-size: 13px; }
+/* mesas */
+.pa-num-btn { border: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.pa-num-btn b small { font-size: 16px; color: var(--a-fraco); font-weight: 600; }
+.pa-num-btn span { display: inline-flex; align-items: center; gap: 4px; }
+.pa-num-btn span svg.i { width: 14px; height: 14px; }
+.pa-mresumo { font-size: 14px; color: var(--a-apoio); } .pa-mresumo b { font-size: 22px; color: var(--a-ok); font-variant-numeric: tabular-nums; }
+.pa-mgrid { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 16px; align-items: start; }
+.pa-mapa { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1fr); gap: 14px; }
+.pa-zona { background: var(--a-sup); border-radius: 18px; box-shadow: var(--a-sombra); padding: 14px; min-width: 0;
+  background-image: radial-gradient(circle at 1px 1px, var(--a-linha) 1px, transparent 0); background-size: 18px 18px; }
+.pa-zona h3 { margin: 0 0 10px; font-size: 13px; display: flex; justify-content: space-between; gap: 8px; }
+.pa-zona h3 span { color: var(--a-fraco); font-weight: 500; font-size: 12px; }
+.pa-planta { display: grid; grid-template-columns: repeat(var(--cols), minmax(0,1fr)); grid-auto-rows: 124px; gap: 10px 12px; }
+.pa-mesa { border: 0; background: none; padding: 0; display: grid; grid-template-rows: 8px minmax(0,1fr) 8px; gap: 4px; cursor: pointer; min-width: 0; transition: transform .12s, opacity .2s; }
+.pa-mesa:active { transform: scale(.97); }
+.pa-mesa.apagada { opacity: .28; }
+.pa-mesa .cads { display: flex; justify-content: space-evenly; padding: 0 14%; }
+.pa-mesa .cads i { width: 18px; height: 7px; border-radius: 4px; background: var(--m-cad); }
+.pa-mesa .tampo { border-radius: 14px; background: var(--m-bg); color: var(--m-txt); box-shadow: inset 0 0 0 1.5px var(--m-borda), 0 2px 6px -2px rgba(30,18,14,.18); display: grid; align-content: center; justify-items: center; gap: 1px; padding: 6px 4px; min-width: 0; overflow: hidden; }
+.pa-mesa.l2 .tampo { border-radius: 999px; }
+.pa-mesa .num { font-size: 22px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.pa-mesa .st { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pa-mesa .tempo { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; white-space: nowrap; }
+.pa-mesa .tempo b { font-family: var(--f-mono); font-weight: 600; }
+.pa-mesa .tempo svg.i { width: 12px; height: 12px; }
+.pa-mesa.l2 .st, .pa-mesa.l2 .aviso { display: none; }
+.pa-mesa .aviso { margin-top: 2px; }
+.aviso { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.aviso svg.i { width: 12px; height: 12px; }
+.av-atraso { background: #a3261a; color: #fff; } .av-pronto { background: #2f6b3a; color: #fff; } .av-cozinha { background: rgba(0,0,0,.12); color: inherit; }
+.pa-mesa.sel .tampo { box-shadow: inset 0 0 0 1.5px var(--m-borda), 0 0 0 3px var(--a-fundo), 0 0 0 5px var(--a-acento); }
+.st-livre { --m-bg: #e3f0df; --m-txt: #1f4a27; --m-borda: #8fbf96; --m-cad: #b9d9bd; }
+.st-ocupada { --m-bg: #351e17; --m-txt: #fbf1e4; --m-borda: #351e17; --m-cad: #8f7663; }
+.st-conta { --m-bg: #f6a52b; --m-txt: #2a1710; --m-borda: #d98a12; --m-cad: #e9b866; }
+.pa.noite .st-livre { --m-bg: #1f3324; --m-txt: #cfe9d3; --m-borda: #3f6b48; --m-cad: #2f5537; }
+.pa.noite .st-ocupada { --m-bg: #f6eadb; --m-txt: #2a1710; --m-borda: #f6eadb; --m-cad: #9a8471; }
+.pa-marco { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1.5px dashed var(--a-borda-campo); border-radius: 12px; color: var(--a-fraco); font-size: 12px; font-weight: 600; }
+.pa-marco svg.i { width: 15px; height: 15px; }
+.pa-mleg { grid-column: 1 / -1; display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--a-apoio); }
+.pa-mleg span { display: inline-flex; align-items: center; gap: 6px; }
+.pa-mleg i { width: 14px; height: 14px; border-radius: 4px; background: var(--m-bg); box-shadow: inset 0 0 0 1.5px var(--m-borda); }
+.pa-mleg svg.i { width: 14px; height: 14px; }
+.pa-mpainel { display: grid; gap: 12px; position: sticky; top: 0; }
+.pa-mcab { display: flex; gap: 12px; align-items: center; }
+.pa-mcab h3 { margin: 0; font-size: 18px; } .pa-mcab p { margin: 0; font-size: 12.5px; color: var(--a-apoio); }
+.pa-mnum { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; font-weight: 800; background: var(--m-bg); color: var(--m-txt); box-shadow: inset 0 0 0 1.5px var(--m-borda); }
+.pa-mest { justify-self: start; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; background: var(--m-bg); color: var(--m-txt); }
+.pa-mrel { display: grid; gap: 2px; padding: 12px; border-radius: 12px; background: var(--a-sup2); }
+.pa-mrel b { font-family: var(--f-mono); font-size: 30px; font-weight: 600; line-height: 1.1; }
+.pa-mrel small { color: var(--a-apoio); font-size: 12px; }
+.pa-mitens { display: grid; gap: 4px; font-size: 13.5px; }
+.pa-mitens > small { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--a-fraco); font-weight: 700; }
+.pa-mitens .tot { display: flex; justify-content: space-between; border-top: 1px solid var(--a-linha); padding-top: 8px; margin-top: 4px; }
+.pa-mitens .tot b { font-family: var(--f-mono); }
+.pa-macoes { display: grid; gap: 8px; }
+.pa-macoes .pa-btn { margin: 0; }
 /* estoque */
 .pa-abas { display: flex; gap: 4px; background: var(--a-sup2); border-radius: 10px; padding: 3px; }
 .pa-abas button { border: 0; background: transparent; padding: 6px 12px; border-radius: 8px; font-size: 13px; color: var(--a-apoio); }
@@ -408,6 +464,15 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   .pa-tam { grid-template-columns: minmax(0,1fr) 100px 30px; }
   .pa-tam .fim { display: none; }
   .pa-main.rola-tudo { display: block; overflow: auto; }
+  .pa-mgrid, .pa-mapa { grid-template-columns: 1fr; }
+  .pa-mpainel { position: static; }
+  .pa-planta { grid-template-columns: repeat(3, minmax(0,1fr)); grid-auto-rows: 116px; }
+  .pa-mesa .aviso { font-size: 0; padding: 3px 5px; gap: 0; }
+  .pa-mesa .aviso svg.i { width: 13px; height: 13px; }
+  .pa-mesa .tempo svg.i { display: none; }
+  .pa-planta .pa-mesa { grid-column: auto !important; grid-row: auto !important; }
+  .pa-planta .pa-mesa.l6 { grid-column: span 2 !important; }
+  .pa-planta .pa-marco { display: none; }
   .pa-main.rola-tudo > .pa-corpo { overflow: visible; }
   .pa-cargo > span, .pa-turno { display: none; }
   .pa-gcab { flex-wrap: wrap; } .pa-gcab .dir { margin-left: 0; width: 100%; justify-content: space-between; }
@@ -766,6 +831,8 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     bebidas: '<path d="M7 3h10l-1.5 18h-7z"/><path d="M7.5 9h9"/><path d="M14 3l2-2"/>',
     fichas: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
     fechar: '<path d="M6 6l12 12M18 6 6 18"/>',
+    mesas: '<rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 5h10M7 19h10"/>',
+    pessoas: '<circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 19"/>',
     sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     foto: '<rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/>',
     editar: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'
@@ -808,11 +875,11 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   const foto = (p, cls) => '<div class="foto ' + p.cat + (p.estado === 'fora' ? ' fora' : '') + (cls ? ' ' + cls : '') + '">' + ic(p.cat) + '</div>';
 
   // ---------- Estado ----------
-  const TELAS_A = [['inicio', 'Início'], ['pedido', 'Novo pedido'], ['producao', 'Produção'], ['estoque', 'Estoque'], ['produtos', 'Produtos'], ['fichas', 'Fichas técnicas']];
+  const TELAS_A = [['inicio', 'Início'], ['pedido', 'Novo pedido'], ['mesas', 'Mesas'], ['producao', 'Produção'], ['estoque', 'Estoque'], ['produtos', 'Produtos'], ['fichas', 'Fichas técnicas']];
   const TELAS_BC = [['inicio', 'Início'], ['pedido', 'Novo pedido'], ['produtos', 'Produtos']];
   const E = { proto: 'a', tela: 'inicio', disp: 'pc', noite: false, cat: 'grill', catB: 'todos', filtroC: 'todos', folha: false, paleta: false, busca: '',
     comanda: [{ id: 'xb', q: 1, obs: 'Sem cebola' }, { id: 'fritas', q: 1 }, { id: 'suco', q: 2, obs: 'Laranja' }],
-    cargo: 'gerente', gaveta: null, anima: false, todosEx: false, ex: {}, form: null, tentou: false, ficha: null, rascunho: null, area: 'cozinha', setor: 'todos', catP: 'todas', buscaP: '', aviso: '' };
+    cargo: 'gerente', mesa: 7, fMesa: 'todas', gaveta: null, anima: false, todosEx: false, ex: {}, form: null, tentou: false, ficha: null, rascunho: null, area: 'cozinha', setor: 'todos', catP: 'todas', buscaP: '', aviso: '' };
   try { const s = JSON.parse(localStorage.getItem('prototipo-erp') || '{}'); if (s.proto) E.proto = s.proto; if (s.tela) E.tela = s.tela; if (s.disp) E.disp = s.disp; if (s.cargo) E.cargo = s.cargo; if (s.noite != null) E.noite = s.noite; } catch (e) {}
   const salvar = () => { try { localStorage.setItem('prototipo-erp', JSON.stringify({ proto: E.proto, tela: E.tela, disp: E.disp, cargo: E.cargo, noite: E.noite })); } catch (e) {} };
   const itens = () => E.comanda.map(c => ({ ...c, p: porId[c.id], t: porId[c.id].preco * c.q }));
@@ -898,7 +965,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     auxiliar: { n: 'Auxiliar de cozinha', ini: 'AX', a: ['producao.ver', 'producao.operar'] }
   };
   const pode = acao => CARGOS_A[E.cargo].a.includes(acao);
-  const ACAO_DA_TELA = { pedido: ['pedidos.lancar'], producao: ['producao.ver'], estoque: ['estoque.cozinha', 'estoque.salao'], produtos: ['cadastros.ver'], fichas: ['cadastros.ver'] };
+  const ACAO_DA_TELA = { pedido: ['pedidos.lancar'], mesas: ['caixa.operar', 'pedidos.lancar'], producao: ['producao.ver'], estoque: ['estoque.cozinha', 'estoque.salao'], produtos: ['cadastros.ver'], fichas: ['cadastros.ver'] };
   // O menu só esconde: no sistema, cada tela e cada ação conferem a permissão de novo no servidor.
   // Quem tem uma tela só (auxiliar de cozinha) vai direto para ela, sem Início.
   const telasDoCargo = () => { const l = TELAS_A.filter(([k]) => k !== 'inicio' && ACAO_DA_TELA[k].some(pode)); return pode('caixa.operar') || pode('pedidos.lancar') || l.length > 1 ? [TELAS_A[0], ...l] : l; };
@@ -948,6 +1015,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     const titulos = {
       inicio: [pode('painel.valores') ? 'Painel do dia' : 'Bom trabalho', 'Quarta, 25 de novembro · turno do almoço'],
       pedido: ['Novo pedido', 'Toque no item para lançar'],
+      mesas: ['Mesas', 'Toque numa mesa para ver o pedido, há quanto tempo o cliente está e o que fazer'],
       producao: ['Produção', 'Pedidos chegam sozinhos, separados pelo tipo de preparo'],
       estoque: ['Estoque', 'Em uso e guardado. O sistema avisa quando é hora de repor'],
       produtos: ['Produtos', aVenda + ' de ' + PROD.length + ' à venda agora, calculado pelo estoque'],
@@ -965,6 +1033,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     if (E.tela === 'produtos') corpo = '<div class="pa-corpo" data-rola="corpo">' + produtosA() + '</div>';
     if (E.tela === 'fichas') corpo = '<div class="pa-corpo" data-rola="corpo">' + (E.ficha ? fichaAberta(E.ficha) : fichasA()) + '</div>';
     if (E.tela === 'producao') corpo = '<div class="pa-corpo" data-rola="corpo">' + producaoA() + '</div>';
+    if (E.tela === 'mesas') corpo = '<div class="pa-corpo" data-rola="corpo">' + mesasA() + '</div>';
     if (E.tela === 'estoque') corpo = '<div class="pa-corpo" data-rola="corpo">' + estoqueA() + '</div>';
     return '<div class="pa' + (E.noite ? ' noite' : '') + '" style="position:relative">' +
       '<nav class="pa-trilho" aria-label="Menu"><img src="' + SIMB + '" alt="E-MOTION">' +
@@ -981,12 +1050,14 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   }
   function inicioOperacional() {
     const pill = (n, l, c) => '<div class="pa-card pa-num-op"><b class="' + (c || '') + '">' + n + '</b><span>' + l + '</span></div>';
-    if (pode('caixa.operar')) return pill(3, 'mesas pedindo a conta', 'mel') + pill(2, 'entregas para despachar') +
+    const livres = MESAS.filter(m => m.st === 'livre').length;
+    const pillMesas = '<button class="pa-card pa-num-op pa-num-btn" data-ir="mesas"><b class="ok">' + livres + '<small> de ' + MESAS.length + '</small></b><span>mesas livres · ver o mapa ' + ic('seta') + '</span></button>';
+    if (pode('caixa.operar')) return pillMesas + pill(MESAS.filter(m => m.st === 'conta').length, 'mesas pedindo a conta', 'mel') +
       '<section class="pa-card"><div class="cabc"><div><h3>Pedindo a conta</h3><p class="sub">O valor de cada conta aparece só para receber</p></div></div><div class="pa-lista">' +
       [['Mesa 4', 'há 3 min · 3 pessoas', 18760], ['Mesa 9', 'há 1 min · 2 pessoas', 9420], ['Mesa 12', 'agora · 4 pessoas', 24150]].map(([m, d, v]) => '<div class="pa-li"><span class="ic">' + ic('conta') + '</span><div><b>' + m + '</b><small>' + d + '</small></div><button class="pa-btn mini">Receber ' + brl(v) + '</button></div>').join('') + '</div></section>' +
       '<section class="pa-card"><div class="cabc"><div><h3>Motoboys</h3><p class="sub">Quem está na loja e quem está na rua</p></div></div><div class="pa-lista">' +
       [['Bruno', 'Na loja · pronto para sair', ''], ['Diego', 'Na rua · volta em ~8 min', 'atencao']].map(([n, d, c]) => '<div class="pa-li"><span class="ic">' + ic('moto') + '</span><div><b>' + n + '</b><small>' + d + '</small></div><span class="pa-tempo ' + c + '">' + (c ? 'na rua' : 'livre') + '</span></div>').join('') + '</div></section>';
-    if (pode('pedidos.lancar')) return pill(4, 'minhas mesas') + pill(2, 'prontos para levar', 'ok') +
+    if (pode('pedidos.lancar')) return pillMesas + pill(2, 'prontos para levar', 'ok') +
       '<section class="pa-card"><div class="cabc"><div><h3>Prontos para levar</h3><p class="sub">A cozinha avisou agora</p></div></div><div class="pa-lista">' +
       [['Mesa 5', '2x Cappuccino, 1x Bolo de cenoura'], ['Mesa 7', '1x Fritas']].map(([m, d]) => '<div class="pa-li"><span class="ic">' + ic('check') + '</span><div><b>' + m + '</b><small>' + d + '</small></div><button class="pa-btn mini">Entregue</button></div>').join('') + '</div></section>' +
       '<section class="pa-card"><div class="cabc"><div><h3>Minhas mesas</h3><p class="sub">Toque para lançar ou ver o pedido</p></div><button class="pa-link" data-ir="pedido">Novo pedido ' + ic('seta') + '</button></div><div class="pa-lista">' +
@@ -1202,6 +1273,55 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
       }).join('') + '</div><p class="pa-nota" style="margin-top:14px">Começar e marcar pronto não mexem no estoque: a baixa já aconteceu uma vez, quando o pedido foi liberado.</p>';
   }
 
+  // ----- Mesas: mapa do salão e da varanda, com o tempo de cada cliente (só a equipe vê) -----
+  const AGORA_M = Date.now();
+  const minAtras = m => AGORA_M - m * 60000;
+  // [número, área, lugares, coluna, linha, situação, minutos sentado, pessoas, atendente, conta (centavos), aviso, itens]
+  const MESAS = [
+    [1, 'salao', 4, 1, 1], [2, 'salao', 4, 3, 1, 'ocupada', 38, 3, 'LI', 9650, 'atraso', ['1x Parmegiana', '2x Suco natural']], [3, 'salao', 2, 5, 1], [4, 'salao', 6, 1, 2, 'conta', 72, 3, 'RA', 18760, '', ['2x Executivo de frango', '1x Bife acebolado', '3x Refrigerante lata']],
+    [5, 'salao', 2, 6, 1, 'ocupada', 25, 2, 'LI', 3800, 'pronto', ['2x Cappuccino', '1x Bolo de cenoura']], [6, 'salao', 2, 6, 2], [7, 'salao', 4, 4, 2, 'ocupada', 31, 4, 'RA', 8000, 'cozinha', ['1x X-Burger E-MOTION', '1x Fritas', '2x Suco natural']], [8, 'salao', 4, 4, 3],
+    [9, 'salao', 6, 1, 3, 'conta', 55, 2, 'LI', 9420, '', ['1x Smash duplo', '1x Frango crispy', '2x Água sem gás']], [10, 'salao', 4, 1, 4],
+    [11, 'varanda', 4, 1, 1, 'ocupada', 2, 2, 'RA', 0, '', []], [12, 'varanda', 4, 1, 2, 'conta', 64, 4, 'RA', 24150, '', ['2x Smash duplo', '1x Batata com cheddar e bacon', '4x Refrigerante lata']],
+    [13, 'varanda', 2, 3, 1], [14, 'varanda', 2, 3, 2, 'ocupada', 18, 2, 'LI', 5900, 'cozinha', ['1x X-Burger E-MOTION', '1x Água sem gás']], [15, 'varanda', 4, 1, 3, 'ocupada', 41, 3, 'RA', 11200, '', ['3x Executivo de frango']],
+    [16, 'varanda', 6, 1, 4]
+  ].map(([n, area, lugares, col, lin, st, min, pessoas, quem, conta, aviso, itens]) => ({ n, area, lugares, col, lin, st: st || 'livre', desde: st ? minAtras(min) : null, pessoas: pessoas || 0, quem: quem || '', conta: conta || 0, aviso: aviso || '', itens: itens || [] }));
+  function tempoMesa(m) { if (!m.desde) return ''; const s = Math.floor((Date.now() - m.desde) / 1000); const h = Math.floor(s / 3600), mi = Math.floor(s / 60) % 60; return h ? h + 'h' + String(mi).padStart(2, '0') : mi < 1 ? 'agora' : mi + ' min'; }
+  const ROT_MESA = { livre: 'Livre', ocupada: 'Ocupada', conta: 'Pedindo a conta' };
+  const AVISO_MESA = { atraso: ['Pedido atrasado', 'alerta'], pronto: ['Pronto para levar', 'check'], cozinha: ['Na cozinha', 'producao'] };
+  function cartaoMesa(m) {
+    const cad = n => '<span class="cads">' + Array.from({ length: n }, () => '<i></i>').join('') + '</span>';
+    const meio = Math.ceil(m.lugares / 2);
+    const vis = E.fMesa === 'todas' || E.fMesa === m.st;
+    return '<button class="pa-mesa st-' + m.st + ' l' + m.lugares + (E.mesa === m.n ? ' sel' : '') + (vis ? '' : ' apagada') + '" style="grid-column:' + m.col + ' / span ' + (m.lugares === 2 ? 1 : m.lugares === 4 ? 2 : 3) + ';grid-row:' + m.lin + '" data-mesa="' + m.n + '" aria-label="Mesa ' + m.n + ', ' + ROT_MESA[m.st] + (m.desde ? ', há ' + tempoMesa(m) : '') + '">' +
+      cad(meio) + '<span class="tampo"><span class="num">' + m.n + '</span><span class="st">' + ROT_MESA[m.st] + '</span>' +
+      (m.desde ? '<span class="tempo">' + ic('relogio') + '<b data-mtempo="' + m.n + '">' + tempoMesa(m) + '</b></span>' : '<span class="tempo">' + ic('pessoas') + m.lugares + ' lugares</span>') +
+      (m.aviso ? '<span class="aviso av-' + m.aviso + '">' + ic(AVISO_MESA[m.aviso][1]) + AVISO_MESA[m.aviso][0] + '</span>' : '') + '</span>' + cad(m.lugares - meio) + '</button>';
+  }
+  function mesasA() {
+    const n = k => MESAS.filter(m => m.st === k).length;
+    const filtros = [['todas', 'Todas', MESAS.length], ['livre', 'Livres', n('livre')], ['ocupada', 'Ocupadas', n('ocupada')], ['conta', 'Pedindo a conta', n('conta')]];
+    const m = MESAS.find(x => x.n === E.mesa);
+    const zona = (id, nome, cols, extra) => '<section class="pa-zona"><h3>' + nome + ' <span>' + MESAS.filter(x => x.area === id && x.st === 'livre').length + ' livres de ' + MESAS.filter(x => x.area === id).length + '</span></h3><div class="pa-planta" style="--cols:' + cols + '">' + MESAS.filter(x => x.area === id).map(cartaoMesa).join('') + (extra || '') + '</div></section>';
+    let painel = '<p class="pa-nota">Toque numa mesa para ver os detalhes.</p>';
+    if (m) {
+      const rec = pode('caixa.operar');
+      const acoes = m.st === 'livre' ? '<button class="pa-btn" data-macao="abrir">' + ic('mais') + 'Abrir a mesa</button>'
+        : m.st === 'ocupada' ? (pode('pedidos.lancar') ? '<button class="pa-btn" data-macao="lancar">' + ic('pedido') + 'Lançar pedido</button>' : '') + '<button class="pa-sec" data-macao="conta" style="justify-content:center">' + ic('conta') + 'Pediu a conta</button>'
+        : rec ? '<button class="pa-btn" data-macao="receber">' + ic('caixa') + 'Receber ' + brl(m.conta) + '</button>' : '<p class="pa-nota" style="margin:0">O caixa já foi avisado. Só o caixa recebe e libera a mesa.</p>';
+      painel = '<div class="pa-mcab"><span class="pa-mnum st-' + m.st + '">' + m.n + '</span><div><h3>Mesa ' + m.n + '</h3><p>' + (m.area === 'salao' ? 'Salão' : 'Varanda') + ' · ' + m.lugares + ' lugares</p></div></div>' +
+        '<div class="pa-mest st-' + m.st + '">' + ROT_MESA[m.st] + '</div>' +
+        (m.desde ? '<div class="pa-mrel"><small>Cliente na mesa há</small><b data-mtempo="' + m.n + '">' + tempoMesa(m) + '</b><small>desde ' + new Date(m.desde).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' · ' + m.pessoas + ' pessoas · atendente ' + m.quem + '</small></div>' : '') +
+        (m.aviso ? '<div class="aviso av-' + m.aviso + '">' + ic(AVISO_MESA[m.aviso][1]) + AVISO_MESA[m.aviso][0] + '</div>' : '') +
+        (m.itens.length ? '<div class="pa-mitens"><small>Pedido</small>' + m.itens.map(x => '<span>' + x + '</span>').join('') + '<div class="tot"><span>Conta até agora</span><b>' + brl(m.conta) + '</b></div></div>' : (m.st !== 'livre' ? '<p class="pa-nota">Nada lançado ainda.</p>' : '')) +
+        '<div class="pa-macoes">' + acoes + '</div>';
+    }
+    return '<div class="pa-barra-tit"><div class="pa-chips" style="margin:0">' + filtros.map(([k, l, q]) => '<button class="pa-chip" data-fmesa="' + k + '" aria-pressed="' + (E.fMesa === k) + '">' + l + ' <em>' + q + '</em></button>').join('') + '</div>' +
+      '<div class="pa-mresumo"><b>' + n('livre') + '</b> livres de ' + MESAS.length + '</div></div>' +
+      '<div class="pa-mgrid"><div class="pa-mapa">' + zona('salao', 'Salão', 6, '<div class="pa-marco" style="grid-column:6;grid-row:3 / span 2">' + ic('caixa') + 'Caixa</div>') + zona('varanda', 'Varanda', 3, '<div class="pa-marco" style="grid-column:3;grid-row:3">' + ic('seta') + 'Entrada</div>') +
+      '<div class="pa-mleg"><span class="st-livre"><i></i>Livre</span><span class="st-ocupada"><i></i>Ocupada</span><span class="st-conta"><i></i>Pedindo a conta</span><span>' + ic('relogio') + 'tempo do cliente na mesa (só a equipe vê)</span></div></div>' +
+      '<aside class="pa-card pa-mpainel">' + painel + '</aside></div>';
+  }
+
   // ----- Estoque -----
   function estoqueA() {
     const areas = [['cozinha', 'Cozinha', 'estoque.cozinha'], ['cafeteria', 'Cafeteria', 'estoque.salao'], ['salao', 'Bebidas do salão', 'estoque.salao']].filter(a => pode(a[2]));
@@ -1371,6 +1491,15 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     else if (d.noite) E.noite = d.noite === '1';
     else if (d.cargo) { E.cargo = d.cargo; E.gaveta = null; E.rascunho = null; }
     else if (d.tema) E.noite = !E.noite;
+    else if (d.mesa) E.mesa = +d.mesa;
+    else if (d.fmesa) E.fMesa = d.fmesa;
+    else if (d.macao) {
+      const m = MESAS.find(x => x.n === E.mesa); if (!m) return;
+      if (d.macao === 'abrir') { m.st = 'ocupada'; m.desde = Date.now(); m.pessoas = 2; m.quem = CARGOS_A[E.cargo].ini; m.itens = []; m.conta = 0; m.aviso = ''; avisar('Mesa ' + m.n + ' aberta. O relógio começou.'); }
+      else if (d.macao === 'conta') { m.st = 'conta'; avisar('Mesa ' + m.n + ' pediu a conta: o caixa foi avisado'); }
+      else if (d.macao === 'receber') { if (!pode('caixa.operar')) return; m.st = 'livre'; m.desde = null; avisar('Mesa ' + m.n + ' paga (' + brl(m.conta) + ') e liberada'); }
+      else if (d.macao === 'lancar') { E.tela = 'pedido'; }
+    }
     else if (d.ir) { const ok = E.proto === 'a' ? telasDoCargo() : TELAS_BC; if (ok.some(([k]) => k === d.ir)) irPara(d.ir); else return; }
     else if (d.cat) E.cat = d.cat;
     else if (d.catb) E.catB = d.catb;
@@ -1452,6 +1581,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   });
   // Relógio da produção: só troca os números, sem redesenhar a tela.
   setInterval(() => {
+    if (E.proto === 'a' && E.tela === 'mesas') mold.querySelectorAll('[data-mtempo]').forEach(el => { const m = MESAS.find(x => x.n === +el.dataset.mtempo); if (m) el.textContent = tempoMesa(m); });
     if (E.proto !== 'a' || (E.tela !== 'producao' && E.tela !== 'inicio')) return;
     TK.forEach(t => {
       const c = mold.querySelector('[data-cron="' + t.id + '"]'); if (!c) return;
