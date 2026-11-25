@@ -2,6 +2,16 @@
 const plural = (n: number, um: string, varios: string) => `${n.toLocaleString("pt-BR")} ${n === 1 ? um : varios}`;
 
 export const NOME_DO_LOCAL: Record<string, string> = { em_uso: "Em uso", guardado: "Guardado" };
+/** Onde o saldo está (para mostrar): também "A receber", que ninguém escolhe num lançamento. */
+export const NOME_DO_LOCAL_DO_SALDO: Record<string, string> = { ...NOME_DO_LOCAL, a_receber: "A receber" };
+/** Selo do histórico na mudança entre áreas (quem recebe confirma, 25/11/2026). */
+export const NOME_DO_RECEBIMENTO: Record<string, string> = {
+  a_receber: "Esperando quem recebe",
+  confirmado: "Recebido",
+  recusado: "Recusado: voltou",
+  confirmacao: "Confirmou o recebimento",
+  devolucao: "Recusou o recebimento",
+};
 
 export const NOME_DO_MOVIMENTO: Record<string, string> = {
   entrada: "Entrada (compra)",
@@ -57,6 +67,7 @@ export const TE = {
     guardado: "Guardado",
     bloqueado: "Bloqueado",
     vencido: "Vencido",
+    aReceber: "A receber",
     valor: "Valor",
     custoMedio: "Custo médio",
     venceLogo: (d: string) => `Vence logo: ${d}`,
@@ -110,15 +121,15 @@ export const TE = {
     localExemplo: "Guardado, para o que está no freezer.",
     de: "Sai de",
     para: "Vai para",
-    paraAjuda: "A área para onde vai. Outra área: diga quem recebeu.",
+    paraAjuda: "A área para onde vai. Outra área: fica a receber até quem recebe confirmar.",
     paraExemplo: "Cafeteria, quando a cozinha manda leite para o balcão.",
     localDestino: "Fica em",
-    localDestinoAjuda: "Em uso (na linha) ou guardado, no lugar para onde vai.",
+    localDestinoAjuda: "Em uso (na linha) ou guardado, no lugar para onde vai. Em outra área é só sugestão: quem recebe escolhe.",
     localDestinoExemplo: "Em uso, para já usar no balcão.",
-    recebido: "Quem recebeu",
-    recebidoAjuda: "Quem cuida da área para onde vai e pegou a mercadoria.",
+    recebido: "Quem recebe",
+    recebidoAjuda: "Quem cuida da área para onde vai. Essa pessoa (ou a supervisão da área) confirma quando pegar a mercadoria.",
     recebidoExemplo: "Teste supervisor",
-    escolhaQuem: "Escolha quem recebeu",
+    escolhaQuem: "Escolha quem recebe",
     lote: "Lote",
     loteAjuda: "Deixe em \"O que vence primeiro\", a não ser que seja um lote certo.",
     loteExemplo: "O que vence primeiro",
@@ -161,12 +172,34 @@ export const TE = {
       producao: "Pronto: produção lançada.",
       estorno: "Pronto: movimento desfeito.",
     },
+    aReceber: (area: string, pessoa: string) => `Fica a receber na ${area} até ${pessoa} confirmar.`,
     repetido: "Este lançamento já tinha sido gravado: nada mudou de novo.",
     confirmarRendimento: "Confirmar rendimento?",
     confirmarRendimentoTexto: (rendeu: string, previsto: string) => `Rendeu ${rendeu} para ${previsto} previsto. Se o número está certo, confirme.`,
     confirmarRendimentoSim: "Sim, o rendimento está certo",
     producaoDiferenca: (t: string) => `Diferença do previsto: ${t}.`,
     producaoCusto: (total: string, un: string) => `Custo da produção: ${total} (${un}).`,
+  },
+  receber: {
+    titulo: "A receber",
+    intro: "Veio de outra área. Confira a mercadoria: confirme onde ela ficou ou recuse (volta para onde estava).",
+    deOnde: (qtd: string, area: string, quem: string, quando: string) => `${qtd} de ${area}, mandado por ${quem} em ${quando}.`,
+    paraQuem: (nome: string) => `Quem recebe: ${nome}.`,
+    sugestao: (local: string) => `Sugestão de quem mandou: ${local}.`,
+    soQuem: (nome: string) => `Só ${nome} ou a supervisão da área confirma.`,
+    proprioEnvio: "Você mandou: outra pessoa confirma ou recusa.",
+    confirmar: (nome: string) => `Confirmar ${nome}`,
+    recusar: (nome: string) => `Recusar ${nome}`,
+    local: "Onde fica",
+    localAjuda: "Em uso (na linha, no balcão) ou guardado (depósito, freezer), aqui na sua área.",
+    localExemplo: "Guardado, se foi direto para o freezer.",
+    motivo: "Por que recusar",
+    motivoAjuda: "Obrigatório. O item volta para a área e o lugar de onde saiu, e o motivo fica no histórico.",
+    motivoExemplo: "Chegou estragado; ou não foi pedido.",
+    gravarConfirmar: "Confirmar o recebimento",
+    gravarRecusar: "Recusar e devolver",
+    feitoConfirmar: (nome: string, local: string) => `Recebido: ${nome} ficou em ${local.toLowerCase()}.`,
+    feitoRecusar: (nome: string, area: string) => `Recusado: ${nome} voltou para ${area}.`,
   },
   contagem: {
     intro: "Na contagem você conta o que há de verdade, sem ver quanto o sistema espera. Ao fechar, o sistema mostra as diferenças e acerta o estoque.",

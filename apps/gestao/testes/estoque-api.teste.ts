@@ -120,11 +120,29 @@ describe("estoque pela API", () => {
     const corpo = { ingredienteId, quantidade: "100", de: { area: "cozinha", local: "guardado" }, para: { area: "cafeteria", local: "em_uso" } };
     const sem = await r.transferirNoEstoque(req("/api/estoque/transferir", "POST", cozinheira, corpo));
     expect(((await sem.json()) as { mensagem: string }).mensagem).toBe("Entre áreas, informe quem recebeu.");
-    expect((await r.transferirNoEstoque(req("/api/estoque/transferir", "POST", cozinheira, { ...corpo, recebidoPor: sup.usuarioId }))).status).toBe(200);
-    // E volta, pelo supervisor (para o resto dos testes contar só a cozinha).
-    const coz = ((await (await r.verQuemRecebe(req("/api/estoque/quem-recebe?area=cozinha", "GET", supervisor))).json()) as { usuarioId: number; nome: string }[]).find((x) => x.nome === "Teste cozinheira")!;
-    const volta = { ingredienteId, quantidade: "100", de: { area: "cafeteria", local: "em_uso" }, para: { area: "cozinha", local: "guardado" }, recebidoPor: coz.usuarioId };
-    expect((await r.transferirNoEstoque(req("/api/estoque/transferir", "POST", supervisor, volta))).status).toBe(200);
+    const feita = await r.transferirNoEstoque(req("/api/estoque/transferir", "POST", cozinheira, { ...corpo, recebidoPor: sup.usuarioId }));
+    expect(feita.status).toBe(200);
+    // Fica a receber na cafeteria até o supervisor confirmar (decisão do responsável, 25/11/2026).
+    const { aReceber } = (await feita.json()) as { aReceber: { recebimentoId: number; area: string; recebidoPor: { nome: string } } };
+    expect(aReceber).toMatchObject({ area: "cafeteria", recebidoPor: { nome: "Teste supervisor" } });
+    const pendentes = await r.verRecebimentos(req("/api/estoque/recebimentos?area=cafeteria", "GET", supervisor));
+    expect(pendentes.status).toBe(200);
+    expect(((await pendentes.json()) as { recebimentoId: number; quantidade: string; podeConfirmar: boolean }[]).find((x) => x.recebimentoId === aReceber.recebimentoId)).toMatchObject({ quantidade: "100", podeConfirmar: true });
+    // A cozinheira não cuida da cafeteria: nem a lista dela nem a confirmação (para ela, o recebimento
+    // "não existe": a mesma resposta de um id que não existe).
+    expect((await r.verRecebimentos(req("/api/estoque/recebimentos?area=cafeteria", "GET", cozinheira))).status).toBe(403);
+    expect((await r.confirmarUmRecebimento(req("/api/estoque/recebimentos/confirmar", "POST", cozinheira, { recebimentoId: aReceber.recebimentoId, local: "em_uso" }))).status).toBe(404);
+    expect((await r.confirmarUmRecebimento(req("/api/estoque/recebimentos/confirmar", "POST", cozinheira, { recebimentoId: 2_000_000_000, local: "em_uso" }))).status).toBe(404);
+    // Sem o local: a mensagem do domínio.
+    const semLocal = await r.confirmarUmRecebimento(req("/api/estoque/recebimentos/confirmar", "POST", supervisor, { recebimentoId: aReceber.recebimentoId }));
+    expect(semLocal.status).toBe(400);
+    expect(((await semLocal.json()) as { mensagem: string }).mensagem).toBe("Escolha onde fica: em uso ou guardado.");
+    // O supervisor recusa: volta para a cozinha (para o resto dos testes contar só a cozinha).
+    const recusa = await r.recusarUmRecebimento(req("/api/estoque/recebimentos/recusar", "POST", supervisor, { recebimentoId: aReceber.recebimentoId, observacao: "Não pedi leite" }));
+    expect(recusa.status).toBe(200);
+    expect(await recusa.json()).toMatchObject({ situacao: "recusado", repetido: false });
+    const outra = await r.recusarUmRecebimento(req("/api/estoque/recebimentos/recusar", "POST", supervisor, { recebimentoId: aReceber.recebimentoId, observacao: "de novo" }));
+    expect(outra.status).toBe(409);
   });
 
   it("detalhe, histórico e lista de entradas leem o filtro da URL", async () => {
@@ -133,7 +151,7 @@ describe("estoque pela API", () => {
     const item = (await det.json()) as { lotes: { saldos: { local: string; quantidade: string }[] }[] };
     expect(item.lotes[0]!.saldos[0]).toMatchObject({ local: "guardado", quantidade: "2000" });
     const hist = (await (await r.verHistoricoDoItem(req(`/api/estoque/item/historico?ingredienteId=${ingredienteId}&limite=5`, "GET", gerente))).json()) as { tipo: string; quantidadeDepois: string }[];
-    // Mais novo primeiro: as duas mudanças entre áreas e, antes delas, a entrada.
+    // Mais novo primeiro: a recusa (voltou), a mudança entre áreas e, antes delas, a entrada.
     expect(hist.map((h) => h.tipo)).toEqual(["transferencia", "transferencia", "entrada"]);
     expect(hist[2]).toMatchObject({ tipo: "entrada", quantidadeDepois: "2000" });
     // Sem item: a mensagem do domínio.

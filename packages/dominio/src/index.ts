@@ -37,3 +37,4 @@ export * from "./estoque-compras";
 export * from "./estoque-importar";
 export * from "./estoque-contagem";
 export * from "./estoque-relatorios";
+export * from "./estoque-recebimento";

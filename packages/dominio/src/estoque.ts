@@ -24,6 +24,7 @@ import {
   MOTIVOS_DE_BLOQUEIO,
   MOTIVOS_DE_PERDA,
   NOME_DO_LOCAL,
+  NOME_DO_LOCAL_DO_SALDO,
   q4,
   q4DaFracao,
   q4DoBanco,
@@ -32,6 +33,7 @@ import {
   valorDaSaida,
   valorPeloCusto,
   type LocalDoEstoque,
+  type LocalDoSaldo,
 } from "./estoque-comum";
 import { Fracao } from "./fichas-comum";
 import { consumoDaFicha } from "./fichas";
@@ -223,7 +225,7 @@ async function travarItens(trx: Trx, ids: readonly number[]): Promise<Map<number
 
 // ---------------------------------------------------------------- pedaços de saldo
 
-type Pedaco = { loteId: number; area: AreaEstoque; local: LocalDoEstoque; bloqueado: boolean; quantidade: bigint; validade: string | null; vencido: boolean };
+type Pedaco = { loteId: number; area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; quantidade: bigint; validade: string | null; vencido: boolean };
 
 type Filtro = {
   area: AreaEstoque;
@@ -289,7 +291,7 @@ class Lancamento {
     this.estado(itemId).tocado = true;
   }
 
-  async mexer(itemId: number, loteId: number, area: AreaEstoque, local: LocalDoEstoque, bloqueado: boolean, delta: bigint, automatica = false): Promise<void> {
+  async mexer(itemId: number, loteId: number, area: AreaEstoque, local: LocalDoSaldo, bloqueado: boolean, delta: bigint, automatica = false): Promise<void> {
     if (delta === 0n) return;
     const q = textoQ4(delta);
     if (delta > 0n) {
@@ -683,7 +685,7 @@ const esquemaTransferencia = z
       para: lugar,
       /** Um lote específico; sem ele, o que vence primeiro sai primeiro. */
       loteId: id("Lote não encontrado.").optional(),
-      /** Entre áreas: quem recebeu (tem de cuidar da área de destino). */
+      /** Entre áreas: quem vai receber e confirmar (tem de cuidar da área de destino). */
       recebidoPor: id("Quem recebeu não foi encontrado.").optional(),
       observacao: textoLivre("Observação", 500).optional(),
     },
@@ -693,26 +695,35 @@ const esquemaTransferencia = z
   .refine((t) => t.de.area !== t.para.area || t.de.local !== t.para.local, "Origem e destino são o mesmo lugar.")
   .refine((t) => t.de.area === t.para.area || t.recebidoPor !== undefined, "Entre áreas, informe quem recebeu.");
 
+/** Transferência entre áreas: fica "a receber" no destino até quem recebe confirmar (migração 0024). */
+export type ResultadoDaTransferencia = Lancado & {
+  aReceber: { recebimentoId: number; area: AreaEstoque; recebidoPor: { usuarioId: number; nome: string } } | null;
+};
+
 /**
- * Leva do em uso para o guardado (ou o contrário) ou de uma área para outra. Só o livre e não
- * vencido muda de lugar. Não muda o total nem o valor do item.
+ * Leva do em uso para o guardado (ou o contrário), na mesma área, na hora. De uma área para outra
+ * (decisão do responsável, 25/11/2026): sai da origem e fica "a receber" na área de destino até a
+ * pessoa indicada (ou a supervisão daquela área) confirmar, escolhendo em uso ou guardado; o local
+ * de destino informado aqui é só sugestão. Só o livre e não vencido muda de lugar. Não muda o
+ * total nem o valor do item.
  */
-export async function transferir(db: Banco, ator: Ator | null, dados: unknown): Promise<Lancado> {
+export async function transferir(db: Banco, ator: Ator | null, dados: unknown): Promise<ResultadoDaTransferencia> {
   if (!ator) await exigir(db, ator, "estoque.cozinha");
   const d = validar(esquemaTransferencia, dados);
   await exigirAreas(db, ator, [d.de.area]);
+  const entreAreas = d.de.area !== d.para.area;
   return db.transaction().execute(async (trx) => {
     const assinatura = assinar("transferencia", d);
     const ja = await jaLancado(trx, d.chave, assinatura);
-    if (ja) return ja;
-    if (d.recebidoPor !== undefined && d.de.area !== d.para.area) await conferirQuemRecebe(trx, d.recebidoPor, d.para.area);
+    if (ja) return { ...ja, aReceber: await aReceberDaTransferencia(trx, ja.movimentoId) };
+    if (entreAreas) await conferirQuemRecebe(trx, ator!.usuarioId, d.recebidoPor!, d.para.area);
     const [itemId] = await garantirItens(trx, [d]);
     const itens = await travarItens(trx, [itemId!]);
     const mov = await novoMovimento(trx, {
       tipo: "transferencia",
       autorId: ator!.usuarioId,
       observacao: d.observacao ?? null,
-      recebidoPor: d.de.area !== d.para.area ? d.recebidoPor! : null,
+      recebidoPor: entreAreas ? d.recebidoPor! : null,
       chave: d.chave ?? null,
       assinatura: d.chave ? assinatura : null,
     });
@@ -726,14 +737,43 @@ export async function transferir(db: Banco, ator: Ator | null, dados: unknown): 
         "conflito",
         `Não há ${comUnidade(q, item)} de "${item.nome}" livre em ${nomeDaArea(d.de.area)} (${NOME_DO_LOCAL[d.de.local].toLowerCase()})${await quantoHa(trx, ator!, item, d.de.area, tirado)}.`,
       );
-    for (const x of de) await l.mexer(item.id, x.p.loteId, d.para.area, d.para.local, false, x.q);
+    // Entre áreas: os mesmos lotes ficam "a receber" no destino (a recusa os devolve).
+    for (const x of de) await l.mexer(item.id, x.p.loteId, d.para.area, entreAreas ? "a_receber" : d.para.local, false, x.q);
     await l.fechar();
-    return { movimentoId: mov, repetido: false };
+    if (!entreAreas) return { movimentoId: mov, repetido: false, aReceber: null };
+    await trx
+      .insertInto("estoque_recebimento")
+      .values({
+        movimento_id: mov,
+        item_id: item.id,
+        area_origem: d.de.area,
+        local_origem: d.de.local,
+        area_destino: d.para.area,
+        local_sugerido: d.para.local,
+        quantidade: textoQ4(q),
+        recebido_por: d.recebidoPor!,
+      })
+      .execute();
+    return { movimentoId: mov, repetido: false, aReceber: await aReceberDaTransferencia(trx, mov) };
   });
 }
 
-/** Quem recebe numa área tem de estar ativo e ter um cargo que cuida dela. */
-async function conferirQuemRecebe(trx: Trx, usuarioId: number, destino: AreaEstoque): Promise<void> {
+async function aReceberDaTransferencia(trx: Trx, movimentoId: string): Promise<ResultadoDaTransferencia["aReceber"]> {
+  const r = await trx
+    .selectFrom("estoque_recebimento as r")
+    .innerJoin("usuario as u", "u.id", "r.recebido_por")
+    .select(["r.id", "r.area_destino", "r.recebido_por", "u.nome"])
+    .where("r.movimento_id", "=", movimentoId)
+    .executeTakeFirst();
+  return r ? { recebimentoId: r.id, area: r.area_destino, recebidoPor: { usuarioId: r.recebido_por, nome: r.nome } } : null;
+}
+
+/**
+ * Quem recebe numa área tem de estar ativo, ter um cargo que cuida dela e não ser quem manda (a
+ * confirmação é de outra pessoa; decisão 0027, item 9).
+ */
+async function conferirQuemRecebe(trx: Trx, quemManda: number, usuarioId: number, destino: AreaEstoque): Promise<void> {
+  if (usuarioId === quemManda) throw new ErroDeRegra("dados_invalidos", "Quem manda não pode ser quem recebe.");
   const cargos = await trx
     .selectFrom("usuario_perfil as up")
     .innerJoin("usuario as u", "u.id", "up.usuario_id")
@@ -1053,8 +1093,10 @@ export type SaldoDaArea = {
   guardado: string | null;
   bloqueado: string | null;
   vencido: string | null;
-  /** Livre para usar agora (sem bloqueado e sem vencido). A reserva entra na E11. */
+  /** Livre para usar agora (sem bloqueado e sem vencido; o "a receber" não entra). A reserva entra na E11. */
   livre: string | null;
+  /** Veio de outra área e espera quem recebe confirmar (não é livre nem é consumido). */
+  aReceber: string | null;
   /** Há contagem aberta do item nesta área. */
   emContagem: boolean;
   /** Só com custos.ver: valor proporcional ao custo médio. */
@@ -1078,7 +1120,7 @@ export type ItemDoPainel = {
   areas: SaldoDaArea[];
 };
 
-type LinhaDoSaldo = { item_id: number; area: AreaEstoque; local: LocalDoEstoque; bloqueado: boolean; vencido: boolean; quantidade: string; validade: string | null };
+type LinhaDoSaldo = { item_id: number; area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; vencido: boolean; quantidade: string; validade: string | null };
 
 async function saldosDosItens(db: Banco, itemIds: readonly number[]): Promise<LinhaDoSaldo[]> {
   if (itemIds.length === 0) return [];
@@ -1091,16 +1133,21 @@ async function saldosDosItens(db: Banco, itemIds: readonly number[]): Promise<Li
 }
 
 function montarAreas(linhas: readonly LinhaDoSaldo[], areasVisiveis: readonly AreaEstoque[], qTotal: bigint, vTotal: bigint, comValor: boolean): SaldoDaArea[] {
-  const porArea = new Map<AreaEstoque, { emUso: bigint; guardado: bigint; bloqueado: bigint; vencido: bigint }>();
+  const porArea = new Map<AreaEstoque, { emUso: bigint; guardado: bigint; bloqueado: bigint; vencido: bigint; aReceber: bigint }>();
   for (const s of linhas) {
     if (!areasVisiveis.includes(s.area)) continue;
-    const a = porArea.get(s.area) ?? { emUso: 0n, guardado: 0n, bloqueado: 0n, vencido: 0n };
+    const a = porArea.get(s.area) ?? { emUso: 0n, guardado: 0n, bloqueado: 0n, vencido: 0n, aReceber: 0n };
     const q = q4DoBanco(s.quantidade);
+    porArea.set(s.area, a);
+    // A receber: ainda não é da área (nem livre, nem bloqueado, nem vencido) até alguém confirmar.
+    if (s.local === "a_receber") {
+      a.aReceber += q;
+      continue;
+    }
     if (s.local === "em_uso") a.emUso += q;
     else a.guardado += q;
     if (s.bloqueado) a.bloqueado += q;
     else if (s.vencido) a.vencido += q;
-    porArea.set(s.area, a);
   }
   return [...porArea.entries()]
     .sort((x, y) => AREAS_ESTOQUE.indexOf(x[0]) - AREAS_ESTOQUE.indexOf(y[0]))
@@ -1111,7 +1158,8 @@ function montarAreas(linhas: readonly LinhaDoSaldo[], areasVisiveis: readonly Ar
       bloqueado: textoQ4(a.bloqueado),
       vencido: textoQ4(a.vencido),
       livre: textoQ4(a.emUso + a.guardado - a.bloqueado - a.vencido),
-      valorCentavos: comValor ? valorDaSaida(qTotal, vTotal, a.emUso + a.guardado).toString() : null,
+      aReceber: textoQ4(a.aReceber),
+      valorCentavos: comValor ? valorDaSaida(qTotal, vTotal, a.emUso + a.guardado + a.aReceber).toString() : null,
       emContagem: false,
     }));
 }
@@ -1198,7 +1246,7 @@ async function esconderEmContagem<T extends ItemDoPainel>(db: Banco, ator: Ator,
   return itens.map((i) => {
     if (i.itemId === null) return i;
     const areas = i.areas.map((a) =>
-      chaves.has(`${i.itemId}:${a.area}`) ? { ...a, emUso: null, guardado: null, bloqueado: null, vencido: null, livre: null, valorCentavos: null, emContagem: true } : a,
+      chaves.has(`${i.itemId}:${a.area}`) ? { ...a, emUso: null, guardado: null, bloqueado: null, vencido: null, livre: null, aReceber: null, valorCentavos: null, emContagem: true } : a,
     );
     const algum = areas.some((a) => a.emContagem) || chaves.has(`${i.itemId}:${i.areaPadrao}`);
     return algum ? { ...i, areas, total: null, valorCentavos: null, emContagem: true } : i;
@@ -1211,7 +1259,7 @@ export type LoteDoItem = {
   vencido: boolean;
   codigo: string | null;
   entrouEm: string;
-  saldos: { area: AreaEstoque; local: LocalDoEstoque; bloqueado: boolean; quantidade: string | null }[];
+  saldos: { area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; quantidade: string | null }[];
 };
 
 export type EstoqueDoItem = ItemDoPainel & { lotes: LoteDoItem[] };
@@ -1232,7 +1280,7 @@ export async function estoqueDoItem(db: Banco, ator: Ator | null, ref: unknown):
   } else if (!areas.includes(item.areaPadrao) && item.areas.length === 0) await exigir(db, a, acaoDaArea(item.areaPadrao), { tipo: "estoque_area", id: item.areaPadrao });
   const lotes: LoteDoItem[] = [];
   if (item.itemId !== null) {
-    const l = await sql<{ id: number; validade: string | null; vencido: boolean; codigo: string | null; entrou: string; area: AreaEstoque; local: LocalDoEstoque; bloqueado: boolean; quantidade: string }>`
+    const l = await sql<{ id: number; validade: string | null; vencido: boolean; codigo: string | null; entrou: string; area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; quantidade: string }>`
       SELECT l.id, to_char(l.validade, 'YYYY-MM-DD') AS validade, coalesce(l.validade < hoje_na_loja(), false) AS vencido, l.codigo,
         to_char(l.criado_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS entrou, s.area, s.local, s.bloqueado, s.quantidade::text AS quantidade
       FROM estoque_lote l JOIN estoque_saldo s ON s.lote_id = l.id
@@ -1271,6 +1319,11 @@ export type MovimentoDoHistorico = {
   custoEstimado: boolean;
   usouGuardado: boolean;
   desfeitoPor: string | null;
+  /**
+   * Mudança entre áreas (migração 0024): a que mandou fica "a_receber", "confirmado" ou "recusado";
+   * a que tirou do "a receber" é a "confirmacao" ou a "devolucao". Nenhuma delas se desfaz.
+   */
+  recebimento: "a_receber" | "confirmado" | "recusado" | "confirmacao" | "devolucao" | null;
 };
 
 /** Histórico do item (o mais novo primeiro), com o saldo depois de cada movimento. */
@@ -1312,6 +1365,7 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
     custo_estimado: boolean;
     usou_guardado: boolean;
     desfeito_por: string | null;
+    recebimento: MovimentoDoHistorico["recebimento"];
   }>`
     SELECT m.id::text AS id, m.tipo, m.motivo, m.observacao, to_char(m.criado_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS quando,
       u.nome AS autor,
@@ -1321,7 +1375,10 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
       mi.quantidade_depois::text AS quantidade_depois,
       mi.valor_centavos::text AS valor, mi.valor_depois::text AS valor_depois, mi.faltou::text AS faltou, mi.custo_estimado,
       EXISTS (SELECT 1 FROM estoque_movimento_linha l WHERE l.movimento_id = m.id AND l.item_id = mi.item_id AND l.automatica) AS usou_guardado,
-      (SELECT e.id::text FROM estoque_movimento e WHERE e.estorno_de = m.id) AS desfeito_por
+      (SELECT e.id::text FROM estoque_movimento e WHERE e.estorno_de = m.id) AS desfeito_por,
+      coalesce(
+        (SELECT coalesce(f.situacao, 'a_receber') FROM estoque_recebimento r LEFT JOIN estoque_recebimento_fim f ON f.recebimento_id = r.id WHERE r.movimento_id = m.id),
+        (SELECT CASE f.situacao WHEN 'confirmado' THEN 'confirmacao' ELSE 'devolucao' END FROM estoque_recebimento_fim f WHERE f.movimento_id = m.id)) AS recebimento
     FROM estoque_movimento_item mi JOIN estoque_movimento m ON m.id = mi.movimento_id JOIN usuario u ON u.id = m.autor_id
     WHERE mi.item_id = ${item.itemId} AND (${d.antesDe ?? null}::bigint IS NULL OR m.id < ${d.antesDe ?? null}::bigint)
       AND (${todas} OR EXISTS (SELECT 1 FROM estoque_movimento_linha l WHERE l.movimento_id = m.id AND l.item_id = mi.item_id AND l.area = ANY(${areas}::text[])))
@@ -1341,6 +1398,7 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
     custoEstimado: x.custo_estimado,
     usouGuardado: x.usou_guardado,
     desfeitoPor: x.desfeito_por,
+    recebimento: x.recebimento,
   }));
 }
 
@@ -1370,7 +1428,25 @@ export async function conferirEstoque(db: Banco): Promise<string[]> {
     LEFT JOIN (SELECT movimento_id, item_id, sum(quantidade) AS q FROM estoque_movimento_linha GROUP BY 1, 2) l USING (movimento_id, item_id)
     WHERE mi.quantidade <> coalesce(l.q, 0)
     UNION ALL
-    SELECT 'lote ' || l.id || ' de outro item' FROM estoque_movimento_linha x JOIN estoque_lote l ON l.id = x.lote_id WHERE l.item_id <> x.item_id`.execute(db);
+    SELECT 'lote ' || l.id || ' de outro item' FROM estoque_movimento_linha x JOIN estoque_lote l ON l.id = x.lote_id WHERE l.item_id <> x.item_id
+    UNION ALL
+    -- O "a receber" de cada lote e área é a soma do que os recebimentos pendentes deixaram lá.
+    SELECT 'a receber ' || coalesce(s.lote_id, p.lote_id) || '/' || coalesce(s.area, p.area) || ' difere dos recebimentos pendentes'
+    FROM (SELECT lote_id, area, sum(quantidade) AS q FROM estoque_saldo WHERE local = 'a_receber' GROUP BY 1, 2 HAVING sum(quantidade) <> 0) s
+    FULL JOIN (
+      SELECT x.lote_id, x.area, sum(x.quantidade) AS q
+      FROM estoque_recebimento r JOIN estoque_movimento_linha x
+        ON x.movimento_id = r.movimento_id AND x.item_id = r.item_id AND x.area = r.area_destino AND x.local = 'a_receber'
+      WHERE NOT EXISTS (SELECT 1 FROM estoque_recebimento_fim f WHERE f.recebimento_id = r.id)
+      GROUP BY 1, 2
+    ) p ON p.lote_id = s.lote_id AND p.area = s.area
+    WHERE coalesce(s.q, 0) <> coalesce(p.q, 0)
+    UNION ALL
+    SELECT 'recebimento ' || r.id || ' difere das linhas a receber'
+    FROM estoque_recebimento r
+    LEFT JOIN (SELECT movimento_id, item_id, area, sum(quantidade) AS q FROM estoque_movimento_linha WHERE local = 'a_receber' AND quantidade > 0 GROUP BY 1, 2, 3) x
+      ON x.movimento_id = r.movimento_id AND x.item_id = r.item_id AND x.area = r.area_destino
+    WHERE r.quantidade <> coalesce(x.q, 0)`.execute(db);
   return r.rows.map((x) => x.problema);
 }
 
@@ -1818,6 +1894,7 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
     throw new ErroDeRegra("conflito", m.tipo === "custo" ? "Correção de custo não se desfaz: corrija o custo de novo." : "Este movimento já é um desfazer: lance de novo o que for preciso.");
   if (m.tipo === "consumo" && m.origem_tipo !== null) throw new ErroDeRegra("conflito", "Consumo de pedido não se desfaz aqui: cancele o pedido.");
   await exigirAreas(db, quem, await areasDoMovimento(db, d.movimentoId));
+  if (m.tipo === "transferencia") await recusarDesfazerDeRecebimento(db, d.movimentoId);
   return db.transaction().execute(async (trx) => {
     const assinatura = assinar("estorno", d);
     const ja = await jaLancado(trx, d.chave, assinatura);
@@ -1848,7 +1925,7 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
     });
     const l = new Lancamento(trx, mov, itens);
     // Junta por pedaço de saldo (o mesmo pedaço pode ter várias linhas) e confere antes de mexer.
-    const porPedaco = new Map<string, { item_id: number; lote_id: number; area: AreaEstoque; local: LocalDoEstoque; bloqueado: boolean; q: bigint }>();
+    const porPedaco = new Map<string, { item_id: number; lote_id: number; area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; q: bigint }>();
     for (const x of linhas) {
       const k = `${x.lote_id}|${x.area}|${x.local}|${x.bloqueado}`;
       const atual = porPedaco.get(k);
@@ -1869,7 +1946,7 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
       const tem = r ? q4DoBanco(r.quantidade) : 0n;
       if (tem < p.q) {
         const item = l.item(p.item_id);
-        faltando.push(`"${item.nome}" em ${nomeDaArea(p.area)} (${NOME_DO_LOCAL[p.local].toLowerCase()}${p.bloqueado ? ", bloqueado" : ""}): precisa ${comUnidade(p.q, item)}, há ${comUnidade(tem, item)}`);
+        faltando.push(`"${item.nome}" em ${nomeDaArea(p.area)} (${NOME_DO_LOCAL_DO_SALDO[p.local].toLowerCase()}${p.bloqueado ? ", bloqueado" : ""}): precisa ${comUnidade(p.q, item)}, há ${comUnidade(tem, item)}`);
       }
     }
     if (faltando.length) throw new ErroDeRegra("conflito", `Não dá para desfazer: parte já foi usada ou mudou de lugar. ${faltando.join("; ")}. Lance uma perda ou um ajuste no lugar.`);
@@ -1920,6 +1997,23 @@ export async function desfazerMovimento(db: Banco, ator: Ator | null, dados: unk
 }
 
 /**
+ * Mudança entre áreas (com recebimento) não se desfaz: enquanto pendente, quem recebe recusa e o
+ * item volta para a origem; depois de confirmada ou recusada, muda-se de lugar de novo. Assim o
+ * recebimento nunca fica pendente sem nada "a receber" (nem o contrário). O vínculo não muda depois
+ * de gravado, então a conferência fora da transação basta.
+ */
+async function recusarDesfazerDeRecebimento(db: Banco, movimentoId: string): Promise<void> {
+  const r = await sql<{ origem: boolean; pendente: boolean; fim: boolean }>`
+    SELECT EXISTS (SELECT 1 FROM estoque_recebimento WHERE movimento_id = ${movimentoId}::bigint) AS origem,
+      EXISTS (SELECT 1 FROM estoque_recebimento r WHERE r.movimento_id = ${movimentoId}::bigint
+              AND NOT EXISTS (SELECT 1 FROM estoque_recebimento_fim f WHERE f.recebimento_id = r.id)) AS pendente,
+      EXISTS (SELECT 1 FROM estoque_recebimento_fim WHERE movimento_id = ${movimentoId}::bigint) AS fim`.execute(db);
+  const x = r.rows[0]!;
+  if (x.pendente) throw new ErroDeRegra("conflito", "Esta mudança entre áreas ainda espera quem recebe: peça para recusar o recebimento (o item volta para onde estava).");
+  if (x.origem || x.fim) throw new ErroDeRegra("conflito", "Mudança entre áreas já recebida (ou recusada) não se desfaz: mude de lugar de novo.");
+}
+
+/**
  * Peças internas do estoque para os outros arquivos do domínio (contagem). Não use fora de
  * packages/dominio: quem chama confere a permissão e trava os itens antes de mexer.
  */
@@ -1939,10 +2033,11 @@ export const motorDoEstoque = {
 
 /**
  * Quem pode receber numa área (para a transferência entre áreas): pessoas ativas com um cargo que
- * cuida da área de destino. Só para quem cuida de alguma área; devolve só id e nome.
+ * cuida da área de destino, menos quem pergunta (quem manda não recebe). Só para quem cuida de
+ * alguma área; devolve só id e nome.
  */
 export async function quemRecebeNaArea(db: Banco, ator: Ator | null, dados: unknown): Promise<{ usuarioId: number; nome: string }[]> {
-  await exigirAlgumaArea(db, ator);
+  const { ator: a } = await exigirAlgumaArea(db, ator);
   const d = validar(z.object({ area }, { error: "Área de estoque inválida." }), dados);
   const r = await db
     .selectFrom("usuario as u")
@@ -1950,6 +2045,7 @@ export async function quemRecebeNaArea(db: Banco, ator: Ator | null, dados: unkn
     .select(["u.id", "u.nome", "up.perfil_codigo"])
     .where("u.ativo", "=", true)
     .where("up.removido_em", "is", null)
+    .where("u.id", "<>", a.usuarioId)
     .orderBy("u.nome")
     .execute();
   const vistos = new Map<number, string>();
