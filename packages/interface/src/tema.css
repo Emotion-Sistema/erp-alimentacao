@@ -65,6 +65,14 @@
   --mesa-conta-texto: #2a1710;
   --mesa-conta-borda: #d98a12;
   --mesa-conta-cadeira: #e9b866;
+  /* Etapas da produção (tela Produção, igual ao protótipo A): cor forte de cada etapa.
+   * Par fundo/texto com contraste AA conferido em testes/cores.teste.ts. */
+  --etapa-fila-fundo: #2e5e7e;
+  --etapa-fila-texto: #ffffff;
+  --etapa-preparo-fundo: #f6a52b;
+  --etapa-preparo-texto: #2a1710;
+  --etapa-pronto-fundo: #2f6b3a;
+  --etapa-pronto-texto: #ffffff;
   --tamanho-icone: 1.25rem;
 
   /* ===== Letras (aprovadas em 18/11/2026). Arquivos dentro do app (@fontsource), nunca do Google. ===== */

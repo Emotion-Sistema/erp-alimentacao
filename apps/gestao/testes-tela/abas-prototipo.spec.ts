@@ -163,3 +163,28 @@ test.describe("Novo pedido", () => {
     await expect(page.locator(".np")).toHaveCount(0);
   });
 });
+
+test.describe("Produção", () => {
+  test("cozinheira vê as 3 colunas com a legenda, vazias até a E13 e sem relógio", async ({ page }) => {
+    await entrar(page, "cozinheira");
+    for (const t of TAMANHOS) {
+      await page.setViewportSize(t);
+      await page.goto("/producao");
+      for (const nome of ["Na fila", "Em preparo", "Pronto"])
+        await expect(page.getByRole("heading", { level: 2, name: new RegExp(`^${nome}`) })).toBeVisible();
+      await expect(page.locator(".prod-coluna")).toHaveCount(3);
+      await expect(page.getByText("Nenhum pedido aqui ainda. Os pedidos chegam sozinhos a esta tela quando a etapa E13 ligar.")).toHaveCount(3);
+      await expect(page.getByRole("list", { name: "Cores das etapas" }).getByRole("listitem")).toHaveCount(3);
+      // Nada de tempo inventado (ex.: "12:34" de relógio de ticket) dentro das colunas.
+      expect(await page.locator(".prod-colunas").innerText()).not.toMatch(/\d+:\d{2}/);
+      await semEstouroDeLargura(page);
+    }
+  });
+
+  test("atendente não abre a produção (o cargo não tem producao.ver)", async ({ page }) => {
+    await entrar(page, "atendente");
+    await page.goto("/producao");
+    await expect(page.getByRole("heading", { name: "Seu cargo não permite esta tela" })).toBeVisible();
+    await expect(page.locator(".prod-coluna")).toHaveCount(0);
+  });
+});

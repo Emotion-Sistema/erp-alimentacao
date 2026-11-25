@@ -1,0 +1,35 @@
+/* Produção: visão geral (igual ao protótipo A, decisão 0028). Cores fortes por etapa, só do tema. */
+
+.prod { display: grid; gap: var(--espaco-3); min-width: 0; }
+.casca .prod > .hor-tela__intro { margin: 0; }
+
+.prod-etapa {
+  --e-fundo: var(--etapa-fila-fundo); --e-texto: var(--etapa-fila-texto);
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+  background: var(--e-fundo); color: var(--e-texto);
+  font-size: 0.75rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+}
+.prod-etapa--preparo { --e-fundo: var(--etapa-preparo-fundo); --e-texto: var(--etapa-preparo-texto); }
+.prod-etapa--pronto { --e-fundo: var(--etapa-pronto-fundo); --e-texto: var(--etapa-pronto-texto); }
+.prod-etapa small { font-size: 0.71875rem; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.prod-icone { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+.prod-legenda { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.prod-colunas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.prod-coluna { display: grid; gap: 10px; min-width: 0; }
+.casca .casca__conteudo .prod-coluna__cab {
+  display: flex; margin: 0; padding: 12px 14px; border-radius: 16px; font-size: 0.875rem; letter-spacing: 0.05em;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--cor-texto) 14%, transparent);
+}
+.prod-coluna__cab .prod-icone { width: 17px; height: 17px; }
+.prod-coluna__qtd { margin-left: auto; font-variant-numeric: tabular-nums; }
+.prod-vazio {
+  margin: 0; padding: 18px 12px; text-align: center; font-size: 0.8125rem; color: var(--cor-texto-suave);
+  border: 1.5px dashed var(--cor-linha); border-radius: 14px;
+}
+.prod-nota { margin: 0; font-size: 0.8125rem; color: var(--cor-texto-suave); }
+
+@media (max-width: 40rem) {
+  .prod-colunas { grid-template-columns: minmax(0, 1fr); }
+}
