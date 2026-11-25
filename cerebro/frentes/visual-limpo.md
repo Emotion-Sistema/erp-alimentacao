@@ -72,10 +72,15 @@ fotos, comanda à direita).
   agora e ações (abrir mesa, lançar pedido, pediu a conta; **receber só o caixa**). No celular vira
   grade de 3 colunas. O Início do caixa e do atendente mostra "7 de 16 mesas livres" com atalho.
 
+## Versão 6 (25/11/2026): mapa da loja de verdade
+- O responsável mandou o esboço do salão. O mapa do protótipo agora segue o desenho: 60 Sabores e
+  Cafeteria no topo, Área da TV (4 mesas + TV), Frente perto do caixa (7 mesas, com o Mesão), Bancada,
+  Entrada pela calçada e Caixa. 11 mesas. Leitura e perguntas em `cerebro/empresa/mapa-das-mesas.md`.
+
 ## Falta
-- Responsável testar a versão 5 e dizer o que ajustar.
-- **Desenho real do salão** (quantas mesas, lugares de cada uma, áreas): pedir ao responsável quando o
-  mapa de mesas for construído (E17); a tela deve permitir montar o mapa sem programador.
+- Responsável confirmar números, lugares e as dúvidas do mapa (`cerebro/empresa/mapa-das-mesas.md`).
+- Mapa real: esboço recebido em 25/11/2026 (`cerebro/empresa/mapa-das-mesas.md`). Ao construir (E17), a
+  gerência monta e muda o mapa na própria tela, sem programador.
 - Depois: registro de decisão novo (casca do A, letra 14–15 px, trilho de ícones) e PRs do visual, tela
   a tela, com fotos das telas no PR. Rever o adendo de navegação no celular da 0019 (o A usa barra de baixo).
 - Depois da escolha: registro de decisão novo, mudança no `tema.css` e na casca, tela a tela, com as
