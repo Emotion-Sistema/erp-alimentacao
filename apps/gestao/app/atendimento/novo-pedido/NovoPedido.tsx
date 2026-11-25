@@ -188,7 +188,7 @@ export function NovoPedido({ mesa, podeVerFoto }: { mesa: { numero: number; nome
             <span data-testid="comanda-itens-valor">{textoDosCentavos(contas.itens)}</span>
           </div>
           <div className="np-total__l">
-            <span>Serviço 10%</span>
+            <span>Serviço 10% (a confirmar)</span>
             <span data-testid="comanda-servico">{textoDosCentavos(contas.servico)}</span>
           </div>
           <div className="np-total__l np-total__l--total">

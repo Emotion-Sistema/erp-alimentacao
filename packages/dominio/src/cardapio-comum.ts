@@ -17,7 +17,8 @@ export type ItemDoCardapio = {
   tempoPreparoMin: number | null;
 };
 
-/** Taxa de serviço do salão: 10% sobre os itens (como no protótipo). */
+/** Taxa de serviço do salão: 10% sobre os itens (como no protótipo). HIPÓTESE: pendência 42 de
+ * docs/04-pendencias.md ainda aberta (há serviço? é opcional?). Confirmar com o responsável antes da E13. */
 export const SERVICO_PORCENTO = 10;
 
 export type LinhaDaComanda = { precoCentavos: number; quantidade: number };
