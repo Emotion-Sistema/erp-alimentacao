@@ -3,7 +3,8 @@
 Atualizado em: 18/11/2026
 
 ## Em que pé estamos
-- **Novo visual "Balcão", parte 1 (25/11/2026):** trilho de ícones, topo claro, letra 15 px (decisão 0028; frente `cerebro/frentes/visual-limpo.md`). Próximas: componentes e busca geral (2), telas (3), claro/escuro e letra por pessoa (4).
+- **Novo visual "Balcão" (decisões 0028 e 0030), partes 1 a 4 feitas em 25/11/2026:** casca e acabamento iguais ao protótipo A; telas Produtos, Funcionários, Ingredientes, Estoque e Fichas no formato do protótipo; abas novas Mesas, Novo pedido e Produção; tema claro/escuro e letra normal/grande por pessoa (sol/lua no topo, "Letra grande" no menu da conta). Frente: `cerebro/frentes/visual-limpo.md`.
+- **Junção automática ligada (25/11/2026):** regra `main protegida` com testes obrigatórios; todo PR é aberto com auto-merge (squash). CI em 3 trabalhos paralelos (~3,5 min).
 - Fase: **E02 (fundação) feita** no PR #4: monorepositório, banco, login e permissões no
   servidor, CI. Comandos no `CLAUDE.md`; bibliotecas na decisão 0010.
 - **E03 (cargos, login e auditoria) feita** no PR #5 (merge a853254): matriz de cargos testada pela
