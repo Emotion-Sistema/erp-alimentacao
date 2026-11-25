@@ -108,7 +108,14 @@ Nesta frente, em PRs pequenos, só sobre o que já existe:
    Testes de tela ajustados, fotos no PR, revisor (o menu nasce da matriz de permissões).
 2. **V2 · Componentes:** lista/tabela limpa, gaveta lateral de cadastro, janela (popup), chips e botões.
 3. **V3 · Telas que já existem, uma por PR:** Produtos, Fichas técnicas, Estoque, demais cadastros, avisos.
-4. **V4 · Tema por pessoa:** guardar a escolha claro/escuro no usuário (migração pequena, skill migracao-segura).
+4. **V4 · Preferências por pessoa:** guardar claro/escuro **e letra normal ou grande** no usuário (migração
+   pequena, skill migracao-segura); tablet da cozinha começa em letra grande.
+**Acréscimos aprovados pelo responsável em 25/11/2026 ("todas"):** (a) busca geral no topo (Ctrl+K /
+lupa no celular) para produtos, fichas, ingredientes e funcionários, só com o que o cargo pode ver
+(parte V2); (b) letra normal/grande por pessoa (V4); (c) telas vazias, carregando e erro explicadas com
+o próximo passo (V2 e V3); (d) fotos automáticas das telas antes e depois, comparadas a cada mudança,
+para pegar quebra visual sem querer (V1). Decisão do responsável: **a troca do visual é feita nesta
+frente**; não esperar o chat principal.
 Fica para o **chat principal**, nas etapas do roteiro, usando o protótipo como referência: Novo pedido,
 Produção (cores por etapa), Mesas e as 6 ideias do salão (E17), painel com valores do dia (ação nova
 `painel.valores`, só supervisor para cima), visão do cliente (RC-10 seção 8, RC-20).
