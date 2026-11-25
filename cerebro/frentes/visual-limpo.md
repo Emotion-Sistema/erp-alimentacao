@@ -77,6 +77,14 @@ fotos, comanda à direita).
   Cafeteria no topo, Área da TV (4 mesas + TV), Frente perto do caixa (7 mesas, com o Mesão), Bancada,
   Entrada pela calçada e Caixa. 11 mesas. Leitura e perguntas em `cerebro/empresa/mapa-das-mesas.md`.
 
+## Versão 7 (25/11/2026): etapa de cada item na mesa
+- Pedido do responsável: o atendente, ao tocar na mesa, vê em que passo está cada produto; o cliente
+  também vê no app. **Já previsto** no RC-10 (seção 8) e no RC-20 (QR da mesa): não é ideia nova.
+- Painel da mesa: cada item com a etapa da cozinha, nas mesmas cores da Produção (Na fila, Preparando,
+  Faltam N min, Atrasado, Pronto, Entregue), mudando sozinha. Item pronto: botão "Entregue" só para o
+  atendente (`pedidos.marcar_entregue`). "Ver como o cliente vê no app": linha Recebido → Na fila → Em
+  preparo → Pronto → Entregue, previsão, etapa por item; sem "atrasado", sem tempo de mesa, sem nomes.
+
 ## Falta
 - Responsável confirmar números, lugares e as dúvidas do mapa (`cerebro/empresa/mapa-das-mesas.md`).
 - Mapa real: esboço recebido em 25/11/2026 (`cerebro/empresa/mapa-das-mesas.md`). Ao construir (E17), a
