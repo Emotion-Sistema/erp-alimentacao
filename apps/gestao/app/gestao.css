@@ -87,6 +87,8 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 }
 .casca__tema:hover, .casca__lado .avisos__sino:hover, .casca__lado .avisos__sino[aria-expanded="true"] { background: var(--cor-superficie); color: var(--cor-texto); }
 .casca__lado .avisos__sino > span[aria-hidden="true"]:first-child { font-size: 0; }
+/* Ícone e texto escondido na mesma célula: o sino fica no meio do botão, na linha da lua e da conta. */
+.casca__lado .avisos__sino::before, .casca__lado .avisos__sino > :not(.avisos__contador) { grid-area: 1 / 1; }
 .casca__lado .avisos__sino::before {
   content: ""; width: 22px; height: 22px; background: currentColor;
   -webkit-mask: var(--icone-sino) center / contain no-repeat; mask: var(--icone-sino) center / contain no-repeat;

@@ -169,3 +169,5 @@ O responsável criou a regra `main protegida` (testes obrigatórios: "Lint, tipo
 
 ## Parte 4 (25/11/2026)
 Tema claro/escuro e letra normal/grande por pessoa (decisão 0030; migração 0026; `POST /api/eu/preferencias`; sol/lua no topo e "Letra grande" no menu da conta). Escuro = paleta "Noite de Torra" do cliente. Depois: acelerar o CI (dividir os testes de tela e guardar o navegador entre rodadas), pedido do responsável.
+
+- **CI mais rápido (PR 163, 25/11/2026):** base + testes de tela em 2 partes + o obrigatório "Lint, tipos, testes e build" que espera os outros. De ~7 para ~3,5 min. Pendente menor da revisão da parte 4: testar no escuro pares com `color-mix` (`--cor-superficie-forte`).
