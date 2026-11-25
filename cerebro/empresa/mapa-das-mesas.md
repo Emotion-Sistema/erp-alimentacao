@@ -12,22 +12,22 @@ Fonte: desenho à mão enviado no chat em 25/11/2026 (não guardado no repositó
   no canto de baixo à direita. **"Bancada"** escrita do lado de fora da parede esquerda (dentro ou fora?).
 - Total: **11 mesas** (4 na área da TV, 7 na frente), uma delas o Mesão.
 
-## Numeração e lugares sugeridos (a confirmar)
-| Mesa | Área | Posição | Lugares (chute) |
-|---|---|---|---|
-| 1 | TV | esquerda, em cima | 4 |
-| 2 | TV | centro, em cima | 4 |
-| 3 | TV | esquerda, embaixo | 4 |
-| 4 | TV | centro, embaixo (maior) | 6 |
-| 5, 6 | Frente | centro | 4 |
-| 7, 11 | Frente | centro, perto da entrada | 2 |
-| 8 | Frente | direita, em cima | 4 |
-| 9 | Frente | direita (Mesão) | 8 |
-| 10 | Frente | direita, perto do caixa | 2 |
+## Respostas do responsável (25/11/2026)
+- Números reais das mesas: ele traz depois.
+- **Lugares:** Mesão = 8; mesas comuns = 4; as 4 mesas da área da TV ("salão menor", 1 a 4 no
+  protótipo) = 2 lugares cada.
+- **Bancada:** dentro da loja, tem lugares, mas a pessoa fica de frente para a parede: usar em último caso.
+- **Seta acima da TV:** banheiro.
+- **Nenhuma mesa fora da loja** (calçada ou outro espaço): só dentro.
 
-## Falta confirmar
-1. Os números reais das mesas (se já existem plaquinhas).
-2. Quantos lugares cada mesa tem.
-3. O que é a seta na parede direita, acima da TV (cozinha? banheiro? outra saída?).
-4. A "Bancada" é dentro da loja (lugares no balcão, contam como mesa?) ou do lado de fora?
-5. Mesas na calçada ou em outro espaço que não aparecem no desenho.
+## Numeração usada no protótipo (provisória até virem os números reais)
+| Mesa | Área | Posição | Lugares |
+|---|---|---|---|
+| 1 a 4 | Área da TV | duas colunas | 2 |
+| 5, 6, 7, 11 | Frente | centro | 4 |
+| 8, 10 | Frente | direita | 4 |
+| 9 | Frente | direita (Mesão) | 8 |
+
+## Falta
+1. Números reais das mesas (o responsável traz).
+2. Quantos lugares tem a Bancada (e se entra no mapa como lugares avulsos).
