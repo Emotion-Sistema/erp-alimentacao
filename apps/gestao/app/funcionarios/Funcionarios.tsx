@@ -1,8 +1,9 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { Aviso, Botao, Cartao, Celula, Etiqueta, Selo, Tabela } from "@erp/interface";
+import { Aviso, Botao, Celula, Etiqueta, Icone, Selo, Tabela } from "@erp/interface";
 import { BotaoExemplos, Campo, Selecao } from "../Campo";
+import { JanelaModal, usarPedirFechar } from "../cadastros/JanelaModal";
 import { chamar } from "../chamar";
 
 type Usuario = {
@@ -17,6 +18,10 @@ type Usuario = {
 };
 type Opcao = { valor: string; texto: string };
 type Mensagem = { tipo: "sucesso" | "perigo"; texto: string } | null;
+type Filtro = "todos" | "ativos" | "desligados";
+
+// Busca sem acento e sem maiúscula ("joao" acha "João").
+const semAcento = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("pt-BR");
 
 type Props = {
   cargos: Opcao[];
@@ -30,6 +35,9 @@ export function Funcionarios(props: Props) {
   const { cargos, podeGerenciar, verSegundoFator } = props;
   const [lista, setLista] = useState<Usuario[] | null>(null);
   const [mensagem, setMensagem] = useState<Mensagem>(null);
+  const [filtro, setFiltro] = useState<Filtro>("todos");
+  const [busca, setBusca] = useState("");
+  const [novo, setNovo] = useState(false);
   const nomeDoCargo = (c: string) => cargos.find((x) => x.valor === c)?.texto ?? c;
 
   const carregar = useCallback(async () => {
@@ -50,15 +58,63 @@ export function Funcionarios(props: Props) {
     return r.ok;
   }
 
+  const termo = semAcento(busca.trim());
+  const visiveis = (lista ?? []).filter(
+    (u) =>
+      (filtro === "todos" || (filtro === "ativos" ? u.ativo : !u.ativo)) &&
+      (!termo || semAcento(`${u.nome} ${u.login}`).includes(termo)),
+  );
+  const quantos = (f: Filtro) => (lista ?? []).filter((u) => f === "todos" || (f === "ativos" ? u.ativo : !u.ativo)).length;
+  const chips: { valor: Filtro; texto: string }[] = [
+    { valor: "todos", texto: "Todos" },
+    { valor: "ativos", texto: "Ativos" },
+    { valor: "desligados", texto: "Desligados" },
+  ];
+
   return (
     <>
       <h1>Funcionários</h1>
+      <p className="hor-tela__intro">Quem usa o sistema, com o cargo de cada um, o código da cozinha e a situação.</p>
       <BotaoExemplos />
+      <div className="balcao-barra">
+        <div className="balcao-chips" role="group" aria-label="Mostrar">
+          {chips.map((c) => (
+            <button key={c.valor} type="button" className="balcao-chip" aria-pressed={filtro === c.valor} onClick={() => setFiltro(c.valor)}>
+              {c.texto} {lista && <em>{quantos(c.valor)}</em>}
+            </button>
+          ))}
+        </div>
+        <div className="balcao-acoes">
+          <label className="balcao-busca">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4" />
+            </svg>
+            <input
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar pessoa (ex.: Maria)"
+              aria-label="Buscar funcionário pelo nome ou usuário"
+            />
+          </label>
+          {podeGerenciar && (
+            <Botao onClick={() => setNovo(true)}>
+              <Icone nome="mais" />
+              Novo funcionário
+            </Botao>
+          )}
+        </div>
+      </div>
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
-      {podeGerenciar && <NovoFuncionario cargos={cargos} agir={agir} />}
+      {novo && <NovoFuncionario cargos={cargos} agir={agir} aoFechar={() => setNovo(false)} />}
       {!lista ? (
         <p>Carregando...</p>
+      ) : visiveis.length === 0 ? (
+        <p className="hor-vazio" data-testid="nada-na-busca">
+          Ninguém aparece com esse filtro ou busca. Toque em Todos ou apague a busca.
+        </p>
       ) : (
+        <div className="balcao-lista">
         <Tabela aria-label="Funcionários">
           <thead>
             <tr>
@@ -72,7 +128,7 @@ export function Funcionarios(props: Props) {
             </tr>
           </thead>
           <tbody>
-            {lista.map((u) => (
+            {visiveis.map((u) => (
               <tr key={u.id} data-testid={`linha-${u.login}`}>
                 <Celula rotulo="Nome">{u.nome}</Celula>
                 <Celula rotulo="Usuário">{u.login}</Celula>
@@ -123,6 +179,7 @@ export function Funcionarios(props: Props) {
             ))}
           </tbody>
         </Tabela>
+        </div>
       )}
     </>
   );
@@ -130,7 +187,17 @@ export function Funcionarios(props: Props) {
 
 type Agir = (url: string, metodo: string, corpo: unknown, sucesso: string) => Promise<boolean>;
 
-function NovoFuncionario({ cargos, agir }: { cargos: Opcao[]; agir: Agir }) {
+function NovoFuncionario({ cargos, agir, aoFechar }: { cargos: Opcao[]; agir: Agir; aoFechar: () => void }) {
+  const [sujo, setSujo] = useState(false);
+  return (
+    <JanelaModal titulo="Novo funcionário" sujo={sujo} aoMexer={() => setSujo(true)} aoFechar={aoFechar} data-testid="janela-funcionario">
+      <FormularioNovo cargos={cargos} agir={agir} aoFechar={aoFechar} />
+    </JanelaModal>
+  );
+}
+
+function FormularioNovo({ cargos, agir, aoFechar }: { cargos: Opcao[]; agir: Agir; aoFechar: () => void }) {
+  const pedirFechar = usarPedirFechar();
   const [enviando, setEnviando] = useState(false);
   async function enviar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -144,11 +211,10 @@ function NovoFuncionario({ cargos, agir }: { cargos: Opcao[]; agir: Agir }) {
       "Funcionário criado.",
     );
     setEnviando(false);
-    if (ok) form.reset();
+    if (ok) aoFechar();
   }
   return (
-    <Cartao>
-      <h2>Novo funcionário</h2>
+    <>
       <form onSubmit={enviar} noValidate>
         <Campo
           rotulo="Nome"
@@ -184,11 +250,16 @@ function NovoFuncionario({ cargos, agir }: { cargos: Opcao[]; agir: Agir }) {
           defaultValue="atendente"
           opcoes={cargos}
         />
-        <Botao type="submit" disabled={enviando}>
-          Criar funcionário
-        </Botao>
+        <div className="cadastros__botoes">
+          <Botao variante="secundario" onClick={pedirFechar}>
+            Cancelar
+          </Botao>
+          <Botao type="submit" disabled={enviando}>
+            Criar funcionário
+          </Botao>
+        </div>
       </form>
-    </Cartao>
+    </>
   );
 }
 
