@@ -380,6 +380,15 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
 .pa-legenda svg.i { width: 14px; height: 14px; stroke-width: 2.4; }
 .pa-legenda small { font-weight: 500; text-transform: none; letter-spacing: 0; opacity: .9; font-size: 11.5px; }
 @media (prefers-reduced-motion: reduce) { .pa-tk.est-atraso { animation: none; box-shadow: 0 0 0 4px rgba(163,38,26,.35); } }
+/* rótulo antes do número (na fila há 0:12 / ficou pronto em 4:10) */
+.pa-tk .pa-cron-rot { align-items: baseline; gap: 8px; }
+.pa-tk .pa-cron-rot small { font-size: 13px; font-weight: 700; color: var(--tk-txt); }
+.pa-cargo { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--a-apoio); background: var(--a-sup2); border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+.pa-cargo svg.i { width: 14px; height: 14px; }
+.pa-num-op { display: grid; gap: 2px; align-content: center; }
+.pa-num-op b { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.pa-num-op b.mel { color: var(--a-mel); } .pa-num-op b.ok { color: var(--a-ok); } .pa-num-op b.per { color: var(--a-per); }
+.pa-num-op span { color: var(--a-apoio); font-size: 13px; }
 /* estoque */
 .pa-abas { display: flex; gap: 4px; background: var(--a-sup2); border-radius: 10px; padding: 3px; }
 .pa-abas button { border: 0; background: transparent; padding: 6px 12px; border-radius: 8px; font-size: 13px; color: var(--a-apoio); }
@@ -398,6 +407,9 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   .pa-dois { grid-template-columns: 1fr; }
   .pa-tam { grid-template-columns: minmax(0,1fr) 100px 30px; }
   .pa-tam .fim { display: none; }
+  .pa-main.rola-tudo { display: block; overflow: auto; }
+  .pa-main.rola-tudo > .pa-corpo { overflow: visible; }
+  .pa-cargo > span, .pa-turno { display: none; }
   .pa-gcab { flex-wrap: wrap; } .pa-gcab .dir { margin-left: 0; width: 100%; justify-content: space-between; }
   .pa-tab .col-m { display: none; }
   .pa-busca2 input { width: 120px; }
@@ -689,11 +701,14 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
         <button data-disp="cel">Celular</button>
       </div>
     </div>
-    <div id="ctl-noite"><span class="rotulo">Só no A</span>
-      <div class="seg" role="group" aria-label="Tom do protótipo A">
+    <div id="ctl-noite"><span class="rotulo">Tema</span>
+      <div class="seg" role="group" aria-label="Tema do protótipo A">
         <button data-noite="0">Claro</button>
-        <button data-noite="1">Escuro, como no vídeo</button>
+        <button data-noite="1">Escuro</button>
       </div>
+    </div>
+    <div id="ctl-cargo"><span class="rotulo">Ver como</span>
+      <div class="seg" role="group" aria-label="Cargo" id="seg-cargo"></div>
     </div>
   </div>
 
@@ -751,6 +766,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     bebidas: '<path d="M7 3h10l-1.5 18h-7z"/><path d="M7.5 9h9"/><path d="M14 3l2-2"/>',
     fichas: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
     fechar: '<path d="M6 6l12 12M18 6 6 18"/>',
+    sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     foto: '<rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/>',
     editar: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'
   };
@@ -796,9 +812,9 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   const TELAS_BC = [['inicio', 'Início'], ['pedido', 'Novo pedido'], ['produtos', 'Produtos']];
   const E = { proto: 'a', tela: 'inicio', disp: 'pc', noite: false, cat: 'grill', catB: 'todos', filtroC: 'todos', folha: false, paleta: false, busca: '',
     comanda: [{ id: 'xb', q: 1, obs: 'Sem cebola' }, { id: 'fritas', q: 1 }, { id: 'suco', q: 2, obs: 'Laranja' }],
-    gaveta: null, anima: false, todosEx: false, ex: {}, form: null, tentou: false, ficha: null, rascunho: null, area: 'cozinha', setor: 'todos', catP: 'todas', buscaP: '', aviso: '' };
-  try { const s = JSON.parse(localStorage.getItem('prototipo-erp') || '{}'); if (s.proto) E.proto = s.proto; if (s.tela) E.tela = s.tela; if (s.disp) E.disp = s.disp; } catch (e) {}
-  const salvar = () => { try { localStorage.setItem('prototipo-erp', JSON.stringify({ proto: E.proto, tela: E.tela, disp: E.disp })); } catch (e) {} };
+    cargo: 'gerente', gaveta: null, anima: false, todosEx: false, ex: {}, form: null, tentou: false, ficha: null, rascunho: null, area: 'cozinha', setor: 'todos', catP: 'todas', buscaP: '', aviso: '' };
+  try { const s = JSON.parse(localStorage.getItem('prototipo-erp') || '{}'); if (s.proto) E.proto = s.proto; if (s.tela) E.tela = s.tela; if (s.disp) E.disp = s.disp; if (s.cargo) E.cargo = s.cargo; if (s.noite != null) E.noite = s.noite; } catch (e) {}
+  const salvar = () => { try { localStorage.setItem('prototipo-erp', JSON.stringify({ proto: E.proto, tela: E.tela, disp: E.disp, cargo: E.cargo, noite: E.noite })); } catch (e) {} };
   const itens = () => E.comanda.map(c => ({ ...c, p: porId[c.id], t: porId[c.id].preco * c.q }));
   const subtotal = () => itens().reduce((s, i) => s + i.t, 0);
   const qtd = () => E.comanda.reduce((s, c) => s + c.q, 0);
@@ -870,6 +886,22 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   const TIPOS = { chapa: 'Chapa', cozinha: 'Cozinha', fritadeira: 'Fritadeira', cafeteria: 'Cafeteria' };
   const TIPO_DO = { cafeteria: 'cafeteria', grill: 'chapa', almoco: 'cozinha', porcoes: 'fritadeira', salgados: 'fritadeira', bebidas: null };
   const GRUPOS = [['ponto', 'Ponto da carne', 'Escolha 1 · obrigatório · grátis'], ['turbine', 'Turbine seu lanche', 'Até 3 · bacon, cheddar, ovo'], ['molhos', 'Molhos extras', 'Até 2 · R$ 2,00 cada']];
+  // Espelho da matriz do sistema (packages/dominio/src/permissoes.ts). "painel.valores" é a regra nova de 25/11/2026:
+  // vendas e números em dinheiro do dia só de supervisor para cima.
+  const CARGOS_A = {
+    dono: { n: 'Dono', ini: 'DO', a: ['pedidos.lancar', 'producao.ver', 'estoque.cozinha', 'estoque.salao', 'cadastros.ver', 'cadastros.gerenciar', 'custos.ver', 'painel.valores'] },
+    gerente: { n: 'Gerente geral', ini: 'GG', a: ['pedidos.lancar', 'producao.ver', 'estoque.cozinha', 'estoque.salao', 'cadastros.ver', 'cadastros.gerenciar', 'custos.ver', 'painel.valores'] },
+    supervisor: { n: 'Supervisor', ini: 'SU', a: ['pedidos.lancar', 'producao.ver', 'estoque.salao', 'cadastros.ver', 'painel.valores'] },
+    caixa: { n: 'Caixa', ini: 'CX', a: ['caixa.operar'] },
+    atendente: { n: 'Atendente', ini: 'AT', a: ['pedidos.lancar'] },
+    cozinheira: { n: 'Cozinheira', ini: 'CZ', a: ['producao.ver', 'producao.operar', 'estoque.cozinha', 'cadastros.ver'] },
+    auxiliar: { n: 'Auxiliar de cozinha', ini: 'AX', a: ['producao.ver', 'producao.operar'] }
+  };
+  const pode = acao => CARGOS_A[E.cargo].a.includes(acao);
+  const ACAO_DA_TELA = { pedido: ['pedidos.lancar'], producao: ['producao.ver'], estoque: ['estoque.cozinha', 'estoque.salao'], produtos: ['cadastros.ver'], fichas: ['cadastros.ver'] };
+  // O menu só esconde: no sistema, cada tela e cada ação conferem a permissão de novo no servidor.
+  // Quem tem uma tela só (auxiliar de cozinha) vai direto para ela, sem Início.
+  const telasDoCargo = () => { const l = TELAS_A.filter(([k]) => k !== 'inicio' && ACAO_DA_TELA[k].some(pode)); return pode('caixa.operar') || pode('pedidos.lancar') || l.length > 1 ? [TELAS_A[0], ...l] : l; };
   const LIMITE = 35; // % de custo sobre o preço que acende o alerta (editável no sistema)
   const nomeCat = Object.fromEntries(CATS.map(c => [c.id, c.nome]));
   const fmtQtd = (q, u) => q == null ? '—' : (u === 'g' && q >= 1000 ? (q / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kg' : u === 'ml' && q >= 1000 ? (q / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' L' : q.toLocaleString('pt-BR', { maximumFractionDigits: 4 }) + ' ' + u);
@@ -910,10 +942,11 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   }
 
   function A() {
-    const nav = [['inicio', 'Início'], ['pedido', 'Novo pedido'], ['producao', 'Produção'], ['estoque', 'Estoque'], ['produtos', 'Produtos'], ['fichas', 'Fichas técnicas']];
+    const nav = telasDoCargo();
+    const cg = CARGOS_A[E.cargo];
     const atrasos = TK.filter(t => t.est !== 'pronto' && segs(t) / 60 > t.prev).length;
     const titulos = {
-      inicio: ['Painel do dia', 'Quarta, 25 de novembro · turno do almoço'],
+      inicio: [pode('painel.valores') ? 'Painel do dia' : 'Bom trabalho', 'Quarta, 25 de novembro · turno do almoço'],
       pedido: ['Novo pedido', 'Toque no item para lançar'],
       producao: ['Produção', 'Pedidos chegam sozinhos, separados pelo tipo de preparo'],
       estoque: ['Estoque', 'Em uso e guardado. O sistema avisa quando é hora de repor'],
@@ -927,7 +960,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
       kpi('Mesas ocupadas', '9<small style="font-size:14px;color:var(--a-fraco)"> / 16</small>', '3 pedindo a conta') +
       kpi('À venda', aVenda + '<small style="font-size:14px;color:var(--a-fraco)"> / ' + PROD.length + '</small>', '3 acabando, 1 fora') + '</div>';
     let corpo = '';
-    if (E.tela === 'inicio') corpo = '<div class="pa-corpo" data-rola="corpo"><div class="pa-paineis">' + cardVendas() + cardFila() + cardRepor() + cardMais() + '</div></div>';
+    if (E.tela === 'inicio') corpo = '<div class="pa-corpo" data-rola="corpo"><div class="pa-paineis">' + (pode('painel.valores') ? cardVendas() + cardFila() + cardRepor() + cardMais() : inicioOperacional()) + '</div></div>';
     if (E.tela === 'pedido') corpo = pedidoA();
     if (E.tela === 'produtos') corpo = '<div class="pa-corpo" data-rola="corpo">' + produtosA() + '</div>';
     if (E.tela === 'fichas') corpo = '<div class="pa-corpo" data-rola="corpo">' + (E.ficha ? fichaAberta(E.ficha) : fichasA()) + '</div>';
@@ -936,14 +969,30 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     return '<div class="pa' + (E.noite ? ' noite' : '') + '" style="position:relative">' +
       '<nav class="pa-trilho" aria-label="Menu"><img src="' + SIMB + '" alt="E-MOTION">' +
       nav.map(([id, nome]) => '<button data-ir="' + id + '"' + (E.tela === id ? ' aria-current="page"' : '') + ' aria-label="' + nome + '">' + ic(id) + '<span class="dica">' + nome + (id === 'producao' && atrasos ? ' · ' + atrasos + ' atrasado' : '') + '</span></button>').join('') +
-      '<button class="fim" aria-label="Ajustes">' + ic('ajustes') + '<span class="dica">Ajustes</span></button><div class="pa-av" title="Ana Souza, gerente geral">AS</div></nav>' +
-      '<div class="pa-main"><header class="pa-topo"><div><h2>' + t + '</h2><p>' + s + '</p></div>' +
+      '<button class="fim" aria-label="Ajustes">' + ic('ajustes') + '<span class="dica">Ajustes</span></button><div class="pa-av" title="' + cg.n + '">' + cg.ini + '</div></nav>' +
+      '<div class="pa-main' + (E.tela !== 'pedido' ? ' rola-tudo' : '') + '" data-rola="main"><header class="pa-topo"><div><h2>' + t + '</h2><p>' + s + '</p></div>' +
       '<div class="pa-busca">' + ic('busca') + 'Buscar produto, mesa ou pedido<kbd>Ctrl K</kbd></div>' +
-      '<span class="pa-turno"><i></i>Almoço</span><div class="pa-hora"><b>12:40</b><small>qua, 25 nov</small></div>' +
+      '<span class="pa-turno"><i></i>Almoço</span><span class="pa-cargo" title="Cargo ativo">' + ic('equipe') + '<span>' + cg.n + '</span></span><div class="pa-hora"><b>12:40</b><small>qua, 25 nov</small></div>' +
+      '<button class="pa-icone-btn" data-tema="1" aria-label="' + (E.noite ? 'Usar tema claro' : 'Usar tema escuro') + '" title="' + (E.noite ? 'Tema claro' : 'Tema escuro') + '">' + ic(E.noite ? 'sol' : 'lua') + '</button>' +
       '<button class="pa-icone-btn" aria-label="Avisos">' + ic('sino') + '</button></header>' +
-      (E.tela === 'inicio' ? kpis : '<div></div>') + corpo + '</div>' +
+      (E.tela === 'inicio' && pode('painel.valores') ? kpis : '<div></div>') + corpo + '</div>' +
       (E.gaveta ? gavetaProduto() : '') +
       (E.aviso ? '<div class="pa-toast" role="status">' + ic('check') + E.aviso + '</div>' : '') + '</div>';
+  }
+  function inicioOperacional() {
+    const pill = (n, l, c) => '<div class="pa-card pa-num-op"><b class="' + (c || '') + '">' + n + '</b><span>' + l + '</span></div>';
+    if (pode('caixa.operar')) return pill(3, 'mesas pedindo a conta', 'mel') + pill(2, 'entregas para despachar') +
+      '<section class="pa-card"><div class="cabc"><div><h3>Pedindo a conta</h3><p class="sub">O valor de cada conta aparece só para receber</p></div></div><div class="pa-lista">' +
+      [['Mesa 4', 'há 3 min · 3 pessoas', 18760], ['Mesa 9', 'há 1 min · 2 pessoas', 9420], ['Mesa 12', 'agora · 4 pessoas', 24150]].map(([m, d, v]) => '<div class="pa-li"><span class="ic">' + ic('conta') + '</span><div><b>' + m + '</b><small>' + d + '</small></div><button class="pa-btn mini">Receber ' + brl(v) + '</button></div>').join('') + '</div></section>' +
+      '<section class="pa-card"><div class="cabc"><div><h3>Motoboys</h3><p class="sub">Quem está na loja e quem está na rua</p></div></div><div class="pa-lista">' +
+      [['Bruno', 'Na loja · pronto para sair', ''], ['Diego', 'Na rua · volta em ~8 min', 'atencao']].map(([n, d, c]) => '<div class="pa-li"><span class="ic">' + ic('moto') + '</span><div><b>' + n + '</b><small>' + d + '</small></div><span class="pa-tempo ' + c + '">' + (c ? 'na rua' : 'livre') + '</span></div>').join('') + '</div></section>';
+    if (pode('pedidos.lancar')) return pill(4, 'minhas mesas') + pill(2, 'prontos para levar', 'ok') +
+      '<section class="pa-card"><div class="cabc"><div><h3>Prontos para levar</h3><p class="sub">A cozinha avisou agora</p></div></div><div class="pa-lista">' +
+      [['Mesa 5', '2x Cappuccino, 1x Bolo de cenoura'], ['Mesa 7', '1x Fritas']].map(([m, d]) => '<div class="pa-li"><span class="ic">' + ic('check') + '</span><div><b>' + m + '</b><small>' + d + '</small></div><button class="pa-btn mini">Entregue</button></div>').join('') + '</div></section>' +
+      '<section class="pa-card"><div class="cabc"><div><h3>Minhas mesas</h3><p class="sub">Toque para lançar ou ver o pedido</p></div><button class="pa-link" data-ir="pedido">Novo pedido ' + ic('seta') + '</button></div><div class="pa-lista">' +
+      [['Mesa 2', 'Parmegiana atrasada 3 min', 'atraso'], ['Mesa 5', 'Pronto para levar', ''], ['Mesa 7', '3 itens na chapa', 'atencao'], ['Mesa 11', 'Acabou de sentar', '']].map(([m, d, c]) => '<div class="pa-li"><span class="ic">' + ic('mesa') + '</span><div><b>' + m + '</b><small>' + d + '</small></div><span class="pa-tempo ' + c + '">' + (c === 'atraso' ? 'atrasado' : c ? 'na cozinha' : 'ok') + '</span></div>').join('') + '</div></section>';
+    const at = TK.filter(t => estadoTempo(t) === 'atraso').length;
+    return pill(TK.filter(t => t.est === 'fila').length, 'na fila') + pill(TK.filter(t => t.est === 'preparo').length, 'preparando') + (at ? pill(at, 'atrasado', 'per') : '') + cardFila() + (pode('estoque.cozinha') ? cardRepor() : '');
   }
   function kpi(l, v, s) { return '<div class="pa-kpi"><small>' + l + '</small><b>' + v + '</b><span>' + s + '</span></div>'; }
   function cardVendas() {
@@ -990,9 +1039,9 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     const lista = PROD.filter(p => (E.catP === 'todas' || p.cat === E.catP) && (!q || p.nome.toLowerCase().includes(q)));
     return '<div class="pa-barra-tit"><div class="pa-chips" style="margin:0">' + '<button class="pa-chip" data-catp="todas" aria-pressed="' + (E.catP === 'todas') + '">Todas <em>' + PROD.length + '</em></button>' +
       CATS.map(c => '<button class="pa-chip" data-catp="' + c.id + '" aria-pressed="' + (E.catP === c.id) + '">' + c.nome + '</button>').join('') + '</div>' +
-      '<div class="pa-acoes"><label class="pa-busca2">' + ic('busca') + '<input id="pbusca" placeholder="Buscar produto" value="' + esc(E.buscaP) + '"></label><button class="pa-sec">' + ic('pedido') + 'Importar planilha</button><button class="pa-btn mini" data-gaveta="novo">' + ic('mais') + 'Novo produto</button></div></div>' +
+      '<div class="pa-acoes"><label class="pa-busca2">' + ic('busca') + '<input id="pbusca" placeholder="Buscar produto" value="' + esc(E.buscaP) + '"></label>' + (pode('cadastros.gerenciar') ? '<button class="pa-sec">' + ic('pedido') + 'Importar planilha</button><button class="pa-btn mini" data-gaveta="novo">' + ic('mais') + 'Novo produto</button>' : '<span class="pa-nota" style="margin:0">Só leitura para o seu cargo</span>') + '</div></div>' +
       '<section class="pa-card" style="padding:8px 8px 4px"><div style="overflow-x:auto"><table class="pa-tab"><thead><tr><th></th><th>Produto</th><th class="col-cat">Categoria</th><th class="col-m">Ficha técnica</th><th>Situação</th><th style="text-align:right">Preço</th></tr></thead><tbody>' +
-      (lista.length ? lista.map(p => '<tr class="clica" data-gaveta="' + p.id + '"><td style="width:56px">' + foto(p) + '</td><td><b style="font-weight:600">' + p.nome + '</b><small>' + (p.tempo ? TIPOS[TIPO_DO[p.cat]] + ' · ' + p.tempo + ' min' : 'Sem preparo') + '</small></td><td class="col-cat" style="color:var(--a-apoio)">' + nomeCat[p.cat] + '</td><td class="col-m">' + situacaoFicha(p.id) + '</td><td><span class="pa-st ' + p.estado + '"><i></i>' + est[p.estado] + (p.estado === 'acabando' ? ' (' + p.resta + ')' : '') + '</span></td><td class="p">' + brl(p.preco) + (DELIV[p.id] ? '<small>delivery ' + brl(DELIV[p.id]) + '</small>' : '') + '</td></tr>').join('') : '<tr><td colspan="6" style="text-align:center;color:var(--a-apoio);padding:28px">Nenhum produto com "' + esc(E.buscaP) + '".</td></tr>') +
+      (lista.length ? lista.map(p => '<tr' + (pode('cadastros.gerenciar') ? ' class="clica" data-gaveta="' + p.id + '"' : '') + '><td style="width:56px">' + foto(p) + '</td><td><b style="font-weight:600">' + p.nome + '</b><small>' + (p.tempo ? TIPOS[TIPO_DO[p.cat]] + ' · ' + p.tempo + ' min' : 'Sem preparo') + '</small></td><td class="col-cat" style="color:var(--a-apoio)">' + nomeCat[p.cat] + '</td><td class="col-m">' + situacaoFicha(p.id) + '</td><td><span class="pa-st ' + p.estado + '"><i></i>' + est[p.estado] + (p.estado === 'acabando' ? ' (' + p.resta + ')' : '') + '</span></td><td class="p">' + brl(p.preco) + (DELIV[p.id] ? '<small>delivery ' + brl(DELIV[p.id]) + '</small>' : '') + '</td></tr>').join('') : '<tr><td colspan="6" style="text-align:center;color:var(--a-apoio);padding:28px">Nenhum produto com "' + esc(E.buscaP) + '".</td></tr>') +
       '</tbody></table></div></section>';
   }
   function formDe(id) {
@@ -1068,10 +1117,10 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     const n = { prontas: 0, pend: 0, sem: 0 };
     PROD.forEach(p => { const f = fichaDe(p.id); if (!f) n.sem++; else if (f.pend.length) n.pend++; else n.prontas++; });
     return '<div class="pa-barra-tit"><div class="pa-resumo-l"><span class="pa-st pronta"><i></i>' + n.prontas + ' prontas</span><span class="pa-st pendente"><i></i>' + n.pend + ' com pendência</span><span class="pa-st sem"><i></i>' + n.sem + ' sem ficha</span></div>' +
-      '<div class="pa-acoes"><button class="pa-sec">' + ic('pedido') + 'Importar planilha</button><button class="pa-sec">' + ic('estoque') + 'Preparos da casa</button></div></div>' +
-      '<section class="pa-card" style="padding:8px 8px 4px"><div style="overflow-x:auto"><table class="pa-tab"><thead><tr><th></th><th>Produto</th><th style="text-align:right">Custo</th><th class="col-m">Custo sobre o preço</th><th class="col-m">Dá para fazer</th><th class="col-cat">Alergênicos</th><th>Situação</th></tr></thead><tbody>' +
+      '<div class="pa-acoes">' + (pode('cadastros.gerenciar') ? '<button class="pa-sec">' + ic('pedido') + 'Importar planilha</button>' : '') + '<button class="pa-sec">' + ic('estoque') + 'Preparos da casa</button></div></div>' +
+      '<section class="pa-card" style="padding:8px 8px 4px"><div style="overflow-x:auto"><table class="pa-tab"><thead><tr><th></th><th>Produto</th>' + (pode('custos.ver') ? '<th style="text-align:right">Custo</th><th class="col-m">Custo sobre o preço</th>' : '') + '<th class="col-m">Dá para fazer</th><th class="col-cat">Alergênicos</th><th>Situação</th></tr></thead><tbody>' +
       PROD.map(p => { const f = fichaDe(p.id); return '<tr class="clica" data-abrirficha="' + p.id + '"><td style="width:56px">' + foto(p) + '</td><td><b style="font-weight:600">' + p.nome + '</b><small>' + nomeCat[p.cat] + (FICHAS[p.id] ? ' · gravada por ' + FICHAS[p.id].quem + ' em ' + FICHAS[p.id].quando : '') + '</small></td>' +
-        '<td class="p">' + (f ? brl(f.custo) + (f.pend.length ? '<small>parcial</small>' : '') : '—') + '</td><td class="col-m">' + (f ? margem(f.custo, p.preco) : '<small>—</small>') + '</td>' +
+        (pode('custos.ver') ? '<td class="p">' + (f ? brl(f.custo) + (f.pend.length ? '<small>parcial</small>' : '') : '—') + '</td><td class="col-m">' + (f ? margem(f.custo, p.preco) : '<small>—</small>') + '</td>' : '') +
         '<td class="col-m num">' + (f && f.pode != null ? f.pode + '<small>' + (f.lim ? 'limita: ' + f.lim.n.toLowerCase() : '') + '</small>' : '<small>—</small>') + '</td><td class="col-cat"><div class="pa-chips-al">' + (f ? chipsAl(f) : '') + '</div></td><td>' + situacaoFicha(p.id) + '</td></tr>'; }).join('') +
       '</tbody></table></div></section>';
   }
@@ -1085,7 +1134,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
       const bruto = editando ? E.rascunho[k][1] : null; const invalido = editando && typeof bruto === 'string' && bruto.trim() && isNaN(qtdDoTexto(bruto));
       return '<tr class="' + (l.q == null ? 'pend' : '') + '"><td><b style="font-weight:600">' + l.i.n + '</b>' + (l.i.pre ? '<small>preparo da casa</small>' : '') + (l.opc ? '<small>opcional</small>' : '') + '</td>' +
         '<td>' + (editando ? '<div class="pa-qtd-in"><input class="pa-inp' + (invalido ? ' erro' : '') + '" id="fq-' + k + '" value="' + esc(typeof bruto === 'string' ? bruto : textoQtd(bruto)) + '" inputmode="decimal" aria-label="Quantidade de ' + l.i.n + '" placeholder="?"><span>' + l.i.u + '</span></div>' : '<span class="num">' + fmtQtd(l.q, l.i.u) + '</span>') + '</td>' +
-        '<td class="col-m" style="color:var(--a-apoio)">' + (l.med || '') + '</td><td class="p">' + (l.custo == null ? '—' : brl(Math.round(l.custo))) + '</td>' +
+        '<td class="col-m" style="color:var(--a-apoio)">' + (l.med || '') + '</td>' + (pode('custos.ver') ? '<td class="p">' + (l.custo == null ? '—' : brl(Math.round(l.custo))) + '</td>' : '') +
         (editando ? '<td style="width:36px"><button class="pa-rm" data-rmitem="' + k + '" aria-label="Tirar ' + l.i.n + '">' + ic('fechar') + '</button></td>' : '') + '</tr>';
     }).join('');
     const usados = new Set(lista.map(x => x[0]));
@@ -1093,12 +1142,12 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     const temF = !!F;
     return '<button class="pa-voltar" data-fecharficha="1">' + ic('seta') + 'Fichas técnicas</button>' +
       '<div class="pa-fcab">' + foto(p) + '<div><h3>' + p.nome + '</h3><p>' + (temF ? 'Versão ' + F.v + ' · gravada por ' + F.quem + ' em ' + F.quando + '/2026 · rende ' + F.rende + ' porção' : 'Ainda sem receita') + '</p></div>' +
-      '<div class="pa-acoes">' + (editando ? '<button class="pa-sec" data-cancelaredicao="1">Cancelar</button><button class="pa-btn mini" data-gravarficha="1">' + ic('check') + 'Gravar versão ' + ((F ? F.v : 0) + 1) + '</button>' : '<button class="pa-sec">' + ic('producao') + 'Versão da cozinha</button><button class="pa-sec">' + ic('relogio') + 'Versões</button><button class="pa-btn mini" data-editarficha="1">' + ic('editar') + (temF ? 'Editar receita' : 'Montar receita') + '</button>') + '</div></div>' +
-      '<div class="pa-fgrid"><section class="pa-card" style="padding:8px 8px 4px"><div style="overflow-x:auto"><table class="pa-tab"><thead><tr><th>Ingrediente</th><th>Quantidade</th><th class="col-m">Medida caseira</th><th style="text-align:right">Custo</th>' + (editando ? '<th></th>' : '') + '</tr></thead><tbody>' +
+      '<div class="pa-acoes">' + (editando ? '<button class="pa-sec" data-cancelaredicao="1">Cancelar</button><button class="pa-btn mini" data-gravarficha="1">' + ic('check') + 'Gravar versão ' + ((F ? F.v : 0) + 1) + '</button>' : '<button class="pa-sec">' + ic('producao') + 'Versão da cozinha</button><button class="pa-sec">' + ic('relogio') + 'Versões</button>' + (pode('cadastros.gerenciar') ? '<button class="pa-btn mini" data-editarficha="1">' + ic('editar') + (temF ? 'Editar receita' : 'Montar receita') + '</button>' : '')) + '</div></div>' +
+      '<div class="pa-fgrid"><section class="pa-card" style="padding:8px 8px 4px"><div style="overflow-x:auto"><table class="pa-tab"><thead><tr><th>Ingrediente</th><th>Quantidade</th><th class="col-m">Medida caseira</th>' + (pode('custos.ver') ? '<th style="text-align:right">Custo</th>' : '') + '' + (editando ? '<th></th>' : '') + '</tr></thead><tbody>' +
       (linhas || '<tr><td colspan="4" style="padding:28px;text-align:center;color:var(--a-apoio)">Toque em "Montar receita" e adicione os ingredientes.</td></tr>') + '</tbody></table></div>' + addSel + '</section>' +
       '<div class="pa-lado">' +
-      '<section class="pa-card"><h3>Custo por porção</h3><p class="sub">Custo de referência dos ingredientes' + (a.pend.length ? ', parcial' : '') + '</p><div class="pa-big">' + brl(a.custo) + '</div>' +
-      '<div style="display:grid;gap:8px;margin-top:12px"><div class="pa-linha-m"><span>Loja ' + brl(p.preco) + '</span>' + margem(a.custo, p.preco) + '</div>' + (del ? '<div class="pa-linha-m"><span>Delivery ' + brl(del) + '</span>' + margem(a.custo, del) + '</div>' : '') + '</div><p class="pa-nota">O traço marca o limite de ' + LIMITE + '%. Só quem vê custos enxerga este quadro.</p></section>' +
+      (pode('custos.ver') ? '<section class="pa-card"><h3>Custo por porção</h3><p class="sub">Custo de referência dos ingredientes' + (a.pend.length ? ', parcial' : '') + '</p><div class="pa-big">' + brl(a.custo) + '</div>' +
+      '<div style="display:grid;gap:8px;margin-top:12px"><div class="pa-linha-m"><span>Loja ' + brl(p.preco) + '</span>' + margem(a.custo, p.preco) + '</div>' + (del ? '<div class="pa-linha-m"><span>Delivery ' + brl(del) + '</span>' + margem(a.custo, del) + '</div>' : '') + '</div><p class="pa-nota">O traço marca o limite de ' + LIMITE + '%. Só quem vê custos enxerga este quadro.</p></section>' : '') +
       '<section class="pa-card"><h3>Dá para fazer agora</h3><p class="sub">Com o estoque em uso e guardado</p>' + (a.pode != null ? '<div class="pa-big">' + a.pode + ' <span style="font-size:15px;font-weight:600;color:var(--a-apoio)">porções</span></div><p class="pa-nota">Quem limita: <b>' + a.lim.n + '</b> (' + fmtQtd(a.lim.uso + a.lim.guard, a.lim.u) + '). Quando chegar a zero, o produto sai do cardápio sozinho.</p>' : '<p class="pa-nota">Só calcula quando a ficha não tem pendência.</p>') + '</section>' +
       '<section class="pa-card"><h3>Alergênicos</h3><p class="sub">Calculados dos ingredientes</p><div class="pa-chips-al">' + chipsAl(a) + '</div>' + (a.seP.length ? '<p class="pa-nota">' + a.seP.join('; ') + '</p>' : '') + (!a.conf ? '<p class="pa-nota">Falta conferir: Salada do dia. Até lá o prato não mostra "não contém".</p>' : '') + '</section>' +
       (a.pend.length ? '<section class="pa-card"><h3>Pendências</h3><p class="sub">Ficha com pendência não baixa estoque</p><div class="pa-pend">' + a.pend.map(x => '<div>' + ic('alerta') + x + '</div>').join('') + '</div></section>' : '') +
@@ -1133,11 +1182,11 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   const rotEtapa = (t, e) => '<span>' + ic(e[2]) + e[1] + '</span><b>#' + t.n + '</b>';
   function ticket(t) {
     const s = segs(t); const e = etapa(t);
-    const rot = t.est === 'fila' ? 'na fila há' : t.est === 'pronto' ? 'ficou pronto em' : 'de ' + t.prev + ' min previstos';
-    const acao = t.est === 'fila' ? '<button class="acao" data-tk="' + t.id + '">' + ic('producao') + 'Começar</button>' : t.est === 'preparo' ? '<button class="acao" data-tk="' + t.id + '">' + ic('check') + 'Pronto</button>' : '<button class="acao" data-tk="' + t.id + '">' + ic('enviar') + 'Saiu para o salão</button>';
+    const rot = 'de ' + t.prev + ' min previstos';
+    const acao = !pode('producao.operar') ? '' : t.est === 'fila' ? '<button class="acao" data-tk="' + t.id + '">' + ic('producao') + 'Começar</button>' : t.est === 'preparo' ? '<button class="acao" data-tk="' + t.id + '">' + ic('check') + 'Pronto</button>' : '<button class="acao" data-tk="' + t.id + '">' + ic('enviar') + 'Saiu para o salão</button>';
     return '<article class="pa-tk ' + e[0] + '" data-tkc="' + t.id + '"><div class="pa-etapa" data-rot="' + t.id + '">' + rotEtapa(t, e) + '</div><div class="l1"><span>' + ic(t.tipo) + t.onde + '</span></div>' +
       '<ul>' + t.itens.map(x => x.startsWith('obs:') ? '<li class="obs">' + x.slice(4).trim() + '</li>' : '<li>' + x + '</li>').join('') + '</ul>' +
-      '<div class="pa-cron" data-cron="' + t.id + '"><b>' + mmss(s) + '</b><small>' + rot + '</small></div>' +
+      (t.est === 'preparo' ? '<div class="pa-cron" data-cron="' + t.id + '"><b>' + mmss(s) + '</b><small>' + rot + '</small></div>' : '<div class="pa-cron pa-cron-rot" data-cron="' + t.id + '"><small>' + (t.est === 'fila' ? 'Na fila há' : 'Ficou pronto em') + '</small><b>' + mmss(s) + '</b></div>') +
       (t.est === 'preparo' ? '<div class="pa-barra"><i data-barra="' + t.id + '" style="width:' + Math.min(100, Math.round(s / 60 / t.prev * 100)) + '%"></i></div>' : '') + acao + '</article>';
   }
   function producaoA() {
@@ -1147,7 +1196,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     const ver = E.setor === 'todos' ? setores[0][0] : E.setor;
     return '<div class="pa-barra-tit"><div class="pa-chips" style="margin:0"><button class="pa-chip" data-setor="todos" aria-pressed="' + (E.setor === 'todos') + '">Todas as telas</button>' + setores.map(([k, n]) => '<button class="pa-chip" data-setor="' + k + '" aria-pressed="' + (E.setor === k) + '">' + n + ' <em>' + TK.filter(t => t.setor === k && t.est !== 'pronto').length + '</em></button>').join('') + '</div>' +
       '<div class="pa-resumo-l"><span class="pa-tempo">' + ativos.length + ' em andamento</span>' + (atraso ? '<span class="pa-tempo atraso">' + atraso + ' atrasado</span>' : '') + '</div></div>' +
-      '<div class="pa-legenda" aria-label="Cores das etapas">' + ETAPAS.map(e => '<span class="pa-tk ' + e[0] + '" style="animation:none;box-shadow:none;margin:0;display:inline-flex;padding:5px 10px">' + ic(e[2]) + e[1] + ' <small>' + e[3] + '</small></span>').join('') + '</div>' + '<div class="pa-prod-cols">' + setores.filter(([k]) => E.setor === 'todos' || E.setor === k).map(([k, n]) => {
+      '<div class="pa-legenda" aria-label="Cores das etapas">' + ETAPAS.map(e => '<span class="pa-tk ' + e[0] + '" style="animation:none;box-shadow:none;margin:0;display:inline-flex;padding:5px 10px">' + ic(e[2]) + e[1] + ' <small>' + e[3] + '</small></span>').join('') + '</div>' + (pode('producao.operar') ? '' : '<p class="pa-nota" style="margin:0 0 12px">Você vê a produção, mas só a cozinha toca em Começar e Pronto. Troque para Cozinheira em "Ver como" para testar.</p>') + '<div class="pa-prod-cols">' + setores.filter(([k]) => E.setor === 'todos' || E.setor === k).map(([k, n]) => {
         const ts = TK.filter(t => t.setor === k).sort((a, b) => ({ preparo: 0, fila: 1, pronto: 2 })[a.est] - ({ preparo: 0, fila: 1, pronto: 2 })[b.est] || segs(b) - segs(a));
         return '<section class="pa-col' + (k === ver ? ' on' : '') + '"><h3>' + n + ' <span>' + ts.filter(t => t.est !== 'pronto').length + '</span></h3>' + (ts.length ? ts.map(ticket).join('') : '<div class="vazio">Nada por aqui agora</div>') + '</section>';
       }).join('') + '</div><p class="pa-nota" style="margin-top:14px">Começar e marcar pronto não mexem no estoque: a baixa já aconteceu uma vez, quando o pedido foi liberado.</p>';
@@ -1155,7 +1204,8 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
 
   // ----- Estoque -----
   function estoqueA() {
-    const areas = [['cozinha', 'Cozinha'], ['cafeteria', 'Cafeteria'], ['salao', 'Bebidas do salão']];
+    const areas = [['cozinha', 'Cozinha', 'estoque.cozinha'], ['cafeteria', 'Cafeteria', 'estoque.salao'], ['salao', 'Bebidas do salão', 'estoque.salao']].filter(a => pode(a[2]));
+    if (!areas.some(a => a[0] === E.area)) E.area = areas[0][0];
     const lista = Object.values(INS).filter(i => i.area === E.area).map(i => { const tot = i.uso + i.guard; return { ...i, tot, sit: tot === 0 ? 'acabou' : tot < i.min ? 'baixo' : 'ok' }; }).sort((a, b) => ({ acabou: 0, baixo: 1, ok: 2 })[a.sit] - ({ acabou: 0, baixo: 1, ok: 2 })[b.sit]);
     const n = k => lista.filter(i => i.sit === k).length;
     const rot = { ok: 'Em dia', baixo: 'Hora de repor', acabou: 'Acabou' };
@@ -1287,8 +1337,10 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   let tAviso = null;
   function avisar(t) { E.aviso = t; clearTimeout(tAviso); tAviso = setTimeout(() => { E.aviso = ''; desenhar(); }, 3200); }
   function desenhar() {
-    const telas = E.proto === 'a' ? TELAS_A : TELAS_BC;
-    if (!telas.some(([k]) => k === E.tela)) E.tela = 'inicio';
+    const telas = E.proto === 'a' ? telasDoCargo() : TELAS_BC;
+    document.getElementById('seg-cargo').innerHTML = Object.entries(CARGOS_A).map(([k, c]) => '<button data-cargo="' + k + '" aria-pressed="' + (k === E.cargo) + '">' + c.n + '</button>').join('');
+    document.getElementById('ctl-cargo').hidden = E.proto !== 'a';
+    if (!telas.some(([k]) => k === E.tela)) { E.tela = telas[0][0]; E.ficha = null; E.rascunho = null; }
     document.getElementById('seg-tela').innerHTML = telas.map(([k, l]) => '<button data-tela="' + k + '" aria-pressed="' + (k === E.tela) + '">' + l + '</button>').join('');
     document.querySelectorAll('[data-proto]').forEach(b => b.setAttribute('aria-pressed', b.dataset.proto === E.proto));
     document.querySelectorAll('[data-disp]').forEach(b => b.setAttribute('aria-pressed', b.dataset.disp === E.disp));
@@ -1317,7 +1369,9 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     else if (d.tela) irPara(d.tela);
     else if (d.disp) E.disp = d.disp;
     else if (d.noite) E.noite = d.noite === '1';
-    else if (d.ir) { const ok = E.proto === 'a' ? TELAS_A : TELAS_BC; if (ok.some(([k]) => k === d.ir)) irPara(d.ir); else return; }
+    else if (d.cargo) { E.cargo = d.cargo; E.gaveta = null; E.rascunho = null; }
+    else if (d.tema) E.noite = !E.noite;
+    else if (d.ir) { const ok = E.proto === 'a' ? telasDoCargo() : TELAS_BC; if (ok.some(([k]) => k === d.ir)) irPara(d.ir); else return; }
     else if (d.cat) E.cat = d.cat;
     else if (d.catb) E.catB = d.catb;
     else if (d.catp) E.catP = d.catp;
@@ -1329,7 +1383,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     else if (d.folha) E.folha = !E.folha;
     else if (d.paleta) E.paleta = true;
     else if (d.enviar) { if (!E.comanda.length) return; avisar('Pedido da mesa 7 enviado: chegou à chapa e à fritadeira'); }
-    else if (d.gaveta) { E.form = formDe(d.gaveta); E.gaveta = d.gaveta; E.tentou = false; E.anima = true; E.ex = {}; }
+    else if (d.gaveta) { if (!pode('cadastros.gerenciar')) return; E.form = formDe(d.gaveta); E.gaveta = d.gaveta; E.tentou = false; E.anima = true; E.ex = {}; }
     else if (d.ex) E.ex[d.ex] = !E.ex[d.ex];
     else if (d.todosex) { E.todosEx = !E.todosEx; E.ex = {}; }
     else if (d.addtam) E.form.tamanhos.push({ n: '', a: E.form.tamanhos.length ? '' : '0,00' });
@@ -1341,7 +1395,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     }
     else if (d.abrirficha) { E.gaveta = null; E.tela = 'fichas'; E.ficha = d.abrirficha; E.rascunho = null; }
     else if (d.fecharficha) { E.ficha = null; E.rascunho = null; }
-    else if (d.editarficha) { const F = FICHAS[E.ficha]; E.rascunho = F ? F.itens.map(x => [x[0], textoQtd(x[1]), x[2], x[3]]) : []; }
+    else if (d.editarficha) { if (!pode('cadastros.gerenciar')) return; const F = FICHAS[E.ficha]; E.rascunho = F ? F.itens.map(x => [x[0], textoQtd(x[1]), x[2], x[3]]) : []; }
     else if (d.cancelaredicao) E.rascunho = null;
     else if (d.rmitem) E.rascunho.splice(+d.rmitem, 1);
     else if (d.gravarficha) {
@@ -1351,7 +1405,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
       FICHAS[E.ficha] = { v: (F ? F.v : 0) + 1, quem: 'Ana Souza', quando: '25/11', rende: F ? F.rende : 1, itens: E.rascunho.map(x => [x[0], qtdDoTexto(x[1]), x[2], x[3]]) };
       E.rascunho = null; avisar('Versão ' + FICHAS[E.ficha].v + ' gravada. A anterior continua no histórico.');
     }
-    else if (d.tk) {
+    else if (d.tk) { if (!pode('producao.operar')) return;
       const t = TK.find(x => x.id === +d.tk); if (!t) return;
       if (t.est === 'fila') { t.est = 'preparo'; t.base = 0; t.desde = Date.now(); }
       else if (t.est === 'preparo') { t.base = segs(t); t.est = 'pronto'; avisar('#' + t.n + ' pronto: o atendente foi avisado'); }
@@ -1402,7 +1456,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     TK.forEach(t => {
       const c = mold.querySelector('[data-cron="' + t.id + '"]'); if (!c) return;
       const s = segs(t); c.querySelector('b').textContent = mmss(s);
-      const st = estadoTempo(t); c.className = 'pa-cron ' + st;
+      const st = estadoTempo(t); c.className = 'pa-cron ' + st + (t.est === 'preparo' ? '' : ' pa-cron-rot');
       const card = mold.querySelector('[data-tkc="' + t.id + '"]');
       if (card) { const e = etapa(t); if (card.className !== 'pa-tk ' + e[0]) card.className = 'pa-tk ' + e[0]; const r = mold.querySelector('[data-rot="' + t.id + '"]'); if (r) r.innerHTML = rotEtapa(t, e); }
       const bar = mold.querySelector('[data-barra="' + t.id + '"]'); if (bar) bar.style.width = Math.min(100, Math.round(s / 60 / t.prev * 100)) + '%';

@@ -45,8 +45,24 @@ fotos, comanda à direita).
     laranja com listras; Atrasado +N min = vermelho pulsando; Pronto = verde. Cor nunca sozinha:
     sempre nome e ícone. O cartão muda de cor sozinho quando o tempo passa.
 
+## Versão 4 (25/11/2026), pedidos do responsável
+- Produção: "Na fila há 0:12" e "Ficou pronto em 4:10" (rótulo antes do número; antes parecia invertido).
+- **Tema claro ou escuro, cada pessoa escolhe** (botão sol/lua no topo). **Revê a decisão 0012**
+  ("gestão sempre clara", 15/11): registrar decisão nova ao construir; a escolha fica guardada por usuário.
+- Celular: no Início o topo (cabeçalho e números) rola junto, não fica travado.
+- **Visão por cargo** ("Ver como"): menu e telas saem da matriz (`permissoes.ts`): dono/gerente 6 telas;
+  supervisor 6 (estoque só salão/cafeteria, produtos e fichas só leitura, sem custo); caixa só Início
+  (contas a receber e motoboys); atendente Início (minhas mesas, prontos para levar) + Novo pedido;
+  cozinheira Início, Produção (opera), Estoque da cozinha, Produtos e Fichas (só leitura, sem custo);
+  auxiliar vai direto para a Produção. Dono, gerente e supervisor veem a produção mas não tocam em
+  Começar/Pronto (`producao.operar` é exclusiva da cozinha).
+- **Regra nova do responsável (25/11/2026): valores do dia (vendas, ticket médio, gráfico de vendas)
+  só de supervisor para cima**; caixa, atendente e cozinha nunca veem. Não existe na matriz: criar a
+  ação `painel.valores` (dono, administrador, gerente geral, supervisor) com teste por tela e pela API,
+  e deixar claro que não é financeiro (gerente geral e supervisor continuam sem `faturamento.ver`).
+
 ## Falta
-- Responsável testar a versão 2 e dizer o que ajustar.
+- Responsável testar a versão 4 e dizer o que ajustar.
 - Depois: registro de decisão novo (casca do A, letra 14–15 px, trilho de ícones) e PRs do visual, tela
   a tela, com fotos das telas no PR. Rever o adendo de navegação no celular da 0019 (o A usa barra de baixo).
 - Depois da escolha: registro de decisão novo, mudança no `tema.css` e na casca, tela a tela, com as
