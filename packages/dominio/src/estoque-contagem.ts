@@ -440,10 +440,12 @@ export async function fecharContagem(db: Banco, ator: Ator | null, dados: unknow
         -- Ajuste (de outra contagem), desfazer ou recebimento terminado depois de contar: o esperado
         -- guardado não vale mais. Confirmado: a linha cai no destino (a mercadoria recebida pode já
         -- estar no que foi contado). Recusado: a linha da devolução cai na área e no local de origem
-        -- (a mercadoria pode nunca ter saído). A linha tem de cair nesta área e neste local.
+        -- (a mercadoria pode nunca ter saído). Envio lançado depois de contar: a saída da origem pode
+        -- já estar no que foi contado. A linha tem de cair nesta área e neste local.
         EXISTS (SELECT 1 FROM estoque_movimento m JOIN estoque_movimento_linha l ON l.movimento_id = m.id
                 WHERE l.item_id = ci.item_id AND l.area = ${c.area} AND l.local = ci.local AND m.criado_em > r.contado_em
                   AND (m.tipo IN ('ajuste', 'estorno')
+                       OR EXISTS (SELECT 1 FROM estoque_recebimento rc WHERE rc.movimento_id = m.id)
                        OR EXISTS (SELECT 1 FROM estoque_recebimento_fim rf WHERE rf.movimento_id = m.id AND rf.situacao IN ('confirmado', 'recusado')))) AS mexeu
       FROM estoque_contagem_item ci
       JOIN LATERAL (SELECT * FROM estoque_contagem_registro r WHERE r.contagem_item_id = ci.id ORDER BY r.id DESC LIMIT 1) r ON true
@@ -454,7 +456,7 @@ export async function fecharContagem(db: Banco, ator: Ator | null, dados: unknow
     if (recontar.length)
       throw new ErroDeRegra(
         "conflito",
-        `Conte de novo: ${recontar.map((x) => `"${x.nome}" (${x.local === "em_uso" ? "em uso" : "guardado"})`).join(", ")}. O estoque deles foi ajustado, desfeito, recebido ou devolvido depois da contagem.`,
+        `Conte de novo: ${recontar.map((x) => `"${x.nome}" (${x.local === "em_uso" ? "em uso" : "guardado"})`).join(", ")}. O estoque deles foi ajustado, desfeito, enviado, recebido ou devolvido depois da contagem.`,
       );
     // Valor lançado por linha (contagem_item), para a tela mostrar o que de fato entrou ou saiu.
     const valores: Record<string, string> = {};

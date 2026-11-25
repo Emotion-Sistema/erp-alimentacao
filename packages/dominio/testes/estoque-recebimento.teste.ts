@@ -270,6 +270,21 @@ describe("contagem com recebimento pendente (sem estoque em dobro)", () => {
     expect(await total(x)).toBe("500");
   });
 
+  it("origem: contou depois de a mercadoria sair e antes de lançar; confirmado o envio, o fechar pede recontagem e o total fica 500", async () => {
+    const x = await daCozinha("Arroz origem confirma");
+    const c = await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x }] });
+    await contarNaCozinha(c, "em_uso", "200");
+    await contarNaCozinha(c, "guardado", "0");
+    const t = await doCozinhaEmUso(x, "300");
+    // Confirmado: fechar com o esperado antigo (500) tiraria mais 300 da cozinha. Pede recontagem.
+    await confirmarRecebimento(db, supervisor, { recebimentoId: t.aReceber!.recebimentoId, local: "em_uso" });
+    expect((await erroDe(fecharContagem(db, gerente, { contagemId: c.id }))).message).toMatch(/Conte de novo: .*\(em uso\).*enviado/);
+    await contarNaCozinha(c, "em_uso", "200");
+    const f = await fecharContagem(db, gerente, { contagemId: c.id });
+    expect(f.ajustes).toEqual([]);
+    expect(await total(x)).toBe("500");
+  });
+
   it("origem: contagem rápida da área de origem pula o item com envio pendente", async () => {
     // A rápida da cozinha só é pedida aqui (uma por área por dia).
     const pendente = await daCozinha("Feijão pendente");
