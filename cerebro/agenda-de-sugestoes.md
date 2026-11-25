@@ -28,3 +28,8 @@ Detalhe de cada uma: `docs/requisitos/RC-07-sugestoes-no-dia-a-dia.md`.
 | 7 | S9 | Convênio de almoço para empresas | Logo depois da E21 (financeiro); reaproveita o desconto de funcionário da E17 | pendente |
 | 8 | S11 | Vale-presente | Depois da E27 (pagamento online) e com o contador | pendente |
 | 8 | S13 | Tempo de espera no site | Depois da E16 e de algumas semanas de dados reais | pendente |
+
+
+## Para a E11 (anotado na E09, 25/11/2026)
+- A mensagem "Sem saldo" de `consumirNaTransacao` ainda mostra quanto há: aplicar a regra da contagem cega (como `quantoHa`) quando o pedido usar a baixa.
+- Contagem não aceita `chave` (toque duplo em "Começar a contar" só é barrado pela tela).
