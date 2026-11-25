@@ -29,6 +29,7 @@ A sessão principal roda em Opus 5.5 e coordena. Regras em `docs/05-uso-dos-mode
 | `matriz-de-permissoes` | Rota nova, ação nova, mudar o que um cargo pode (criada na E03) |
 | `pagina-publica` | Toda página, formulário ou rota aberta ao público: site, delivery, QR da mesa (criada em 18/11/2026) |
 | `find-skills` | Procurar skill pronta na internet ("existe skill para X?"); externa, de vercel-labs/skills, instalada em 24/11/2026 com `npx skills add` (arquivo em `.agents/skills/`, versão em `skills-lock.json`). Só sugere: instalar outra skill continua pedindo o ok do responsável |
+| `tela-da-gestao` | Toda tela ou aba nova da gestão no visual Balcão, exatamente como o protótipo A (decisão 0028; criada em 25/11/2026) |
 
 ## Skills recomendadas (criar quando a fase chegar)
 | Skill | Para quê | Etapa |

@@ -45,3 +45,17 @@ nas letras. Telas novas usam a casca como está; nenhuma tela monta menu própri
 Suíte de tela inteira verde (inclui o teste das cascas por cargo, nos 3 tamanhos, sem estourar a
 largura e com alvos de 48 px). Fotos antes e depois no PR. Revisão independente (o menu nasce da
 matriz de permissões).
+
+## Adendo de 25/11/2026: exatamente igual ao protótipo, em toda tela
+O responsável viu as fotos da parte 1 e pediu: "tudo deve seguir o mesmo layout do protótipo",
+"quero exatamente igual", "vire uma identidade da marca para todas as abas". Por isso:
+- **Acabamento único** em `apps/gestao/app/balcao.css`, que vale para toda tela dentro da casca:
+  botões preenchidos sem borda grossa, campos de borda fina, cartões com contorno fino, lista em
+  linhas, selos pequenos, abas em controle segmentado, tabela com cabeçalho em versalete, avisos com
+  filete fino e **janela em gaveta à direita**. Alvo de 44 px no computador e 48 px no toque.
+- **Topo como o do protótipo:** nome da tela, "aplicativo · pessoa" e o cargo em pílula, relógio,
+  sino e conta (`TopoDaTela.tsx`). O `h1` igual ao nome da tela fica só para o leitor de tela.
+- **Produtos como no protótipo:** filtros por categoria em chips, busca e botões na mesma linha,
+  lista num cartão só com cabeçalho de colunas, linha com foto, nome, preparo, preço e ações.
+- **Regra para toda aba nova:** guia `docs/visual-balcao.md`, skill `tela-da-gestao` e linha nas
+  regras do `CLAUDE.md`. Nenhuma tela com layout, menu ou estilo próprio.

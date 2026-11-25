@@ -4,6 +4,7 @@ import "@fontsource/atkinson-hyperlegible-next/latin-400.css";
 import "@fontsource/atkinson-hyperlegible-next/latin-700.css";
 import "@erp/interface/tema.css";
 import "./gestao.css";
+import "./balcao.css";
 import { CORES_DO_TEMA_CLARO } from "@erp/interface";
 import { ProvedorDeAjuda } from "./Campo";
 

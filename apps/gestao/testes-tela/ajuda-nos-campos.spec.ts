@@ -17,6 +17,12 @@ async function conferirAjuda(page: Page, tela: string, minimo = 1) {
     const campos = Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input, select, textarea"));
     for (const c of campos) {
       if (c instanceof HTMLInputElement && c.type === "hidden") continue;
+      // Busca da barra de ferramentas (visual Balcão, decisão 0028): igual ao protótipo, só a lupa e um
+      // exemplo dentro do campo. Precisa de nome acessível e do exemplo no placeholder.
+      if (c instanceof HTMLInputElement && c.type === "search" && c.closest(".balcao-busca")) {
+        if (!c.getAttribute("aria-label") || !/ex\.:/.test(c.placeholder)) problemas.push(`busca "${c.placeholder}": sem nome ou sem exemplo`);
+        continue;
+      }
       const visivel = c.getClientRects().length > 0 && getComputedStyle(c).visibility !== "hidden";
       if (!visivel) continue;
       conferidos++;

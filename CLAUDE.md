@@ -62,6 +62,8 @@ PostgreSQL como única dependência de dados (fila e outbox nele, sem Redis); Do
 monorepositório com `apps/`, `packages/`, `infra/`, `docs/` e `cerebro/`.
 
 ## Regras inegociáveis do sistema
+- **Visual Balcão (decisão 0028):** toda tela ou aba da gestão segue exatamente o protótipo A
+  (`docs/visual-balcao.md`, skill `tela-da-gestao`). Nenhuma tela com layout, menu ou estilo próprio.
 - Dinheiro em centavos (inteiro) ou decimal exato. Nunca float.
 - Estoque em dois locais, em uso e guardado; consome do em uso e, se faltar, do guardado
   automaticamente. Livre para venda: L = F - B - R. O que cada canal pode vender é
@@ -135,7 +137,8 @@ Sem PostgreSQL local, `pnpm dev` sobe o do `docker-compose.yml`. Os testes usam 
 
 ## Skills (em `.claude/skills/`)
 `encerrar-sessao`, `publicar`, `nova-ideia-cliente`, `checklist-pr`, `migracao-segura`,
-`teste-idempotencia-estoque`, `ensaio-restauracao`, `matriz-de-permissoes`, `pagina-publica`.
+`teste-idempotencia-estoque`, `ensaio-restauracao`, `matriz-de-permissoes`, `pagina-publica`,
+`tela-da-gestao`, `find-skills`.
 
 ## Subagentes (em `.claude/agents/`)
 `construtor`, `ajudante` e `revisor`, todos no Opus 5.5 (15/11/2026).

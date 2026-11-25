@@ -19,6 +19,7 @@ import { ICONE_DO_APP } from "./icones-do-menu";
 import { Menu } from "./Menu";
 import { BarraDeBaixo } from "./BarraDeBaixo";
 import { TrocarCargo } from "./TrocarCargo";
+import { Relogio, TituloDaTela } from "./TopoDaTela";
 
 export function nomeDoCargo(codigo: string | null): string {
   return codigo
@@ -85,23 +86,14 @@ export function Casca({
                 className="casca__simbolo"
               />
             </Link>
-            <div className="casca__titulo">
-              {aplicativo && permitido && (
-                <p className="casca__app" data-testid="nome-do-app">
-                  {aplicativo.nome}
-                </p>
-              )}
-              <div className="casca__quem">
-                <strong data-testid="nome-da-pessoa">{ator.nome}</strong>
-                <span>
-                  <span className="casca__quem-rotulo">Cargo ativo: </span>
-                  <strong data-testid="cargo-ativo">
-                    {nomeDoCargo(ator.cargoAtivo)}
-                  </strong>
-                </span>
-              </div>
-            </div>
+            <TituloDaTela
+              secoes={links}
+              app={aplicativo && permitido ? aplicativo.nome : undefined}
+              pessoa={ator.nome}
+              cargo={nomeDoCargo(ator.cargoAtivo)}
+            />
             <div className="casca__lado">
+              <Relogio />
               <CentralDeAvisos />
               {/* A conta (trocar cargo, tela cheia, minha conta, sair) abre no botão redondo:
                 janela pequena no computador, gaveta de baixo no celular (decisão 0028). */}

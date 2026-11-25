@@ -1,0 +1,236 @@
+/* ==========================================================================================
+ * BALCÃO: a identidade visual da gestão (decisão 0028, pedido do responsável em 25/11/2026:
+ * "o que você me apresentou vira a identidade da marca para todas as abas").
+ * Referência: protótipo A, `cerebro/frentes/visual-limpo/prototipos.html`. Guia: docs/visual-balcao.md.
+ *
+ * Vale para TODA tela dentro da casca, sem a tela fazer nada: botões, campos, cartões, seções,
+ * listas, selos, abas, tabelas, avisos e janelas. Os seletores começam com `.casca` para ganhar
+ * dos CSS de cada tela (que carregam depois). Tela nova: use as classes de sempre (erp-*, hor-*,
+ * janela) e NÃO escreva borda grossa, sombra forte, letra grande nem cartão dentro de cartão.
+ * Só variáveis do tema: nenhuma cor escrita aqui.
+ * ========================================================================================== */
+.casca {
+  --sombra-cartao:
+    0 0 0 1px var(--cor-linha),
+    0 1px 2px -1px color-mix(in srgb, var(--cor-texto) 8%, transparent),
+    0 2px 6px color-mix(in srgb, var(--cor-texto) 4%, transparent);
+  --raio-cartao: 16px;
+  --raio-controle: 10px;
+  --alvo-controle: 44px;
+  --letra-controle: 0.875rem;
+  --letra-rotulo: 0.75rem;
+  line-height: 1.45;
+}
+/* Tela de toque (celular, tablet): alvos de 48 px. */
+@media (pointer: coarse) { .casca { --alvo-controle: var(--alvo-toque); } }
+
+/* ---------- Títulos e textos ---------- */
+.casca .casca__conteudo h1 { font-size: 1.375rem; letter-spacing: -0.015em; margin-bottom: var(--espaco-1); }
+.casca .casca__conteudo h2 { font-size: 1rem; letter-spacing: -0.01em; }
+.casca .casca__conteudo h3 { font-size: 0.9375rem; }
+.casca .hor-tela__intro, .casca .hor-secao__intro, .casca .casca__conteudo h1 + p { font-size: 0.875rem; color: var(--cor-texto-suave); }
+
+/* ---------- Botões: preenchidos, sem borda grossa ---------- */
+.casca .erp-botao {
+  min-height: var(--alvo-controle); min-width: var(--alvo-controle); padding: 0 var(--espaco-4);
+  border: 0; border-radius: var(--raio-controle); font-size: var(--letra-controle); letter-spacing: 0;
+}
+.casca .erp-botao .erp-icone, .casca .erp-botao svg { width: 16px; height: 16px; }
+.casca .erp-botao--primario { box-shadow: var(--brilho-botao); }
+.casca .erp-botao--secundario { background: var(--cor-cartao); color: var(--cor-texto); box-shadow: var(--sombra-cartao); }
+.casca .erp-botao--secundario:hover:not(:disabled) { background: var(--cor-superficie); }
+.casca .erp-botao--perigo { box-shadow: var(--brilho-botao); }
+
+/* ---------- Campos: borda fina (3:1), cantos de 9 px, letra 14 px ---------- */
+.casca .erp-campo { gap: 5px; margin-bottom: var(--espaco-3); }
+.casca .erp-campo__rotulo { font-size: var(--letra-controle); }
+.casca .erp-campo__entrada {
+  min-height: var(--alvo-controle); padding: 6px 10px; border-width: 1px; border-radius: 9px;
+  font-size: var(--letra-controle); box-shadow: none;
+}
+.casca .erp-campo__entrada:focus-visible { border-color: var(--cor-primaria); box-shadow: 0 0 0 1px var(--cor-primaria), var(--anel-foco); }
+.casca .erp-campo--erro .erp-campo__entrada { box-shadow: 0 0 0 1px var(--cor-perigo); }
+.casca .erp-campo__erro { font-size: 0.8125rem; }
+.casca .ajuda__explicacao { font-size: 0.8125rem; }
+
+/* ---------- Cartões e seções: um cartão branco por bloco, nunca cartão dentro de cartão ---------- */
+.casca .erp-cartao { border: 0; border-radius: var(--raio-cartao); padding: var(--espaco-4) calc(var(--espaco-4) + 2px); box-shadow: var(--sombra-cartao); }
+.casca .hor-secao {
+  gap: var(--espaco-2); padding: var(--espaco-4) calc(var(--espaco-4) + 2px);
+  background: var(--cor-cartao); border: 0; border-radius: var(--raio-cartao); box-shadow: var(--sombra-cartao);
+}
+.casca .hor-secao h2 { font-size: 0.9375rem; }
+.casca .hor-secao--discreta { background: transparent; box-shadow: 0 0 0 1px var(--cor-linha); }
+.casca .hor-vazio { padding: var(--espaco-4); background: transparent; border: 1px dashed var(--cor-linha); font-size: 0.875rem; font-style: normal; }
+
+/* Itens de uma seção (produtos, categorias, tipos, adicionais, fichas): linhas de lista com uma
+ * linha fina entre elas; as ações ficam à direita no computador. */
+.casca .hor-cats { gap: 0; }
+.casca .hor-cats__item + .hor-cats__item .hor-cat { border-top: 1px solid var(--cor-linha); }
+.casca .hor-cat {
+  grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--espaco-4); row-gap: 6px; align-items: start;
+  padding: var(--espaco-3) var(--espaco-1); background: transparent; border: 0; border-radius: 0; box-shadow: none;
+}
+.casca .hor-cat > * { grid-column: 1; }
+.casca .hor-cat:hover { box-shadow: none; background: color-mix(in srgb, var(--cor-superficie) 45%, transparent); }
+.casca .hor-cat--inativa, .casca .hor-cat--inativa:hover { background: transparent; border-style: solid; }
+.casca .hor-cat__nome { font-size: 0.9375rem; }
+.casca .hor-cat__descricao { font-size: 0.875rem; color: var(--cor-texto-suave); }
+.casca .hor-cat__acoes { grid-column: 2; grid-row: 1 / span 8; align-self: center; padding-top: 0; border-top: 0; justify-content: flex-end; }
+.casca .hor-cat__grade { grid-column: 1 / -1; border-top-color: var(--cor-linha); }
+
+/* ---------- Selos (pílulas): pequenos e leves ---------- */
+.casca .erp-selo { font-size: 0.75rem; padding: 2px var(--espaco-2); line-height: 1.5; box-shadow: none; border: 0; }
+.casca .erp-etiqueta { font-size: 0.75rem; }
+
+/* ---------- Abas: controle segmentado (fundo de nata, aba aberta em leite com sombra) ---------- */
+.casca .rapido__abas, .casca .hor-abas__lista, .casca .janela__abas {
+  gap: 2px; padding: 3px; background: var(--cor-superficie); border: 0; border-radius: 12px; box-shadow: none;
+}
+.casca .rapido__aba, .casca .hor-abas__aba, .casca .janela__aba {
+  min-height: var(--alvo-controle); padding: 0 var(--espaco-4); border: 0; border-radius: 9px;
+  font-size: var(--letra-controle); color: var(--cor-texto-suave);
+}
+.casca .rapido__aba:hover, .casca .hor-abas__aba:hover, .casca .janela__aba:hover { background: color-mix(in srgb, var(--cor-cartao) 60%, transparent); color: var(--cor-texto); }
+.casca .rapido__aba[aria-selected="true"], .casca .hor-abas__aba[aria-selected="true"], .casca .janela__aba[aria-selected="true"] {
+  background: var(--cor-cartao); color: var(--cor-texto); box-shadow: var(--sombra-cartao);
+}
+.casca .janela__aba[aria-selected="true"] .janela__aba-texto { color: var(--cor-texto-suave); }
+
+/* ---------- Tabelas: cabeçalho em versalete pequeno, linhas finas ---------- */
+.casca .erp-tabela { font-size: 0.875rem; }
+.casca .erp-tabela th {
+  font-size: var(--letra-rotulo); letter-spacing: 0.07em; text-transform: uppercase; color: var(--cor-texto-suave);
+  background: transparent; border-bottom: 1px solid var(--cor-linha); padding: 0 10px 10px;
+}
+.casca .erp-tabela td { padding: 9px 10px; border-bottom: 1px solid var(--cor-linha); }
+.casca .erp-tabela tbody tr:hover td { background: color-mix(in srgb, var(--cor-superficie) 45%, transparent); }
+
+/* ---------- Avisos: filete fino, sem moldura ---------- */
+.casca .erp-aviso { border: 0; border-left: 3px solid var(--cor-info); border-radius: var(--raio-controle); font-size: 0.875rem; }
+.casca .erp-aviso--sucesso { border-left-color: var(--cor-sucesso); }
+.casca .erp-aviso--atencao { border-left-color: var(--cor-atencao); }
+.casca .erp-aviso--perigo { border-left-color: var(--cor-perigo); }
+
+/* ---------- Lançador e atalhos ---------- */
+.casca .erp-ladrilho { border: 0; border-radius: var(--raio-cartao); box-shadow: var(--sombra-cartao); }
+.casca .erp-ladrilho__titulo { font-size: 1rem; }
+.casca .erp-ladrilho__descricao { font-size: 0.875rem; }
+
+/* ---------- Janela: gaveta que entra pela direita no computador; tela cheia de baixo no celular ---------- */
+.casca dialog.janela {
+  margin: 0 0 0 auto; height: 100dvh; max-height: 100dvh; width: min(44rem, 100vw); max-width: 100vw;
+  border: 0; border-radius: var(--raio-cartao) 0 0 var(--raio-cartao); background: var(--cor-fundo);
+  box-shadow: -20px 0 50px -20px color-mix(in srgb, var(--cor-texto) 40%, transparent);
+  animation: gaveta-entra 0.24s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.casca .janela__cabeca { background: var(--cor-fundo); border-bottom: 1px solid var(--cor-linha); padding: var(--espaco-4) var(--espaco-5) var(--espaco-3); }
+.casca .janela__titulo { font-size: 1.125rem; }
+@keyframes gaveta-entra { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (max-width: 40rem) {
+  .casca dialog.janela { width: 100vw; border-radius: 0; }
+  .casca .hor-cat { grid-template-columns: minmax(0, 1fr); }
+  .casca .hor-cat__acoes { grid-column: 1; grid-row: auto; justify-content: stretch; }
+  .casca .hor-secao { padding: var(--espaco-3); }
+}
+@media (prefers-reduced-motion: reduce) { .casca dialog.janela { animation: none; } }
+
+/* ---------- Barra de ferramentas da lista (como no protótipo): chips, busca e botões na mesma linha ---------- */
+.balcao-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-3); }
+.balcao-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.balcao-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: var(--alvo-controle); padding: 0 var(--espaco-3); border: 0; border-radius: 999px;
+  background: transparent; color: var(--cor-texto-suave); font: inherit; font-size: 0.8125rem; font-weight: var(--peso-forte); cursor: pointer;
+  transition: background-color var(--transicao), color var(--transicao);
+}
+.balcao-chip:hover { background: var(--cor-superficie); color: var(--cor-texto); }
+.balcao-chip[aria-pressed="true"] { background: var(--cor-texto); color: var(--cor-fundo); }
+.balcao-chip em { font-style: normal; font-weight: 400; opacity: 0.75; }
+.balcao-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); }
+.balcao-busca {
+  display: inline-flex; align-items: center; gap: var(--espaco-2); min-height: var(--alvo-controle); padding: 0 10px;
+  background: var(--cor-cartao); border: 1px solid var(--cor-borda); border-radius: var(--raio-controle); color: var(--cor-texto-suave);
+}
+.balcao-busca:focus-within { border-color: var(--cor-primaria); box-shadow: 0 0 0 1px var(--cor-primaria); }
+.balcao-busca svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.balcao-busca input { border: 0; outline: 0; background: transparent; font: inherit; font-size: var(--letra-controle); color: var(--cor-texto); width: 12rem; min-width: 0; }
+@media (max-width: 40rem) {
+  .balcao-acoes, .balcao-busca { width: 100%; }
+  .balcao-busca input { flex: 1; width: auto; }
+  .balcao-acoes > .erp-botao { flex: 1 1 auto; }
+}
+
+/* ---------- Lista em um cartão só (como a tabela do protótipo) ----------
+ * Grupos (ex.: categorias) viram um subtítulo em versalete dentro do mesmo cartão. */
+.casca .balcao-lista { display: grid; background: var(--cor-cartao); border-radius: var(--raio-cartao); box-shadow: var(--sombra-cartao); padding: var(--espaco-2) calc(var(--espaco-4) + 2px) var(--espaco-3); }
+.casca .balcao-lista > .hor-secao { gap: 0; padding: 0; background: transparent; border-radius: 0; box-shadow: none; }
+.casca .balcao-lista > .hor-secao > h2 {
+  padding: var(--espaco-4) var(--espaco-1) var(--espaco-2); font-size: var(--letra-rotulo); letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--cor-texto-suave); border-bottom: 1px solid var(--cor-linha);
+}
+.casca .balcao-lista > .hor-secao > .hor-secao__intro { padding: var(--espaco-2) var(--espaco-1) 0; font-size: 0.8125rem; }
+.casca .balcao-lista > .hor-secao > .hor-vazio { margin: var(--espaco-2) 0; }
+
+/* Ações da linha: discretas (texto), para a lista não ficar cheia de botões. */
+.casca .hor-cat__acoes { gap: 2px; }
+.casca .hor-cat__acoes > .erp-botao--secundario { background: transparent; box-shadow: none; color: var(--cor-texto-suave); padding: 0 var(--espaco-3); }
+.casca .hor-cat__acoes > .erp-botao--secundario:hover:not(:disabled) { background: var(--cor-superficie); color: var(--cor-texto); }
+/* O lugar na lista ("1º na categoria") é informação de apoio: texto, não pílula. */
+.casca .hor-cat__cabeca > .erp-selo--neutro { background: transparent; padding: 0; color: var(--cor-texto-suave); font-weight: 400; }
+
+/* Área de conteúdo: alinhada à esquerda, como no protótipo. */
+.casca .casca__conteudo { max-width: 80rem; margin: 0; padding: var(--espaco-5) calc(var(--espaco-5) + 4px) var(--espaco-6); }
+@media (max-width: 40rem) {
+  .casca .casca__conteudo { padding: var(--espaco-4) var(--espaco-4) calc(var(--espaco-6) + env(safe-area-inset-bottom)); }
+  .casca:has(.barra) .casca__conteudo { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+  .casca .balcao-lista { padding-inline: var(--espaco-3); }
+}
+
+/* ---------- Topo: nome da tela, aplicativo · pessoa e o cargo em pílula; relógio à direita ---------- */
+.casca .casca__tela { margin: 0; font-size: 1rem; font-weight: var(--peso-forte); line-height: 1.25; letter-spacing: -0.01em; }
+.casca .casca__quem { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 0.8125rem; color: var(--cor-texto-suave); }
+.casca .casca__quem > strong, .casca .casca__quem > span { display: inline; font-weight: 400; color: var(--cor-texto-suave); font-size: inherit; }
+.casca .casca__quem > strong::after { content: none; }
+.casca .casca__quem > .casca__app-nome::after { content: " ·" / ""; }
+.casca .casca__quem > .casca__cargo {
+  display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px;
+  background: var(--cor-superficie); color: var(--cor-texto); font-size: 0.75rem;
+}
+.casca .casca__quem > .casca__cargo strong { font-weight: var(--peso-forte); color: var(--cor-texto); }
+.casca .casca__titulo:not(:has(.casca__app)) .casca__quem > strong:first-child { display: inline; font-size: inherit; font-weight: 400; color: var(--cor-texto-suave); }
+.relogio { display: grid; text-align: right; line-height: 1.15; padding: 0 var(--espaco-2); font-variant-numeric: tabular-nums; }
+.relogio b { font-size: 0.875rem; letter-spacing: 0.02em; }
+.relogio small { font-size: 0.6875rem; color: var(--cor-texto-suave); }
+/* O título da página igual ao nome da tela fica só para o leitor de tela (aparece no topo). */
+.casca .casca__conteudo h1.titulo-no-topo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; margin: 0; }
+@media (max-width: 40rem) {
+  .relogio { display: none; }
+  .casca .casca__quem { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+}
+
+/* Cabeçalho de colunas da lista (versalete pequeno), como o da tabela do protótipo. */
+.balcao-lista__cab {
+  display: flex; gap: var(--espaco-3); padding: var(--espaco-2) var(--espaco-1); font-size: var(--letra-rotulo);
+  letter-spacing: 0.07em; text-transform: uppercase; font-weight: var(--peso-forte); color: var(--cor-texto-suave);
+}
+.balcao-lista__cab > :first-child { flex: 1; }
+@media (max-width: 40rem) { .balcao-lista__cab { display: none; } }
+
+/* Aviso rápido ("Desfazer"): embaixo, no meio da tela, para não cobrir as ações das linhas (à direita). */
+.casca .emb-toast__regiao { justify-content: center; padding-right: var(--espaco-4); }
+.casca .emb-toast { border: 0; border-left: 3px solid var(--cor-sucesso); border-radius: var(--raio-controle); box-shadow: var(--sombra-3); font-size: 0.875rem; }
+
+/* ---------- Ajuda dos campos: discreta (como o "Ver exemplo" do protótipo) ---------- */
+.casca .ajuda__botao, .casca .ajuda__botao-todos { font-size: 0.8125rem; text-decoration-thickness: 1px; }
+.casca .ajuda__botao-todos {
+  min-height: var(--alvo-controle); padding: 0 var(--espaco-4); border: 0; border-radius: 999px; text-decoration: none;
+  background: var(--cor-superficie); color: var(--cor-texto); box-shadow: none;
+}
+.casca .ajuda__botao-todos:hover { background: var(--cor-superficie-forte); color: var(--cor-texto); }
+
+/* Celular: enquanto a pessoa preenche um formulário, a barra de baixo fica escondida (também ao tocar
+ * no botão de salvar do formulário: antes ela voltava no meio do toque e "engolia" o clique). */
+@media (max-width: 40rem) {
+  body:has(.casca__conteudo form:focus-within) .barra { display: none; }
+  html:has(.barra) { scroll-padding-bottom: 120px; }
+}
