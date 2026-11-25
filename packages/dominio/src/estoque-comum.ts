@@ -15,6 +15,13 @@ export const QUANTIDADE_MAXIMA = 100_000_000n * ESCALA;
 export const LOCAIS = ["em_uso", "guardado"] as const;
 export type LocalDoEstoque = (typeof LOCAIS)[number];
 export const NOME_DO_LOCAL: Readonly<Record<LocalDoEstoque, string>> = { em_uso: "Em uso", guardado: "Guardado" };
+/**
+ * Onde o saldo pode estar. "A receber" (migração 0024): transferência entre áreas esperando quem
+ * recebe confirmar. Ninguém escolhe esse local num lançamento; não é livre, não é consumido e não
+ * entra em contagem.
+ */
+export type LocalDoSaldo = LocalDoEstoque | "a_receber";
+export const NOME_DO_LOCAL_DO_SALDO: Readonly<Record<LocalDoSaldo, string>> = { ...NOME_DO_LOCAL, a_receber: "A receber" };
 
 /** Ação de permissão que dá acesso a cada área (decisão 0008, item 2). */
 export function acaoDaArea(area: AreaEstoque): Acao {

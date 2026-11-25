@@ -122,6 +122,9 @@ import {
   relatorioDeContagens,
   valorDoEstoquePorArea,
   quemRecebeNaArea,
+  recebimentosPendentes,
+  confirmarRecebimento,
+  recusarRecebimento,
   type Ator,
 } from "@erp/dominio";
 import QRCode from "qrcode";
@@ -596,6 +599,15 @@ export const verQuemRecebe = seguro(async (req) => {
   const { db, a } = await comAlgumaArea(req);
   return json(await quemRecebeNaArea(db, a, filtroDaUrl(req)));
 });
+
+/** Recebimentos pendentes (mudança entre áreas esperando quem recebe), só das áreas da pessoa. */
+export const verRecebimentos = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await recebimentosPendentes(db, a, filtroDaUrl(req)));
+});
+/** Quem recebe confirma (em uso ou guardado) ou recusa (com o motivo); o domínio confere quem pode. */
+export const confirmarUmRecebimento = daArea(confirmarRecebimento);
+export const recusarUmRecebimento = daArea(recusarRecebimento);
 
 // Lançamentos (a chave contra toque duplo vem no corpo)
 export const darEntrada = daArea(registrarEntrada, 201);

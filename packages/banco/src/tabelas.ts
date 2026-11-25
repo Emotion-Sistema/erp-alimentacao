@@ -576,6 +576,8 @@ export interface IngredienteAlergenicoTabela {
 
 type Area = "cozinha" | "bebidas_salao" | "cafeteria" | "sorvete";
 type LocalDoEstoque = "em_uso" | "guardado";
+/** Onde o saldo pode estar: também "a receber" (transferência entre áreas esperando quem recebe; migração 0024). */
+type LocalDoSaldo = LocalDoEstoque | "a_receber";
 /** numeric do PostgreSQL chega como texto (decimal exato); grava texto ou número. */
 type DecimalDoEstoque = ColumnType<string, string | number, string | number>;
 type Inteirao = ColumnType<string, string | number | bigint, string | number | bigint>;
@@ -642,7 +644,7 @@ export interface EstoqueLoteTabela {
 export interface EstoqueSaldoTabela {
   lote_id: number;
   area: Area;
-  local: LocalDoEstoque;
+  local: LocalDoSaldo;
   bloqueado: boolean;
   item_id: number;
   quantidade: DecimalDoEstoque;
@@ -709,13 +711,36 @@ export interface EstoqueNotaFotoTabela {
   criado_em: Instante;
 }
 
+/** Recebimento de uma transferência entre áreas (migração 0024): pendente até ter o fim. */
+export interface EstoqueRecebimentoTabela {
+  id: Generated<number>;
+  movimento_id: Inteirao;
+  item_id: number;
+  area_origem: Area;
+  local_origem: LocalDoEstoque;
+  area_destino: Area;
+  local_sugerido: LocalDoEstoque;
+  quantidade: DecimalDoEstoque;
+  recebido_por: number;
+  criado_em: Instante;
+}
+export interface EstoqueRecebimentoFimTabela {
+  recebimento_id: number;
+  situacao: "confirmado" | "recusado";
+  movimento_id: Inteirao;
+  local: LocalDoEstoque | null;
+  observacao: string | null;
+  por: number;
+  em: Instante;
+}
+
 export interface EstoqueMovimentoLinhaTabela {
   id: Generated<string>;
   movimento_id: Inteirao;
   item_id: number;
   lote_id: number;
   area: Area;
-  local: LocalDoEstoque;
+  local: LocalDoSaldo;
   bloqueado: boolean;
   quantidade: DecimalDoEstoque;
   automatica: Generated<boolean>;
@@ -780,4 +805,6 @@ export interface BancoTabelas {
   estoque_contagem_item: EstoqueContagemItemTabela;
   estoque_contagem_registro: EstoqueContagemRegistroTabela;
   estoque_contagem_fim: EstoqueContagemFimTabela;
+  estoque_recebimento: EstoqueRecebimentoTabela;
+  estoque_recebimento_fim: EstoqueRecebimentoFimTabela;
 }

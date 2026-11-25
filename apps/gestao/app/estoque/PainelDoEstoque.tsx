@@ -19,6 +19,7 @@ import type { ContextoDoEstoque } from "./contexto";
 import { Contagens } from "./Contagens";
 import { DetalheDoItem } from "./DetalheDoItem";
 import { EntradaDeMercadoria } from "./compras/EntradaDeMercadoria";
+import { Recebimentos } from "./Recebimentos";
 import { TE } from "./textos";
 
 type Aba = "itens" | "contagem" | "entrada";
@@ -26,7 +27,7 @@ const DIAS_DO_VENCE_LOGO = 3;
 
 /** Soma das áreas visíveis nesta tela (o servidor já manda só as áreas da pessoa). */
 export function somaDasAreas(i: ItemDoPainel, areas: readonly string[]) {
-  const s = { emUso: 0n, guardado: 0n, bloqueado: 0n, vencido: 0n, livre: 0n, valor: null as bigint | null, emContagem: false };
+  const s = { emUso: 0n, guardado: 0n, bloqueado: 0n, vencido: 0n, livre: 0n, aReceber: 0n, valor: null as bigint | null, emContagem: false };
   for (const a of i.areas) {
     if (!areas.includes(a.area)) continue;
     // Contagem cega: com contagem aberta do item nesta área, o servidor não manda os números.
@@ -39,6 +40,7 @@ export function somaDasAreas(i: ItemDoPainel, areas: readonly string[]) {
     s.bloqueado += q4(a.bloqueado ?? "0");
     s.vencido += q4(a.vencido ?? "0");
     s.livre += q4(a.livre);
+    s.aReceber += q4(a.aReceber ?? "0");
     if (a.valorCentavos !== null) s.valor = (s.valor ?? 0n) + BigInt(a.valorCentavos);
   }
   return s;
@@ -97,6 +99,8 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
       {minhas.length === 0 && <Aviso tipo="atencao">{TE.painel.semArea}</Aviso>}
       {erro && <Aviso tipo="perigo">{erro}</Aviso>}
       {!itens && !erro && <p aria-live="polite">{TE.carregando}</p>}
+      {/* Veio de outra área para esta tela: quem recebe confirma ou recusa (25/11/2026). */}
+      {itens && minhas.length > 0 && <Recebimentos contexto={contexto} areas={codigos} aoMudar={() => void recarregar()} />}
       {itens && minhas.length > 0 && (
         <Abas
           rotulo={TE.painel.abas}
@@ -161,7 +165,7 @@ function CartaoDoItem({ item, areas, contexto, limite, aoAbrir }: { item: ItemDo
   // Em contagem (cega): no lugar dos números, "Em contagem".
   const cego = s.emContagem || (item.emContagem && areas.includes(item.areaPadrao) && item.areas.every((a) => !areas.includes(a.area) || a.emContagem));
   const n = (v: bigint) => (cego ? TE.painel.emContagem : qtd(textoQ4(v), item.unidade));
-  const total = s.emUso + s.guardado;
+  const total = s.emUso + s.guardado + s.aReceber;
   const venceLogo = item.proximaValidade !== null && item.proximaValidade <= limite;
   return (
     <li className="est-item" data-testid={`item-${item.nome}`}>
@@ -193,6 +197,7 @@ function CartaoDoItem({ item, areas, contexto, limite, aoAbrir }: { item: ItemDo
           <Numero rotulo={TE.painel.guardado} valor={n(s.guardado)} />
           <Numero rotulo={TE.painel.bloqueado} valor={n(s.bloqueado)} destaque={s.bloqueado > 0n} />
           <Numero rotulo={TE.painel.vencido} valor={n(s.vencido)} destaque={s.vencido > 0n} />
+          {s.aReceber > 0n && <Numero rotulo={TE.painel.aReceber} valor={n(s.aReceber)} destaque />}
         </span>
         {(item.proximaValidade || s.valor !== null || item.custoMedioCentavos) && (
           <span className="est-item__rodape">
