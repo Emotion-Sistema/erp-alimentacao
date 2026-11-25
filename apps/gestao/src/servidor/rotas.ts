@@ -123,6 +123,10 @@ import {
   relatorioDeContagens,
   valorDoEstoquePorArea,
   quemRecebeNaArea,
+  definirLinhas,
+  itensParaRepor,
+  linhasDoItem,
+  sugerirLinhas,
   recebimentosPendentes,
   confirmarRecebimento,
   recusarRecebimento,
@@ -688,3 +692,16 @@ export const verRelatorioDeContagens = seguro(async (req) => {
 });
 /** `custos.ver` (o domínio confere). */
 export const verValorDoEstoque = seguro(async (req) => json(await valorDoEstoquePorArea(obterBanco(), await ator(req))));
+
+// Linhas de reposição (E10 parte 1; decisão 0029). Quem cuida da área define e vê; a lista para
+// repor é de quem compra (`compras.gerenciar`, conferido no domínio).
+export const verLinhasDoItem = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await linhasDoItem(db, a, filtroDaUrl(req, ITEM_DA_URL)));
+});
+export const gravarLinhas = daArea(definirLinhas);
+export const verSugestaoDeLinhas = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await sugerirLinhas(db, a, filtroDaUrl(req, [...ITEM_DA_URL, "dias", "prazoDias", "folgaDias"])));
+});
+export const verItensParaRepor = seguro(async (req) => json(await itensParaRepor(obterBanco(), await ator(req), filtroDaUrl(req))));

@@ -734,6 +734,62 @@ export interface EstoqueRecebimentoFimTabela {
   em: Instante;
 }
 
+/** Linha de reposição do item na área (migração 0025; decisão 0029). Muda; o histórico vai por gatilho. */
+export interface EstoqueLinhaTabela {
+  item_id: number;
+  area: Area;
+  saudavel: DecimalDoEstoque | null;
+  emergencia: DecimalDoEstoque | null;
+  abastecimento: DecimalDoEstoque | null;
+  aviso_guardado: ColumnType<"urgente" | "normal" | "desligado", "urgente" | "normal" | "desligado" | undefined, "urgente" | "normal" | "desligado">;
+  alterado_por: number;
+  alterado_em: Instante;
+  observacao: string | null;
+}
+
+export interface EstoqueLinhaMudancaTabela {
+  id: Generated<string>;
+  item_id: number;
+  area: Area;
+  saudavel: string | null;
+  emergencia: string | null;
+  abastecimento: string | null;
+  aviso_guardado: "urgente" | "normal" | "desligado";
+  observacao: string | null;
+  por: number;
+  em: Date;
+}
+
+export type SituacaoDeReposicao = "saudavel" | "repor" | "emergencia" | "esgotado";
+
+export interface EstoqueReposicaoEstadoTabela {
+  item_id: number;
+  area: Area;
+  situacao: SituacaoDeReposicao;
+  usando_guardado: ColumnType<boolean, boolean | undefined, boolean>;
+  abastecer: ColumnType<boolean, boolean | undefined, boolean>;
+  quantidade: DecimalDoEstoque;
+  em_uso: DecimalDoEstoque;
+  guardado: DecimalDoEstoque;
+  dia: ColumnType<string, string, string>;
+  movimento_id: Inteirao | null;
+  atualizado_em: Instante;
+}
+
+export interface EstoqueReposicaoEventoTabela {
+  id: Generated<string>;
+  item_id: number;
+  area: Area;
+  tipo: "situacao" | "usando_guardado" | "abastecer";
+  de: string;
+  para: string;
+  quantidade: DecimalDoEstoque;
+  em_uso: DecimalDoEstoque;
+  movimento_id: Inteirao | null;
+  aviso_id: Inteirao | null;
+  em: Instante;
+}
+
 export interface EstoqueMovimentoLinhaTabela {
   id: Generated<string>;
   movimento_id: Inteirao;
@@ -807,4 +863,8 @@ export interface BancoTabelas {
   estoque_contagem_fim: EstoqueContagemFimTabela;
   estoque_recebimento: EstoqueRecebimentoTabela;
   estoque_recebimento_fim: EstoqueRecebimentoFimTabela;
+  estoque_linha: EstoqueLinhaTabela;
+  estoque_linha_mudanca: EstoqueLinhaMudancaTabela;
+  estoque_reposicao_estado: EstoqueReposicaoEstadoTabela;
+  estoque_reposicao_evento: EstoqueReposicaoEventoTabela;
 }

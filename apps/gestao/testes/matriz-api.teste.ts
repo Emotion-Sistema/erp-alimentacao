@@ -153,6 +153,11 @@ const ROTAS: Rota[] = [
   { metodo: "GET", caminho: "/api/estoque/relatorios/perdas", ...AREA, chamar: (c) => r.verRelatorioDePerdas(req("/api/estoque/relatorios/perdas", "GET", c)) },
   { metodo: "GET", caminho: "/api/estoque/relatorios/contagens", ...AREA, chamar: (c) => r.verRelatorioDeContagens(req("/api/estoque/relatorios/contagens", "GET", c)) },
   { metodo: "GET", caminho: "/api/estoque/relatorios/valor", ...AREA, tambem: ["custos.ver"], chamar: (c) => r.verValorDoEstoque(req("/api/estoque/relatorios/valor", "GET", c)) },
+  // Linhas de reposição (E10 parte 1, decisão 0029).
+  { metodo: "GET", caminho: "/api/estoque/linhas", ...AREA, chamar: (c) => r.verLinhasDoItem(req(`/api/estoque/linhas?ingredienteId=${INEXISTENTE}`, "GET", c)) },
+  { metodo: "POST", caminho: "/api/estoque/linhas", ...AREA, chamar: (c) => r.gravarLinhas(req("/api/estoque/linhas", "POST", c, {})) },
+  { metodo: "GET", caminho: "/api/estoque/linhas/sugestao", ...AREA, chamar: (c) => r.verSugestaoDeLinhas(req(`/api/estoque/linhas/sugestao?ingredienteId=${INEXISTENTE}`, "GET", c)) },
+  { metodo: "GET", caminho: "/api/estoque/repor", acao: "compras.gerenciar", chamar: (c) => r.verItensParaRepor(req("/api/estoque/repor?area=inventada", "GET", c)) },
   { metodo: "GET", caminho: "/api/estacao", acao: "estacao" },
   { metodo: "POST", caminho: "/api/estacao/entrar", acao: "estacao" },
   { metodo: "POST", caminho: "/api/estacao/ativar", acao: "estacao" },
