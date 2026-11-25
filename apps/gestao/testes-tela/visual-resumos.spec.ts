@@ -74,12 +74,14 @@ test.describe("resumos organizados", () => {
       "caixa = 30 un",
     );
     expect(await ovo.innerText()).not.toContain("·");
-    // Ações viram linha inteira no celular, com alvo de toque grande.
+    // Ações lado a lado na linha (visual Balcão, decisão 0028), com alvo de toque grande.
     const editar = await ovo
       .getByRole("button", { name: "Editar Ovo" })
       .boundingBox();
     expect(editar!.height).toBeGreaterThanOrEqual(44);
-    expect(editar!.width).toBeGreaterThan(300);
+    expect(editar!.width).toBeGreaterThanOrEqual(44);
+    const duplicar = await ovo.getByRole("button", { name: "Duplicar Ovo" }).boundingBox();
+    expect(Math.abs(duplicar!.y - editar!.y)).toBeLessThan(4);
   });
 
   test("fornecedor completo para o gerente; a cozinheira vê só nome, prazo e situação", async ({
