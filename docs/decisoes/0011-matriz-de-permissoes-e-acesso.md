@@ -35,6 +35,7 @@ A permissão vem **só do cargo ativo**. O que não está listado é recusado e 
 | Compras do estoque (comida, bebida) | ✓ | ✓ | | | | | | | | |
 | Compras de materiais (utensílios, eletrodomésticos) | ✓ | ✓ | ✓ | | | | | | | |
 | Custos da área | ✓ | ✓ | ✓ | | | | | | | |
+| Desfazer movimento de estoque lançado errado (decisão 0027) | ✓ | ✓ | | | | | | | | |
 | **Operar o caixa** / **marcar Pago** | | | | | | ✓ / ✓ | | | | |
 | Autorizações do caixa e do atendimento | ✓ | ✓ | | ✓ | | | | | | |
 | Organizar motoboys | ✓ | ✓ | | | | ✓ | | | | |

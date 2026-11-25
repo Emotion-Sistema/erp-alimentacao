@@ -625,6 +625,8 @@ export interface EstoqueMovimentoTabela {
   nota_data: ColumnType<string, string | null | undefined, string | null> | null;
   ficha_versao_id: number | null;
   previsto: DecimalDoEstoque | null;
+  /** Ajuste nascido de uma contagem (migração 0023). */
+  contagem_id: number | null;
   criado_em: Instante;
 }
 
@@ -657,6 +659,41 @@ export interface EstoqueMovimentoItemTabela {
   custo_estimado: Generated<boolean>;
   /** Só na correção de custo (migração 0022): o valor total certo da linha da entrada. */
   valor_informado: Inteirao | null;
+}
+
+/** Contagem de estoque (migração 0023). */
+export interface EstoqueContagemTabela {
+  id: Generated<number>;
+  tipo: "item" | "rapida" | "inventario";
+  area: Area;
+  dia: ColumnType<string, string | null | undefined, never> | null;
+  motivo: string | null;
+  aberta_por: number;
+  aberta_em: Instante;
+}
+export interface EstoqueContagemItemTabela {
+  id: Generated<number>;
+  contagem_id: number;
+  item_id: number;
+  local: LocalDoEstoque;
+  motivo: "faltou" | "mais_caro" | "divergiu" | "sem_contar" | null;
+}
+export interface EstoqueContagemRegistroTabela {
+  id: Generated<number>;
+  contagem_item_id: number;
+  contado: DecimalDoEstoque;
+  esperado: DecimalDoEstoque;
+  contado_por: number;
+  contado_em: Instante;
+}
+export interface EstoqueContagemFimTabela {
+  contagem_id: number;
+  situacao: "fechada" | "cancelada";
+  movimento_id: Inteirao | null;
+  valores: ColumnType<Record<string, string>, string | undefined, never>;
+  observacao: string | null;
+  por: number;
+  em: Instante;
 }
 
 /** Foto da nota de compra (migração 0022). */
@@ -739,4 +776,8 @@ export interface BancoTabelas {
   estoque_movimento_item: EstoqueMovimentoItemTabela;
   estoque_movimento_linha: EstoqueMovimentoLinhaTabela;
   estoque_nota_foto: EstoqueNotaFotoTabela;
+  estoque_contagem: EstoqueContagemTabela;
+  estoque_contagem_item: EstoqueContagemItemTabela;
+  estoque_contagem_registro: EstoqueContagemRegistroTabela;
+  estoque_contagem_fim: EstoqueContagemFimTabela;
 }
