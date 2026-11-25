@@ -39,6 +39,7 @@ import { Fracao } from "./fichas-comum";
 import { consumoDaFicha } from "./fichas";
 import { pode } from "./permissoes";
 import { exigir, type Ator } from "./sessao";
+import { avaliarReposicao, conferirReposicao, type ParParaReavaliar } from "./estoque-reposicao-estado";
 
 type Trx = Banco;
 const MAIOR_ID = 2_147_483_647;
@@ -264,6 +265,8 @@ type Estado = { q: bigint; v: bigint; dq: bigint; dv: bigint; faltou: bigint; es
 /** Um movimento em construção: muda saldos, cria lotes e, no fim, grava o resumo por item. */
 class Lancamento {
   private readonly estados = new Map<number, Estado>();
+  /** Cada (item, área) cujo saldo mudou: o estado de reposição é reavaliado no fechamento (E10). */
+  private readonly tocados = new Map<string, ParParaReavaliar>();
   constructor(
     private readonly trx: Trx,
     readonly movimentoId: string,
@@ -311,6 +314,10 @@ class Lancamento {
       .values({ movimento_id: this.movimentoId, item_id: itemId, lote_id: loteId, area, local, bloqueado, quantidade: q, automatica })
       .execute();
     this.tocar(itemId);
+    // Passagem automática saindo do guardado = o consumo começou (ou continua) a usar o guardado.
+    const k = `${itemId}:${area}`;
+    const usou = automatica && local === "guardado" && delta < 0n;
+    this.tocados.set(k, { itemId, area, usouGuardado: usou || (this.tocados.get(k)?.usouGuardado ?? false) });
   }
 
   async novoLote(itemId: number, validade: string | null, codigo: string | null): Promise<number> {
@@ -426,6 +433,9 @@ class Lancamento {
         .where("id", "=", itemId)
         .execute();
     }
+    // Linhas de reposição (E10): na mesma transação e sob a mesma trava do item, para cada (item,
+    // área) que mudou. Todo caminho que muda saldo passa por aqui (mexer -> fechar).
+    await avaliarReposicao(this.trx, [...this.tocados.values()], this.movimentoId);
   }
 
   /**
@@ -1404,7 +1414,8 @@ export async function historicoDoItem(db: Banco, ator: Ator | null, dados: unkno
 
 /**
  * Conferência de integridade (testes e diagnóstico): para cada item, a soma das linhas é o saldo,
- * o saldo somado é o total do item, e a soma dos movimentos fecha com total e valor.
+ * o saldo somado é o total do item, e a soma dos movimentos fecha com total e valor; o estado de
+ * reposição (E10) bate com o saldo livre e as linhas.
  * Devolve a lista de diferenças (vazia = tudo certo).
  */
 export async function conferirEstoque(db: Banco): Promise<string[]> {
@@ -1447,7 +1458,8 @@ export async function conferirEstoque(db: Banco): Promise<string[]> {
     LEFT JOIN (SELECT movimento_id, item_id, area, sum(quantidade) AS q FROM estoque_movimento_linha WHERE local = 'a_receber' AND quantidade > 0 GROUP BY 1, 2, 3) x
       ON x.movimento_id = r.movimento_id AND x.item_id = r.item_id AND x.area = r.area_destino
     WHERE r.quantidade <> coalesce(x.q, 0)`.execute(db);
-  return r.rows.map((x) => x.problema);
+  // Linhas de reposição (E10): o estado de cada item e área bate com o saldo livre e as linhas.
+  return [...r.rows.map((x) => x.problema), ...(await conferirReposicao(db))];
 }
 
 // ---------------------------------------------------------------- compras: lista e correção de custo
@@ -2029,6 +2041,8 @@ export const motorDoEstoque = {
   exigirAlgumaArea,
   hoje,
   quantidadeNaBase,
+  areasPadrao,
+  esconderEmContagem,
 };
 
 /**

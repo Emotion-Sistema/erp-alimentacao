@@ -38,6 +38,8 @@ export * from "./estoque-importar";
 export * from "./estoque-contagem";
 export * from "./estoque-relatorios";
 export * from "./estoque-recebimento";
+export * from "./estoque-reposicao";
+export * from "./estoque-reposicao-estado";
 export * from "./mesas";
 export * from "./cardapio";
 export * from "./cardapio-comum";
