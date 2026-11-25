@@ -85,6 +85,13 @@ fotos, comanda à direita).
   atendente (`pedidos.marcar_entregue`). "Ver como o cliente vê no app": linha Recebido → Na fila → Em
   preparo → Pronto → Entregue, previsão, etapa por item; sem "atrasado", sem tempo de mesa, sem nomes.
 
+## Versão 9 (25/11/2026): mesa abre em janela
+- Pedido do responsável: sem rolar a tela; tocar na mesa abre uma janela (popup) com tudo. Computador:
+  janela no centro, cabe sem rolar (testado em 1440x900); com "ver como o cliente vê" ela alarga e mostra
+  lado a lado. Celular: sobe de baixo (folha). Fecha no X, tocando fora ou com Esc. Botões lado a lado.
+- Ideias novas já no protótipo: cliente chama o atendente pelo QR (mesa 10 pisca, "Estou indo"); "vagam em
+  breve" no topo. Outras sugestões registradas em `cerebro/ideias-do-cliente.md` (seção Sugestões do Claude).
+
 ## Falta
 - Responsável confirmar números, lugares e as dúvidas do mapa (`cerebro/empresa/mapa-das-mesas.md`).
 - Mapa real: esboço recebido em 25/11/2026 (`cerebro/empresa/mapa-das-mesas.md`). Ao construir (E17), a
