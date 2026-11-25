@@ -55,6 +55,15 @@ svg.i { width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none;
 .seg button[aria-pressed="true"] { background: var(--leite); color: var(--cafe); font-weight: 600; box-shadow: 0 1px 2px rgba(53,30,23,.12); }
 .rotulo { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--grao); margin-right: 6px; }
 .palco { display: flex; justify-content: center; }
+.btn-cheia { display: inline-flex; align-items: center; gap: 8px; }
+.btn-cheia svg { width: 16px; height: 16px; }
+.sair-cheia { display: none; }
+.palco.cheia { position: fixed; inset: 0; z-index: 9999; background: #1d120e; align-items: center; padding: 0; }
+.palco.cheia .moldura { width: 100vw; height: 100vh; height: 100dvh; border-radius: 0; box-shadow: none; }
+.palco.cheia .moldura.celular { width: 390px; height: min(844px, 100dvh); border-radius: 36px; box-shadow: 0 0 0 10px #2a1a14; }
+.palco.cheia .sair-cheia { display: inline-flex; align-items: center; gap: 6px; position: fixed; right: 14px; bottom: 14px; z-index: 10000; border: 0; border-radius: 999px; padding: 10px 16px; font: inherit; font-size: 14px; font-weight: 600; background: rgba(29,18,14,.82); color: #fff; cursor: pointer; opacity: .55; transition: opacity .15s; }
+.palco.cheia .sair-cheia:hover, .palco.cheia .sair-cheia:focus-visible { opacity: 1; }
+body.tem-cheia { overflow: hidden; }
 .moldura { container: app / inline-size; width: 100%; height: 780px; border-radius: 18px; overflow: hidden; position: relative; box-shadow: 0 0 0 1px rgba(53,30,23,.10), 0 30px 60px -30px rgba(53,30,23,.35); background: var(--espuma); }
 .moldura.celular { width: 390px; height: 800px; border-radius: 36px; box-shadow: 0 0 0 10px #2a1a14, 0 0 0 11px rgba(53,30,23,.3), 0 30px 60px -20px rgba(53,30,23,.45); }
 .notas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding-top: 8px; }
@@ -845,12 +854,17 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
         <button data-noite="1">Escuro</button>
       </div>
     </div>
+    <div><span class="rotulo">Tela cheia</span>
+      <div class="seg" role="group" aria-label="Tela cheia">
+        <button data-cheia="1" class="btn-cheia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Abrir em tela cheia</button>
+      </div>
+    </div>
     <div id="ctl-cargo"><span class="rotulo">Ver como</span>
       <div class="seg" role="group" aria-label="Cargo" id="seg-cargo"></div>
     </div>
   </div>
 
-  <div class="palco"><div class="moldura" id="moldura"></div></div>
+  <div class="palco" id="palco"><div class="moldura" id="moldura"></div><button class="sair-cheia" data-cheia="0" title="Ou aperte Esc">Sair da tela cheia</button></div>
 
   <div class="notas">
     <section data-n="a"><h2>A · Balcão (o escolhido)</h2><ul>
@@ -1832,7 +1846,22 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     else return;
     desenhar();
   });
+  // Tela cheia: usa a do navegador quando existe; no iPhone, que não tem, ocupa a página toda.
+  const palco = document.getElementById('palco');
+  function telaCheia(ligar) {
+    palco.classList.toggle('cheia', ligar); document.body.classList.toggle('tem-cheia', ligar);
+    const ativa = document.fullscreenElement || document.webkitFullscreenElement;
+    try {
+      if (ligar && !ativa) { const f = palco.requestFullscreen || palco.webkitRequestFullscreen; if (f) { const p = f.call(palco); if (p && p.catch) p.catch(() => {}); } }
+      else if (!ligar && ativa) { const f = document.exitFullscreen || document.webkitExitFullscreen; if (f) { const p = f.call(document); if (p && p.catch) p.catch(() => {}); } }
+    } catch (e) {}
+  }
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(n => document.addEventListener(n, () => {
+    if (!(document.fullscreenElement || document.webkitFullscreenElement)) { palco.classList.remove('cheia'); document.body.classList.remove('tem-cheia'); }
+  }));
+  document.addEventListener('click', ev => { const b = ev.target.closest('[data-cheia]'); if (b) { ev.stopPropagation(); telaCheia(b.dataset.cheia === '1'); } }, true);
   document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && palco.classList.contains('cheia') && !E.gaveta && !E.paleta && !document.querySelector('.pa-pop')) { telaCheia(false); return; }
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k' && E.proto === 'b') { ev.preventDefault(); E.paleta = !E.paleta; desenhar(); }
     else if (ev.key === 'Escape' && E.paleta) { E.paleta = false; desenhar(); }
     else if (ev.key === 'Escape' && E.gaveta) { E.gaveta = null; desenhar(); }

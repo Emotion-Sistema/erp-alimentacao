@@ -100,11 +100,17 @@ fotos, comanda à direita).
   espera com mesa sugerida e aviso pelo app (sem SMS pago); alerta de mesa esquecida (ocupada há 10 min
   ou mais sem pedido); "mais uma rodada" das bebidas; card "Salão hoje" no Início de quem vê valores.
 
+## Versão 11 (25/11/2026): tela cheia
+- Botão "Abrir em tela cheia" (pedido do responsável): o protótipo ocupa a tela toda, no computador e no
+  celular; sai pelo botão "Sair da tela cheia" ou Esc. No iPhone, que não tem tela cheia do navegador,
+  ocupa a página inteira. No sistema real entra na casca (V1): botão no topo, útil no tablet da cozinha
+  e no caixa.
+
 ## Plano de implantação proposto (aguarda o "ok" do responsável)
 Nesta frente, em PRs pequenos, só sobre o que já existe:
 1. **V1 · Decisão e casca:** registro de decisão novo (visual A; revê a 0012 "gestão sempre clara" e o
    tamanho de letra; tema claro/escuro escolhido pela pessoa). Tema (`tema.css`: letra 15 px, bordas leves,
-   sombra suave, tokens do escuro) e casca da gestão (trilho de ícones, topo, barra de baixo no celular).
+   sombra suave, tokens do escuro) e casca da gestão (trilho de ícones, topo, barra de baixo no celular, botão de tela cheia).
    Testes de tela ajustados, fotos no PR, revisor (o menu nasce da matriz de permissões).
 2. **V2 · Componentes:** lista/tabela limpa, gaveta lateral de cadastro, janela (popup), chips e botões.
 3. **V3 · Telas que já existem, uma por PR:** Produtos, Fichas técnicas, Estoque, demais cadastros, avisos.
