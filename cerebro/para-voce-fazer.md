@@ -43,6 +43,9 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Pedir ao jurídico ou ao contador da empresa um modelo de autorização de uso de imagem e nome para os funcionários assinarem (site e redes).
 - [x] Quem edita e quem publica o site: edita dono, administrador e gerente geral; publica só dono e administrador (confirmado em 18/11/2026).
 - [ ] 👉 Perguntar ao dono, para os serviços de empresas: quantidade mínima de pessoas, antecedência, capacidade do salão para eventos e até onde entrega.
+- [x] 👉 Hipóteses da E09 respondidas em 25/11/2026: custo médio ok; quem recebe confirma (feito no PR 146); gestão vê quantidades na contagem ok.
+- [ ] 👉 E09 estoque: testar na homologação (entrada, mudar de lugar, contagem, relatórios) e o recebimento: gerente manda para a Cafeteria indicando o supervisor; o supervisor confirma ou recusa em Estoque → Salão.
+- [ ] 👉 Ideia nº 3 (nota pelo QR do cupom): pôr 3 ou 4 fotos de cupons na pasta "08 Compras e notas" do Drive, para testar a leitura antes de prometer.
 - [ ] 👉 Levantar com o cliente: quem cuida do estoque em cada turno, quem cuida das compras, prazo de entrega dos fornecedores e os itens que não podem faltar (pendências 20, 21, 23 e 31).
 - [ ] 👉 Pedir ao cliente a lista de produtos com tempo de preparo e tipo (hambúrguer, prato/grelhado, cafeteria), e quantas pessoas trabalham em cada tipo por turno (pendências 29 e 35).
 - [ ] 👉 Perguntar à franqueadora 60 Sabores: nome exato do sistema, se exporta relatórios ou tem API, e se o contrato permite integração (pendências 32 a 34).
