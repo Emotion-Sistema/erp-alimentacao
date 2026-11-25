@@ -119,8 +119,8 @@ fotos, comanda à direita).
 - PR 150 (casca: trilho, topo claro) e PR 151 (acabamento único `balcao.css`, topo com nome da tela,
   relógio e cargo, Produtos igual ao protótipo, janela em gaveta, regra para toda aba nova: guia
   `docs/visual-balcao.md`, skill `tela-da-gestao`, CLAUDE.md, adendo 0028). Juntados na main.
-- Pedido do responsável: "crie novas abas no formato do protótipo". Em andamento: Mesas, Novo pedido e
-  Produção no visual do protótipo, só com dados reais (pedidos chegam na E13); cardápio por GET /api/cardapio.
+- Abas novas no visual do protótipo (PR 152, juntado): Mesas, Novo pedido (cardápio real, comanda sem gravar,
+  serviço 10% "a confirmar") e Produção (colunas vazias). Ligação com pedidos fica para a E13 (agenda).
 - Falta (parte 3): Ingredientes, Estoque, Funcionários, Fichas e as demais no formato de lista do protótipo.
 
 ## Plano de implantação (aprovado com "ok" em 25/11/2026)

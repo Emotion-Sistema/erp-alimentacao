@@ -37,3 +37,13 @@ Detalhe de cada uma: `docs/requisitos/RC-07-sugestoes-no-dia-a-dia.md`.
 
 
 - (25/11/2026, revisor do PR 146) Estoque: atualizar a decisão 0027 (itens de recontagem) com a regra do envio lançado depois de contar. Risco antigo, dentro do item 14 da 0027: transferência dentro da área, perda ou entrada lançada depois da contagem, mas ocorrida antes, gera ajuste em dobro; avaliar pedir recontagem para qualquer movimento no item/local depois de contar. Aviso de envio pendente há muito tempo e mostrar na contagem os itens pulados por envio pendente.
+
+## Para a E13 (anotado na frente visual-limpo, 25/11/2026, revisor do PR 152)
+- As telas Mesas, Novo pedido e Produção já existem no visual do protótipo (PR 152): a E13 liga nelas, sem refazer a tela.
+- `GET /api/cardapio` lista todo produto ativo: antes de ligar o envio, usar a disponibilidade calculada (RC-09/E12).
+- Serviço de 10% é hipótese (pendência 42): confirmar com o responsável antes de gravar pedido.
+- Comanda: tamanhos e adicionais, tipo Mesa/Balcão/Retirada/Delivery, "Guardar sem enviar", observação por item.
+- Mesas: estado vem dos pedidos abertos; tempo na mesa, lista de espera e as 6 ideias do salão (ideias-do-cliente).
+- Acessibilidade: teste de Escape/foco no popup da mesa (foco inicial antes do conteúdo existir), aria-current do
+  botão grande "Novo pedido" no celular, `aria-label` em span da comanda, alvo de 44 px no link "Escolher a mesa".
+- Foto do produto para o atendente: a rota da foto exige `cadastros.ver` (decidir com o responsável).

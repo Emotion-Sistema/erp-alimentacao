@@ -3,6 +3,7 @@
 Lista viva do que depende do responsável. O Claude acrescenta e marca como feito.
 
 ## Agora (para começar)
+- [ ] Dizer se há taxa de serviço de 10% no salão e se é opcional (pendência 42; a tela Novo pedido mostra "a confirmar") (25/11/2026)
 - [x] 👉 Conferir o PR #4 e dar o "ok" para a E03 (feito em 14/11/2026).
 - [x] 👉 Dar o "ok" para a E04 (dado em 14/11/2026).
 - [x] 👉 Dar o "ok" para a E05 (dado em 14/11/2026).
