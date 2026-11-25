@@ -74,3 +74,15 @@
 @media (max-width: 40rem) {
   .est-acoes > *, .est-mov__desfazer { width: 100%; }
 }
+
+/* Visual Balcão (decisão 0028): itens em linhas dentro de um cartão só, como no protótipo. */
+.casca .balcao-lista .est-itens { grid-template-columns: 1fr; gap: 0; }
+.casca .balcao-lista .est-item + .est-item { border-top: 1px solid var(--cor-linha); }
+.casca .balcao-lista .est-item__botao { border: 0; border-radius: var(--raio-controle); box-shadow: none; background: none; padding: var(--espaco-3) var(--espaco-2); }
+.casca .balcao-lista .est-item__botao:hover { background: var(--cor-superficie); }
+.casca .balcao-lista .est-item__nome,
+.casca .balcao-lista .est-item__livre { font-size: 0.9375rem; }
+@media (min-width: 64rem) {
+  .casca .balcao-lista .est-item__botao { grid-template-columns: minmax(12rem, 1.2fr) minmax(0, 1fr) auto; align-items: center; column-gap: var(--espaco-4); }
+  .casca .balcao-lista .est-item__rodape { grid-column: 1 / -1; }
+}

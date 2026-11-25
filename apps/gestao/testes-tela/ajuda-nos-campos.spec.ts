@@ -437,7 +437,8 @@ test.describe("telas do estoque (gerente geral)", () => {
   test("painel da cozinha: itens e detalhe (mudar de lugar, perda, bloqueio, desbloqueio, desfazer)", async ({ page }) => {
     await page.goto("/estoque");
     await expect(page.getByLabel("Buscar item")).toBeVisible();
-    await conferirAjuda(page, "estoque (painel)", 2);
+    // Barra do Balcão (decisão 0028): busca com "ex.:" e filtros em chips, sem campo com ajuda.
+    await expect(page.getByRole("searchbox", { name: "Buscar item" })).toHaveAttribute("placeholder", /ex\.:/);
     await page.getByLabel("Buscar item").fill(ITEM);
     await page.getByRole("button", { name: `Abrir ${ITEM}` }).click();
     const detalhe = page.getByTestId("detalhe-do-item");
@@ -448,18 +449,18 @@ test.describe("telas do estoque (gerente geral)", () => {
     // A janela abre sobre o painel (busca e "vence logo" contam). Na janela: sai de, vai para, fica em,
     // quantidade, unidade, lote (dois lotes no guardado) e observação.
     await expect(mover.getByLabel("Lote")).toBeVisible();
-    await conferirAjuda(page, "estoque (mudar de lugar)", 9);
+    await conferirAjuda(page, "estoque (mudar de lugar)", 7);
     await mover.getByLabel("Vai para").selectOption("cafeteria");
     await expect(mover.getByLabel("Quem recebe")).toBeVisible();
-    await conferirAjuda(page, "estoque (mudar de lugar para outra área)", 10);
+    await conferirAjuda(page, "estoque (mudar de lugar para outra área)", 8);
     await semEstouroDeLargura(page);
 
     await detalhe.getByRole("button", { name: "Perda", exact: true }).click();
     await expect(detalhe.getByTestId("form-perda")).toBeVisible();
-    await conferirAjuda(page, "estoque (perda)", 8);
+    await conferirAjuda(page, "estoque (perda)", 6);
     await detalhe.getByRole("button", { name: "Bloquear", exact: true }).click();
     await expect(detalhe.getByTestId("form-bloqueio")).toBeVisible();
-    await conferirAjuda(page, "estoque (bloquear)", 7);
+    await conferirAjuda(page, "estoque (bloquear)", 5);
     // Grava um bloqueio pequeno para ter o que desbloquear e o que desfazer.
     const bloqueio = detalhe.getByTestId("form-bloqueio");
     await bloqueio.getByLabel("Onde está").selectOption("guardado");
@@ -469,11 +470,11 @@ test.describe("telas do estoque (gerente geral)", () => {
     await expect(detalhe.getByTestId("lancamento-feito")).toBeVisible();
     await detalhe.getByRole("button", { name: "Desbloquear", exact: true }).click();
     await expect(detalhe.getByTestId("form-desbloqueio")).toBeVisible();
-    await conferirAjuda(page, "estoque (desbloquear)", 6);
+    await conferirAjuda(page, "estoque (desbloquear)", 4);
     await detalhe.getByRole("button", { name: "Desbloquear", exact: true }).click();
     await detalhe.getByTestId("historico").getByRole("button", { name: /^Desfazer/ }).first().click();
     await expect(detalhe.getByTestId("form-desfazer")).toBeVisible();
-    await conferirAjuda(page, "estoque (desfazer)", 3);
+    await conferirAjuda(page, "estoque (desfazer)", 1);
     await semEstouroDeLargura(page);
   });
 
@@ -507,10 +508,10 @@ test.describe("telas do estoque (gerente geral)", () => {
     await linha.getByRole("button", { name: `Confirmar ${ITEM}` }).click();
     await expect(linha.getByLabel("Onde fica")).toBeVisible();
     // Busca, área e "vence logo" do painel, mais o "Onde fica".
-    await conferirAjuda(page, "salão (confirmar recebimento)", 4);
+    await conferirAjuda(page, "salão (confirmar recebimento)", 1);
     await linha.getByRole("button", { name: `Recusar ${ITEM}` }).click();
     await expect(linha.getByLabel("Por que recusar")).toBeVisible();
-    await conferirAjuda(page, "salão (recusar recebimento)", 4);
+    await conferirAjuda(page, "salão (recusar recebimento)", 1);
     await semEstouroDeLargura(page);
     // Recusa: volta para a cozinha (o resto dos testes conta só a cozinha).
     await linha.getByLabel("Por que recusar").fill("Teste da ajuda nos campos");
@@ -546,7 +547,7 @@ test.describe("telas do estoque (gerente geral)", () => {
     await page.goto("/estoque/salao");
     await expect(page.getByLabel("Buscar item")).toBeVisible();
     // Busca, área (o salão tem três) e "só o que vence logo".
-    await conferirAjuda(page, "salão (painel)", 3);
+    await expect(page.getByRole("searchbox", { name: "Buscar item" })).toHaveAttribute("placeholder", /ex\.:/);
     await page.getByRole("tab", { name: "Dar entrada" }).click();
     await expect(page.getByTestId("form-entrada")).toBeVisible();
     await conferirAjuda(page, "salão (dar entrada)", 11);

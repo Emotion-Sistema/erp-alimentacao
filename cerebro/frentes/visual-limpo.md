@@ -159,4 +159,5 @@ formato de lista do protótipo (como Produtos: `balcao-barra`, `balcao-lista`, l
 com a skill `tela-da-gestao` e fotos antes/depois (`scripts/comparar-telas.ts`). Não foi feito nesta sessão por
 falta de orçamento de tokens.
 - **Funcionários feito (25/11/2026):** chips Todos/Ativos/Desligados, busca, "Novo funcionário" na gaveta, tabela dentro de `balcao-lista` (no celular a lista some como moldura). 
-- **Ingredientes feito (25/11/2026):** chips por área, busca, Importar e Adicionar na barra; itens (`ItemDeLista`) viram linhas dentro de `balcao-lista` (regras genéricas em `balcao.css`, valem para outras telas que usarem `ItemDeLista` dentro da lista). Faltam Estoque e Fichas.
+- **Ingredientes feito (25/11/2026):** chips por área, busca, Importar e Adicionar na barra; itens (`ItemDeLista`) viram linhas dentro de `balcao-lista` (regras genéricas em `balcao.css`, valem para outras telas que usarem `ItemDeLista` dentro da lista). 
+- **Estoque feito (25/11/2026):** área e "vence logo" em chips, busca na barra, itens em linhas dentro de `balcao-lista` (vale também para o salão). Falta Fichas.
