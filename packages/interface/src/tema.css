@@ -29,6 +29,8 @@
   --cor-faixa-escura: #351e17; /* barra do topo (no máximo uma faixa escura por tela) */
   --cor-faixa-escura-texto: #f6dd8c;
   --cor-faixa-escura-suave: #e8d5c0; /* texto de apoio na faixa escura */
+  --cor-brasa-suave: #fbe6d6; /* fundo da seção aberta no trilho da gestão (decisão 0028); letra em --cor-primaria-hover */
+  --cor-linha: color-mix(in srgb, var(--cor-texto) 10%, transparent); /* divisão leve da casca (enfeite, nunca borda de campo) */
 
   /* Selos (pílulas): par fundo + texto, contraste AA conferido por teste. Uma cor por área de estoque. */
   --selo-neutro-fundo: #efe4d3;

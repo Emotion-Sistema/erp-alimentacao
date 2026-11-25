@@ -20,184 +20,139 @@
 .entrada__logo { width: min(15rem, 70%); height: auto; filter: drop-shadow(0 6px 14px color-mix(in srgb, var(--cor-texto) 14%, transparent)); }
 form { display: grid; gap: var(--espaco-4, 1rem); }
 
-/* ---------- Casca da gestão (marca E-MOTION, decisão 0019) ----------
- * Topo: a única faixa escura da tela (café), com a logo para fundo escuro, o aplicativo em dourado e
- * quem está usando. Menu: faixa de nata com abas; a aba aberta fica em brasa. Conteúdo no centro. */
-.casca { min-height: 100dvh; display: flex; flex-direction: column; }
-.casca__topo {
-  background: var(--cor-faixa-escura); color: var(--cor-faixa-escura-suave);
-  border-bottom: 3px solid var(--cor-marca);
-  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--cor-ambar) 35%, transparent);
+/* ---------- Casca da gestão: visual limpo "Balcão" (decisão 0028; revê o item 5 da 0019) ----------
+ * Computador e tablet: trilho de ícones claro à esquerda (símbolo no alto, seção aberta em brasa suave)
+ * e topo claro e baixo (aplicativo, quem está usando, sino e conta). Celular: topo claro + barra de baixo.
+ * Letra da equipe em 15 px; aplicativos de tablet (cozinha) continuam com a letra maior até a parte 4. */
+.casca {
+  --tamanho-texto: 0.9375rem; --texto-pequeno: 0.8125rem; --texto-grande: 1.125rem; --tamanho-titulo: 1.5rem;
+  min-height: 100dvh; display: grid; grid-template-columns: auto minmax(0, 1fr); font-size: var(--tamanho-texto);
 }
-.casca__faixa {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-3) var(--espaco-5);
-  max-width: var(--largura-conteudo); margin: 0 auto; padding: var(--espaco-3) var(--espaco-4) calc(var(--espaco-3) + 3px);
-}
-.casca__marca { display: inline-flex; align-items: center; min-height: var(--alvo-toque); border-radius: var(--raio-pequeno); flex: none; }
-.casca__marca:focus-visible { outline-color: var(--cor-ambar); }
-.casca__logo { display: block; height: 46px; width: auto; }
-.casca__app {
-  margin: 0; padding-left: var(--espaco-5); border-left: 1px solid color-mix(in srgb, var(--cor-faixa-escura-suave) 30%, transparent);
-  font-size: var(--texto-grande); font-weight: var(--peso-forte); color: var(--cor-faixa-escura-texto); letter-spacing: 0.01em;
-}
-.casca__quem { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; line-height: 1.3; font-size: var(--texto-pequeno); }
-.casca__quem > strong { color: var(--cor-faixa-escura-texto); font-size: var(--tamanho-texto); }
-.casca__quem strong { color: var(--cor-faixa-escura-texto); }
-.casca__troca { min-width: 12rem; }
-.casca__troca .erp-campo { margin-bottom: 0; gap: var(--espaco-1); }
-.casca__troca .erp-campo__rotulo { color: var(--cor-faixa-escura-texto); font-size: var(--texto-pequeno); }
-.casca__troca .ajuda__explicacao { color: var(--cor-faixa-escura-suave); }
-.casca__troca .ajuda__botao { color: var(--cor-faixa-escura-texto); }
-.casca__troca .ajuda__botao:hover { border-color: var(--cor-faixa-escura-texto); }
-.casca__troca .ajuda__exemplo { color: var(--cor-texto); }
-.casca__lado { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); margin-left: auto; }
-/* Botões da faixa escura: contorno creme, fundo transparente. */
-.casca__lado .casca__link, .casca__lado .erp-botao--secundario, .casca__lado .avisos__sino {
-  background: transparent; color: var(--cor-faixa-escura-texto); box-shadow: none;
-  border: 2px solid color-mix(in srgb, var(--cor-faixa-escura-suave) 45%, transparent);
-}
-.casca__lado .casca__link:hover, .casca__lado .erp-botao--secundario:hover:not(:disabled), .casca__lado .avisos__sino:hover {
-  background: color-mix(in srgb, var(--cor-faixa-escura-texto) 12%, transparent); border-color: var(--cor-faixa-escura-texto); color: var(--cor-faixa-escura-texto);
-}
-.casca__lado .avisos__sino[aria-expanded="true"] { border-color: var(--cor-faixa-escura-texto); background: color-mix(in srgb, var(--cor-faixa-escura-texto) 16%, transparent); }
-.casca__topo :focus-visible { outline-color: var(--cor-ambar); }
+.casca[data-aparelho="tablet"] { --tamanho-texto: 1.125rem; --texto-pequeno: 0.9rem; --texto-grande: 1.375rem; --tamanho-titulo: 1.875rem; }
+.casca h1 { font-size: var(--tamanho-titulo); }
+.casca__coluna { min-width: 0; display: flex; flex-direction: column; }
 
-.casca__menu {
-  background: var(--cor-superficie); border-bottom: 1px solid var(--cor-borda-suave);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--cor-cartao) 70%, transparent) inset;
+/* Trilho de ícones */
+.trilho {
+  position: sticky; top: 0; height: 100dvh; width: 92px; overflow-y: auto; scrollbar-width: thin;
+  display: flex; flex-direction: column; align-items: center; gap: var(--espaco-1);
+  padding: var(--espaco-3) var(--espaco-1) var(--espaco-4);
+  background: var(--cor-fundo); border-right: 1px solid var(--cor-linha);
 }
-.casca__menu-faixa {
-  display: flex; flex-wrap: wrap; gap: var(--espaco-1);
-  max-width: var(--largura-conteudo); margin: 0 auto; padding: var(--espaco-2) var(--espaco-4);
+.trilho__marca { display: grid; place-items: center; width: 56px; min-height: var(--alvo-toque); margin-bottom: var(--espaco-3); border-radius: var(--raio); flex: none; }
+.trilho__marca img { width: 48px; height: auto; display: block; }
+.trilho__nav { display: flex; flex-direction: column; align-items: stretch; gap: var(--espaco-1); width: 100%; }
+.trilho__item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 56px; padding: 6px 2px; border-radius: var(--raio);
+  color: var(--cor-texto-suave); text-decoration: none; font-size: 0.75rem; font-weight: var(--peso-forte); line-height: 1.15;
+  text-align: center; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--transicao), color var(--transicao);
 }
+.trilho__item:hover { background: var(--cor-superficie); color: var(--cor-texto); }
+.trilho__item[aria-current="page"] { background: var(--cor-brasa-suave); color: var(--cor-primaria-hover); }
+.trilho__item:focus-visible { outline: 3px solid var(--cor-primaria); outline-offset: -3px; }
+.trilho__texto { max-width: 100%; overflow-wrap: break-word; hyphens: manual; }
+.trilho__svg { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.trilho__item--apps { color: var(--cor-primaria); }
+.trilho__divisa { display: block; height: 1px; margin: var(--espaco-1) var(--espaco-3); background: var(--cor-linha); }
+.casca[data-aparelho="tablet"] .trilho { width: 104px; }
+.casca[data-aparelho="tablet"] .trilho__item { min-height: var(--alvo-toque-grande); font-size: 0.8125rem; }
+
+/* Topo claro */
+.casca__topo { position: sticky; top: 0; z-index: 15; background: color-mix(in srgb, var(--cor-fundo) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--cor-linha); }
+.casca__faixa {
+  display: flex; align-items: center; gap: var(--espaco-3) var(--espaco-4); min-height: 64px;
+  padding: var(--espaco-2) var(--espaco-4) var(--espaco-2) var(--espaco-5);
+}
+.casca__marca { display: none; }
+.casca__titulo { min-width: 0; display: grid; gap: 1px; }
+.casca__app { margin: 0; font-size: 1rem; font-weight: var(--peso-forte); line-height: 1.25; letter-spacing: -0.01em; }
+.casca__quem { display: block; min-width: 0; overflow-wrap: anywhere; line-height: 1.35; font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
+.casca__quem > * { display: inline; }
+.casca__quem > strong { font-weight: 400; }
+.casca__quem > strong::after { content: " · " / ""; } /* o leitor de tela não lê o ponto */
+.casca__quem strong[data-testid="cargo-ativo"] { color: var(--cor-texto); font-weight: var(--peso-forte); }
+.casca__quem-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Lançador (sem aplicativo): o nome da pessoa vira o título. */
+.casca__titulo:not(:has(.casca__app)) .casca__quem > strong:first-child { display: block; font-size: 1rem; font-weight: var(--peso-forte); color: var(--cor-texto); }
+.casca__titulo:not(:has(.casca__app)) .casca__quem > strong:first-child::after { content: none; }
+.casca__lado { display: flex; align-items: center; gap: var(--espaco-2); margin-left: auto; flex: none; }
+
+/* Sino e conta: botões redondos de 48 px, sem moldura. */
+.casca__lado .avisos__sino, .casca__conta-botao {
+  position: relative; display: inline-grid; place-items: center; width: var(--alvo-toque); height: var(--alvo-toque); min-height: var(--alvo-toque); padding: 0;
+  border: 0; border-radius: 50%; background: transparent; box-shadow: none; color: var(--cor-texto-suave);
+  font: inherit; font-weight: var(--peso-forte); cursor: pointer; transition: background-color var(--transicao), color var(--transicao);
+}
+.casca__lado .avisos__sino:hover, .casca__lado .avisos__sino[aria-expanded="true"] { background: var(--cor-superficie); color: var(--cor-texto); }
+.casca__lado .avisos__sino > span[aria-hidden="true"]:first-child { font-size: 0; }
+.casca__lado .avisos__sino::before {
+  content: ""; width: 22px; height: 22px; background: currentColor;
+  -webkit-mask: var(--icone-sino) center / contain no-repeat; mask: var(--icone-sino) center / contain no-repeat;
+}
+.casca__lado .avisos__contador {
+  position: absolute; top: 2px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center;
+  border-radius: 999px; font-size: 0.75rem; line-height: 1; box-shadow: 0 0 0 2px var(--cor-fundo);
+}
+.casca__conta-botao { width: 40px; height: 40px; min-height: 40px; margin: 4px; background: var(--cor-ouro); color: var(--cor-ouro-texto); font-size: 1rem; box-shadow: 0 0 0 1.5px var(--cor-borda); } /* contorno 3:1 sobre o fundo claro */
+.casca__conta-botao::after { content: ""; position: absolute; inset: -4px; } /* alvo de toque de 48 px */
+.casca__conta-botao:hover { background: color-mix(in srgb, var(--cor-ouro) 80%, var(--cor-texto)); }
+
+/* Conta: janela pequena abaixo do botão (computador); gaveta de baixo no celular. */
+.casca__conta {
+  position: fixed; inset: 68px var(--espaco-4) auto auto; margin: 0; width: min(22rem, calc(100vw - 2 * var(--espaco-4)));
+  max-height: calc(100dvh - 84px); overflow-y: auto;
+  padding: var(--espaco-4); border: 1px solid var(--cor-linha); border-radius: var(--raio-grande);
+  background: var(--cor-cartao); color: var(--cor-texto); box-shadow: var(--sombra-3);
+  flex-direction: column; gap: var(--espaco-2);
+}
+.casca__conta:popover-open { display: flex; }
+.casca__conta-titulo { margin: 0 0 var(--espaco-1); font-size: var(--texto-grande); font-weight: var(--peso-forte); }
+.casca__conta .casca__troca { min-width: 0; margin-bottom: var(--espaco-1); }
+.casca__conta .casca__troca .erp-campo { margin-bottom: 0; gap: var(--espaco-1); }
+.casca__lado .casca__conta .casca__link, .casca__lado .casca__conta .erp-botao--secundario, .casca__conta .tela-cheia {
+  display: flex; align-items: center; gap: var(--espaco-2); width: 100%; min-height: var(--alvo-toque); justify-content: flex-start;
+  padding: 0 var(--espaco-3); font: inherit; font-size: var(--tamanho-texto); font-weight: var(--peso-forte);
+  background: transparent; color: var(--cor-texto); border: 0; border-radius: var(--raio); box-shadow: none; text-decoration: none; cursor: pointer;
+}
+.casca__lado .casca__conta .casca__link:hover, .casca__lado .casca__conta .erp-botao--secundario:hover:not(:disabled), .casca__conta .tela-cheia:hover {
+  background: var(--cor-superficie); color: var(--cor-texto);
+}
+.casca__lado .casca__conta .erp-botao--secundario { color: var(--cor-perigo); }
+.casca__conta .tela-cheia__texto { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+
 .casca__link {
   display: inline-flex; align-items: center; gap: var(--espaco-2); min-height: var(--alvo-toque);
   padding: 0 var(--espaco-3); border: 2px solid transparent; border-radius: var(--raio);
   color: var(--cor-texto); font-weight: var(--peso-forte); text-decoration: none; white-space: nowrap;
-  transition: background-color var(--transicao), border-color var(--transicao), color var(--transicao), box-shadow var(--transicao);
+  transition: background-color var(--transicao), border-color var(--transicao);
 }
-.casca__link:hover { color: var(--cor-texto); background: var(--cor-cartao); border-color: var(--cor-borda-suave); }
-/* "Aplicativos": volta ao lançador, com seta desenhada (sem texto extra para o leitor de tela). */
-.casca__link--apps { color: var(--cor-primaria); }
-.casca__link--apps::before {
-  content: ""; width: 0.5rem; height: 0.5rem; border-left: 2.5px solid currentColor; border-bottom: 2.5px solid currentColor;
-  transform: rotate(45deg); margin-right: 2px;
-}
-.casca__link--apps:hover { color: var(--cor-primaria-hover); }
-.casca__menu .casca__link--apps { margin-right: var(--espaco-1); }
-.casca__link[aria-current="page"] {
-  background: var(--cor-primaria); border-color: var(--cor-primaria); color: var(--cor-primaria-texto);
-  box-shadow: var(--brilho-botao), 0 2px 8px -3px color-mix(in srgb, var(--cor-primaria) 70%, transparent);
-}
-/* Celular e tablet: alvos de toque maiores. */
-.casca[data-aparelho="celular"] .casca__link,
-.casca[data-aparelho="tablet"] .casca__link { min-height: var(--alvo-toque-grande); }
-.casca__menu .casca__link { font-size: 1rem; padding: 0 0.625rem; }
-/* Conta: no computador os itens ficam na faixa, na ordem de sempre (a gaveta vira "contents"). */
-.casca__simbolo, .casca__conta-botao, .casca__conta-titulo { display: none; }
-@media (min-width: 40.0625rem) {
-  .casca__conta { display: contents; }
-  .casca__conta > .casca__troca { order: -1; margin-right: auto; }
-  .casca__lado { flex-wrap: wrap; }
-  .casca__lado > .avisos { order: 2; }
-  .casca__conta > .tela-cheia { order: 1; }
-  .casca__conta > a.casca__link { order: 3; }
-  .casca__conta > .erp-botao { order: 4; }
-}
+.casca__link:hover { background: var(--cor-superficie); border-color: var(--cor-linha); }
 
-/* ---------- Celular (até 640 px): topo compacto de aplicativo, menu fixo, gaveta da conta ----------
- * Pedido do responsável (18/11/2026): "o layout do celular está cru e de acesso chato"; o computador
- * fica como está. Topo de 64 px: símbolo, aplicativo e quem está usando; à direita, o sino e a conta. */
+/* ---------- Celular (até 640 px): sem trilho; topo claro compacto e barra de baixo ---------- */
 @media (max-width: 40rem) {
-  .casca__topo { border-bottom-width: 2px; box-shadow: none; padding-top: env(safe-area-inset-top); }
-  .casca__faixa {
-    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "marca app lado" "marca quem lado";
-    align-items: center; column-gap: var(--espaco-3); row-gap: 0;
-    padding: var(--espaco-2) var(--espaco-3); min-height: 64px;
-  }
-  .casca__marca { grid-area: marca; min-height: 44px; }
-  .casca__logo { display: none; }
-  .casca__simbolo { display: block; width: 52px; height: auto; }
-  .casca__app {
-    grid-area: app; align-self: end; padding: 0; border: 0; font-size: 1.1875rem; line-height: 1.2;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .casca__quem {
-    grid-area: quem; align-self: start; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    font-size: 0.8125rem; line-height: 1.35; color: var(--cor-faixa-escura-suave);
-  }
-  .casca__quem > * { display: inline; }
-  .casca__quem > strong { margin-right: 0.3em; }
-  /* Sem nome de aplicativo (lançador), quem está usando ocupa as duas linhas. */
-  .casca__faixa:not(:has(.casca__app)) .casca__quem { grid-row: 1 / 3; align-self: center; white-space: normal; font-size: var(--texto-pequeno); }
-  .casca__faixa:not(:has(.casca__app)) .casca__quem > * { display: block; }
-  .casca__quem > strong { font-size: inherit; color: var(--cor-faixa-escura-suave); font-weight: 400; }
-  .casca__quem > strong::after { content: ","; }
-  .casca__faixa:not(:has(.casca__app)) .casca__quem > strong { font-size: var(--tamanho-texto); color: var(--cor-faixa-escura-texto); font-weight: var(--peso-forte); }
-  .casca__faixa:not(:has(.casca__app)) .casca__quem > strong::after { content: none; }
-  .casca__quem-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .casca__lado { grid-area: lado; flex-wrap: nowrap; margin: 0; gap: var(--espaco-2); }
+  .casca { display: flex; flex-direction: column; }
+  .trilho { display: none; }
+  .casca__topo { padding-top: env(safe-area-inset-top); }
+  .casca__faixa { min-height: 60px; padding: var(--espaco-2) var(--espaco-2) var(--espaco-2) var(--espaco-3); gap: var(--espaco-3); }
+  .casca__marca { display: inline-flex; align-items: center; min-height: var(--alvo-toque); flex: none; border-radius: var(--raio-pequeno); }
+  .casca__simbolo { display: block; width: 44px; height: auto; }
+  .casca__titulo { flex: 1; }
+  .casca__app, .casca__quem { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .casca__lado { gap: 0; }
 
-  /* Sino e conta: botões redondos de 44 px. */
-  .casca__lado .avisos__sino, .casca__conta-botao {
-    position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0;
-    border-radius: 50%; font: inherit; font-weight: var(--peso-forte); cursor: pointer;
-  }
-  .casca__lado .avisos__sino > span[aria-hidden="true"]:first-child { font-size: 0; }
-  .casca__lado .avisos__sino::before {
-    content: ""; width: 22px; height: 22px; background: currentColor;
-    -webkit-mask: var(--icone-sino) center / contain no-repeat; mask: var(--icone-sino) center / contain no-repeat;
-  }
-  .casca__lado .avisos__contador {
-    position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center;
-    border-radius: 999px; font-size: 0.75rem; line-height: 1; box-shadow: 0 0 0 2px var(--cor-faixa-escura);
-  }
-  .casca__conta-botao {
-    background: var(--cor-ouro); color: var(--cor-ouro-texto); border: 2px solid color-mix(in srgb, var(--cor-ouro) 60%, var(--cor-faixa-escura));
-    font-size: 1.125rem; box-shadow: var(--brilho-botao);
-  }
-  .casca__conta-botao:focus-visible { outline-color: var(--cor-ambar); }
-
-  /* Gaveta da conta: sobe de baixo, clara, com alça; toque fora fecha (popover). */
   .casca__conta {
-    position: fixed; inset: auto 0 0 0; width: 100%; max-width: 100%; max-height: min(85dvh, 36rem); margin: 0;
+    inset: auto 0 0 0; width: 100%; max-width: 100%; max-height: min(85dvh, 36rem);
     padding: var(--espaco-3) var(--espaco-4) calc(var(--espaco-5) + env(safe-area-inset-bottom));
-    border: 0; border-top: 1px solid var(--cor-borda-suave); border-radius: 22px 22px 0 0; overflow-y: auto;
-    background: var(--cor-cartao); color: var(--cor-texto); box-shadow: var(--sombra-3);
-    flex-direction: column; gap: var(--espaco-3);
+    border: 0; border-top: 1px solid var(--cor-linha); border-radius: 22px 22px 0 0;
   }
-  .casca__conta:popover-open { display: flex; animation: gaveta-sobe 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .casca__conta:popover-open { animation: gaveta-sobe 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
   .casca__conta::backdrop { background: color-mix(in srgb, var(--cor-texto) 45%, transparent); backdrop-filter: blur(2px); }
-  .casca__conta::before {
-    content: ""; align-self: center; width: 44px; height: 5px; border-radius: 999px; margin-bottom: var(--espaco-1);
-    background: var(--cor-borda-suave);
-  }
-  .casca__conta-titulo { display: block; margin: 0 0 var(--espaco-1); font-size: var(--texto-grande); font-weight: var(--peso-forte); }
-  .casca__conta .tela-cheia { font-weight: var(--peso-forte); }
-  .casca__conta .casca__troca { min-width: 0; }
-  .casca__conta .casca__troca .erp-campo__rotulo { color: var(--cor-texto); font-size: var(--tamanho-texto); }
-  .casca__conta .casca__troca .ajuda__explicacao { color: var(--cor-texto-suave); }
-  .casca__conta .casca__troca .ajuda__botao { color: var(--cor-primaria); }
-  .casca__lado .casca__conta .casca__link, .casca__lado .casca__conta .erp-botao--secundario {
-    width: 100%; min-height: 52px; justify-content: flex-start; padding: 0 var(--espaco-4); font-size: var(--tamanho-texto);
-    background: var(--cor-cartao); color: var(--cor-texto); border: 1px solid var(--cor-borda-suave); box-shadow: var(--sombra-1);
-  }
-  .casca__lado .casca__conta .casca__link:hover, .casca__lado .casca__conta .erp-botao--secundario:hover:not(:disabled) {
-    background: var(--cor-superficie); color: var(--cor-texto); border-color: var(--cor-borda);
-  }
-  .casca__lado .casca__conta .erp-botao--secundario { color: var(--cor-perigo); }
-  .casca__conta .tela-cheia__texto { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
-  .casca__conta :focus-visible { outline-color: var(--cor-primaria); }
+  .casca__conta::before { content: ""; align-self: center; width: 44px; height: 5px; border-radius: 999px; margin-bottom: var(--espaco-1); background: var(--cor-borda-suave); }
+  .casca__lado .casca__conta .casca__link, .casca__lado .casca__conta .erp-botao--secundario, .casca__conta .tela-cheia { min-height: 52px; }
 
-  /* Menu: fica preso no alto ao rolar a página, como as abas de um aplicativo. */
-  .casca__menu { position: sticky; top: 0; z-index: 15; background: var(--cor-superficie); box-shadow: 0 6px 14px -10px color-mix(in srgb, var(--cor-texto) 35%, transparent); }
-  .casca__menu-faixa { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding: var(--espaco-2) var(--espaco-3); scrollbar-width: none; gap: var(--espaco-1); }
-  .casca__menu-faixa::-webkit-scrollbar { display: none; }
-  .casca__menu .casca__link { flex: 0 0 auto; min-height: 48px; }
-
-  /* Conteúdo: margens de celular, títulos na medida e respiro para o polegar no fim. */
   .casca__conteudo { padding: var(--espaco-4) var(--espaco-4) calc(var(--espaco-6) + env(safe-area-inset-bottom)); }
-  .casca__conteudo h1 { font-size: 1.625rem; }
 
   /* Lançador: aplicativos em linhas compactas, seta no meio à direita. */
   .erp-grade-ladrilhos { gap: var(--espaco-3); }
@@ -666,50 +621,16 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 }
 @media (prefers-reduced-motion: reduce) { .acoes > summary::after, .tecla, .pessoa { transition: none; } }
 
-/* ---------- Menu que rola de lado: bordas esmaecidas e setas (18/11/2026) ---------- */
-@media (min-width: 40.0625rem) { .casca__menu { position: relative; } }
-.casca__menu-faixa { scroll-snap-type: x proximity; }
-.casca__menu-faixa > .casca__link { scroll-snap-align: center; }
-.casca__menu[data-mais-esquerda] .casca__menu-faixa,
-.casca__menu[data-mais-direita] .casca__menu-faixa {
-  -webkit-mask-image: linear-gradient(90deg, var(--mascara-esquerda, black) 0, black 3.5rem, black calc(100% - 3.5rem), var(--mascara-direita, black) 100%);
-  mask-image: linear-gradient(90deg, var(--mascara-esquerda, black) 0, black 3.5rem, black calc(100% - 3.5rem), var(--mascara-direita, black) 100%);
-}
-.casca__menu[data-mais-esquerda] { --mascara-esquerda: transparent; }
-.casca__menu[data-mais-direita] { --mascara-direita: transparent; }
-.casca__rolar {
-  position: absolute; top: 50%; transform: translateY(-50%); z-index: 1;
-  display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
-  border: 1px solid var(--cor-borda-suave); border-radius: 50%; cursor: pointer;
-  background: var(--cor-cartao); color: var(--cor-primaria); box-shadow: var(--sombra-2);
-  animation: casca-rolar-chama 1.6s ease-in-out 2;
-}
-.casca__rolar::before {
-  content: ""; width: 0.55rem; height: 0.55rem; border-top: 2.5px solid currentColor; border-right: 2.5px solid currentColor;
-}
-.casca__rolar--direita { right: var(--espaco-2); }
-.casca__rolar--direita::before { transform: translateX(-2px) rotate(45deg); }
-.casca__rolar--esquerda { left: var(--espaco-2); }
-.casca__rolar--esquerda::before { transform: translateX(2px) rotate(-135deg); }
-.casca__rolar:hover { color: var(--cor-primaria-hover); border-color: var(--cor-borda); }
-/* Um empurrãozinho para o lado nas duas primeiras vezes, para mostrar que rola. */
-@keyframes casca-rolar-chama { 50% { transform: translateY(-50%) translateX(var(--empurrao, 4px)); } }
-.casca__rolar--esquerda { --empurrao: -4px; }
-
 /* ---------- Botão de tela cheia ---------- */
 .tela-cheia { font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: var(--espaco-2); }
 .tela-cheia__icone { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-@media (max-width: 40rem) {
-  /* No celular, só o ícone (o nome continua para o leitor de tela e no toque longo). */
-}
 .estacao__topo .tela-cheia { margin-left: auto; }
 
 /* ---------- Barra de baixo do celular (decisão 0019, adendo de 18/11/2026) ----------
  * "B no atendimento (botão grande no meio) e A nos outros (barra com até 4 seções + Mais)".
- * No computador não aparece: o menu de cima continua. */
+ * No computador não aparece: vale o trilho de ícones (decisão 0028). */
 .barra { display: none; }
 @media (max-width: 40rem) {
-  .casca__menu { display: none; }
   .casca:has(.barra) .casca__conteudo { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
   .barra {
     display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;

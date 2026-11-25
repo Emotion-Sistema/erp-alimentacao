@@ -1,7 +1,7 @@
 # 0019: marca E-MOTION aplicada ao sistema
 
 - Data: 18/11/2026
-- Status: aceita
+- Status: aceita; item 5 (casca da gestão) e letra da equipe revistos pela 0028 (25/11/2026)
 - Assunto da sessão: identidade visual (pedido do responsável: "aplique a todo o ERP")
 - Complementa: decisão 0012 (tema por variáveis; gestão sempre clara). Fonte da marca:
   `cerebro/empresa/paleta-da-marca/` (paleta, letras e regras aprovadas em 18/11/2026) e

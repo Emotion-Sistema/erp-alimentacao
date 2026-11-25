@@ -3,6 +3,7 @@
 Atualizado em: 18/11/2026
 
 ## Em que pé estamos
+- **Novo visual "Balcão", parte 1 (25/11/2026):** trilho de ícones, topo claro, letra 15 px (decisão 0028; frente `cerebro/frentes/visual-limpo.md`). Próximas: componentes e busca geral (2), telas (3), claro/escuro e letra por pessoa (4).
 - Fase: **E02 (fundação) feita** no PR #4: monorepositório, banco, login e permissões no
   servidor, CI. Comandos no `CLAUDE.md`; bibliotecas na decisão 0010.
 - **E03 (cargos, login e auditoria) feita** no PR #5 (merge a853254): matriz de cargos testada pela
