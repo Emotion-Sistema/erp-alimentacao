@@ -341,8 +341,14 @@ describe("estação da cozinha e código pessoal", () => {
     await entrarNaEstacao(db, e.token, { usuarioId: p.id, codigo: "6158" });
     const pres = await db.selectFrom("estacao_presenca").select(["expira_em", "entrou_em"]).where("usuario_id", "=", p.id).where("saiu_em", "is", null).executeTakeFirstOrThrow();
     const horas = (new Date(pres.expira_em).getTime() - new Date(pres.entrou_em).getTime()) / 3_600_000;
+    // Vence no fim do turno (00h30 da loja): quem entra de madrugada fica até ~24 h; não depende da hora em que o teste roda.
     expect(horas).toBeGreaterThan(0);
-    expect(horas).toBeLessThanOrEqual(18);
+    expect(horas).toBeLessThanOrEqual(24);
+    const certo = await sql<{ ok: boolean }>`
+      SELECT p.expira_em = fim_do_turno(e.unidade_id, p.entrou_em) AS ok
+      FROM estacao_presenca p JOIN estacao e ON e.id = p.estacao_id
+      WHERE p.usuario_id = ${p.id} AND p.saiu_em IS NULL`.execute(db);
+    expect(certo.rows[0]?.ok).toBe(true);
     await sql`UPDATE estacao_presenca SET entrou_em = now() - interval '2 hours', expira_em = now() - interval '1 second' WHERE usuario_id = ${p.id} AND saiu_em IS NULL`.execute(db);
     expect(await atorDaEstacao(db, e.token)).toBeNull();
     await telaDaEstacao(db, e.token);
