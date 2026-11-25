@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { abrirAdicionar, entrar, semEstouroDeLargura, SENHA, zerarSegundoFator } from "./ajudas";
+import { abrirAdicionar, entrar, semEstouroDeLargura, SENHA, sql, zerarSegundoFator } from "./ajudas";
 
 // Padrão do sistema (decisão 0012, 15/11/2026): todo campo de digitar ou escolher tem uma explicação
 // sempre visível e um botão que abre e fecha um exemplo. Este teste FALHA se aparecer campo sem ajuda.
@@ -357,6 +357,160 @@ test.describe("telas internas do administrador", () => {
     await expect(page.getByRole("button", { name: "Esconder todos os exemplos" })).toBeVisible();
     await expect(page.locator("p.ajuda__exemplo:visible").first()).toBeVisible();
     await page.getByRole("button", { name: "Esconder todos os exemplos" }).click();
+  });
+});
+
+// Estoque (E09, decisão 0027): painel, detalhe do item, contagem, compras, saldo inicial e relatórios.
+// Em ordem: a entrada de mercadoria cria os dois lotes que o detalhe e a correção de custo usam.
+test.describe("telas do estoque (gerente geral)", () => {
+  test.describe.configure({ mode: "serial" });
+  const SUFIXO = Math.random().toString(36).slice(2, 9).replace(/[0-9]/g, (c) => "qrstuvwxyz"[Number(c)]!);
+  const ITEM = `Cebola ajuda ${SUFIXO}`;
+  const diaDaqui = (dias: number) => new Date(Date.now() + dias * 86_400_000).toISOString().slice(0, 10);
+
+  test.beforeAll(() => {
+    sql(`INSERT INTO ingrediente (nome, unidade_base, unidade_exibicao, area_estoque) VALUES ('${ITEM}', 'g', 'kg', 'cozinha')`);
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await entrar(page, "gerente.geral");
+  });
+
+  test("compras: entrada de mercadoria (dois itens), lista e correção de custo", async ({ page }) => {
+    await page.goto("/estoque/compras");
+    const form = page.getByTestId("form-entrada");
+    await expect(form.getByLabel("Fornecedor")).toBeVisible();
+    // Fornecedor, número, data e os 8 campos do item (com valor, pois o gerente vê custos).
+    await conferirAjuda(page, "compras (dar entrada)", 11);
+    await page.getByRole("button", { name: "Adicionar outro item" }).click();
+    await expect(page.getByTestId("linha-da-entrada-2")).toBeVisible();
+    await conferirAjuda(page, "compras (dar entrada, dois itens)", 19);
+    // Dois lotes do mesmo item, com validades diferentes: o detalhe passa a pedir o lote.
+    for (const [n, validade] of [[1, diaDaqui(30)], [2, diaDaqui(60)]] as const) {
+      const linha = page.getByTestId(`linha-da-entrada-${n}`);
+      await linha.getByLabel("Ingrediente").selectOption({ label: ITEM });
+      await linha.getByLabel("Quantidade").fill("1");
+      await linha.getByLabel("Validade").fill(validade);
+      await linha.getByLabel("Valor pago (R$)").fill("8,00");
+    }
+    await page.getByRole("button", { name: "Dar entrada em 2 itens" }).click();
+    await expect(page.getByTestId("entrada-gravada")).toBeVisible();
+    await conferirAjuda(page, "compras (foto da nota)", 1);
+    await semEstouroDeLargura(page);
+
+    await page.getByRole("tab", { name: "Entradas" }).click();
+    const entrada = page.getByTestId("lista-de-entradas").locator("li.est-linha", { hasText: ITEM }).first();
+    await expect(entrada).toBeVisible();
+    await conferirAjuda(page, "compras (lista de entradas)", 1);
+    await entrada.getByRole("button", { name: "Anexar foto da nota" }).click();
+    await entrada.getByRole("button", { name: "Corrigir o custo" }).click();
+    await expect(entrada.getByLabel(`Valor certo de ${ITEM} (R$)`).first()).toBeVisible();
+    await conferirAjuda(page, "compras (foto e correção de custo)", 3);
+    await semEstouroDeLargura(page);
+  });
+
+  test("compras: saldo inicial por planilha (arquivo, conferência e corrigir no painel)", async ({ page }) => {
+    await page.goto("/estoque/compras");
+    await page.getByRole("tab", { name: "Saldo inicial" }).click();
+    await expect(page.getByLabel("Arquivo da planilha")).toBeVisible();
+    await conferirAjuda(page, "saldo inicial (antes do arquivo)", 1);
+    // Planilha inventada: uma linha boa e uma com item que não existe (vira erro para corrigir).
+    const csv = `Item;Quantidade;Unidade;Local\n${ITEM};2;kg;Guardado\nItem que nao existe ${SUFIXO};1;kg;Guardado\n`;
+    await page.getByLabel("Arquivo da planilha").setInputFiles({ name: "saldo-inicial.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "utf8") });
+    await expect(page.getByTestId("resumo-do-saldo")).toBeVisible();
+    await conferirAjuda(page, "saldo inicial (conferência)", 2);
+    await page.getByRole("button", { name: "Corrigir aqui a linha 3" }).click();
+    await expect(page.getByTestId("corrigindo-3")).toBeVisible();
+    await conferirAjuda(page, "saldo inicial (corrigir no painel)", 6);
+    await semEstouroDeLargura(page);
+  });
+
+  test("painel da cozinha: itens e detalhe (mudar de lugar, perda, bloqueio, desbloqueio, desfazer)", async ({ page }) => {
+    await page.goto("/estoque");
+    await expect(page.getByLabel("Buscar item")).toBeVisible();
+    await conferirAjuda(page, "estoque (painel)", 2);
+    await page.getByLabel("Buscar item").fill(ITEM);
+    await page.getByRole("button", { name: `Abrir ${ITEM}` }).click();
+    const detalhe = page.getByTestId("detalhe-do-item");
+    await expect(detalhe.getByTestId("lotes")).toBeVisible();
+
+    await detalhe.getByRole("button", { name: "Mudar de lugar" }).click();
+    const mover = detalhe.getByTestId("form-transferencia");
+    // A janela abre sobre o painel (busca e "vence logo" contam). Na janela: sai de, vai para, fica em,
+    // quantidade, unidade, lote (dois lotes no guardado) e observação.
+    await expect(mover.getByLabel("Lote")).toBeVisible();
+    await conferirAjuda(page, "estoque (mudar de lugar)", 9);
+    await mover.getByLabel("Vai para").selectOption("cafeteria");
+    await expect(mover.getByLabel("Quem recebeu")).toBeVisible();
+    await conferirAjuda(page, "estoque (mudar de lugar para outra área)", 10);
+    await semEstouroDeLargura(page);
+
+    await detalhe.getByRole("button", { name: "Perda", exact: true }).click();
+    await expect(detalhe.getByTestId("form-perda")).toBeVisible();
+    await conferirAjuda(page, "estoque (perda)", 8);
+    await detalhe.getByRole("button", { name: "Bloquear", exact: true }).click();
+    await expect(detalhe.getByTestId("form-bloqueio")).toBeVisible();
+    await conferirAjuda(page, "estoque (bloquear)", 7);
+    // Grava um bloqueio pequeno para ter o que desbloquear e o que desfazer.
+    const bloqueio = detalhe.getByTestId("form-bloqueio");
+    await bloqueio.getByLabel("Onde está").selectOption("guardado");
+    await bloqueio.getByLabel("Quantidade").fill("100");
+    await bloqueio.getByLabel("Unidade").selectOption("g");
+    await bloqueio.getByRole("button", { name: "Gravar" }).click();
+    await expect(detalhe.getByTestId("lancamento-feito")).toBeVisible();
+    await detalhe.getByRole("button", { name: "Desbloquear", exact: true }).click();
+    await expect(detalhe.getByTestId("form-desbloqueio")).toBeVisible();
+    await conferirAjuda(page, "estoque (desbloquear)", 6);
+    await detalhe.getByRole("button", { name: "Desbloquear", exact: true }).click();
+    await detalhe.getByTestId("historico").getByRole("button", { name: /^Desfazer/ }).first().click();
+    await expect(detalhe.getByTestId("form-desfazer")).toBeVisible();
+    await conferirAjuda(page, "estoque (desfazer)", 3);
+    await semEstouroDeLargura(page);
+  });
+
+  test("painel da cozinha: dar entrada e contagem (escolher, contar e cancelar)", async ({ page }) => {
+    await page.goto("/estoque");
+    await page.getByRole("tab", { name: "Dar entrada" }).click();
+    await expect(page.getByTestId("form-entrada")).toBeVisible();
+    await conferirAjuda(page, "estoque (dar entrada)", 11);
+
+    await page.getByRole("tab", { name: "Contagem" }).click();
+    await page.getByLabel("Buscar item para contar").fill(ITEM);
+    await expect(page.getByRole("checkbox", { name: ITEM })).toBeVisible();
+    await conferirAjuda(page, "estoque (contagem: escolher itens)", 3);
+    await page.getByRole("checkbox", { name: ITEM }).check();
+    await page.getByRole("button", { name: "Começar a contar 1 item" }).click();
+    const tela = page.getByTestId("tela-de-contar");
+    await expect(tela.getByTestId("situacao-da-contagem")).toHaveText("Aberta");
+    await conferirAjuda(page, "estoque (contar)", 4);
+    await tela.getByRole("button", { name: "Cancelar a contagem" }).click();
+    await conferirAjuda(page, "estoque (cancelar a contagem)", 5);
+    await semEstouroDeLargura(page);
+    // Fecha sem acertar nada: o item não fica em contagem.
+    await tela.getByLabel("Por que cancelar").fill("Teste da ajuda nos campos");
+    await tela.locator("form").getByRole("button", { name: "Cancelar a contagem" }).click();
+    await expect(tela.getByTestId("situacao-da-contagem")).toHaveText("Cancelada");
+  });
+
+  test("painel do salão: itens (com área), dar entrada e contagem", async ({ page }) => {
+    await page.goto("/estoque/salao");
+    await expect(page.getByLabel("Buscar item")).toBeVisible();
+    // Busca, área (o salão tem três) e "só o que vence logo".
+    await conferirAjuda(page, "salão (painel)", 3);
+    await page.getByRole("tab", { name: "Dar entrada" }).click();
+    await expect(page.getByTestId("form-entrada")).toBeVisible();
+    await conferirAjuda(page, "salão (dar entrada)", 11);
+    await page.getByRole("tab", { name: "Contagem" }).click();
+    await expect(page.getByLabel("Buscar item para contar")).toBeVisible();
+    await conferirAjuda(page, "salão (contagem)", 4);
+    await semEstouroDeLargura(page);
+  });
+
+  test("custos: relatórios (período e área)", async ({ page }) => {
+    await page.goto("/estoque/custos");
+    await expect(page.getByTestId("relatorio-valor")).toBeVisible();
+    await conferirAjuda(page, "custos (relatórios)", 3);
+    await semEstouroDeLargura(page);
   });
 });
 
