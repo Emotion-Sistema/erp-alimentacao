@@ -16,7 +16,8 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 
 ## Assim que possível (destrava o trabalho)
 - [x] 👉 Novo visual: escolhido o A (Balcão) em 25/11/2026.
-- [ ] 👉 Testar a versão 6 do A ("Ver como" cada cargo, tema claro/escuro, tela Mesas)
+- [ ] 👉 Dar o "ok" (ou ajustar) o plano de implantação do novo visual (`cerebro/frentes/visual-limpo.md`, 25/11/2026).
+- [ ] 👉 Testar a versão 10 do A ("Ver como" cada cargo, tema claro/escuro, tela Mesas)
 - [ ] 👉 Mapa das mesas: trazer os números reais das mesas e dizer quantos lugares tem a Bancada (lugares, dentro, Mesão 8 e banheiro já respondidos em 25/11/2026). (https://claude.ai/artifact/EQbaPod1viKPCjoQjPKZbL): Produtos → Novo produto, Fichas técnicas → X-Burger → Editar receita, Produção e Estoque; dizer o que ajustar.
 - [ ] 👉 Importar as fichas reais na homologação (19/11/2026): baixar do Drive "09 Planilhas para importar" ingredientes.csv, produtos.csv e fichas.csv; importar nessa ordem (os dois primeiros em Cadastros → Importar planilha; o terceiro em Fichas técnicas → Importar, marcando "Gravar as boas"). Depois responder as perguntas 3 a 30 do relatório das fichas para as pendências sumirem.
 - [x] 👉 GitHub Actions parado (19/11/2026) ✔ resolvido: repositório tornado público: conferir em github.com → Settings → Billing and plans se acabaram os minutos do mês ou há limite de gastos; decidir se espera virar o mês ou libera um limite (serviço pago: só com o seu ok). Trava o PR 115 (Clube) e tudo o que vier depois.

@@ -51,12 +51,12 @@ Classificação: **núcleo** | **evolução** | **adiar**.
 | Avaliação após a entrega, ligada ao pedido | Qualidade com rastreio | evolução |
 | Mesa (25/11/2026): cliente chama o atendente pelo QR da mesa; a mesa pisca em azul no mapa e o atendente toca em "Estou indo" (o cliente vê) | Ninguém precisa acenar; atendimento mais rápido | evolução (junto do RC-20) · no protótipo A |
 | Mesa: "vagam em breve" (mesas que pediram a conta) no topo do mapa | Quem está na porta sabe que vai vagar | evolução · no protótipo A |
-| Mesa: transferir o cliente de mesa ou juntar duas mesas pelo popup | Grupo que cresce, cliente que muda de lugar, sem refazer pedido | evolução |
-| Mesa: lista de espera na porta (nome e pessoas) com a mesa sugerida e aviso pelo QR/app quando vagar (sem SMS pago) | Não perde cliente na fila; ordem justa | evolução |
-| Mesa: dividir a conta no popup do caixa (por pessoa ou por item) | Fecha mais rápido; une-se ao "cada um paga a sua" do RC-20 | núcleo do caixa (E17) |
-| Mesa: alerta de mesa esquecida (ocupada há X min sem pedido, ou sem ninguém passar) | Ninguém fica esquecido | evolução |
-| Mesa: "mais uma rodada" com um toque (repete bebidas da mesa) | Venda a mais sem esforço | evolução |
-| Gestão: relatório do salão (tempo médio por mesa, giro por horário, mesas mais usadas) | Saber quando reforçar a equipe e como arrumar o salão | evolução |
+| Mesa: transferir o cliente de mesa ou juntar duas mesas pelo popup | Grupo que cresce, cliente que muda de lugar, sem refazer pedido | evolução · **aprovada pelo responsável em 25/11/2026** (no protótipo A) |
+| Mesa: lista de espera na porta (nome e pessoas) com a mesa sugerida e aviso pelo QR/app quando vagar (sem SMS pago) | Não perde cliente na fila; ordem justa | evolução · **aprovada pelo responsável em 25/11/2026** (no protótipo A) |
+| Mesa: dividir a conta no popup do caixa (por pessoa ou por item) | Fecha mais rápido; une-se ao "cada um paga a sua" do RC-20 | núcleo do caixa (E17) · **aprovada pelo responsável em 25/11/2026** (no protótipo A) |
+| Mesa: alerta de mesa esquecida (ocupada há X min sem pedido, ou sem ninguém passar) | Ninguém fica esquecido | evolução · **aprovada pelo responsável em 25/11/2026** (no protótipo A) |
+| Mesa: "mais uma rodada" com um toque (repete bebidas da mesa) | Venda a mais sem esforço | evolução · **aprovada pelo responsável em 25/11/2026** (no protótipo A) |
+| Gestão: relatório do salão (tempo médio por mesa, giro por horário, mesas mais usadas) | Saber quando reforçar a equipe e como arrumar o salão | evolução · **aprovada pelo responsável em 25/11/2026** (no protótipo A) |
 | Contagem rápida diária de poucos itens no aplicativo de estoque | Mantém o estoque do sistema fiel ao real sem parar a loja | núcleo do estoque (RC-09) |
 | Lista de compras automática por fornecedor, aprovada por pessoa | Tira a conta da cabeça do responsável | núcleo do estoque (RC-09) |
 | Relatório de venda perdida por item esgotado | Mostra o custo de não repor | evolução |
