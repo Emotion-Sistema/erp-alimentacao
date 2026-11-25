@@ -48,49 +48,60 @@ export function CartaoDoProduto({
   const delivery = menor("delivery");
   const aPartirNaLoja = comTamanhos || variaNoCombo("loja");
   const aPartirNoDelivery = comTamanhos || variaNoCombo("delivery");
+  // Linha da lista (visual Balcão, decisão 0028): foto, nome e preparo, preço à direita e as ações.
   return (
-    <article className={["hor-cat", !p.ativo && "hor-cat--inativa"].filter(Boolean).join(" ")} data-testid={`produto-${p.nome}`}>
-      <header className="hor-cat__cabeca">
-        {/* Decorativa (alt vazio): o nome está logo ao lado. Sem foto, nada ocupa espaço. */}
-        {p.fotoId !== null && <img src={enderecoDaFoto(p.fotoId)} alt="" className="prod-miniatura" width={56} height={56} loading="lazy" decoding="async" data-testid="miniatura-do-produto" />}
-        {posicao !== null && <Selo>{TP.cartao.posicao(posicao)}</Selo>}
-        <h3 className="hor-cat__nome">{p.nome}</h3>
-        {!p.ativo && <Selo variante="alerta">{TP.cartao.desativado}</Selo>}
-      </header>
-      <p className="prod-preco" data-testid="preco-do-produto">
-        {aPartirNaLoja ? TP.cartao.aPartirDe(textoDosCentavos(loja)) : textoDosCentavos(loja)}
-      </p>
-      {p.combo && partes.length > 0 && (
-        <p className="prod-extras" data-testid="partes-do-produto">
-          {TP.cartao.partes(partes.map((x) => x.nome))}
-        </p>
+    <article className={["hor-cat", "prod-linha", !p.ativo && "hor-cat--inativa"].filter(Boolean).join(" ")} data-testid={`produto-${p.nome}`}>
+      {/* Decorativa (alt vazio): o nome está logo ao lado. Sem foto, a inicial no lugar. */}
+      {p.fotoId !== null ? (
+        <img src={enderecoDaFoto(p.fotoId)} alt="" className="prod-miniatura" width={48} height={48} loading="lazy" decoding="async" data-testid="miniatura-do-produto" />
+      ) : (
+        <span className="prod-miniatura prod-miniatura--vazia" aria-hidden="true">
+          {p.nome.trim().charAt(0).toUpperCase()}
+        </span>
       )}
-      {(delivery !== loja || comTamanhos || p.gruposAdicionais.length > 0) && (
-        <p className="prod-extras" data-testid="extras-do-produto">
-          {[
-            delivery !== loja && TP.cartao.delivery(aPartirNoDelivery ? TP.cartao.aPartirDe(textoDosCentavos(delivery)) : textoDosCentavos(delivery)),
-            comTamanhos && TP.cartao.tamanhos(p.tamanhos.length),
-            p.gruposAdicionais.length > 0 && TP.cartao.grupos(p.gruposAdicionais.length),
-          ]
-            .filter(Boolean)
-            .join(". ")}
-        </p>
-      )}
-      <div className="hor-cat__selos" data-testid="producao-do-produto">
-        {p.combo ? (
-          // Combo não passa pela produção como um todo: cada opção vai para a tela dela.
-          <Selo variante="info">{TP.cartao.combo}</Selo>
-        ) : p.tipoProducaoId === null ? (
-          <Selo>{TP.cartao.semProducao}</Selo>
-        ) : (
-          <>
-            <Selo variante="info">{tipo ? TP.cartao.tipo(tipo.nome, NOME_DA_AREA_DE_PRODUCAO[tipo.area]) : TP.cartao.comProducao}</Selo>
-            {p.tempoPreparoMin !== null && <Selo>{TP.cartao.tempo(p.tempoPreparoMin)}</Selo>}
-          </>
+      <div className="prod-linha__corpo">
+        <header className="hor-cat__cabeca">
+          <h3 className="hor-cat__nome">{p.nome}</h3>
+          {posicao !== null && <Selo>{TP.cartao.posicao(posicao)}</Selo>}
+          {!p.ativo && <Selo variante="alerta">{TP.cartao.desativado}</Selo>}
+        </header>
+        <div className="hor-cat__selos" data-testid="producao-do-produto">
+          {p.combo ? (
+            // Combo não passa pela produção como um todo: cada opção vai para a tela dela.
+            <Selo variante="info">{TP.cartao.combo}</Selo>
+          ) : p.tipoProducaoId === null ? (
+            <Selo>{TP.cartao.semProducao}</Selo>
+          ) : (
+            <>
+              <Selo variante="info">{tipo ? TP.cartao.tipo(tipo.nome, NOME_DA_AREA_DE_PRODUCAO[tipo.area]) : TP.cartao.comProducao}</Selo>
+              {p.tempoPreparoMin !== null && <Selo>{TP.cartao.tempo(p.tempoPreparoMin)}</Selo>}
+            </>
+          )}
+          {nomeDaCategoria && <Selo>{TP.cartao.categoria(nomeDaCategoria)}</Selo>}
+        </div>
+        {p.combo && partes.length > 0 && (
+          <p className="prod-extras" data-testid="partes-do-produto">
+            {TP.cartao.partes(partes.map((x) => x.nome))}
+          </p>
         )}
-        {nomeDaCategoria && <Selo>{TP.cartao.categoria(nomeDaCategoria)}</Selo>}
+        {p.descricao && <p className="hor-cat__descricao">{p.descricao}</p>}
       </div>
-      {p.descricao && <p className="hor-cat__descricao">{p.descricao}</p>}
+      <div className="prod-linha__preco">
+        <p className="prod-preco" data-testid="preco-do-produto">
+          {aPartirNaLoja ? TP.cartao.aPartirDe(textoDosCentavos(loja)) : textoDosCentavos(loja)}
+        </p>
+        {(delivery !== loja || comTamanhos || p.gruposAdicionais.length > 0) && (
+          <p className="prod-extras" data-testid="extras-do-produto">
+            {[
+              delivery !== loja && TP.cartao.delivery(aPartirNoDelivery ? TP.cartao.aPartirDe(textoDosCentavos(delivery)) : textoDosCentavos(delivery)),
+              comTamanhos && TP.cartao.tamanhos(p.tamanhos.length),
+              p.gruposAdicionais.length > 0 && TP.cartao.grupos(p.gruposAdicionais.length),
+            ]
+              .filter(Boolean)
+              .join(". ")}
+          </p>
+        )}
+      </div>
       {podeGerenciar && (
         <div className="hor-cat__acoes">
           <Botao variante="secundario" aria-label={TP.cartao.editar(p.nome)} onClick={aoEditar}>

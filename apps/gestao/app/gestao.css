@@ -67,16 +67,12 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 }
 .casca__marca { display: none; }
 .casca__titulo { min-width: 0; display: grid; gap: 1px; }
-.casca__app { margin: 0; font-size: 1rem; font-weight: var(--peso-forte); line-height: 1.25; letter-spacing: -0.01em; }
 .casca__quem { display: block; min-width: 0; overflow-wrap: anywhere; line-height: 1.35; font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
 .casca__quem > * { display: inline; }
 .casca__quem > strong { font-weight: 400; }
 .casca__quem > strong::after { content: " · " / ""; } /* o leitor de tela não lê o ponto */
 .casca__quem strong[data-testid="cargo-ativo"] { color: var(--cor-texto); font-weight: var(--peso-forte); }
 .casca__quem-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-/* Lançador (sem aplicativo): o nome da pessoa vira o título. */
-.casca__titulo:not(:has(.casca__app)) .casca__quem > strong:first-child { display: block; font-size: 1rem; font-weight: var(--peso-forte); color: var(--cor-texto); }
-.casca__titulo:not(:has(.casca__app)) .casca__quem > strong:first-child::after { content: none; }
 .casca__lado { display: flex; align-items: center; gap: var(--espaco-2); margin-left: auto; flex: none; }
 
 /* Sino e conta: botões redondos de 48 px, sem moldura. */
@@ -95,8 +91,8 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
   position: absolute; top: 2px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center;
   border-radius: 999px; font-size: 0.75rem; line-height: 1; box-shadow: 0 0 0 2px var(--cor-fundo);
 }
-.casca__conta-botao { width: 40px; height: 40px; min-height: 40px; margin: 4px; background: var(--cor-ouro); color: var(--cor-ouro-texto); font-size: 1rem; box-shadow: 0 0 0 1.5px var(--cor-borda); } /* contorno 3:1 sobre o fundo claro */
-.casca__conta-botao::after { content: ""; position: absolute; inset: -4px; } /* alvo de toque de 48 px */
+.casca__conta-botao { width: 44px; height: 44px; min-height: 44px; margin: 2px; background: var(--cor-ouro); color: var(--cor-ouro-texto); font-size: 1rem; box-shadow: 0 0 0 1.5px var(--cor-borda); } /* contorno 3:1 sobre o fundo claro */
+.casca__conta-botao::after { content: ""; position: absolute; inset: -2px; } /* alvo de toque de 48 px */
 .casca__conta-botao:hover { background: color-mix(in srgb, var(--cor-ouro) 80%, var(--cor-texto)); }
 
 /* Conta: janela pequena abaixo do botão (computador); gaveta de baixo no celular. */
@@ -139,7 +135,7 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
   .casca__marca { display: inline-flex; align-items: center; min-height: var(--alvo-toque); flex: none; border-radius: var(--raio-pequeno); }
   .casca__simbolo { display: block; width: 44px; height: auto; }
   .casca__titulo { flex: 1; }
-  .casca__app, .casca__quem { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .casca__tela, .casca__quem { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .casca__lado { gap: 0; }
 
   .casca__conta {

@@ -102,8 +102,6 @@ export async function entrar(
   await aguardarInicio(page);
 }
 
-/** Garante que a página não ficou mais larga do que a tela. */
-/** A janela (dialog) abre no centro da tela, não grudada num canto (o responsável viu deslocada em 17/11/2026). */
 /**
  * Aviso de erro ou sucesso da página (role="alert"). Deixa de fora o anunciador de troca de
  * página do Next (`#__next-route-announcer__`), que também é role="alert" e aparece depois de
@@ -112,6 +110,11 @@ export async function entrar(
 export const avisoNaTela = (page: Page) =>
   page.locator('[role="alert"]:not(#__next-route-announcer__)');
 
+/**
+ * A janela (dialog) abre no lugar certo (o responsável viu deslocada em 17/11/2026). No visual Balcão
+ * (decisão 0028) ela é uma gaveta: encostada na direita, da altura da tela inteira. O nome ficou o
+ * mesmo para não mexer em todos os testes.
+ */
 export async function janelaNoCentro(page: Page, janela: Locator) {
   const tela = page.viewportSize()!;
   // Espera a animação de entrada terminar (ela desliza alguns pixels).
@@ -119,18 +122,19 @@ export async function janelaNoCentro(page: Page, janela: Locator) {
     .poll(
       async () => {
         const c = (await janela.boundingBox())!;
-        const horizontal = Math.abs(c.x - (tela.width - c.x - c.width));
-        const vertical =
-          c.height < tela.height - 4
-            ? Math.abs(c.y - (tela.height - c.y - c.height))
-            : 0;
-        return Math.max(horizontal, vertical);
+        const direita = Math.abs(tela.width - (c.x + c.width));
+        const alto = Math.abs(c.y);
+        const altura = Math.abs(tela.height - c.height);
+        return Math.max(direita, alto, altura);
       },
-      { message: "janela centralizada na tela" },
+      { message: "janela em gaveta, encostada na direita e da altura da tela" },
     )
     .toBeLessThanOrEqual(2);
 }
+/** Nome novo e certo para a mesma conferência (a janela agora é gaveta). */
+export const janelaEmGaveta = janelaNoCentro;
 
+/** Garante que a página não ficou mais larga do que a tela. */
 export async function semEstouroDeLargura(page: Page) {
   const { rolagem, largura } = await page.evaluate(() => ({
     rolagem: document.documentElement.scrollWidth,

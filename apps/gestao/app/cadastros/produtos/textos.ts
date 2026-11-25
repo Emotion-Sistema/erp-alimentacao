@@ -13,6 +13,13 @@ export const TP = {
     categoriaDesativada: "Esta categoria está desativada.",
     desativados: "Desativados",
     desativadosExplicacao: "Não aparecem no cardápio. Nada foi apagado: dá para reativar.",
+    todas: "Todas",
+    filtro: "Filtrar por categoria",
+    buscar: "Buscar produto",
+    buscarExemplo: "Buscar produto (ex.: X-Salada)",
+    nadaNaBusca: (q: string) => `Nenhum produto com "${q}".`,
+    nadaNoFiltro: "Nenhum produto nesta categoria.",
+    quantos: (n: number) => `${n} produtos, ativos e desativados`,
   },
   cartao: {
     posicao: (n: number) => `${n}º na categoria`,
