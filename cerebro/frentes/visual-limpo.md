@@ -152,3 +152,9 @@ Produção (cores por etapa), Mesas e as 6 ideias do salão (E17), painel com va
   a tela, com fotos das telas no PR. Rever o adendo de navegação no celular da 0019 (o A usa barra de baixo).
 - Depois da escolha: registro de decisão novo, mudança no `tema.css` e na casca, tela a tela, com as
   fotos das telas no PR.
+
+## Próximo passo (para o próximo chat)
+Responsável deu "ok" (25/11/2026) para a parte 3: passar Ingredientes, Estoque, Funcionários e Fichas para o
+formato de lista do protótipo (como Produtos: `balcao-barra`, `balcao-lista`, linhas `hor-cat`), uma tela por PR,
+com a skill `tela-da-gestao` e fotos antes/depois (`scripts/comparar-telas.ts`). Não foi feito nesta sessão por
+falta de orçamento de tokens.

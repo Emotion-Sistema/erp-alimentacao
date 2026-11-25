@@ -157,7 +157,9 @@ describe("foto do produto", () => {
     expect(ops).toEqual(["criar", "enviar_foto", "trocar_foto", "tirar_foto"]);
     expect(JSON.stringify(aud)).not.toContain(b64(arq.conteudo).slice(0, 40));
     expect((await erroDe(salvarFotoDoProduto(db, cozinheira, { produtoId: p, arquivo: "x" }))).codigo).toBe("sem_permissao");
-    expect((await erroDe(arquivoDaFoto(db, atendente, f1.id))).codigo).toBe("sem_permissao");
+    // Quem lança pedido vê a foto (Novo pedido, 25/11/2026); o caixa não lança nem cadastra.
+    expect((await arquivoDaFoto(db, atendente, f1.id)).sha256).toBe(f1.sha256);
+    expect((await erroDe(arquivoDaFoto(db, await atorDoCargo(db, "caixa"), f1.id))).codigo).toBe("sem_permissao");
     expect((await erroDe(arquivoDaFoto(db, null, f1.id))).codigo).toBe("nao_autenticado");
   });
 

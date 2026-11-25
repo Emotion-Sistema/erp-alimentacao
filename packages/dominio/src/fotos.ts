@@ -9,6 +9,7 @@
 import { createHash } from "node:crypto";
 import sharp, { type Metadata, type OutputInfo } from "sharp";
 import { z } from "zod";
+import { pode } from "./permissoes";
 import { sql, type Banco } from "@erp/banco";
 import { auditar } from "./auditoria";
 import { ErroDeRegra } from "./erros";
@@ -216,7 +217,9 @@ export async function removerFotoDoProduto(db: Banco, ator: Ator | null, dados: 
 /** O arquivo de uma foto (ativa ou do histórico), para a equipe ver. */
 export async function arquivoDaFoto(db: Banco, ator: Ator | null, idDaFoto: unknown): Promise<{ conteudo: Buffer; tipo: "image/webp"; sha256: string }> {
   // Permissão primeiro; depois o id (só dígitos: nada de "0x1", " 1" ou "1e3").
-  await exigir(db, ator, "cadastros.ver", { tipo: "produto_foto" });
+  // Quem lança pedido também vê a foto no cardápio do Novo pedido (pedido do responsável, 25/11/2026).
+  const acao = ator && pode(ator.cargoAtivo, "pedidos.lancar") ? "pedidos.lancar" : "cadastros.ver";
+  await exigir(db, ator, acao, { tipo: "produto_foto" });
   const texto = typeof idDaFoto === "number" ? String(idDaFoto) : idDaFoto;
   const fotoId = typeof texto === "string" && /^[1-9][0-9]{0,9}$/.test(texto) ? Number(texto) : 0;
   if (!fotoId || fotoId > MAIOR_ID) throw new ErroDeRegra("nao_encontrado", "Foto não encontrada.");

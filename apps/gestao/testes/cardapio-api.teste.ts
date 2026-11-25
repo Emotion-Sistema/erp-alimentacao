@@ -118,10 +118,13 @@ describe("GET /api/cardapio", () => {
 describe("contas da comanda (centavos inteiros)", () => {
   it("itens, serviço de 10% arredondado ao centavo e total", () => {
     expect(contasDaComanda([])).toEqual({ itens: 0, quantidade: 0, servico: 0, total: 0 });
-    expect(contasDaComanda([{ precoCentavos: 600, quantidade: 2 }, { precoCentavos: 650, quantidade: 1 }])).toEqual({ itens: 1850, quantidade: 3, servico: 185, total: 2035 });
+    // Sem serviço por padrão (a casa não cobra, 25/11/2026); com 10% ligado, arredonda ao centavo.
+    expect(contasDaComanda([{ precoCentavos: 600, quantidade: 2 }, { precoCentavos: 650, quantidade: 1 }])).toEqual({ itens: 1850, quantidade: 3, servico: 0, total: 1850 });
+    expect(contasDaComanda([{ precoCentavos: 600, quantidade: 2 }, { precoCentavos: 650, quantidade: 1 }], 10)).toEqual({ itens: 1850, quantidade: 3, servico: 185, total: 2035 });
+    expect(() => contasDaComanda([], 10.5)).toThrow();
     // 10% de 1.995 = 199,5 -> 200 (arredonda ao centavo mais perto).
-    expect(contasDaComanda([{ precoCentavos: 1995, quantidade: 1 }])).toEqual({ itens: 1995, quantidade: 1, servico: 200, total: 2195 });
-    expect(contasDaComanda([{ precoCentavos: 1994, quantidade: 1 }]).servico).toBe(199);
+    expect(contasDaComanda([{ precoCentavos: 1995, quantidade: 1 }], 10)).toEqual({ itens: 1995, quantidade: 1, servico: 200, total: 2195 });
+    expect(contasDaComanda([{ precoCentavos: 1994, quantidade: 1 }], 10).servico).toBe(199);
   });
   it("recusa preço ou quantidade que não seja inteiro", () => {
     expect(() => contasDaComanda([{ precoCentavos: 10.5, quantidade: 1 }])).toThrow();

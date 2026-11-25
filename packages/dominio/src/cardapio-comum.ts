@@ -17,14 +17,14 @@ export type ItemDoCardapio = {
   tempoPreparoMin: number | null;
 };
 
-/** Taxa de serviço do salão: 10% sobre os itens (como no protótipo). HIPÓTESE: pendência 42 de
- * docs/04-pendencias.md ainda aberta (há serviço? é opcional?). Confirmar com o responsável antes da E13. */
-export const SERVICO_PORCENTO = 10;
+/** Taxa de serviço do salão. Resposta do responsável (25/11/2026, pendência 42): a casa NÃO cobra; o sistema
+ * deve permitir ligar (ex.: 10%) numa configuração, que entra com os pedidos (E13). Por enquanto 0 = desligada. */
+export const SERVICO_PORCENTO = 0;
 
 export type LinhaDaComanda = { precoCentavos: number; quantidade: number };
 
-/** Itens, serviço (10%, arredondado ao centavo) e total da comanda, em centavos inteiros. */
-export function contasDaComanda(linhas: readonly LinhaDaComanda[]): {
+/** Itens, serviço (porcentagem ligada, arredondada ao centavo; 0 = sem serviço) e total, em centavos inteiros. */
+export function contasDaComanda(linhas: readonly LinhaDaComanda[], servicoPorcento: number = SERVICO_PORCENTO): {
   itens: number;
   quantidade: number;
   servico: number;
@@ -38,6 +38,8 @@ export function contasDaComanda(linhas: readonly LinhaDaComanda[]): {
     itens += l.precoCentavos * l.quantidade;
     quantidade += l.quantidade;
   }
-  const servico = Math.round((itens * SERVICO_PORCENTO) / 100);
+  if (!Number.isSafeInteger(servicoPorcento) || servicoPorcento < 0 || servicoPorcento > 100)
+    throw new Error("A taxa de serviço precisa ser uma porcentagem inteira de 0 a 100.");
+  const servico = Math.round((itens * servicoPorcento) / 100);
   return { itens, quantidade, servico, total: itens + servico };
 }

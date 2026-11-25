@@ -52,7 +52,7 @@ Na coluna "Trava", os códigos F são as fases antigas; a ordem atual usa etapas
 | 39 | Motoboy usa celular próprio (pode ser iPhone) ou aparelho da empresa? | Aplicativo do motoboy e avisos | Celular próprio, qualquer sistema | F9b |
 | 40 | Como o motoboy próprio é remunerado (por entrega, por região, fixo)? | Prestação de contas e custo da entrega | Valor por entrega, por região | F9b |
 | 41 | **Parcial em 13/11/2026:** um caixa, maquininha avulsa (baixa manual). Falta: gaveta e impressora ligadas ao computador? Qual operadora da maquininha? | Conferência e impressão | Baixa manual com conferência no fechamento | E17 |
-| 42 | Há taxa de serviço (10%) ou gorjeta? Como é repassada? | Conta e fechamento | Opcional, mostrada separada | F5 |
+| 42 | Há taxa de serviço (10%) ou gorjeta? Como é repassada? | Conta e fechamento | **Respondida (25/11/2026): a casa não cobra; o sistema deixa ligar numa configuração** (E13) | F5 |
 | 43 | O que a contabilidade pede hoje, em que formato e para qual sistema? Com que frequência? | Pacote contábil | PDF com planilhas e XML, mensal | F11 |
 | 44 | Sorvete: o controle é por pote inteiro? Como é feito o pedido de reposição à franquia? | Aba de potes | Por pote; pedido feito fora do sistema pelo gerente | F5 |
 | 45 | Limite de dinheiro em gaveta e tempo máximo de conta entregue sem pagamento antes de alertar | Avisos do caixa | A definir com o cliente | F5 |

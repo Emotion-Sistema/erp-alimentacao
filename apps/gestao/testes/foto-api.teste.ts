@@ -118,6 +118,11 @@ describe("foto do produto pela API", () => {
     const { id, sha256 } = (await env.json()) as { id: number; sha256: string };
     const ver = await r.verFotoDoProduto(req(`/api/cadastros/produtos/foto/${id}`, "GET", cozinheira), { id: String(id) });
     expect(ver.status).toBe(200);
+    // Quem lança pedido vê a foto no Novo pedido (25/11/2026); quem não lança nem cadastra, não.
+    const atendente = await entrarComo("atendente");
+    expect((await r.verFotoDoProduto(req(`/api/cadastros/produtos/foto/${id}`, "GET", atendente), { id: String(id) })).status).toBe(200);
+    const motoboy = await entrarComo("motoboy");
+    expect((await r.verFotoDoProduto(req(`/api/cadastros/produtos/foto/${id}`, "GET", motoboy), { id: String(id) })).status).toBe(403);
     expect(ver.headers.get("content-type")).toBe("image/webp");
     expect(ver.headers.get("x-content-type-options")).toBe("nosniff");
     expect(ver.headers.get("content-security-policy")).toContain("sandbox");
