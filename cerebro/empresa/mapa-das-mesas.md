@@ -35,3 +35,8 @@ Fonte: desenho à mão enviado no chat em 25/11/2026 (não guardado no repositó
 ## Lugares confirmados (25/11/2026)
 Salão (frente): 6 mesas de 4 cadeiras e o Mesão de 6. Salão menor (área da TV): 4 mesas, 3 de 2 cadeiras e 1 de 3
 (no sistema, a mesa 4, a maior do esboço: hipótese). Bancada: 2 cadeiras. Falta só a numeração real.
+
+
+## 25/11/2026: numeração e balcão
+- Onde estava "Entrada (calçada)" no mapa virou um **balcão de 2 lugares** (mesa 12 no padrão, código `balcao`).
+- **Supervisor e acima** (supervisor, gerente geral, administrador, dono) escolhem o número de cada mesa em Mesas > "Numerar mesas" (ação `mesas.numerar`, migração 0027, `POST /api/mesas/numeros`). A mesa é a mesma pelo código da posição; o número é só o nome. Ainda falta o responsável dizer qual mesa do salão menor tem 3 lugares (hipótese: a 4).

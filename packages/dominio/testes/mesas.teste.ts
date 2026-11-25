@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import { FAIXAS_DA_LOJA, MARCOS_DA_LOJA, MESAS_DA_LOJA, mesaDaLoja, nomeDaMesa } from "../src/mesas";
 
 describe("mesas da loja", () => {
-  it("são 11 mesas, numeradas de 1 a 11 sem repetir", () => {
-    expect(MESAS_DA_LOJA).toHaveLength(11);
+  it("são 12 lugares de sentar: 11 mesas e o Balcão onde era a entrada; números padrão de 1 a 12, códigos fixos sem repetir", () => {
+    expect(MESAS_DA_LOJA).toHaveLength(12);
     const numeros = MESAS_DA_LOJA.map((m) => m.numero).sort((a, b) => a - b);
-    expect(numeros).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(numeros).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(new Set(MESAS_DA_LOJA.map((m) => m.codigo)).size).toBe(12);
+    expect(mesaDaLoja(12)).toMatchObject({ codigo: "balcao", apelido: "Balcão", lugares: 2, coluna: 1, linha: 8 });
+    expect(MARCOS_DA_LOJA.some((k) => /entrada/i.test(k.texto))).toBe(false);
   });
 
   it("lugares: salão menor 3 de 2 e 1 de 3, Mesão 6, demais 4 (respostas do responsável, 25/11/2026)", () => {
@@ -14,7 +17,7 @@ describe("mesas da loja", () => {
     expect(mesaDaLoja(4)).toMatchObject({ area: "tv", lugares: 3 });
     expect(mesaDaLoja(9)).toMatchObject({ area: "frente", lugares: 6, apelido: "Mesão" });
     for (const n of [5, 6, 7, 8, 10, 11]) expect(mesaDaLoja(n), `mesa ${n}`).toMatchObject({ area: "frente", lugares: 4 });
-    expect(MESAS_DA_LOJA.reduce((s, m) => s + m.lugares, 0)).toBe(3 * 2 + 3 + 6 + 6 * 4);
+    expect(MESAS_DA_LOJA.reduce((s, m) => s + m.lugares, 0)).toBe(3 * 2 + 3 + 6 + 6 * 4 + 2);
   });
 
   it("centro da frente tem 5, 6, 7 e 11; direita tem 8, Mesão e 10", () => {
@@ -45,6 +48,7 @@ describe("mesas da loja", () => {
   it("nome da mesa", () => {
     expect(nomeDaMesa(mesaDaLoja(9)!)).toBe("Mesa 9 (Mesão)");
     expect(nomeDaMesa(mesaDaLoja(4)!)).toBe("Mesa 4");
-    expect(mesaDaLoja(12)).toBeUndefined();
+    expect(nomeDaMesa(mesaDaLoja(12)!)).toBe("Mesa 12 (Balcão)");
+    expect(mesaDaLoja(13)).toBeUndefined();
   });
 });

@@ -60,6 +60,7 @@ export const ACOES = [
   "clube.gerenciar",
   // Pedido e atendimento
   "pedidos.lancar",
+  "mesas.numerar", // escolher o número de cada mesa do mapa (supervisor e acima, 25/11/2026)
   "pedidos.ver_proprios",
   "pedidos.ver_todos",
   "pedidos.alterar",
@@ -140,6 +141,7 @@ export const PERMISSOES: Readonly<Record<Cargo, readonly Acao[]>> = {
     "producao.ver", // cozinha só para ver
     "estoque.salao",
     "caixa.autorizar",
+    "mesas.numerar",
   ],
   // Atendente altera pedido; os supervisores são avisados e o gerente vê numa aba própria (14/11/2026).
   atendente: ["pedidos.lancar", "pedidos.ver_proprios", "pedidos.alterar", "pedidos.marcar_entregue"],

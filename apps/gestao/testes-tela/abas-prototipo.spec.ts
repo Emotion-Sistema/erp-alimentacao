@@ -29,21 +29,21 @@ async function alvosGrandes(page: Page, alvos: Locator) {
 }
 
 test.describe("Mesas", () => {
-  test("atendente: mapa com as 11 mesas livres; o popup abre e leva ao novo pedido da mesa", async ({ page }) => {
+  test("atendente: mapa com as 12 mesas livres (11 e o Balcão); o popup abre e leva ao novo pedido da mesa", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await entrar(page, "atendente");
     await page.goto("/atendimento");
     await expect(page.getByRole("heading", { level: 1, name: "Mesas" })).toBeAttached();
     const mesas = page.locator("button.mesa");
-    await expect(mesas).toHaveCount(11);
-    await expect(page.locator("button.mesa.mesa--livre")).toHaveCount(11);
-    await expect(page.getByTestId("mesas-livres")).toHaveText("11 livres de 11");
+    await expect(mesas).toHaveCount(12);
+    await expect(page.locator("button.mesa.mesa--livre")).toHaveCount(12);
+    await expect(page.getByTestId("mesas-livres")).toHaveText("12 livres de 12");
     await expect(page.getByRole("button", { name: /^Todas/ })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByText("quando os pedidos começarem a funcionar (etapa E13)")).toBeVisible();
 
     // Filtro "Ocupadas": nenhuma está ocupada, então todas ficam apagadas (nada some do mapa).
     await page.getByRole("button", { name: /^Ocupadas/ }).click();
-    await expect(page.locator("button.mesa.mesa--apagada")).toHaveCount(11);
+    await expect(page.locator("button.mesa.mesa--apagada")).toHaveCount(12);
     await page.getByRole("button", { name: /^Todas/ }).click();
     await expect(page.locator("button.mesa.mesa--apagada")).toHaveCount(0);
 
@@ -68,12 +68,50 @@ test.describe("Mesas", () => {
     await page.waitForURL("**/atendimento/novo-pedido?mesa=4");
   });
 
+  test("supervisor numera as mesas (troca duas e renumera o Balcão); repetido é recusado; atendente não vê o botão", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await entrar(page, "atendente");
+    await page.goto("/atendimento");
+    await expect(page.locator("button.mesa")).toHaveCount(12);
+    await expect(page.getByRole("button", { name: "Numerar mesas" })).toHaveCount(0);
+
+    await entrar(page, "supervisor");
+    await page.goto("/atendimento");
+    const padrao = { m1: 1, m2: 2, m3: 3, m4: 4, m5: 5, m6: 6, m7: 7, m8: 8, m9: 9, m10: 10, m11: 11, balcao: 12 };
+    try {
+      await page.getByRole("button", { name: "Numerar mesas" }).click();
+      const janela = page.getByTestId("janela-numerar");
+      await expect(janela).toBeVisible();
+      // Repetido: o servidor recusa e a gaveta continua aberta com o aviso.
+      await janela.getByTestId("numero-m2").fill("1");
+      await janela.getByRole("button", { name: "Gravar números" }).click();
+      await expect(janela.getByText(/está em duas mesas/)).toBeVisible();
+      // Troca 1 e 2 e muda o Balcão para 40.
+      await janela.getByTestId("numero-m1").fill("2");
+      await janela.getByTestId("numero-balcao").fill("40");
+      await janela.getByRole("button", { name: "Gravar números" }).click();
+      await expect(janela).toHaveCount(0);
+      await expect(page.getByTestId("mesa-40")).toBeVisible();
+      await expect(page.getByTestId("mesa-12")).toHaveCount(0);
+      await page.getByTestId("mesa-2").click();
+      const popup = page.getByRole("dialog", { name: /Mesa 2/ });
+      await expect(popup).toContainText("Área da TV");
+      await popup.getByRole("link", { name: "Abrir pedido" }).click();
+      await page.waitForURL("**/atendimento/novo-pedido?mesa=2");
+      await expect(page.getByText("Mesa 2", { exact: true }).first()).toBeVisible();
+      await semEstouroDeLargura(page);
+    } finally {
+      const r = await page.request.post("/api/mesas/numeros", { data: { numeros: padrao } });
+      expect(r.ok(), await r.text()).toBe(true);
+    }
+  });
+
   test("caixa vê o mapa sem o botão de abrir pedido", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await entrar(page, "caixa");
     await page.goto("/caixa/mesas");
-    await expect(page.locator("button.mesa")).toHaveCount(11);
-    await expect(page.getByTestId("mesas-livres")).toHaveText("11 livres de 11");
+    await expect(page.locator("button.mesa")).toHaveCount(12);
+    await expect(page.getByTestId("mesas-livres")).toHaveText("12 livres de 12");
     await page.getByTestId("mesa-1").click();
     const popup = page.getByRole("dialog", { name: /Mesa 1/ });
     await expect(popup).toBeVisible();
@@ -88,7 +126,7 @@ test.describe("Mesas", () => {
     for (const t of TAMANHOS) {
       await page.setViewportSize(t);
       await page.goto("/atendimento");
-      await expect(page.locator("button.mesa")).toHaveCount(11);
+      await expect(page.locator("button.mesa")).toHaveCount(12);
       await semEstouroDeLargura(page);
       await alvosGrandes(page, page.locator(".casca__conteudo").locator("button.mesa, .balcao-chip"));
     }

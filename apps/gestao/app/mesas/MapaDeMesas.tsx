@@ -5,16 +5,16 @@
  * marcos e cada mesa desenhada com as cadeiras; filtros por situação e um popup ao tocar na mesa.
  *
  * Os pedidos ainda não existem (etapa E13): toda mesa aparece Livre. Nada aqui é inventado: a
- * contagem vem do desenho da loja (`MESAS_DA_LOJA`). Usado em Atendimento (/atendimento) e no
+ * contagem vem do desenho da loja (`MESAS_DA_LOJA`, com os números escolhidos, que vêm do servidor). Usado em Atendimento (/atendimento) e no
  * Caixa (/caixa/mesas). `podeAbrirPedido` (pedidos.lancar) vem do servidor; sem ele, nada de botão.
  */
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { Icone } from "@erp/interface";
+import { Botao, Icone } from "@erp/interface";
+import { NumerarMesas } from "./NumerarMesas";
 import {
   FAIXAS_DA_LOJA,
   MARCOS_DA_LOJA,
-  MESAS_DA_LOJA,
   NOME_DA_AREA_DA_MESA,
   type Mesa,
 } from "@erp/dominio/mesas";
@@ -33,13 +33,23 @@ const FILTROS: { valor: Filtro; texto: string }[] = [
 /** Sem pedidos (antes da E13) toda mesa está livre. Quando os pedidos chegarem, a situação vem deles. */
 const situacaoDe = (_m: Mesa): Situacao => "livre";
 
-export function MapaDeMesas({ podeAbrirPedido }: { podeAbrirPedido: boolean }) {
+export function MapaDeMesas({
+  mesas,
+  podeAbrirPedido,
+  podeNumerar,
+}: {
+  mesas: readonly Mesa[];
+  podeAbrirPedido: boolean;
+  /** Supervisor e acima (mesas.numerar): botão "Numerar mesas". */
+  podeNumerar: boolean;
+}) {
   const [filtro, setFiltro] = useState<Filtro>("todas");
+  const [numerando, setNumerando] = useState(false);
   const [aberta, setAberta] = useState<Mesa | null>(null);
   const janela = useRef<HTMLDialogElement>(null);
 
-  const total = MESAS_DA_LOJA.length;
-  const quantas = (s: Filtro) => (s === "todas" ? total : MESAS_DA_LOJA.filter((m) => situacaoDe(m) === s).length);
+  const total = mesas.length;
+  const quantas = (s: Filtro) => (s === "todas" ? total : mesas.filter((m) => situacaoDe(m) === s).length);
   const livres = quantas("livre");
 
   function abrir(m: Mesa) {
@@ -66,14 +76,22 @@ export function MapaDeMesas({ podeAbrirPedido }: { podeAbrirPedido: boolean }) {
             </button>
           ))}
         </div>
-        <p className="mesas-resumo" data-testid="mesas-livres">
-          <b>{livres}</b> livres de {total}
-        </p>
+        <div className="balcao-acoes">
+          <p className="mesas-resumo" data-testid="mesas-livres">
+            <b>{livres}</b> livres de {total}
+          </p>
+          {podeNumerar && (
+            <Botao variante="secundario" onClick={() => setNumerando(true)}>
+              Numerar mesas
+            </Botao>
+          )}
+        </div>
       </div>
+      {numerando && <NumerarMesas mesas={mesas} aoFechar={() => setNumerando(false)} />}
 
       <section className="mesas-zona" aria-labelledby="mesas-loja">
         <h2 id="mesas-loja" className="mesas-zona__titulo">
-          Loja <span>desenho provisório, a confirmar com os números reais das mesas</span>
+          Loja <span>desenho provisório{podeNumerar ? "; os números se mudam em Numerar mesas" : ""}</span>
         </h2>
         <div className="mesas-planta">
           {MARCOS_DA_LOJA.map((k) => (
@@ -94,13 +112,13 @@ export function MapaDeMesas({ podeAbrirPedido }: { podeAbrirPedido: boolean }) {
               {f.texto}
             </p>
           ))}
-          {MESAS_DA_LOJA.map((m) => {
+          {mesas.map((m) => {
             const s = situacaoDe(m);
             const visivel = filtro === "todas" || filtro === s;
             const meio = Math.ceil(m.lugares / 2);
             return (
               <button
-                key={m.numero}
+                key={m.codigo}
                 type="button"
                 className={`mesa mesa--${s} mesa--l${m.lugares}${visivel ? "" : " mesa--apagada"}${aberta?.numero === m.numero ? " mesa--escolhida" : ""}`}
                 style={{ gridColumn: m.coluna, gridRow: m.linha }}

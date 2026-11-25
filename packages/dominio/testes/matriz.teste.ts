@@ -9,7 +9,7 @@ import { ACOES, ACOES_EXCLUSIVAS, ACOES_FINANCEIRAS, CARGOS, PERMISSOES, QUEM_AT
 const GESTAO_SEM_FINANCEIRO: Acao[] = [
   "usuarios.ver", "usuarios.gerenciar", "codigos.desbloquear", "estacoes.gerenciar", "estacoes.ver", "auditoria.ver",
   "comunicados.enviar", "horarios.gerenciar", "cadastros.ver", "cadastros.gerenciar", "clube.ver", "clube.gerenciar",
-  "pedidos.lancar", "pedidos.ver_proprios", "pedidos.ver_todos", "pedidos.alterar", "pedidos.cancelar",
+  "pedidos.lancar", "mesas.numerar", "pedidos.ver_proprios", "pedidos.ver_todos", "pedidos.alterar", "pedidos.cancelar",
   "producao.ver", "estoque.cozinha", "estoque.salao", "compras.gerenciar", "compras.materiais", "custos.ver",
   "estoque.desfazer", "caixa.autorizar", "motoboys.organizar",
 ];
@@ -20,7 +20,7 @@ const ESPERADO: Record<Cargo, Acao[]> = {
   administrador: [...GESTAO_SEM_FINANCEIRO, "configuracao.gerenciar", ...FINANCEIRO],
   gerente_geral: GESTAO_SEM_FINANCEIRO,
   financeiro: [...FINANCEIRO, "custos.ver", "compras.materiais", "cadastros.ver"],
-  supervisor: ["usuarios.ver", "codigos.desbloquear", "estacoes.ver", "cadastros.ver", "pedidos.lancar", "pedidos.ver_todos", "pedidos.alterar", "pedidos.cancelar", "producao.ver", "estoque.salao", "caixa.autorizar"],
+  supervisor: ["usuarios.ver", "codigos.desbloquear", "estacoes.ver", "cadastros.ver", "pedidos.lancar", "pedidos.ver_todos", "pedidos.alterar", "pedidos.cancelar", "producao.ver", "estoque.salao", "caixa.autorizar", "mesas.numerar"],
   atendente: ["pedidos.lancar", "pedidos.ver_proprios", "pedidos.alterar", "pedidos.marcar_entregue"],
   caixa: ["caixa.operar", "pagamento.marcar_pago", "motoboys.organizar", "pedidos.ver_todos"],
   cozinheira: ["producao.ver", "producao.operar", "producao.sensivel", "estoque.cozinha", "cadastros.ver"],
