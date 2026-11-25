@@ -544,7 +544,8 @@ describe("contagem cega e desfazer", () => {
     await paraCafeteria(x, "120");
     const doSup = (await recebimentosPendentes(db, supervisor)).find((r) => r.itemId !== undefined && r.nome.startsWith("Biscoito"))!;
     expect(doSup).toMatchObject({ quantidade: null, emContagem: true });
-    expect(JSON.stringify(doSup)).not.toContain("120");
+    // Nenhum campo traz a quantidade (quantidade vem em texto; comparar o JSON inteiro falhava quando um id era 120).
+    expect(JSON.stringify(doSup, (_k, v: unknown) => (typeof v === "string" && /^120(\.0+)?$/.test(v) ? "VAZOU" : v))).not.toContain("VAZOU");
     expect(await areaNoPainel(supervisor, x, "cafeteria")).toMatchObject({ aReceber: null, livre: null, emContagem: true });
     // A gestão continua vendo (confirmado pelo responsável em 25/11/2026).
     expect((await recebimentosPendentes(db, gerente, { area: "cafeteria" })).find((r) => r.recebimentoId === doSup.recebimentoId)).toMatchObject({ quantidade: "120", emContagem: false });

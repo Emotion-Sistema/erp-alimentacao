@@ -220,8 +220,8 @@ test.describe("telas internas do administrador", () => {
   test("cadastros: fichas técnicas (filtros, editor e custos)", async ({ page }) => {
     await page.goto("/cadastros/fichas");
     await expect(page.getByLabel("Procurar ficha")).toBeVisible();
-    // Busca, tipo e situação.
-    await conferirAjuda(page, "fichas (filtros)", 3);
+    // Barra do Balcão (decisão 0028): busca com "ex.:"; tipo e situação em chips.
+    await expect(page.getByRole("searchbox", { name: "Procurar ficha" })).toHaveAttribute("placeholder", /ex\.:/);
     await page.getByRole("button", { name: "Nova ficha" }).click();
     const janela = page.getByRole("dialog", { name: "Nova ficha técnica" });
     await janela.getByLabel("Tipo da ficha").selectOption("preparo");

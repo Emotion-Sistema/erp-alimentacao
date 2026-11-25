@@ -160,4 +160,5 @@ com a skill `tela-da-gestao` e fotos antes/depois (`scripts/comparar-telas.ts`).
 falta de orçamento de tokens.
 - **Funcionários feito (25/11/2026):** chips Todos/Ativos/Desligados, busca, "Novo funcionário" na gaveta, tabela dentro de `balcao-lista` (no celular a lista some como moldura). 
 - **Ingredientes feito (25/11/2026):** chips por área, busca, Importar e Adicionar na barra; itens (`ItemDeLista`) viram linhas dentro de `balcao-lista` (regras genéricas em `balcao.css`, valem para outras telas que usarem `ItemDeLista` dentro da lista). 
-- **Estoque feito (25/11/2026):** área e "vence logo" em chips, busca na barra, itens em linhas dentro de `balcao-lista` (vale também para o salão). Falta Fichas.
+- **Estoque feito (25/11/2026):** área e "vence logo" em chips, busca na barra, itens em linhas dentro de `balcao-lista` (vale também para o salão). 
+- **Fichas feito (25/11/2026):** tipo e situação em chips, busca na barra, lista num cartão só. **Parte 3 concluída.** Próxima: parte 4 (claro/escuro e letra por pessoa).
