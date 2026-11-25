@@ -41,9 +41,10 @@ Detalhe de cada uma: `docs/requisitos/RC-07-sugestoes-no-dia-a-dia.md`.
 ## Para a E13 (anotado na frente visual-limpo, 25/11/2026, revisor do PR 152)
 - As telas Mesas, Novo pedido e Produção já existem no visual do protótipo (PR 152): a E13 liga nelas, sem refazer a tela.
 - `GET /api/cardapio` lista todo produto ativo: antes de ligar o envio, usar a disponibilidade calculada (RC-09/E12).
-- Serviço de 10% é hipótese (pendência 42): confirmar com o responsável antes de gravar pedido.
+- Taxa de serviço (resposta de 25/11/2026): a casa NÃO cobra; criar configuração para ligar/desligar e a porcentagem
+  (quem pode mudar: decidir com a matriz), gravada no pedido. Hoje `SERVICO_PORCENTO = 0` em `cardapio-comum.ts`.
 - Comanda: tamanhos e adicionais, tipo Mesa/Balcão/Retirada/Delivery, "Guardar sem enviar", observação por item.
 - Mesas: estado vem dos pedidos abertos; tempo na mesa, lista de espera e as 6 ideias do salão (ideias-do-cliente).
 - Acessibilidade: teste de Escape/foco no popup da mesa (foco inicial antes do conteúdo existir), aria-current do
   botão grande "Novo pedido" no celular, `aria-label` em span da comanda, alvo de 44 px no link "Escolher a mesa".
-- Foto do produto para o atendente: a rota da foto exige `cadastros.ver` (decidir com o responsável).
+- Foto do produto: liberada para quem lança pedido (`pedidos.lancar`), 25/11/2026.

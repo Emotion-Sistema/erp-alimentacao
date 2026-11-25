@@ -31,3 +31,7 @@ Fonte: desenho à mão enviado no chat em 25/11/2026 (não guardado no repositó
 ## Falta
 1. Números reais das mesas (o responsável traz).
 2. Quantos lugares tem a Bancada (e se entra no mapa como lugares avulsos).
+
+## Lugares confirmados (25/11/2026)
+Salão (frente): 6 mesas de 4 cadeiras e o Mesão de 6. Salão menor (área da TV): 4 mesas, 3 de 2 cadeiras e 1 de 3
+(no sistema, a mesa 4, a maior do esboço: hipótese). Bancada: 2 cadeiras. Falta só a numeração real.

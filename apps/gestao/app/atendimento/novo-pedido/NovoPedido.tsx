@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Aviso, Botao, Icone } from "@erp/interface";
-import { contasDaComanda, type ItemDoCardapio } from "@erp/dominio/cardapio";
+import { contasDaComanda, SERVICO_PORCENTO, type ItemDoCardapio } from "@erp/dominio/cardapio";
 import { textoDosCentavos } from "@erp/dominio/produtos";
 import { chamar } from "../../chamar";
 import { Campo } from "../../Campo";
@@ -187,10 +187,13 @@ export function NovoPedido({ mesa, podeVerFoto }: { mesa: { numero: number; nome
             <span>Itens</span>
             <span data-testid="comanda-itens-valor">{textoDosCentavos(contas.itens)}</span>
           </div>
-          <div className="np-total__l">
-            <span>Serviço 10% (a confirmar)</span>
-            <span data-testid="comanda-servico">{textoDosCentavos(contas.servico)}</span>
-          </div>
+          {/* A casa não cobra serviço (25/11/2026): a linha só aparece quando a taxa for ligada. */}
+          {SERVICO_PORCENTO > 0 && (
+            <div className="np-total__l">
+              <span>Serviço {SERVICO_PORCENTO}%</span>
+              <span data-testid="comanda-servico">{textoDosCentavos(contas.servico)}</span>
+            </div>
+          )}
           <div className="np-total__l np-total__l--total">
             <span>Total</span>
             <span data-testid="comanda-total">{textoDosCentavos(contas.total)}</span>
@@ -210,7 +213,7 @@ export function NovoPedido({ mesa, podeVerFoto }: { mesa: { numero: number; nome
           <b>
             {titulo}, {itensTexto(contas.quantidade)}
           </b>
-          <small>Total {textoDosCentavos(contas.total)} com serviço. Toque para ver a comanda.</small>
+          <small>Total {textoDosCentavos(contas.total)}. Toque para ver a comanda.</small>
         </a>
         <Botao disabled aria-describedby="np-aviso-e13">
           <Icone nome="enviar" />

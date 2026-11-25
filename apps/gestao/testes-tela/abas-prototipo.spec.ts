@@ -55,7 +55,7 @@ test.describe("Mesas", () => {
     await expect(popup).toContainText("Mesão");
     await expect(popup).toContainText("Livre");
     await expect(popup).toContainText("Frente, perto do caixa");
-    await expect(popup).toContainText("8 lugares");
+    await expect(popup).toContainText("6 lugares");
     expect(await page.evaluate(() => window.scrollY)).toBe(antes);
     // Espera a animação de entrada (o quadro cresce de 96% a 100%) antes de medir.
     await popup.evaluate((d) => Promise.all(d.getAnimations({ subtree: true }).map((a) => a.finished)));
@@ -123,9 +123,10 @@ test.describe("Novo pedido", () => {
     await page.getByRole("button", { name: "Tirar um Refrigerante lata" }).click();
 
     const itens = cafe.precoCentavos * 2 + refri.precoCentavos;
-    const servico = Math.round((itens * 10) / 100);
+    // A casa não cobra serviço (25/11/2026): sem a linha, total = itens.
+    const servico = 0;
     await expect(page.getByTestId("comanda-itens-valor")).toHaveText(reais(itens));
-    await expect(page.getByTestId("comanda-servico")).toHaveText(reais(servico));
+    await expect(page.getByTestId("comanda-servico")).toHaveCount(0);
     await expect(page.getByTestId("comanda-total")).toHaveText(reais(itens + servico));
     await expect(page.getByLabel("Quantidade de Café expresso")).toHaveText("2");
     await expect(page.getByRole("button", { name: "Enviar para a cozinha" })).toBeDisabled();

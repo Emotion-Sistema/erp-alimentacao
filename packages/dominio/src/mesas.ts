@@ -2,7 +2,8 @@
  * Mesas da loja e a planta do salão (pedido do responsável, 25/11/2026: telas iguais ao protótipo A).
  *
  * LAYOUT PROVISÓRIO: é a leitura do esboço à mão do responsável (cerebro/empresa/mapa-das-mesas.md).
- * Os números reais das mesas e os lugares da Bancada ainda vão ser confirmados por ele. As posições
+ * Lugares confirmados pelo responsável (25/11/2026): salão 6 mesas de 4 e o Mesão de 6; salão menor 3 mesas
+ * de 2 e 1 de 3 (a mesa 4, a maior do esboço: hipótese); Bancada 2 lugares. Números das mesas ainda provisórios. As posições
  * (coluna e linha) são as mesmas da tela Mesas do protótipo (cerebro/frentes/visual-limpo/prototipos.html).
  *
  * Sem banco e sem permissão: é só o desenho fixo da loja. A situação de cada mesa (livre, ocupada,
@@ -37,12 +38,12 @@ export const MESAS_DA_LOJA: readonly Mesa[] = [
   { numero: 1, area: "tv", lugares: 2, coluna: 1, linha: 3 },
   { numero: 2, area: "tv", lugares: 2, coluna: 2, linha: 3 },
   { numero: 3, area: "tv", lugares: 2, coluna: 1, linha: 4 },
-  { numero: 4, area: "tv", lugares: 2, coluna: 2, linha: 4 },
+  { numero: 4, area: "tv", lugares: 3, coluna: 2, linha: 4 },
   // Frente, perto do caixa: centro (5, 6, 7, 11) e direita (8, Mesão, 10).
   { numero: 5, area: "frente", lugares: 4, coluna: 2, linha: 6 },
   { numero: 8, area: "frente", lugares: 4, coluna: 3, linha: 6 },
   { numero: 6, area: "frente", lugares: 4, coluna: 2, linha: 7 },
-  { numero: 9, area: "frente", lugares: 8, coluna: 3, linha: 7, apelido: "Mesão" },
+  { numero: 9, area: "frente", lugares: 6, coluna: 3, linha: 7, apelido: "Mesão" },
   { numero: 7, area: "frente", lugares: 4, coluna: 2, linha: 8 },
   { numero: 10, area: "frente", lugares: 4, coluna: 3, linha: 8 },
   { numero: 11, area: "frente", lugares: 4, coluna: 2, linha: 9 },
@@ -63,14 +64,14 @@ export const MARCOS_DA_LOJA: readonly MarcoDaLoja[] = [
   { texto: "Cafeteria", coluna: 2, linha: 1, colunas: 2 },
   { texto: "Banheiro", coluna: 3, linha: 3 },
   { texto: "TV", coluna: 3, linha: 4 },
-  { texto: "Bancada", detalhe: "lugares virados para a parede, usar em último caso", coluna: 1, linha: 6, linhas: 2 },
+  { texto: "Bancada", detalhe: "2 lugares virados para a parede, usar em último caso", coluna: 1, linha: 6, linhas: 2 },
   { texto: "Entrada (calçada)", coluna: 1, linha: 8, linhas: 2 },
   { texto: "Caixa", coluna: 3, linha: 9 },
 ];
 
 /** Títulos das faixas da planta (uma linha inteira). */
 export const FAIXAS_DA_LOJA: readonly { texto: string; linha: number }[] = [
-  { texto: "Área da TV, mesas de 2 lugares", linha: 2 },
+  { texto: "Área da TV (salão menor)", linha: 2 },
   { texto: "Frente, perto do caixa", linha: 5 },
 ];
 
