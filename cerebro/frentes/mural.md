@@ -26,3 +26,8 @@ O responsável decidiu: **toda tela ou aba da gestão sai exatamente igual ao pr
 adendo). Antes de criar qualquer tela (Novo pedido, Mesas, Produção, Início...), use a skill
 `tela-da-gestao` e o guia `docs/visual-balcao.md`. O acabamento vem sozinho de `apps/gestao/app/balcao.css`;
 não escreva estilo próprio de botão, campo, cartão ou janela.
+
+## 25/11/2026 · frente visual-limpo → chat principal: telas de pedido já existem
+Mesas (`/atendimento`, `/caixa/mesas`), Novo pedido (`/atendimento/novo-pedido`, GET /api/cardapio) e Produção
+(`/producao`) estão prontas no visual do protótipo, sem gravar nada. Na E13/E14, ligue os pedidos nessas telas em
+vez de criar outras. Pendências em `cerebro/agenda-de-sugestoes.md` (seção E13).
