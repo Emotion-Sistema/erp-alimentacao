@@ -25,7 +25,9 @@ export type NomeDeIcone =
   | "fechar"
   | "desfazer"
   | "subir"
-  | "descer";
+  | "descer"
+  | "menos"
+  | "enviar";
 
 const DESENHOS: Record<NomeDeIcone, ReactNode> = {
   balanca: (
@@ -111,6 +113,8 @@ const DESENHOS: Record<NomeDeIcone, ReactNode> = {
   desfazer: <path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" />,
   subir: <path d="M12 19V5M5 12l7-7 7 7" />,
   descer: <path d="M12 5v14M19 12l-7 7-7-7" />,
+  menos: <path d="M5 12h14" />,
+  enviar: <path d="M4 12h14M13 6l6 6-6 6" />,
 };
 
 export function Icone({

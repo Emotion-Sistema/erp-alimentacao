@@ -51,6 +51,28 @@
   --selo-cafeteria-texto: #4a2c22;
   --selo-sorvete-fundo: #f7dde6;
   --selo-sorvete-texto: #7a1d48;
+  /* Mesas (tela Mesas, igual ao protótipo A): fundo, texto, contorno e cadeiras por situação.
+   * Par fundo/texto com contraste AA conferido em testes/cores.teste.ts. */
+  --mesa-livre-fundo: #e3f0df;
+  --mesa-livre-texto: #1f4a27;
+  --mesa-livre-borda: #8fbf96;
+  --mesa-livre-cadeira: #b9d9bd;
+  --mesa-ocupada-fundo: #351e17;
+  --mesa-ocupada-texto: #fbf1e4;
+  --mesa-ocupada-borda: #351e17;
+  --mesa-ocupada-cadeira: #8f7663;
+  --mesa-conta-fundo: #f6a52b;
+  --mesa-conta-texto: #2a1710;
+  --mesa-conta-borda: #d98a12;
+  --mesa-conta-cadeira: #e9b866;
+  /* Etapas da produção (tela Produção, igual ao protótipo A): cor forte de cada etapa.
+   * Par fundo/texto com contraste AA conferido em testes/cores.teste.ts. */
+  --etapa-fila-fundo: #2e5e7e;
+  --etapa-fila-texto: #ffffff;
+  --etapa-preparo-fundo: #f6a52b;
+  --etapa-preparo-texto: #2a1710;
+  --etapa-pronto-fundo: #2f6b3a;
+  --etapa-pronto-texto: #ffffff;
   --tamanho-icone: 1.25rem;
 
   /* ===== Letras (aprovadas em 18/11/2026). Arquivos dentro do app (@fontsource), nunca do Google. ===== */

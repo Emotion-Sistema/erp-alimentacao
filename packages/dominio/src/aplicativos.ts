@@ -130,6 +130,13 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         icone: "mesa",
       },
       {
+        caminho: "/atendimento/novo-pedido",
+        texto: "Novo pedido",
+        acao: "pedidos.lancar",
+        etapa: "E13",
+        icone: "recibo",
+      },
+      {
         caminho: "/atendimento/pedidos",
         texto: "Meus pedidos",
         acao: "pedidos.ver_proprios",
@@ -137,10 +144,10 @@ export const APLICATIVOS: readonly Aplicativo[] = [
         icone: "lista",
       },
     ],
-    // Por enquanto leva às mesas (o pedido começa escolhendo a mesa); o lançamento chega na E13.
+    // A comanda já monta os itens; gravar e mandar para a cozinha chega na E13.
     principal: {
       texto: "Novo pedido",
-      caminho: "/atendimento",
+      caminho: "/atendimento/novo-pedido",
       acao: "pedidos.lancar",
     },
   },
@@ -430,13 +437,20 @@ export function itemDoCaminho(
 
 /**
  * Celular: o que fica à vista na barra de baixo e o que vai para "Mais". No máximo 4 itens à
- * vista; com outros aplicativos no cargo, "Mais" também serve para trocar de aplicativo.
+ * vista; o item da ação principal (botão grande do meio) não se repete; com outros aplicativos no cargo, "Mais" também serve para trocar de aplicativo.
  */
 export function itensDaBarra(
   app: Aplicativo,
   cargoAtivo: string | null | undefined,
 ): { naBarra: ItemDoMenu[]; noMais: ItemDoMenu[] } {
-  const visiveis = itensVisiveis(app, cargoAtivo);
+  // O item da ação principal já é o botão grande do meio: não se repete na barra nem no "Mais".
+  const principal =
+    app.principal && pode(cargoAtivo, app.principal.acao)
+      ? app.principal.caminho
+      : null;
+  const visiveis = itensVisiveis(app, cargoAtivo).filter(
+    (i) => i.caminho !== principal,
+  );
   const ordem = app.naBarra ?? [];
   const preferidos = ordem
     .map((c) => visiveis.find((i) => i.caminho === c))

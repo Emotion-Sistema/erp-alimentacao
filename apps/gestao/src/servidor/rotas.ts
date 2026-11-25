@@ -11,6 +11,7 @@ import {
   ativarNaEstacao,
   cadastrarEmLote,
   catalogoParaCadastrar,
+  cardapioParaLancar,
   listarModelosDeEmbalagem,
   listarCategorias,
   listarTiposDeProducao,
@@ -419,6 +420,9 @@ export const verFotoDoProduto = seguroComId(async (req, p) => {
     },
   });
 });
+
+// ---------- cardápio para lançar pedido (tela Novo pedido; só leitura, pedidos.lancar) ----------
+export const verCardapio = seguro(async (req) => json(await cardapioParaLancar(obterBanco(), await ator(req))));
 
 // ---------- tipos de produção (E07 parte 2, decisão 0017) ----------
 export const verTiposDeProducao = seguro(async (req) => json(await listarTiposDeProducao(obterBanco(), await ator(req))));

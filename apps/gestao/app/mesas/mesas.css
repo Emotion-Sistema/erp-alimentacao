@@ -1,0 +1,118 @@
+/* Mapa de mesas (igual à tela Mesas do protótipo A, decisão 0028). Só variáveis do tema. */
+
+.mesas-tela { display: grid; gap: var(--espaco-3); min-width: 0; }
+.casca .mesas-tela > .hor-tela__intro { margin: 0; }
+
+.mesas-resumo { margin: 0; font-size: 0.875rem; color: var(--cor-texto-suave); }
+.mesas-resumo b { font-size: 1.375rem; color: var(--cor-sucesso); font-variant-numeric: tabular-nums; }
+
+/* A planta fica num cartão só, com o pontilhado do protótipo. */
+.mesas-zona {
+  padding: var(--espaco-4); min-width: 0;
+  background-color: var(--cor-cartao); border-radius: var(--raio-cartao); box-shadow: var(--sombra-cartao);
+  background-image: radial-gradient(circle at 1px 1px, var(--cor-linha) 1px, transparent 0); background-size: 18px 18px;
+}
+.casca .casca__conteudo .mesas-zona__titulo {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px var(--espaco-2);
+  margin: 0 0 var(--espaco-3); font-size: 0.8125rem;
+}
+.mesas-zona__titulo span { font-weight: 400; font-size: 0.75rem; color: var(--cor-texto-suave); }
+
+.mesas-planta {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: 64px 30px 112px 112px 30px repeat(4, 112px);
+  gap: 10px 12px; max-width: 720px; margin: 0 auto;
+}
+.mesas-faixa {
+  grid-column: 1 / -1; align-self: end; margin: 0; padding-bottom: 4px; border-bottom: 1px solid var(--cor-linha);
+  font-size: 0.71875rem; font-weight: var(--peso-forte); letter-spacing: 0.07em; text-transform: uppercase; color: var(--cor-texto-suave);
+}
+.mesas-marco {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px; min-width: 0;
+  border: 1.5px dashed var(--cor-borda); border-radius: 12px; text-align: center;
+  font-size: 0.75rem; color: var(--cor-texto-suave);
+}
+.mesas-marco b { font-weight: var(--peso-forte); }
+.mesas-marco span { font-size: 0.6875rem; }
+
+/* Mesa: cadeiras em cima e embaixo, tampo no meio (redondo na mesa de 2, cantos largos no Mesão). */
+.mesa {
+  --m-fundo: var(--mesa-livre-fundo); --m-texto: var(--mesa-livre-texto); --m-borda: var(--mesa-livre-borda); --m-cadeira: var(--mesa-livre-cadeira);
+  display: grid; grid-template-rows: 8px minmax(0, 1fr) 8px; gap: 4px; min-width: 0; min-height: var(--alvo-controle);
+  padding: 0; border: 0; background: none; font: inherit; cursor: pointer; transition: transform 0.12s, opacity 0.2s;
+}
+.mesa--ocupada { --m-fundo: var(--mesa-ocupada-fundo); --m-texto: var(--mesa-ocupada-texto); --m-borda: var(--mesa-ocupada-borda); --m-cadeira: var(--mesa-ocupada-cadeira); }
+.mesa--conta { --m-fundo: var(--mesa-conta-fundo); --m-texto: var(--mesa-conta-texto); --m-borda: var(--mesa-conta-borda); --m-cadeira: var(--mesa-conta-cadeira); }
+.mesa:active { transform: scale(0.97); }
+.mesa--apagada { opacity: 0.28; }
+.mesa__cadeiras { display: flex; justify-content: space-evenly; padding: 0 14%; }
+.mesa__cadeiras i { width: 18px; height: 7px; border-radius: 4px; background: var(--m-cadeira); }
+.mesa--l2 .mesa__cadeiras { padding: 0 30%; }
+.mesa__tampo {
+  display: grid; align-content: center; justify-items: center; gap: 1px; min-width: 0; overflow: hidden; padding: 6px 4px;
+  border-radius: 14px; background: var(--m-fundo); color: var(--m-texto);
+  box-shadow: inset 0 0 0 1.5px var(--m-borda), 0 2px 6px -2px color-mix(in srgb, var(--cor-texto) 18%, transparent);
+}
+.mesa--l2 .mesa__tampo { width: 78%; justify-self: center; border-radius: 999px; }
+.mesa--l8 .mesa__tampo { border-radius: 22px; }
+.mesa--escolhida .mesa__tampo { box-shadow: inset 0 0 0 1.5px var(--m-borda), 0 0 0 3px var(--cor-fundo), 0 0 0 5px var(--cor-primaria); }
+.mesa__num { font-size: 1.375rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.mesa__situacao {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.65625rem; font-weight: var(--peso-forte); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.mesa__lugares { display: inline-flex; align-items: center; gap: 3px; font-size: 0.75rem; white-space: nowrap; }
+.mesa__lugares .erp-icone { width: 12px; height: 12px; }
+
+.mesas-legenda { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.75rem; color: var(--cor-texto-suave); }
+.mesas-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.mesas-legenda i { width: 14px; height: 14px; border-radius: 4px; background: var(--m-fundo); box-shadow: inset 0 0 0 1.5px var(--m-borda); }
+.mesas-legenda .mesa--livre { --m-fundo: var(--mesa-livre-fundo); --m-borda: var(--mesa-livre-borda); }
+.mesas-legenda .mesa--ocupada { --m-fundo: var(--mesa-ocupada-fundo); --m-borda: var(--mesa-ocupada-borda); }
+.mesas-legenda .mesa--conta { --m-fundo: var(--mesa-conta-fundo); --m-borda: var(--mesa-conta-borda); }
+.mesas-nota { margin: 0; font-size: 0.8125rem; color: var(--cor-texto-suave); }
+
+/* Popup da mesa: no meio da tela (computador) ou subindo de baixo (celular), sem rolar a página. */
+.mesas-pop {
+  width: min(540px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 0; margin: auto;
+  border: 0; border-radius: 22px; background: var(--cor-fundo); color: var(--cor-texto);
+  box-shadow: 0 0 0 1px var(--cor-linha), var(--sombra-3);
+}
+.mesas-pop[open] { animation: mesas-pop-entra 0.22s cubic-bezier(0.23, 1, 0.32, 1); }
+.mesas-pop::backdrop { background: color-mix(in srgb, var(--cor-texto) 35%, transparent); }
+@keyframes mesas-pop-entra { from { transform: scale(0.96); opacity: 0; } }
+.mesas-pop__quadro { position: relative; display: grid; gap: 12px; padding: 20px; }
+.mesas-pop__fechar {
+  position: absolute; top: 10px; right: 10px; display: grid; place-items: center;
+  width: var(--alvo-controle); height: var(--alvo-controle); border: 0; border-radius: 999px;
+  background: transparent; color: var(--cor-texto-suave); cursor: pointer;
+}
+.mesas-pop__fechar:hover { background: var(--cor-superficie); color: var(--cor-texto); }
+.mesas-pop__cab { display: flex; align-items: center; gap: 12px; padding-right: 48px; }
+.mesas-pop__num {
+  display: grid; place-items: center; flex: none; width: 48px; height: 48px; border-radius: 14px;
+  font-size: 1.375rem; font-weight: 800; background: var(--m-fundo); color: var(--m-texto); box-shadow: inset 0 0 0 1.5px var(--m-borda);
+}
+.mesas-pop__cab.mesa--livre { --m-fundo: var(--mesa-livre-fundo); --m-texto: var(--mesa-livre-texto); --m-borda: var(--mesa-livre-borda); }
+.mesas-pop__cab.mesa--ocupada { --m-fundo: var(--mesa-ocupada-fundo); --m-texto: var(--mesa-ocupada-texto); --m-borda: var(--mesa-ocupada-borda); }
+.mesas-pop__cab.mesa--conta { --m-fundo: var(--mesa-conta-fundo); --m-texto: var(--mesa-conta-texto); --m-borda: var(--mesa-conta-borda); }
+.casca .casca__conteudo .mesas-pop__cab h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; font-size: 1.125rem; }
+.mesas-pop__cab p { margin: 0; font-size: 0.8125rem; color: var(--cor-texto-suave); }
+.mesas-pop__onde { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.mesas-pop__situacao {
+  padding: 3px 8px; border-radius: 999px; background: var(--m-fundo); color: var(--m-texto);
+  font-size: 0.65625rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.casca .mesas-pop__acao { width: 100%; text-decoration: none; }
+
+@media (max-width: 40rem) {
+  .mesas-zona { padding: var(--espaco-3); }
+  .mesas-planta { grid-template-rows: 56px 28px 104px 104px 28px repeat(4, 104px); gap: 8px; }
+  .mesas-marco { font-size: 0.6875rem; padding: 4px; }
+  .mesas-marco span { font-size: 0.625rem; }
+  .mesa__lugares .erp-icone { display: none; }
+  .mesas-pop { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 22px 22px 0 0; }
+  .mesas-pop[open] { animation-name: mesas-pop-sobe; }
+  @keyframes mesas-pop-sobe { from { transform: translateY(40px); opacity: 0; } }
+}
+@media (prefers-reduced-motion: reduce) { .mesas-pop[open] { animation: none; } }

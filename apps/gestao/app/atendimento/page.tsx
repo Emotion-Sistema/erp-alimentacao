@@ -1,7 +1,8 @@
-import { paginaDoItem } from "../pagina-do-item";
+import { paginaDeMesas } from "../mesas/PaginaDeMesas";
 
 export const dynamic = "force-dynamic";
 
+/** Mesas do atendimento: o mapa da loja; tocar numa mesa abre o pedido dela. */
 export default function Pagina() {
-  return paginaDoItem("atendimento", "/atendimento", "abrir mesa, lançar os itens do pedido e ver a situação de cada item.");
+  return paginaDeMesas("atendimento", "/atendimento");
 }

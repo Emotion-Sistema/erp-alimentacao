@@ -1,0 +1,86 @@
+/* Novo pedido (igual ao protótipo A, decisão 0028): cardápio à esquerda, comanda à direita.
+ * Só variáveis do tema. */
+
+.np { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: var(--espaco-5); align-items: start; min-width: 0; }
+.np-cardapio { display: grid; gap: var(--espaco-3); min-width: 0; align-content: start; }
+.casca .np-cardapio > .hor-tela__intro { margin: 0; }
+.np-carregando { margin: 0; font-size: 0.875rem; color: var(--cor-texto-suave); }
+
+/* Cartões de produto: foto (ou a inicial), nome e preço. */
+.np-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; }
+.np-prod {
+  display: grid; gap: 8px; align-content: start; padding: 6px 6px 10px; min-width: 0; min-height: var(--alvo-controle);
+  border: 0; border-radius: 14px; background: var(--cor-cartao); box-shadow: var(--sombra-cartao);
+  font: inherit; text-align: left; color: var(--cor-texto); cursor: pointer; transition: transform 0.12s;
+}
+.np-prod:hover { background: color-mix(in srgb, var(--cor-superficie) 35%, var(--cor-cartao)); }
+.np-prod:active { transform: scale(0.97); }
+.np-prod__foto { display: block; width: 100%; aspect-ratio: 4 / 3; border-radius: 10px; object-fit: cover; }
+.np-prod__inicial {
+  display: grid; place-items: center; background: var(--cor-brasa-suave); color: var(--cor-primaria-hover);
+  font-size: 2rem; font-weight: var(--peso-forte);
+}
+.np-prod__txt { display: grid; gap: 2px; padding: 0 6px; min-width: 0; }
+.np-prod__txt b { font-size: 0.84375rem; font-weight: 600; line-height: 1.3; }
+.np-prod__linha { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.np-prod__preco { font-size: 0.84375rem; font-weight: var(--peso-forte); color: var(--cor-preco); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.np-prod__add { font-size: 0.75rem; color: var(--cor-texto-suave); white-space: nowrap; }
+
+/* Comanda: um cartão, fixo no alto enquanto a lista rola (computador). */
+.np-comanda {
+  position: sticky; top: var(--espaco-4); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto;
+  max-height: calc(100dvh - 7rem); min-width: 0; overflow: hidden;
+  background: var(--cor-cartao); border-radius: var(--raio-cartao); box-shadow: var(--sombra-cartao);
+}
+.np-comanda__cab { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 16px 18px 12px; border-bottom: 1px solid var(--cor-linha); }
+.np-comanda__cab small { display: block; font-size: 0.6875rem; font-weight: var(--peso-forte); letter-spacing: 0.07em; text-transform: uppercase; color: var(--cor-texto-suave); }
+.np-comanda__cab b { font-size: 1.5rem; letter-spacing: -0.02em; line-height: 1.15; }
+.np-comanda__qtd {
+  padding: 2px 8px; border-radius: 999px; background: var(--selo-sucesso-fundo); color: var(--selo-sucesso-texto);
+  font-size: 0.78125rem; font-weight: var(--peso-forte); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.np-comanda__sem-mesa { margin: 0; padding: 8px 18px 0; font-size: 0.875rem; }
+.np-itens { overflow: auto; padding: 4px 18px; min-height: 0; }
+.np-vazio { margin: 0; padding: 24px 0; text-align: center; font-size: 0.8125rem; color: var(--cor-texto-suave); }
+.np-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding: 10px 0; border-bottom: 1px solid var(--cor-linha); }
+.np-item:last-child { border-bottom: 0; }
+.np-item b { font-size: 0.84375rem; font-weight: 600; }
+.np-item__valor { font-size: 0.8125rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.np-item__cada { font-size: 0.75rem; text-align: right; color: var(--cor-texto-suave); white-space: nowrap; }
+.np-qtd { display: inline-flex; align-items: center; gap: 2px; }
+.np-qtd button {
+  display: grid; place-items: center; width: var(--alvo-controle); height: var(--alvo-controle); padding: 0;
+  border: 0; border-radius: 10px; background: var(--cor-superficie); color: var(--cor-texto); cursor: pointer;
+}
+.np-qtd button:hover { background: var(--cor-superficie-forte); }
+.np-qtd .erp-icone { width: 16px; height: 16px; }
+.np-qtd > span { min-width: 26px; text-align: center; font-size: 0.875rem; font-weight: var(--peso-forte); font-variant-numeric: tabular-nums; }
+
+.np-total { display: grid; gap: 6px; padding: 12px 18px 16px; border-top: 1px solid var(--cor-linha); }
+.casca .np-total .erp-campo { margin-bottom: var(--espaco-1); }
+.np-total__l { display: flex; justify-content: space-between; gap: 8px; font-size: 0.8125rem; color: var(--cor-texto-suave); font-variant-numeric: tabular-nums; }
+.np-total__l--total { padding-top: 4px; font-size: 1.0625rem; font-weight: var(--peso-forte); color: var(--cor-texto); }
+.casca .np-total .erp-botao { width: 100%; margin-top: 6px; }
+.np-aviso { margin: 0; font-size: 0.78125rem; color: var(--cor-texto-suave); }
+
+/* Resumo fixo embaixo: só no celular (a comanda fica embaixo do cardápio). */
+.np-resumo { display: none; }
+
+@media (max-width: 60rem) {
+  .np { grid-template-columns: minmax(0, 1fr) 300px; gap: var(--espaco-4); }
+}
+@media (max-width: 40rem) {
+  .np { grid-template-columns: minmax(0, 1fr); }
+  .np-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .np-comanda { position: static; max-height: none; scroll-margin-top: var(--espaco-4); }
+  .np-resumo {
+    position: fixed; left: 0; right: 0; bottom: calc(118px + env(safe-area-inset-bottom)); z-index: 29;
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    background: var(--cor-cartao); border-top: 1px solid var(--cor-linha);
+    box-shadow: 0 -8px 24px -14px color-mix(in srgb, var(--cor-texto) 30%, transparent);
+  }
+  .np-resumo__texto { flex: 1; min-width: 0; display: grid; line-height: 1.25; color: var(--cor-texto); text-decoration: none; min-height: var(--alvo-controle); align-content: center; }
+  .np-resumo__texto b { font-size: 0.9375rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .np-resumo__texto small { font-size: 0.75rem; color: var(--cor-texto-suave); }
+  .casca:has(.np-resumo) .casca__conteudo { padding-bottom: calc(200px + env(safe-area-inset-bottom)); }
+}

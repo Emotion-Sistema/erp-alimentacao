@@ -68,6 +68,7 @@ const ROTAS: Rota[] = [
   { metodo: "POST", caminho: "/api/cadastros/produtos/foto", acao: "cadastros.gerenciar", chamar: (c) => r.enviarFotoDoProduto(req("/api/cadastros/produtos/foto", "POST", c, {})) },
   { metodo: "POST", caminho: "/api/cadastros/produtos/foto/tirar", acao: "cadastros.gerenciar", chamar: (c) => r.tirarFotoDoProduto(req("/api/cadastros/produtos/foto/tirar", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/cadastros/produtos/foto/[id]", acao: "cadastros.ver", chamar: (c) => r.verFotoDoProduto(req(`/api/cadastros/produtos/foto/${INEXISTENTE}`, "GET", c), { id: INEXISTENTE }) },
+  { metodo: "GET", caminho: "/api/cardapio", acao: "pedidos.lancar", chamar: (c) => r.verCardapio(req("/api/cardapio", "GET", c)) },
   { metodo: "GET", caminho: "/api/fichas", acao: "cadastros.ver", chamar: (c) => r.verPainelDeFichas(req("/api/fichas", "GET", c)) },
   { metodo: "POST", caminho: "/api/fichas", acao: "cadastros.gerenciar", chamar: (c) => r.gravarFicha(req("/api/fichas", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/fichas/[id]", acao: "cadastros.ver", chamar: (c) => r.verUmaFicha(req(`/api/fichas/${INEXISTENTE}`, "GET", c), { id: INEXISTENTE }) },

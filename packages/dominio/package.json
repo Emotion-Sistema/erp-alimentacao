@@ -11,7 +11,9 @@
     "./produtos": "./src/produtos-comum.ts",
     "./importar": "./src/importar-comum.ts",
     "./clube": "./src/clube-comum.ts",
-    "./fichas": "./src/fichas-comum.ts"
+    "./fichas": "./src/fichas-comum.ts",
+    "./mesas": "./src/mesas.ts",
+    "./cardapio": "./src/cardapio-comum.ts"
   },
   "scripts": {
     "semente": "tsx src/semente.ts",

@@ -115,6 +115,14 @@ fotos, comanda à direita).
   fotos do `cascas.spec.ts` (`apps/gestao/test-results/telas`).
 - Tokens do escuro ficaram para a parte 4, junto da escolha por pessoa (testar contraste com a troca).
 
+## Parte 1 e "exatamente igual" feitos (25/11/2026)
+- PR 150 (casca: trilho, topo claro) e PR 151 (acabamento único `balcao.css`, topo com nome da tela,
+  relógio e cargo, Produtos igual ao protótipo, janela em gaveta, regra para toda aba nova: guia
+  `docs/visual-balcao.md`, skill `tela-da-gestao`, CLAUDE.md, adendo 0028). Juntados na main.
+- Pedido do responsável: "crie novas abas no formato do protótipo". Em andamento: Mesas, Novo pedido e
+  Produção no visual do protótipo, só com dados reais (pedidos chegam na E13); cardápio por GET /api/cardapio.
+- Falta (parte 3): Ingredientes, Estoque, Funcionários, Fichas e as demais no formato de lista do protótipo.
+
 ## Plano de implantação (aprovado com "ok" em 25/11/2026)
 Nesta frente, em PRs pequenos, só sobre o que já existe:
 1. **V1 · Decisão e casca:** registro de decisão novo (visual A; revê a 0012 "gestão sempre clara" e o
