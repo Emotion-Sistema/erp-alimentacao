@@ -35,3 +35,5 @@ Detalhe de cada uma: `docs/requisitos/RC-07-sugestoes-no-dia-a-dia.md`.
 - Contagem não aceita `chave` (toque duplo em "Começar a contar" só é barrado pela tela).
 - E09 relatórios (revisão do PR 137, menores): mostrar na tela/CSV a quantidade aplicada quando a falta foi limitada pelo que havia; teste com falta limitada; teste do corte de 2.000 linhas com totais; teste da recusa do valor por área para cargo com uma área só. Formulário "Produzir" fora do teste de ajuda nos campos (precisa de preparo com ficha).
 
+
+- (25/11/2026, revisor do PR 146) Estoque: atualizar a decisão 0027 (itens de recontagem) com a regra do envio lançado depois de contar. Risco antigo, dentro do item 14 da 0027: transferência dentro da área, perda ou entrada lançada depois da contagem, mas ocorrida antes, gera ajuste em dobro; avaliar pedir recontagem para qualquer movimento no item/local depois de contar. Aviso de envio pendente há muito tempo e mostrar na contagem os itens pulados por envio pendente.
