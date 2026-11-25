@@ -25,7 +25,8 @@ function usarPreferencia<T extends string>(chave: "tema" | "letra", inicial: T) 
 }
 
 const SOL = "M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z";
-const LUA = "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z";
+// Lua centrada na caixa de 24 (de 3 a 21 na altura), na mesma linha do sino.
+const LUA = "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z";
 
 /** `inicial` vem do servidor (a mesma leitura do layout): o ícone já nasce certo. */
 export function BotaoDoTema({ inicial }: { inicial: Tema }) {
