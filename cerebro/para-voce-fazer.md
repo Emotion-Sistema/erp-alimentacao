@@ -16,7 +16,8 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 
 ## Assim que possível (destrava o trabalho)
 - [x] 👉 Novo visual: escolhido o A (Balcão) em 25/11/2026.
-- [ ] 👉 Testar a versão 5 do A ("Ver como" cada cargo, tema claro/escuro, tela Mesas) (https://claude.ai/artifact/EQbaPod1viKPCjoQjPKZbL): Produtos → Novo produto, Fichas técnicas → X-Burger → Editar receita, Produção e Estoque; dizer o que ajustar.
+- [ ] 👉 Testar a versão 6 do A ("Ver como" cada cargo, tema claro/escuro, tela Mesas)
+- [ ] 👉 Confirmar o mapa das mesas (25/11/2026): números, lugares de cada mesa, o que é a seta acima da TV e se a Bancada é dentro ou fora (`cerebro/empresa/mapa-das-mesas.md`). (https://claude.ai/artifact/EQbaPod1viKPCjoQjPKZbL): Produtos → Novo produto, Fichas técnicas → X-Burger → Editar receita, Produção e Estoque; dizer o que ajustar.
 - [ ] 👉 Importar as fichas reais na homologação (19/11/2026): baixar do Drive "09 Planilhas para importar" ingredientes.csv, produtos.csv e fichas.csv; importar nessa ordem (os dois primeiros em Cadastros → Importar planilha; o terceiro em Fichas técnicas → Importar, marcando "Gravar as boas"). Depois responder as perguntas 3 a 30 do relatório das fichas para as pendências sumirem.
 - [x] 👉 GitHub Actions parado (19/11/2026) ✔ resolvido: repositório tornado público: conferir em github.com → Settings → Billing and plans se acabaram os minutos do mês ou há limite de gastos; decidir se espera virar o mês ou libera um limite (serviço pago: só com o seu ok). Trava o PR 115 (Clube) e tudo o que vier depois.
 - [x] 👉 Perguntas 1 e 2 das fichas ✔ 19/11/2026: fruta e alface em unidade; bife moído em g e bife pronto em disco em unidade; açaí, leite condensado, chantilly, creme de leite e molho de tomate em ml; sempre poder escolher a unidade no cadastro.
