@@ -240,3 +240,26 @@
   body:has(.casca__conteudo form:focus-within) .barra { display: none; }
   html:has(.barra) { scroll-padding-bottom: 120px; }
 }
+
+/* Itens (ItemDeLista) dentro da lista viram linhas, como no protótipo (ex.: Ingredientes). */
+.casca .balcao-lista > .lista-simples > li { margin: 0; border-bottom: 1px solid var(--cor-linha); }
+.casca .balcao-lista > .lista-simples > li:last-child { border-bottom: 0; }
+.casca .balcao-lista .erp-item { gap: var(--espaco-2); padding: var(--espaco-3) 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.casca .balcao-lista .erp-item__titulo { font-family: inherit; font-size: 0.9375rem; }
+.casca .balcao-lista .erp-item__cabeca { justify-content: flex-start; }
+.casca .balcao-lista .erp-item__corpo { gap: var(--espaco-2); padding-top: 0; border-top: 0; font-size: 0.8125rem; color: var(--cor-texto-suave); }
+.casca .balcao-lista .erp-item__acoes { padding-top: 0; border-top: 0; }
+@media (min-width: 64rem) {
+  .casca .balcao-lista .erp-item { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--espaco-4); }
+  .casca .balcao-lista .erp-item > :not(.erp-item__acoes) { grid-column: 1; }
+  .casca .balcao-lista .erp-item__acoes { grid-column: 2; grid-row: 1 / span 2; }
+}
+/* Resumo dentro da linha: dados numa linha só, rótulos e título da seção só para o leitor de tela. */
+.casca .balcao-lista .erp-ficha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-1) var(--espaco-4); }
+.casca .balcao-lista .erp-dado { display: flex; align-items: center; gap: var(--espaco-1); }
+.casca .balcao-lista .erp-dado__valor { font-weight: 400; }
+.casca .balcao-lista .erp-dado__rotulo,
+.casca .balcao-lista .erp-secao__titulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.casca .balcao-lista .erp-secao { gap: 0; margin: 0; padding: 0; border: 0; }
+.casca .balcao-lista .erp-item__acoes { flex-wrap: wrap; }
+.casca .balcao-lista .erp-item__acoes > * { flex: 0 0 auto; width: auto; }

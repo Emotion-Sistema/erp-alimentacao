@@ -38,9 +38,10 @@ test.describe("fundo sempre claro", () => {
     await page.goto("/cadastros");
     await expect(page.getByTestId("ingrediente-Ovo")).toBeVisible();
     expect(await fundo()).toBe("rgb(253, 248, 240)");
+    // A linha fica dentro do cartão único da lista (visual Balcão, decisão 0028).
     const cartao = await page
-      .getByTestId("ingrediente-Ovo")
-      .locator("article")
+      .locator(".balcao-lista")
+      .filter({ has: page.getByTestId("ingrediente-Ovo") })
       .evaluate((el) => getComputedStyle(el).backgroundColor);
     // Leite Fresco (#FFFDF9), o cartão claro da marca.
     expect(cartao).toBe("rgb(255, 253, 249)");

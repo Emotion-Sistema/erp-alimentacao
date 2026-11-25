@@ -72,24 +72,25 @@ test.describe("telas internas do administrador", () => {
   test("cadastros: ingredientes e conversões", async ({ page }) => {
     await page.goto("/cadastros");
     await expect(page.getByTestId("ingrediente-Ovo")).toBeVisible();
-    await conferirAjuda(page, "ingredientes (busca e filtro)", 2);
+    // Busca da barra: exceção da decisão 0028 (lupa, nome e "ex.:"); filtro em chips, sem campo.
+    await expect(page.getByRole("searchbox", { name: "Buscar por nome" })).toHaveAttribute("placeholder", /ex\.:/);
     await abrirAdicionar(page, "Comum");
-    await conferirAjuda(page, "novo ingrediente", 6);
+    await conferirAjuda(page, "novo ingrediente", 4);
     await page.getByRole("button", { name: "Cancelar" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByRole("button", { name: "Editar Ovo", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Editar Ovo" })).toBeVisible();
     // Os 5 campos do ingrediente e os 10 alergênicos da lista inicial (S1).
     await expect(page.getByTestId("alergenicos-do-ingrediente").getByRole("combobox", { name: "Glúten" })).toBeVisible();
-    await conferirAjuda(page, "editar ingrediente", 15);
+    await conferirAjuda(page, "editar ingrediente", 13);
     await page.getByRole("button", { name: /^Mostrar Embalagens/ }).click();
     await page.getByRole("button", { name: "Escolher do catálogo" }).click();
     await page.getByRole("checkbox", { name: "Saco 25 kg" }).check();
     await expect(page.getByLabel("Quantas unidades (un) vêm em 1 saco 25 kg?")).toBeVisible();
-    await conferirAjuda(page, "embalagens do ingrediente (escolher do catálogo)", 9);
+    await conferirAjuda(page, "embalagens do ingrediente (escolher do catálogo)", 7);
     await page.getByRole("button", { name: "Criar nova embalagem" }).click();
     await expect(page.getByRole("dialog", { name: "Nova embalagem" })).toBeVisible();
-    await conferirAjuda(page, "painel de nova embalagem", 10);
+    await conferirAjuda(page, "painel de nova embalagem", 8);
     await page.getByRole("button", { name: "Cancelar" }).last().click();
     await semEstouroDeLargura(page);
   });
@@ -102,18 +103,18 @@ test.describe("telas internas do administrador", () => {
     await expect(page.getByRole("button", { name: "Hortifrúti", exact: true })).toHaveAttribute("aria-expanded", "false");
     await page.getByLabel("Procurar no catálogo").fill("tomate");
     await expect(page.getByRole("checkbox", { name: "Tomate", exact: true })).toBeVisible();
-    await conferirAjuda(page, "cadastro rápido: catálogo", 4);
+    await conferirAjuda(page, "cadastro rápido: catálogo", 2);
     await page.getByRole("checkbox", { name: "Tomate", exact: true }).check();
     await page.getByRole("button", { name: "Ajustar Tomate" }).click();
     await page.getByTestId("catalogo-Tomate").getByRole("button", { name: /^Mostrar Embalagens/ }).click();
     await page.getByTestId("catalogo-Tomate").getByRole("button", { name: "Escolher do catálogo" }).click();
-    await conferirAjuda(page, "cadastro rápido: ajuste de um item", 10);
+    await conferirAjuda(page, "cadastro rápido: ajuste de um item", 8);
     await page.getByRole("tab", { name: "Colar uma lista" }).click();
     await conferirAjuda(page, "cadastro rápido: colar uma lista", 1);
     await page.getByLabel("Cole sua lista de ingredientes").fill("Alface\nSal - pacote");
     await page.getByRole("button", { name: "Ler a lista" }).click();
     await expect(page.getByTestId("linhas-lidas")).toBeVisible();
-    await conferirAjuda(page, "cadastro rápido: prévia da lista", 8);
+    await conferirAjuda(page, "cadastro rápido: prévia da lista", 6);
     await semEstouroDeLargura(page);
   });
 
@@ -122,11 +123,11 @@ test.describe("telas internas do administrador", () => {
     await abrirAdicionar(page, "Comum");
     await page.getByRole("combobox", { name: "Nome" }).pressSequentially("calabr");
     await expect(page.getByRole("option", { name: /Calabresa/ })).toBeVisible();
-    await conferirAjuda(page, "novo ingrediente com sugestão aberta", 6);
+    await conferirAjuda(page, "novo ingrediente com sugestão aberta", 4);
     await page.getByRole("option", { name: /Calabresa/ }).click();
     await page.getByRole("button", { name: /^Mostrar Embalagens/ }).click();
     await page.getByRole("button", { name: "Escolher do catálogo" }).click();
-    await conferirAjuda(page, "novo ingrediente com embalagem sugerida", 8);
+    await conferirAjuda(page, "novo ingrediente com embalagem sugerida", 6);
   });
 
   test("cadastros: importar planilha (arquivo, mapa de colunas e resultado)", async ({ page }) => {

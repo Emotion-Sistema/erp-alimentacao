@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Aviso, Botao, Cartao, ChipDeEmbalagem, GrupoDeChips, Icone, ItemDeLista } from "@erp/interface";
 import { ResumoDoItem } from "./ResumoDoItem";
 import { chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
-import { BotaoExemplos, Campo, Marcador, Selecao } from "../Campo";
+import { BotaoExemplos, Marcador, Selecao } from "../Campo";
 import { chamar } from "../chamar";
 import { baseDaUnidade } from "@erp/dominio/unidades";
 import { unidadePorExtenso, type UnidadeBase, type UnidadePadrao } from "./auxiliares";
@@ -259,45 +259,55 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
 
   return (
     <ProvedorDoCatalogo catalogo={catalogo}>
-      <div className="ingredientes__topo">
-        <h1>Ingredientes</h1>
-        {podeGerenciar && (
-          <div className="ingredientes__acoes">
-            <Link className="erp-botao erp-botao--secundario" href="/cadastros/importar?tipo=ingredientes">
-              <Icone nome="documento" />
-              Importar planilha
-            </Link>
-            <Botao className="ingredientes__adicionar" aria-keyshortcuts="A" title="Atalho: tecla A" onClick={abrirNovo}>
-              <Icone nome="mais" />
-              Adicionar ingrediente
-            </Botao>
-          </div>
-        )}
+      <h1>Ingredientes</h1>
+      <p className="hor-tela__intro">Tudo que entra nas receitas, com a unidade, a área da casa, o fornecedor e as embalagens de compra.</p>
+      <BotaoExemplos />
+      <div className="balcao-barra">
+        <div className="balcao-chips" role="group" aria-label="Filtrar por área">
+          <button type="button" className="balcao-chip" aria-pressed={!areaFiltro} onClick={() => setAreaFiltro("")}>
+            Todas {dados && <em>{dados.ingredientes.length}</em>}
+          </button>
+          {areas.map((a) => (
+            <button key={a.valor} type="button" className="balcao-chip" aria-pressed={areaFiltro === a.valor} onClick={() => setAreaFiltro(a.valor)}>
+              {a.texto}
+            </button>
+          ))}
+        </div>
+        <div className="balcao-acoes">
+          <label className="balcao-busca">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4" />
+            </svg>
+            <input
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              autoComplete="off"
+              placeholder="Buscar ingrediente (ex.: fari acha Farinha)"
+              aria-label="Buscar por nome"
+            />
+          </label>
+          {podeGerenciar && (
+            <>
+              <Link className="erp-botao erp-botao--secundario" href="/cadastros/importar?tipo=ingredientes">
+                <Icone nome="documento" />
+                Importar planilha
+              </Link>
+              <Botao className="ingredientes__adicionar" aria-keyshortcuts="A" title="Atalho: tecla A" onClick={abrirNovo}>
+                <Icone nome="mais" />
+                Adicionar ingrediente
+              </Botao>
+            </>
+          )}
+        </div>
       </div>
       <div aria-live="polite">{mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}</div>
-      <BotaoExemplos />
-      <Cartao>
-        <div className="cadastros__filtros">
-          <Campo
-            rotulo="Buscar por nome"
-            explicacao="Digite uma parte do nome para achar o ingrediente na lista."
-            exemplo="Digite fari e aparece Farinha de trigo."
-            value={busca} onChange={(e) => setBusca(e.target.value)} autoComplete="off" />
-          <Selecao
-            rotulo="Filtrar por área"
-            explicacao="Mostra só os ingredientes de um setor da casa. Deixe em Todas as áreas para ver tudo."
-            exemplo="Escolha Cozinha para esconder o que é do bar ou da cafeteria."
-            value={areaFiltro}
-            onChange={(e) => setAreaFiltro(e.target.value)}
-            opcoes={[{ valor: "", texto: "Todas as áreas" }, ...areas]}
-          />
-        </div>
-      </Cartao>
       {!dados ? (
         !mensagem && <p>Carregando...</p>
       ) : visiveis.length === 0 ? (
-        <p>Nenhum ingrediente encontrado.</p>
+        <p className="hor-vazio">Nenhum ingrediente encontrado.</p>
       ) : (
+        <div className="balcao-lista">
         <ul className="lista-simples" data-testid="lista-ingredientes" aria-label="Ingredientes">
           {visiveis.map((i) => (
             <li
@@ -364,6 +374,7 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
             </li>
           ))}
         </ul>
+        </div>
       )}
       {dica.length > 0 && (
         <Cartao>
