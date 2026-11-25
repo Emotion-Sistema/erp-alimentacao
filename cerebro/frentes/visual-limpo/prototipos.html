@@ -435,6 +435,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
 .pa-mleg i { width: 14px; height: 14px; border-radius: 4px; background: var(--m-bg); box-shadow: inset 0 0 0 1.5px var(--m-borda); }
 .pa-mleg svg.i { width: 14px; height: 14px; }
 .pa-mpainel { display: grid; gap: 12px; position: sticky; top: 0; }
+.pa-mpainel > .aviso, .pa-mpainel > .pa-link { justify-self: start; }
 .pa-mcab { display: flex; gap: 12px; align-items: center; }
 .pa-mcab h3 { margin: 0; font-size: 18px; } .pa-mcab p { margin: 0; font-size: 12.5px; color: var(--a-apoio); }
 .pa-mnum { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; font-weight: 800; background: var(--m-bg); color: var(--m-txt); box-shadow: inset 0 0 0 1.5px var(--m-borda); }
@@ -448,6 +449,25 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
 .pa-mitens .tot b { font-family: var(--f-mono); }
 .pa-macoes { display: grid; gap: 8px; }
 .pa-macoes .pa-btn { margin: 0; }
+/* etapa dos itens da mesa e visão do cliente */
+.pa-mitem { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px 8px; align-items: center; padding: 4px 0; }
+.pa-mitem .pa-btn { grid-column: 1 / -1; justify-self: end; }
+.pa-etp { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--tk-bg); color: var(--tk-txt); white-space: nowrap; }
+.pa-etp svg.i { width: 12px; height: 12px; stroke-width: 2.4; }
+.pa-etp.est-fila { --tk-bg: #2e5e7e; --tk-txt: #fff; } .pa-etp.est-preparo { --tk-bg: #f6a52b; --tk-txt: #2a1710; }
+.pa-etp.est-atencao { --tk-bg: #e77019; --tk-txt: #1f0f08; } .pa-etp.est-atraso { --tk-bg: #a3261a; --tk-txt: #fff; }
+.pa-etp.est-pronto { --tk-bg: #2f6b3a; --tk-txt: #fff; } .pa-etp.est-entregue { --tk-bg: var(--a-sup2); --tk-txt: var(--a-apoio); }
+.pa-cliente { border-radius: 18px; padding: 14px; background: #fffdf9; color: #351e17; box-shadow: 0 0 0 1px rgba(53,30,23,.1), 0 10px 24px -14px rgba(53,30,23,.4); display: grid; gap: 10px; font-family: var(--f-cliente); }
+.pa-cliente .cab { display: flex; align-items: center; gap: 8px; } .pa-cliente .cab img { height: 18px; } .pa-cliente .cab b { font-family: var(--f-titulo); font-weight: 600; font-size: 16px; }
+.pa-cliente .passos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; }
+.pa-cliente .passos li { display: grid; gap: 4px; font-size: 10.5px; color: #9c8270; text-align: center; }
+.pa-cliente .passos i { height: 5px; border-radius: 99px; background: #efe4d3; }
+.pa-cliente .passos li.feito i { background: #b8470e; } .pa-cliente .passos li.agora i { background: #f6a52b; }
+.pa-cliente .passos li.agora span { color: #351e17; font-weight: 700; } .pa-cliente .passos li.feito span { color: #6b4a3a; }
+.pa-cliente .prev { margin: 0; font-size: 13.5px; } .pa-cliente .prev b { color: #b8470e; }
+.pa-cliente ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.pa-cliente ul li { display: flex; justify-content: space-between; gap: 8px; } .pa-cliente ul b { font-weight: 600; color: #6b4a3a; }
+.pa-cliente .obs { margin: 0; font-size: 11.5px; color: #9c8270; border-top: 1px dashed #e9dac4; padding-top: 8px; }
 /* estoque */
 .pa-abas { display: flex; gap: 4px; background: var(--a-sup2); border-radius: 10px; padding: 3px; }
 .pa-abas button { border: 0; background: transparent; padding: 6px 12px; border-radius: 8px; font-size: 13px; color: var(--a-apoio); }
@@ -881,7 +901,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   const TELAS_BC = [['inicio', 'Início'], ['pedido', 'Novo pedido'], ['produtos', 'Produtos']];
   const E = { proto: 'a', tela: 'inicio', disp: 'pc', noite: false, cat: 'grill', catB: 'todos', filtroC: 'todos', folha: false, paleta: false, busca: '',
     comanda: [{ id: 'xb', q: 1, obs: 'Sem cebola' }, { id: 'fritas', q: 1 }, { id: 'suco', q: 2, obs: 'Laranja' }],
-    cargo: 'gerente', mesa: 7, fMesa: 'todas', gaveta: null, anima: false, todosEx: false, ex: {}, form: null, tentou: false, ficha: null, rascunho: null, area: 'cozinha', setor: 'todos', catP: 'todas', buscaP: '', aviso: '' };
+    cargo: 'gerente', mesa: 7, verCliente: true, fMesa: 'todas', gaveta: null, anima: false, todosEx: false, ex: {}, form: null, tentou: false, ficha: null, rascunho: null, area: 'cozinha', setor: 'todos', catP: 'todas', buscaP: '', aviso: '' };
   try { const s = JSON.parse(localStorage.getItem('prototipo-erp') || '{}'); if (s.proto) E.proto = s.proto; if (s.tela) E.tela = s.tela; if (s.disp) E.disp = s.disp; if (s.cargo) E.cargo = s.cargo; if (s.noite != null) E.noite = s.noite; } catch (e) {}
   const salvar = () => { try { localStorage.setItem('prototipo-erp', JSON.stringify({ proto: E.proto, tela: E.tela, disp: E.disp, cargo: E.cargo, noite: E.noite })); } catch (e) {} };
   const itens = () => E.comanda.map(c => ({ ...c, p: porId[c.id], t: porId[c.id].preco * c.q }));
@@ -1238,6 +1258,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     { id: 6, n: 1045, onde: 'Mesa 7', tipo: 'mesa', setor: 'chapa', itens: ['1x Smash duplo'], prev: 15, est: 'fila', base: 40 },
     { id: 7, n: 1046, onde: 'Retirada 13h', tipo: 'relogio', setor: 'cozinha', itens: ['2x Bife acebolado'], prev: 15, est: 'fila', base: 10 },
     { id: 8, n: 1041, onde: 'Mesa 5', tipo: 'mesa', setor: 'cafeteria', itens: ['2x Cappuccino', '1x Bolo de cenoura'], prev: 5, est: 'pronto', base: 4 * 60 + 10 },
+    { id: 10, n: 1048, onde: 'Mesa 10', tipo: 'mesa', setor: 'chapa', itens: ['1x X-Burger E-MOTION'], prev: 15, est: 'fila', base: 30 },
     { id: 9, n: 1047, onde: 'Balcão', tipo: 'pedido', setor: 'cafeteria', itens: ['1x Café expresso'], prev: 3, est: 'preparo', base: 70 }
   ].map(t => ({ ...t, desde: AGORA0 }));
   const segs = t => t.est === 'pronto' ? t.base : t.base + Math.floor((Date.now() - t.desde) / 1000);
@@ -1300,6 +1321,40 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
       (m.desde ? '<span class="tempo">' + ic('relogio') + '<b data-mtempo="' + m.n + '">' + tempoMesa(m) + '</b></span>' : '<span class="tempo">' + ic('pessoas') + m.lugares + ' lugares</span>') +
       (m.aviso ? '<span class="aviso av-' + m.aviso + '">' + ic(AVISO_MESA[m.aviso][1]) + AVISO_MESA[m.aviso][0] + '</span>' : '') + '</span>' + cad(m.lugares - meio) + '</button>';
   }
+  // Cada item da mesa ligado ao ticket da produção: a etapa e a cor são as mesmas da tela da cozinha.
+  const ITEM_TK = { 2: { '1x Parmegiana': 1 }, 5: { '2x Cappuccino': 8, '1x Bolo de cenoura': 8 }, 7: { '1x X-Burger E-MOTION': 3, '1x Fritas': 4, '1x Smash duplo': 6 }, 10: { '1x X-Burger E-MOTION': 10 } };
+  const ENTREGUES = new Set();
+  function etapaDoItem(m, nome) {
+    const id = (ITEM_TK[m.n] || {})[nome]; const t = TK.find(x => x.id === id);
+    if (!id || !t || ENTREGUES.has(m.n + nome)) return { cls: 'est-entregue', rot: 'Entregue', ic: 'check', cli: 4 };
+    const e = etapa(t);
+    const resta = t.est === 'fila' ? t.prev : Math.max(0, Math.ceil(t.prev - segs(t) / 60));
+    return { cls: e[0], rot: e[1], ic: e[2], t, cli: t.est === 'fila' ? 1 : t.est === 'pronto' ? 3 : 2, resta };
+  }
+  function itensDaMesa(m) {
+    const lista = m.n === 7 && !m.itens.includes('1x Smash duplo') ? (m.itens.push('1x Smash duplo'), m.itens) : m.itens;
+    return '<div class="pa-mitens"><small>Pedido · etapa de cada item</small>' + lista.map(x => {
+      const e = etapaDoItem(m, x);
+      const botao = e.t && e.t.est === 'pronto' && pode('pedidos.lancar') && E.cargo === 'atendente' ? '<button class="pa-btn mini" data-entregar="' + esc(x) + '">' + ic('check') + 'Entregue</button>' : '';
+      return '<div class="pa-mitem"><span>' + x + '</span><span class="pa-etp ' + e.cls + '">' + ic(e.ic) + e.rot + '</span>' + botao + '</div>';
+    }).join('') + '<div class="tot"><span>Conta até agora</span><b>' + brl(m.conta) + '</b></div></div>';
+  }
+  // O que o cliente vê no app ou pelo QR da mesa: etapas e previsão, sem "atrasado", sem nomes e sem o relógio da mesa.
+  function clienteVe(m) {
+    const es = m.itens.map(x => ({ x, e: etapaDoItem(m, x) }));
+    const abertos = es.filter(i => i.e.cli < 4);
+    const passo = abertos.length ? Math.min(...abertos.map(i => i.e.cli)) : 4;
+    const resta = Math.max(0, ...abertos.filter(i => i.e.cli < 3).map(i => i.e.resta || 0));
+    const passos = ['Recebido', 'Na fila', 'Em preparo', 'Pronto', 'Entregue'];
+    const cliRot = ['Recebido', 'Na fila', 'Em preparo', 'Pronto', 'Entregue'];
+    const aberto = E.verCliente;
+    return '<button class="pa-link" data-vercliente="1">' + ic('pessoas') + (aberto ? 'Esconder' : 'Ver') + ' como o cliente vê no app</button>' + (aberto ?
+      '<div class="pa-cliente"><div class="cab"><img src="' + SIMB + '" alt=""><b>Seu pedido · Mesa ' + m.n + '</b></div>' +
+      '<ol class="passos">' + passos.map((p, k) => '<li class="' + (k < passo ? 'feito' : k === passo ? 'agora' : '') + '"><i></i><span>' + p + '</span></li>').join('') + '</ol>' +
+      (passo < 3 ? '<p class="prev">Previsão: fica pronto em <b>' + (resta <= 1 ? 'instantes' : '~' + resta + ' min') + '</b></p>' : passo === 3 ? '<p class="prev">Está pronto e já vai para a sua mesa</p>' : '<p class="prev">Tudo entregue. Bom apetite!</p>') +
+      '<ul>' + es.map(i => '<li><span>' + i.x + '</span><b>' + cliRot[i.e.cli] + '</b></li>').join('') + '</ul>' +
+      '<p class="obs">O cliente não vê o tempo na mesa, atrasos, nomes da equipe nem outros pedidos.</p></div>' : '');
+  }
   function mesasA() {
     const n = k => MESAS.filter(m => m.st === k).length;
     const filtros = [['todas', 'Todas', MESAS.length], ['livre', 'Livres', n('livre')], ['ocupada', 'Ocupadas', n('ocupada')], ['conta', 'Pedindo a conta', n('conta')]];
@@ -1315,7 +1370,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
         '<div class="pa-mest st-' + m.st + '">' + ROT_MESA[m.st] + '</div>' +
         (m.desde ? '<div class="pa-mrel"><small>Cliente na mesa há</small><b data-mtempo="' + m.n + '">' + tempoMesa(m) + '</b><small>desde ' + new Date(m.desde).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' · ' + m.pessoas + ' pessoas · atendente ' + m.quem + '</small></div>' : '') +
         (m.aviso ? '<div class="aviso av-' + m.aviso + '">' + ic(AVISO_MESA[m.aviso][1]) + AVISO_MESA[m.aviso][0] + '</div>' : '') +
-        (m.itens.length ? '<div class="pa-mitens"><small>Pedido</small>' + m.itens.map(x => '<span>' + x + '</span>').join('') + '<div class="tot"><span>Conta até agora</span><b>' + brl(m.conta) + '</b></div></div>' : (m.st !== 'livre' ? '<p class="pa-nota">Nada lançado ainda.</p>' : '')) +
+        (m.itens.length ? itensDaMesa(m) + clienteVe(m) : (m.st !== 'livre' ? '<p class="pa-nota">Nada lançado ainda.</p>' : '')) +
         '<div class="pa-macoes">' + acoes + '</div>';
     }
     return '<div class="pa-barra-tit"><div class="pa-chips" style="margin:0">' + filtros.map(([k, l, q]) => '<button class="pa-chip" data-fmesa="' + k + '" aria-pressed="' + (E.fMesa === k) + '">' + l + ' <em>' + q + '</em></button>').join('') + '</div>' +
@@ -1509,6 +1564,15 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
       else if (d.macao === 'receber') { if (!pode('caixa.operar')) return; m.st = 'livre'; m.desde = null; avisar('Mesa ' + m.n + ' paga (' + brl(m.conta) + ') e liberada'); }
       else if (d.macao === 'lancar') { E.tela = 'pedido'; }
     }
+    else if (d.vercliente) E.verCliente = !E.verCliente;
+    else if (d.entregar) {
+      const m = MESAS.find(x => x.n === E.mesa); if (!m || E.cargo !== 'atendente') return;
+      const id = (ITEM_TK[m.n] || {})[d.entregar]; const tk = TK.find(x => x.id === id);
+      Object.entries(ITEM_TK[m.n] || {}).forEach(([nome, i]) => { if (i === id) ENTREGUES.add(m.n + nome); });
+      if (tk) TK.splice(TK.indexOf(tk), 1);
+      if (m.aviso === 'pronto') m.aviso = '';
+      avisar('Mesa ' + m.n + ': marcado como entregue');
+    }
     else if (d.ir) { const ok = E.proto === 'a' ? telasDoCargo() : TELAS_BC; if (ok.some(([k]) => k === d.ir)) irPara(d.ir); else return; }
     else if (d.cat) E.cat = d.cat;
     else if (d.catb) E.catB = d.catb;
@@ -1589,7 +1653,10 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     else if (ev.key === 'Escape' && E.gaveta) { E.gaveta = null; desenhar(); }
   });
   // Relógio da produção: só troca os números, sem redesenhar a tela.
+  let tick = 0;
   setInterval(() => {
+    tick = (tick + 1) % 5;
+    if (E.proto === 'a' && E.tela === 'mesas' && tick === 0 && !E.gaveta && !(document.activeElement && document.activeElement.tagName === 'INPUT')) return desenhar();
     if (E.proto === 'a' && E.tela === 'mesas') mold.querySelectorAll('[data-mtempo]').forEach(el => { const m = MESAS.find(x => x.n === +el.dataset.mtempo); if (m) el.textContent = tempoMesa(m); });
     if (E.proto !== 'a' || (E.tela !== 'producao' && E.tela !== 'inicio')) return;
     TK.forEach(t => {
