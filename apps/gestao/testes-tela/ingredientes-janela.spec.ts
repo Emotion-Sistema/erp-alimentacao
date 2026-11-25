@@ -26,10 +26,11 @@ test("a lista vem primeiro; os formulários não ficam mais fixos na página", a
   await expect(page.getByRole("tab")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Cadastro rápido" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Novo ingrediente" })).toHaveCount(0);
-  // O botão fica no cabeçalho, na mesma linha do título, e a lista aparece antes da dica das unidades.
-  const titulo = (await page.getByRole("heading", { name: "Ingredientes", level: 1 }).boundingBox())!;
+  // O botão fica na barra de ferramentas, na mesma linha da busca (visual Balcão, decisão 0028),
+  // e a lista aparece antes da dica das unidades.
+  const busca = (await page.getByRole("searchbox", { name: "Buscar por nome" }).boundingBox())!;
   const botao = (await botaoAdicionar(page).boundingBox())!;
-  expect(Math.abs(botao.y + botao.height / 2 - (titulo.y + titulo.height / 2))).toBeLessThan(24);
+  expect(Math.abs(botao.y + botao.height / 2 - (busca.y + busca.height / 2))).toBeLessThan(24);
   const lista = (await page.getByTestId("lista-ingredientes").boundingBox())!;
   const dica = (await page.locator(".cadastros__dica").filter({ hasText: "já convertem sozinhas" }).boundingBox())!;
   expect(lista.y).toBeLessThan(dica.y);

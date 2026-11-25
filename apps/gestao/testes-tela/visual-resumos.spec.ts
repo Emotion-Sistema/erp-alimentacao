@@ -38,9 +38,10 @@ test.describe("fundo sempre claro", () => {
     await page.goto("/cadastros");
     await expect(page.getByTestId("ingrediente-Ovo")).toBeVisible();
     expect(await fundo()).toBe("rgb(253, 248, 240)");
+    // A linha fica dentro do cartão único da lista (visual Balcão, decisão 0028).
     const cartao = await page
-      .getByTestId("ingrediente-Ovo")
-      .locator("article")
+      .locator(".balcao-lista")
+      .filter({ has: page.getByTestId("ingrediente-Ovo") })
       .evaluate((el) => getComputedStyle(el).backgroundColor);
     // Leite Fresco (#FFFDF9), o cartão claro da marca.
     expect(cartao).toBe("rgb(255, 253, 249)");
@@ -73,12 +74,14 @@ test.describe("resumos organizados", () => {
       "caixa = 30 un",
     );
     expect(await ovo.innerText()).not.toContain("·");
-    // Ações viram linha inteira no celular, com alvo de toque grande.
+    // Ações lado a lado na linha (visual Balcão, decisão 0028), com alvo de toque grande.
     const editar = await ovo
       .getByRole("button", { name: "Editar Ovo" })
       .boundingBox();
     expect(editar!.height).toBeGreaterThanOrEqual(44);
-    expect(editar!.width).toBeGreaterThan(300);
+    expect(editar!.width).toBeGreaterThanOrEqual(44);
+    const duplicar = await ovo.getByRole("button", { name: "Duplicar Ovo" }).boundingBox();
+    expect(Math.abs(duplicar!.y - editar!.y)).toBeLessThan(4);
   });
 
   test("fornecedor completo para o gerente; a cozinheira vê só nome, prazo e situação", async ({

@@ -86,9 +86,10 @@ test("gerente geral busca, filtra e desativa um ingrediente", async ({ page }) =
   await page.goto("/cadastros");
   await page.getByLabel("Buscar por nome").fill("caipira");
   await expect(page.getByTestId("lista-ingredientes").locator("> li")).toHaveCount(1);
-  await page.getByLabel("Filtrar por área").selectOption("bebidas_salao");
+  const areas = page.getByRole("group", { name: "Filtrar por área" });
+  await areas.getByRole("button", { name: "Bebidas do salão" }).click();
   await expect(page.getByText("Nenhum ingrediente encontrado.")).toBeVisible();
-  await page.getByLabel("Filtrar por área").selectOption("");
+  await areas.getByRole("button", { name: /^Todas/ }).click();
   await page.getByRole("button", { name: "Editar Ovo caipira (tela)" }).click();
   await page.getByLabel(/^Ativo/).uncheck();
   await page.getByRole("button", { name: "Salvar ingrediente" }).click();

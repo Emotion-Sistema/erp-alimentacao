@@ -12,7 +12,7 @@ import { Aviso, Selo, varianteDaArea } from "@erp/interface";
 import type { ItemDoPainel } from "@erp/dominio";
 import { nomeComparavel } from "@erp/dominio/produtos";
 import { chamar } from "../chamar";
-import { BotaoExemplos, Campo, Marcador, Selecao } from "../Campo";
+import { BotaoExemplos } from "../Campo";
 import { Abas } from "./Abas";
 import { custoMedio, dia, hojeNaLoja, q4, qtd, reais, somarDias, textoQ4 } from "./comum";
 import type { ContextoDoEstoque } from "./contexto";
@@ -115,30 +115,45 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
           {aba === "itens" && (
             <>
               <BotaoExemplos />
-              <div className="est-filtros">
-                <Campo rotulo={TE.painel.busca} explicacao={TE.painel.buscaAjuda} exemplo={TE.painel.buscaExemplo} type="search" value={busca} maxLength={60} autoComplete="off" onChange={(e) => setBusca(e.target.value)} />
-                {minhas.length > 1 && (
-                  <Selecao
-                    rotulo={TE.painel.area}
-                    explicacao={TE.painel.areaAjuda}
-                    exemplo={TE.painel.areaExemplo}
-                    value={area}
-                    onChange={(e) => setArea(e.target.value)}
-                    opcoes={[{ valor: "", texto: TE.painel.todas }, ...minhas]}
-                  />
-                )}
-                <Marcador rotulo={TE.painel.filtroVence} explicacao={TE.painel.filtroVenceAjuda} exemplo={TE.painel.filtroVenceExemplo} checked={soVence} onChange={(e) => setSoVence(e.target.checked)} />
+              <div className="balcao-barra">
+                <div className="balcao-chips" role="group" aria-label={TE.painel.area}>
+                  {minhas.length > 1 && (
+                    <>
+                      <button type="button" className="balcao-chip" aria-pressed={!area} onClick={() => setArea("")}>
+                        {TE.painel.todas}
+                      </button>
+                      {minhas.map((m) => (
+                        <button key={m.valor} type="button" className="balcao-chip" aria-pressed={area === m.valor} onClick={() => setArea(m.valor)}>
+                          {m.texto}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  <button type="button" className="balcao-chip" aria-pressed={soVence} onClick={() => setSoVence(!soVence)} title={TE.painel.filtroVenceAjuda}>
+                    {TE.painel.filtroVence}
+                  </button>
+                </div>
+                <div className="balcao-acoes">
+                  <label className="balcao-busca">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4" />
+                    </svg>
+                    <input type="search" value={busca} maxLength={60} autoComplete="off" onChange={(e) => setBusca(e.target.value)} placeholder={`${TE.painel.busca} (ex.: ${TE.painel.buscaExemplo})`} aria-label={TE.painel.busca} />
+                  </label>
+                </div>
               </div>
               {daPagina.length === 0 ? (
                 <p className="hor-vazio">{TE.painel.vazio}</p>
               ) : filtrados.length === 0 ? (
                 <p className="hor-vazio">{TE.painel.nenhum}</p>
               ) : (
-                <ul className="est-itens" data-testid="itens-do-estoque">
-                  {filtrados.map((i) => (
-                    <CartaoDoItem key={chaveDoItem(i)} item={i} areas={areasVistas} contexto={contexto} limite={limite} aoAbrir={() => setAberto(chaveDoItem(i))} />
-                  ))}
-                </ul>
+                <div className="balcao-lista">
+                  <ul className="est-itens" data-testid="itens-do-estoque">
+                    {filtrados.map((i) => (
+                      <CartaoDoItem key={chaveDoItem(i)} item={i} areas={areasVistas} contexto={contexto} limite={limite} aoAbrir={() => setAberto(chaveDoItem(i))} />
+                    ))}
+                  </ul>
+                </div>
               )}
             </>
           )}
