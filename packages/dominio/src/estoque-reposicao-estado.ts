@@ -1,10 +1,12 @@
 /**
  * Estado de reposição do item por área (E10 parte 1; RC-09 seções 3 e 4; migração 0025; decisão 0029).
  *
- * `reavaliarReposicao` roda DENTRO da transação de todo movimento que muda saldo, no fechamento do
+ * `avaliarReposicao` roda DENTRO da transação de todo movimento que muda saldo, no fechamento do
  * lançamento (`Lancamento.fechar`, em estoque.ts), com o item já travado (FOR UPDATE). Por isso
  * dois movimentos ao mesmo tempo nunca avaliam o mesmo item juntos: o segundo espera a trava e já
- * lê o estado que o primeiro gravou. É o que garante UM aviso por cruzamento de linha.
+ * lê o estado que o primeiro gravou. É o que garante UM aviso por cruzamento de linha. A mudança
+ * de linha (`definirLinhas`) e a reavaliação da virada do dia (`reavaliarReposicao`, no worker)
+ * passam pela mesma função, sob a mesma trava.
  *
  * Este arquivo não importa estoque.ts (estoque.ts é quem o chama).
  */
@@ -92,8 +94,12 @@ type Atual = {
   dia: string;
 };
 
-/** Saldo livre do item na área (em uso e guardado; sem bloqueado, vencido nem "a receber"), as linhas e o estado. */
-async function lerAtual(trx: Trx, itemId: number, area: AreaEstoque): Promise<Atual | null> {
+/**
+ * Saldo livre do item na área (em uso e guardado; sem bloqueado, vencido nem "a receber"), as linhas e o estado.
+ * `dia` = o dia da loja em que o vencido é contado (nulo = hoje). O `s.quantidade > 0` deixa o banco usar o
+ * índice parcial `estoque_saldo_item` (sem ele, percorre a tabela inteira com o item travado).
+ */
+async function lerAtual(trx: Trx, itemId: number, area: AreaEstoque, dia: string | null): Promise<Atual | null> {
   const r = await sql<Atual>`
     SELECT coalesce(i.nome, f.nome) AS nome, coalesce(i.unidade_base, f.unidade_rendimento) AS unidade,
       coalesce(i.area_estoque, e.area_preparo) AS area_padrao, e.ingrediente_id, e.preparo_id,
@@ -101,13 +107,13 @@ async function lerAtual(trx: Trx, itemId: number, area: AreaEstoque): Promise<At
       ln.aviso_guardado, (ln.item_id IS NOT NULL) AS tem_linha,
       st.situacao, st.usando_guardado, st.abastecer,
       coalesce((SELECT sum(s.quantidade) FROM estoque_saldo s JOIN estoque_lote l ON l.id = s.lote_id
-        WHERE s.item_id = e.id AND s.area = ${area} AND s.local = 'em_uso' AND NOT s.bloqueado
-          AND coalesce(l.validade >= hoje_na_loja(), true)), 0)::text AS em_uso,
+        WHERE s.item_id = e.id AND s.area = ${area} AND s.local = 'em_uso' AND s.quantidade > 0 AND NOT s.bloqueado
+          AND coalesce(l.validade >= d.dia, true)), 0)::text AS em_uso,
       coalesce((SELECT sum(s.quantidade) FROM estoque_saldo s JOIN estoque_lote l ON l.id = s.lote_id
-        WHERE s.item_id = e.id AND s.area = ${area} AND s.local = 'guardado' AND NOT s.bloqueado
-          AND coalesce(l.validade >= hoje_na_loja(), true)), 0)::text AS guardado,
-      to_char(hoje_na_loja(), 'YYYY-MM-DD') AS dia
-    FROM estoque_item e
+        WHERE s.item_id = e.id AND s.area = ${area} AND s.local = 'guardado' AND s.quantidade > 0 AND NOT s.bloqueado
+          AND coalesce(l.validade >= d.dia, true)), 0)::text AS guardado,
+      to_char(d.dia, 'YYYY-MM-DD') AS dia
+    FROM estoque_item e CROSS JOIN (SELECT coalesce(${dia}::date, hoje_na_loja()) AS dia) d
     LEFT JOIN ingrediente i ON i.id = e.ingrediente_id LEFT JOIN ficha f ON f.id = e.preparo_id
     LEFT JOIN estoque_linha ln ON ln.item_id = e.id AND ln.area = ${area}
     LEFT JOIN estoque_reposicao_estado st ON st.item_id = e.id AND st.area = ${area}
@@ -116,15 +122,25 @@ async function lerAtual(trx: Trx, itemId: number, area: AreaEstoque): Promise<At
 }
 
 const nulo = (t: string | null) => (t === null ? null : q4DoBanco(t));
+
+/** A área já teve saldo do item (todo movimento deixa uma linha de saldo, que nunca se apaga). */
+async function areaJaUsada(trx: Trx, itemId: number, area: AreaEstoque): Promise<boolean> {
+  const r = await sql<{ sim: boolean }>`SELECT EXISTS (SELECT 1 FROM estoque_saldo WHERE item_id = ${itemId} AND area = ${area}) AS sim`.execute(trx);
+  return r.rows[0]!.sim;
+}
+
+/** Todos os destinatários são da gestão de compras (podem ver quantidades e linhas). */
+const soCompras = (cargos: readonly Cargo[]) => cargos.every((c) => PERMISSOES[c].includes("compras.gerenciar"));
 const comUnidade = (q: bigint, un: string) => `${textoQ4(q)} ${un}`;
 
 /**
- * Reavalia o estado de reposição de cada (item, área) tocado por um movimento (ou por uma mudança
- * de linha, com `movimentoId` nulo) e manda os avisos de quem cruzou uma linha para pior. Quem
- * chama já travou os itens. Só avalia a área do item, uma área com linha definida ou uma que já
- * tem estado (o item que passa por outra área, sem linha lá, não gera aviso daquela área).
+ * Avalia o estado de reposição de cada (item, área) tocado por um movimento (ou por uma mudança de
+ * linha ou pela virada do dia, com `movimentoId` nulo) e manda os avisos de quem cruzou uma linha
+ * para pior. Quem chama já travou os itens. Só avalia a área do item, uma área com linha definida
+ * ou uma que já tem estado (o item que passa por outra área, sem linha lá, não gera aviso dela).
+ * `dia`: o dia da loja para o vencido (sem ele, hoje).
  */
-export async function reavaliarReposicao(trx: Trx, pares: readonly ParParaReavaliar[], movimentoId: string | null): Promise<void> {
+export async function avaliarReposicao(trx: Trx, pares: readonly ParParaReavaliar[], movimentoId: string | null, dia: string | null = null): Promise<void> {
   if (pares.length === 0) return;
   const juntos = new Map<string, ParParaReavaliar>();
   for (const p of pares) {
@@ -142,7 +158,7 @@ export async function reavaliarReposicao(trx: Trx, pares: readonly ParParaReaval
     return unidadeId;
   };
   for (const p of ordem) {
-    const a = await lerAtual(trx, p.itemId, p.area);
+    const a = await lerAtual(trx, p.itemId, p.area, dia);
     if (!a) continue;
     if (!a.tem_linha && a.area_padrao !== p.area && a.situacao === null) continue;
     const linhas: Linhas = { saudavel: nulo(a.saudavel), emergencia: nulo(a.emergencia), abastecimento: nulo(a.abastecimento) };
@@ -161,6 +177,8 @@ export async function reavaliarReposicao(trx: Trx, pares: readonly ParParaReaval
     const abastecer = precisaAbastecer(emUso, guardado, linhas.abastecimento, usando);
 
     const lugar = NOME_DA_AREA[p.area];
+    // Para quem não é da gestão de compras (cozinheira, supervisor): sem quantidades nem linhas.
+    const dadosCegos = { itemId: p.itemId, area: p.area, estado: situacao, movimentoId };
     const dados = {
       itemId: p.itemId,
       ingredienteId: a.ingrediente_id,
@@ -177,14 +195,17 @@ export async function reavaliarReposicao(trx: Trx, pares: readonly ParParaReaval
       paraRepor: linhas.saudavel !== null && linhas.saudavel > total ? textoQ4(linhas.saudavel - total) : null,
       movimentoId,
     };
-    // Primeira avaliação vinda de uma mudança de linha (o item nunca foi avaliado nesta área, ex.:
-    // linha definida numa área ainda vazia): só registra o estado, sem aviso. Movimento avisa sempre.
-    const silencioso = a.situacao === null && movimentoId === null;
+    // Começo calado: só a primeira avaliação, sem movimento (mudança de linha), de uma área que nunca
+    // teve saldo do item e não é a área dele (ex.: linha nova do leite na cafeteria). Lá não houve
+    // cruzamento: só registra o estado. Na área do item, ou numa área que já teve saldo (item com
+    // saldo de antes da migração, sem movimento depois), avisa e grava o evento normalmente.
+    const silencioso = a.situacao === null && movimentoId === null && p.area !== a.area_padrao && !(await areaJaUsada(trx, p.itemId, p.area));
     const avisar = async (tipo: string, prioridade: Prioridade, paraCargos: readonly Cargo[], texto: string, extra: Record<string, unknown>) => {
       if (silencioso) return null;
       const u = await unidade();
       if (u === null) return null;
-      return criarAviso(trx, { unidadeId: u, paraCargos, tipo, prioridade, texto, dados: { ...dados, ...extra } });
+      const base = soCompras(paraCargos) ? dados : dadosCegos;
+      return criarAviso(trx, { unidadeId: u, paraCargos, tipo, prioridade, texto, dados: { ...base, ...extra } });
     };
     const evento = async (tipo: "situacao" | "usando_guardado" | "abastecer", de: string, para: string, avisoId: string | null) => {
       if (silencioso) return; // o estado só começa aqui: não houve mudança
@@ -243,7 +264,7 @@ export async function reavaliarReposicao(trx: Trx, pares: readonly ParParaReaval
 
     if (abastecer !== antes.abastecer) {
       let avisoId: string | null = null;
-      // Para quem cuida da área: sem quantidades no texto (a contagem cega vale também nos avisos).
+      // Para quem cuida da área: sem quantidades no texto nem no `dados` (a contagem cega vale também nos avisos).
       if (abastecer)
         avisoId = await avisar(
           TIPOS_DE_AVISO_DE_REPOSICAO.abastecer,
@@ -267,16 +288,20 @@ export async function reavaliarReposicao(trx: Trx, pares: readonly ParParaReaval
 
 /**
  * Conferência (para `conferirEstoque`): o estado de cada item e área bate com o saldo livre e as
- * linhas de agora. O vencido é contado pelo dia da última avaliação (a virada do dia não acusa
- * diferença; o item é reavaliado no próximo movimento).
+ * linhas de agora. O vencido é contado pelo dia da última avaliação; a virada do dia é tolerada
+ * até o dia seguinte (o worker reavalia de hora em hora e logo depois da virada). Estado de antes
+ * de ontem com lote que venceu depois dele = reavaliação atrasada (o worker não rodou).
  */
 export async function conferirReposicao(db: Banco): Promise<string[]> {
-  const r = await sql<{ item_id: number; area: AreaEstoque; situacao: SituacaoDeReposicao; abastecer: boolean; usando: boolean; q: string; em_uso: string; guardado: string; em_uso_agora: string; guardado_agora: string; saudavel: string | null; emergencia: string | null; abastecimento: string | null }>`
+  const r = await sql<{ item_id: number; area: AreaEstoque; situacao: SituacaoDeReposicao; abastecer: boolean; usando: boolean; q: string; em_uso: string; guardado: string; em_uso_agora: string; guardado_agora: string; saudavel: string | null; emergencia: string | null; abastecimento: string | null; atrasada: boolean }>`
     SELECT st.item_id, st.area, st.situacao, st.abastecer, st.usando_guardado AS usando, st.quantidade::text AS q, st.em_uso::text AS em_uso, st.guardado::text AS guardado,
       coalesce((SELECT sum(s.quantidade) FROM estoque_saldo s JOIN estoque_lote l ON l.id = s.lote_id
-        WHERE s.item_id = st.item_id AND s.area = st.area AND s.local = 'em_uso' AND NOT s.bloqueado AND coalesce(l.validade >= st.dia, true)), 0)::text AS em_uso_agora,
+        WHERE s.item_id = st.item_id AND s.area = st.area AND s.local = 'em_uso' AND s.quantidade > 0 AND NOT s.bloqueado AND coalesce(l.validade >= st.dia, true)), 0)::text AS em_uso_agora,
       coalesce((SELECT sum(s.quantidade) FROM estoque_saldo s JOIN estoque_lote l ON l.id = s.lote_id
-        WHERE s.item_id = st.item_id AND s.area = st.area AND s.local = 'guardado' AND NOT s.bloqueado AND coalesce(l.validade >= st.dia, true)), 0)::text AS guardado_agora,
+        WHERE s.item_id = st.item_id AND s.area = st.area AND s.local = 'guardado' AND s.quantidade > 0 AND NOT s.bloqueado AND coalesce(l.validade >= st.dia, true)), 0)::text AS guardado_agora,
+      (st.dia < hoje_na_loja() - 1 AND EXISTS (SELECT 1 FROM estoque_saldo s JOIN estoque_lote l ON l.id = s.lote_id
+        WHERE s.item_id = st.item_id AND s.area = st.area AND s.local IN ('em_uso', 'guardado') AND s.quantidade > 0 AND NOT s.bloqueado
+          AND l.validade >= st.dia AND l.validade < hoje_na_loja() - 1)) AS atrasada,
       ln.saudavel::text AS saudavel, ln.emergencia::text AS emergencia, ln.abastecimento::text AS abastecimento
     FROM estoque_reposicao_estado st LEFT JOIN estoque_linha ln ON ln.item_id = st.item_id AND ln.area = st.area`.execute(db);
   const problemas: string[] = [];
@@ -288,6 +313,7 @@ export async function conferirReposicao(db: Banco): Promise<string[]> {
     const linhas = { saudavel: nulo(x.saudavel), emergencia: nulo(x.emergencia), abastecimento: nulo(x.abastecimento) };
     if (situacaoPelasLinhas(emUso + guardado, linhas) !== x.situacao) problemas.push(`${onde} com situação diferente das linhas`);
     if (precisaAbastecer(emUso, guardado, linhas.abastecimento, x.usando) !== x.abastecer) problemas.push(`${onde} com "abastecer" diferente do saldo`);
+    if (x.atrasada) problemas.push(`${onde} sem a reavaliação da virada do dia (lote vencido)`);
   }
   return problemas;
 }

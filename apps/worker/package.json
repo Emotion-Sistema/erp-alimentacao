@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@erp/banco": "workspace:*",
+    "@erp/dominio": "workspace:*",
     "pg-boss": "^12.38.2",
     "tsx": "^4.23.15"
   }

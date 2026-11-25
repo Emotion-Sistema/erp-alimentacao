@@ -42,16 +42,24 @@ linhas e avisos e só "avisa a lista". Migração livre: 0025 (a última era a 0
    | Precisa trazer do guardado | Normal | quem cuida da área (cozinha: cozinheira; salão: supervisor) |
    Só avisa quando a situação **piora**; recuperar (inteira ou em parte) não avisa e "rearma".
    Pulo direto de saudável para emergência gera um aviso só (o mais grave).
-   O aviso para quem cuida da área não leva quantidades no texto (contagem cega).
+   O aviso para quem cuida da área não leva quantidades no texto (contagem cega) nem no `dados`:
+   quando algum destinatário não é da gestão de compras ("abastecer" e "esgotado"), o `dados` leva
+   só itemId, área, situação (`estado`), movimento e a ação do botão. Os avisos só para o gerente
+   geral (repor, emergência, uso do guardado) levam tudo.
 5. **Usando o guardado**: liga quando o consumo (ou a produção) traz do guardado; desliga quando o
    em uso volta a ter saldo livre (alguém abasteceu). Um aviso a cada vez que COMEÇA a usar.
    **Abastecer** = (em uso abaixo do nível de abastecimento OU usando o guardado) E há guardado
    livre para trazer (hipótese: sem guardado, "trazer do guardado" não faz sentido; a compra avisa).
 6. **Quais áreas são avaliadas**: a área do item, uma área com linha definida ou uma que já tem
    estado. Item que passa por outra área sem linha lá não gera aviso dela.
-7. **Linha definida com o item nunca avaliado na área** (ex.: linha nova numa área vazia): o estado
-   começa calado, sem aviso nem evento. Movimento avisa sempre. Com o item já avaliado, subir a
-   linha acima do saldo avisa uma vez (o item está abaixo da linha agora).
+7. **Linha definida ou mudada**: a avaliação grava o evento e avisa normalmente quando a situação
+   é ruim, mesmo sem estado anterior (ex.: item com 300 de antes da migração, sem movimento depois,
+   e linha saudável 500 = um aviso de repor, com o `desde` preenchido; a venda seguinte não repete;
+   o mesmo para "esgotado"). **Começo calado** só numa área que nunca teve saldo nem movimento do
+   item **e** não é a área do próprio item (ex.: a linha do leite na cafeteria antes de ele chegar
+   lá): o estado começa em "esgotado" sem aviso nem evento. Hipótese: ingrediente novo, ainda sem
+   compra, com a linha definida na área dele avisa "esgotado" uma vez (ele está mesmo fora de venda).
+   "Nunca teve" = nenhuma linha de saldo do item na área (todo movimento deixa uma, que não se apaga).
 8. **Quem define as linhas**: quem cuida da área, como o resto do estoque (`estoque.cozinha` /
    `estoque.salao`; RC-09 seção 4: "quem cuida: linha, contagem, perda"). Isso já inclui a
    supervisão no salão e a gestão de compras (gerente geral, dono, administrador) em todas as áreas.
@@ -68,10 +76,20 @@ linhas e avisos e só "avisa a lista". Migração livre: 0025 (a última era a 0
    saudável = emergência + média x folga (padrão 3 dias, hipótese). "Dura até" = livre / média, em
    dias inteiros para baixo, contado de hoje. Conta exata, arredondada só no fim (`calcularSugestao`).
 11. **Conferência**: `conferirEstoque` também confere que o estado de cada item e área bate com o
-   saldo livre (vencido contado pelo dia da avaliação, para a virada do dia não acusar) e com as
-   linhas atuais.
+   saldo livre (vencido contado pelo dia da avaliação) e com as linhas atuais. A virada do dia é
+   tolerada até o dia seguinte; estado com lote que venceu antes de ontem e não foi reavaliado é
+   acusado ("sem a reavaliação da virada do dia": o worker não rodou).
 12. **API** (sem tela): `GET/POST /api/estoque/linhas`, `GET /api/estoque/linhas/sugestao`,
    `GET /api/estoque/repor`, na matriz da API.
+13. **Virada do dia** (`reavaliarReposicao(db, { agora? })`): reavalia os itens e áreas com lote
+   de saldo livre que venceu depois da última avaliação (e os ainda sem estado, na área do item ou
+   numa área com linha). Mesma avaliação e mesma trava dos movimentos: itens por id, 10 por
+   transação; avisos uma vez por cruzamento, mesmo com duas execuções ao mesmo tempo. Roda no
+   worker pelo agendador do pg-boss (`schedule`), que já mora no PostgreSQL (decisão 0003: nada
+   novo): minuto 1 de toda hora no fuso da loja (00:01 = logo depois da virada), `missed: once`
+   para as horas em que o worker esteve fora, fila `stately` (não acumula) e uma vez ao subir.
+14. **Desempenho**: toda soma de saldo do estado filtra `quantidade > 0`, para usar o índice parcial
+   `estoque_saldo_item` (sem ele, o banco percorria a tabela inteira com o item travado).
 
 ## Fica para a parte 2
 - Agrupar ("5 itens entraram em reposição") e horário de silêncio para o que não é urgente.
@@ -79,8 +97,9 @@ linhas e avisos e só "avisa a lista". Migração livre: 0025 (a última era a 0
   turno: hoje o aviso operacional vale até o fim do turno + margem (decisão 0013), então uma
   emergência de madrugada pode expirar sem ninguém ver. O estado não se perde (o `itensParaRepor`
   continua mostrando), mas o aviso sim. Precisa do worker.
-- Reavaliar quando um lote vence sem movimento (virada do dia): hoje o estado só muda no próximo
-  movimento do item. Também do worker.
+- Cadastro não reavalia: mudar a área de estoque do ingrediente (ou do preparo), inativar ou
+  reativar não muda o estado de reposição na hora; só no próximo movimento, na próxima mudança de
+  linha ou na reavaliação da virada (se houver lote vencendo).
 - Sugestão por dia da semana (RC-09: "sábado gasta mais que terça") e telas (painel com semáforo,
   "dura até", definir e aceitar sugestão).
 - Preparo intermediário acabando ("abrir ordem de produção") e consumo fora do normal.
@@ -99,7 +118,10 @@ linhas e avisos e só "avisa a lista". Migração livre: 0025 (a última era a 0
   só nas mudanças.
 - Itens sem linha também avisam quando esgotam e quando começam a usar o guardado (o RC-09 pede
   esses avisos para todo item). Na homologação, o primeiro movimento de cada item depois da migração
-  cria o estado; item que já esteja zerado ou usando o guardado avisa uma vez nesse momento.
+  (ou a primeira linha definida, ou a virada do dia com lote vencido) cria o estado; item que já
+  esteja zerado ou abaixo da linha avisa uma vez nesse momento.
+- O worker passa a depender de `@erp/dominio` (mesma imagem; o papel `erp_worker` já tem as mesmas
+  permissões do `erp_app` nas tabelas).
 
 ## Critério de aceite e evidência
 `packages/dominio/testes/estoque-reposicao.teste.ts` contra PostgreSQL real: cruzar a saudável = 1
@@ -117,3 +139,10 @@ Prova de mutação (cada uma derruba pelo menos um teste): sem a reavaliação n
 também ao recuperar; avisar a cada venda abaixo; "usando guardado" que nunca desliga; ignorar o
 "desligado"; avisar o guardado a cada venda; sem o começo calado; abastecer sem guardado; "a
 receber" contando; bloqueado contando; sem a trava do item (o teste de duas vendas simultâneas falha).
+Correções da revisão do PR 158 (também com prova de mutação): linha sobre saldo sem estado (300 e
+saudável 500 = um aviso, `desde` preenchido, venda seguinte calada; o mesmo para esgotado; área que
+já teve o item avisa); `dados` sem quantidades para cozinheira e supervisor; lote que vence sem
+movimento = emergência, um aviso, e duas reavaliações em paralelo (3 rodadas) = um aviso; conferência
+acusa reavaliação atrasada. Mutações que derrubam: começo calado antigo; sem começo calado; área do
+item calada; sem olhar o saldo anterior da área; `dados` sempre completo; reavaliação sem trava;
+reavaliação ignorando o dia; sem acusar a atrasada.

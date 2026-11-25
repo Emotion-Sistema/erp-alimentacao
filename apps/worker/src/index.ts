@@ -1,11 +1,14 @@
 /**
  * Worker: processo separado das telas (decisão 0003). Usa fila durável dentro do
- * PostgreSQL (pg-boss), sem Redis. Nesta etapa só sobe, confere o banco e mantém
- * uma fila de verificação; as filas reais (outbox, tickets, avisos) vêm com as
- * etapas E05 e E11.
+ * PostgreSQL (pg-boss), sem Redis. Sobe, confere o banco e mantém uma fila de
+ * verificação; as filas reais (outbox, tickets, avisos) vêm com as etapas E05 e E11.
+ * Tarefa agendada (pg-boss `schedule`, que também mora no PostgreSQL): a reavaliação
+ * da reposição na virada do dia (E10; decisão 0029), de hora em hora no fuso da loja,
+ * com a primeira logo depois da meia-noite dela.
  */
 import { PgBoss } from "pg-boss";
-import { urlDoBanco } from "@erp/banco";
+import { criarBanco, urlDoBanco } from "@erp/banco";
+import { reavaliarReposicao } from "@erp/dominio";
 
 const log = (nivel: string, mensagem: string, extra: Record<string, unknown> = {}) =>
   console.log(JSON.stringify({ quando: new Date().toISOString(), processo: "worker", nivel, mensagem, ...extra }));
@@ -21,7 +24,24 @@ await boss.work("verificacao", async ([tarefa]) => {
   log("info", "verificação recebida", { id: tarefa?.id });
 });
 await boss.send("verificacao", { em: new Date().toISOString() });
-log("info", "worker no ar");
+
+// Reposição: lote que vence sem movimento muda a situação do item (decisão 0029). Minuto 1 de toda
+// hora, no fuso da loja: 00:01 é logo depois da virada; as outras horas cobrem o worker que estava
+// fora (e `missed: once` manda uma só pelas que passaram com ele parado). Duas execuções juntas não
+// repetem aviso (a avaliação trava o item); a fila "stately" evita acumular.
+const FILA_REPOSICAO = "estoque-reposicao-virada";
+const db = criarBanco(urlDoBanco(), 2);
+const unidade = await db.selectFrom("unidade").select("fuso_horario").orderBy("id").limit(1).executeTakeFirst();
+const fuso = unidade?.fuso_horario ?? "America/Sao_Paulo";
+await boss.createQueue(FILA_REPOSICAO, { policy: "stately" });
+await boss.work(FILA_REPOSICAO, async () => {
+  const r = await reavaliarReposicao(db);
+  log("info", "reposição reavaliada (virada do dia)", r);
+});
+await boss.schedule(FILA_REPOSICAO, "1 * * * *", null, { tz: fuso, missed: "once" });
+// Ao subir também (depois de uma implantação ou de uma queda).
+await boss.send(FILA_REPOSICAO, null);
+log("info", "worker no ar", { fuso });
 
 let saindo = false;
 for (const sinal of ["SIGINT", "SIGTERM"] as const) {
@@ -30,6 +50,7 @@ for (const sinal of ["SIGINT", "SIGTERM"] as const) {
     saindo = true;
     log("info", `encerrando (${sinal}); terminando o que está em andamento`);
     await boss.stop({ graceful: true, timeout: 20000 });
+    await db.destroy();
     process.exit(0);
   });
 }

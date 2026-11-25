@@ -6,6 +6,7 @@
  *   administrador) em todas. Cada mudança fica no histórico com quem e quando.
  * - O estado (saudável, repor, emergência, esgotado) muda na transação de cada movimento
  *   (estoque-reposicao-estado.ts); aqui só se lê.
+ * - `reavaliarReposicao`: a virada do dia (lote que venceu sem movimento), pelo worker.
  * - `itensParaRepor`: o ponto de encaixe com a lista de compras (outra frente): o que está abaixo
  *   da linha e quanto falta para voltar à linha saudável. Não cria lista.
  * - `sugerirLinhas`: sugestão a partir do consumo real (nunca grava sozinha) e o "dura até".
@@ -18,9 +19,10 @@ import { motorDoEstoque } from "./estoque";
 import { acaoDaArea, q4, q4DoBanco, QUANTIDADE_MAXIMA, textoQ4 } from "./estoque-comum";
 import {
   AVISOS_DO_GUARDADO,
+  avaliarReposicao,
   gravidade,
-  reavaliarReposicao,
   type AvisoDoGuardado,
+  type ParParaReavaliar,
   type SituacaoDeReposicao,
 } from "./estoque-reposicao-estado";
 import { Fracao } from "./fichas-comum";
@@ -147,7 +149,7 @@ export async function definirLinhas(db: Banco, ator: Ator | null, dados: unknown
         .values({ item_id: item.id, area: ar, ...valores })
         .onConflict((oc) => oc.columns(["item_id", "area"]).doUpdateSet(valores))
         .execute();
-      await reavaliarReposicao(trx, [{ itemId: item.id, area: ar, usouGuardado: false }], null);
+      await avaliarReposicao(trx, [{ itemId: item.id, area: ar, usouGuardado: false }], null);
     }
   });
   const r = await linhasDoItem(db, quem, { ingredienteId: d.ingredienteId, preparoId: d.preparoId });
@@ -304,7 +306,7 @@ export async function itensParaRepor(db: Banco, ator: Ator | null, filtro: unkno
   }>`
     SELECT st.item_id, e.ingrediente_id, e.preparo_id, coalesce(i.nome, fi.nome) AS nome, coalesce(i.unidade_base, fi.unidade_rendimento) AS unidade,
       st.area, st.situacao, st.quantidade::text AS quantidade,
-      coalesce((SELECT sum(s.quantidade) FROM estoque_saldo s WHERE s.item_id = st.item_id AND s.area = st.area AND s.local = 'a_receber'), 0)::text AS a_receber,
+      coalesce((SELECT sum(s.quantidade) FROM estoque_saldo s WHERE s.item_id = st.item_id AND s.area = st.area AND s.local = 'a_receber' AND s.quantidade > 0), 0)::text AS a_receber,
       ln.saudavel::text AS saudavel, ln.emergencia::text AS emergencia, st.usando_guardado AS usando,
       fo.id AS fornecedor_id, fo.nome AS fornecedor, fo.prazo_entrega_dias AS prazo,
       to_char((SELECT max(ev.em) FROM estoque_reposicao_evento ev WHERE ev.item_id = st.item_id AND ev.area = st.area AND ev.tipo = 'situacao' AND ev.para = st.situacao)
@@ -339,6 +341,51 @@ export async function itensParaRepor(db: Banco, ator: Ator | null, filtro: unkno
       };
     })
     .sort((a, b) => gravidade(b.situacao) - gravidade(a.situacao) || a.nome.localeCompare(b.nome, "pt-BR") || a.area.localeCompare(b.area));
+}
+
+// ---------------------------------------------------------------- virada do dia (worker)
+
+/** Itens por transação na reavaliação da virada do dia: poucos, para não segurar a venda. */
+const ITENS_POR_BLOCO = 10;
+
+/**
+ * Reavalia o estado de reposição dos itens e áreas que podem ter mudado só porque o dia passou (um
+ * lote venceu sem movimento do item). Roda no worker, de hora em hora e logo depois da virada do
+ * dia da loja. Usa a mesma avaliação e a mesma trava dos movimentos (itens por id, em blocos
+ * pequenos, uma transação por bloco): os avisos saem uma vez por cruzamento, mesmo com duas
+ * execuções ao mesmo tempo (a segunda espera a trava e lê o estado que a primeira gravou).
+ * `agora` (para teste): o instante em que o dia da loja é calculado; sem ele, agora.
+ */
+export async function reavaliarReposicao(db: Banco, opcoes: { agora?: Date } = {}): Promise<{ dia: string; avaliados: number }> {
+  const agora = opcoes.agora?.toISOString() ?? null;
+  const dia = (
+    await sql<{ d: string }>`
+      SELECT to_char(CASE WHEN ${agora}::timestamptz IS NULL THEN hoje_na_loja()
+        ELSE (${agora}::timestamptz AT TIME ZONE coalesce((SELECT fuso_horario FROM unidade ORDER BY id LIMIT 1), 'America/Sao_Paulo'))::date END, 'YYYY-MM-DD') AS d`.execute(db)
+  ).rows[0]!.d;
+  // Lote com saldo livre que venceu depois da última avaliação (ou item ainda sem estado na área
+  // dele ou numa área com linha). O resto não muda com o dia.
+  const r = await sql<{ item_id: number; area: AreaEstoque }>`
+    SELECT DISTINCT s.item_id, s.area
+    FROM estoque_saldo s JOIN estoque_lote l ON l.id = s.lote_id
+    JOIN estoque_item e ON e.id = s.item_id
+    LEFT JOIN ingrediente i ON i.id = e.ingrediente_id
+    LEFT JOIN estoque_reposicao_estado st ON st.item_id = s.item_id AND st.area = s.area
+    WHERE s.quantidade > 0 AND NOT s.bloqueado AND s.local IN ('em_uso', 'guardado') AND l.validade < ${dia}::date
+      AND CASE WHEN st.item_id IS NOT NULL THEN l.validade >= st.dia
+        ELSE s.area = coalesce(i.area_estoque, e.area_preparo) OR EXISTS (SELECT 1 FROM estoque_linha ln WHERE ln.item_id = s.item_id AND ln.area = s.area) END
+    ORDER BY s.item_id, s.area`.execute(db);
+  const porItem = new Map<number, ParParaReavaliar[]>();
+  for (const x of r.rows) porItem.set(x.item_id, [...(porItem.get(x.item_id) ?? []), { itemId: x.item_id, area: x.area, usouGuardado: false }]);
+  const ids = [...porItem.keys()];
+  for (let k = 0; k < ids.length; k += ITENS_POR_BLOCO) {
+    const bloco = ids.slice(k, k + ITENS_POR_BLOCO);
+    await db.transaction().execute(async (trx) => {
+      await travarItens(trx, bloco);
+      await avaliarReposicao(trx, bloco.flatMap((i) => porItem.get(i)!), null, dia);
+    });
+  }
+  return { dia, avaliados: r.rows.length };
 }
 
 // ---------------------------------------------------------------- sugestão de linhas e "dura até"
@@ -460,7 +507,7 @@ export async function sugerirLinhas(db: Banco, ator: Ator | null, dados: unknown
       )
       SELECT coalesce(-sum(q) FILTER (WHERE (tipo <> 'estorno' AND q < 0) OR (tipo = 'estorno' AND q > 0)), 0)::text AS consumo,
         coalesce((SELECT sum(s.quantidade) FROM estoque_saldo s JOIN estoque_lote lo ON lo.id = s.lote_id
-          WHERE s.item_id = ${item.id} AND s.area = ${ar} AND s.local IN ('em_uso', 'guardado') AND NOT s.bloqueado
+          WHERE s.item_id = ${item.id} AND s.area = ${ar} AND s.local IN ('em_uso', 'guardado') AND s.quantidade > 0 AND NOT s.bloqueado
             AND coalesce(lo.validade >= hoje_na_loja(), true)), 0)::text AS total
       FROM por_mov`.execute(db);
     consumo = q4DoBanco(r.rows[0]!.consumo);

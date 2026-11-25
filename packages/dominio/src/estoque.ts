@@ -39,7 +39,7 @@ import { Fracao } from "./fichas-comum";
 import { consumoDaFicha } from "./fichas";
 import { pode } from "./permissoes";
 import { exigir, type Ator } from "./sessao";
-import { conferirReposicao, reavaliarReposicao, type ParParaReavaliar } from "./estoque-reposicao-estado";
+import { avaliarReposicao, conferirReposicao, type ParParaReavaliar } from "./estoque-reposicao-estado";
 
 type Trx = Banco;
 const MAIOR_ID = 2_147_483_647;
@@ -435,7 +435,7 @@ class Lancamento {
     }
     // Linhas de reposição (E10): na mesma transação e sob a mesma trava do item, para cada (item,
     // área) que mudou. Todo caminho que muda saldo passa por aqui (mexer -> fechar).
-    await reavaliarReposicao(this.trx, [...this.tocados.values()], this.movimentoId);
+    await avaliarReposicao(this.trx, [...this.tocados.values()], this.movimentoId);
   }
 
   /**

@@ -7,7 +7,10 @@
  * desligado ou rebaixado; "a receber" não conta; desfazer que recupera; duas vendas ao mesmo tempo
  * cruzando a linha = um aviso; consumo repetido pela chave não avisa de novo; quem define as linhas
  * (área alheia recusada e auditada); histórico imutável; lista para repor; sugestão de linhas e
- * "dura até" batendo com a conta manual; conferência do estado.
+ * "dura até" batendo com a conta manual; conferência do estado. Revisão do PR 158: linha definida
+ * sobre saldo sem estado avisa (e o começo calado só na área que nunca teve o item); `dados` sem
+ * quantidades para quem não compra; lote que vence sem movimento (virada do dia, worker), também
+ * com duas reavaliações em paralelo; conferência da reavaliação atrasada.
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -24,6 +27,7 @@ import {
   ErroDeRegra,
   itensParaRepor,
   linhasDoItem,
+  reavaliarReposicao,
   registrarEntrada,
   registrarPerda,
   salvarFornecedor,
@@ -75,15 +79,31 @@ const consumir = (ingredienteId: number, quantidade: string, chave = `teste-${ra
   db.transaction().execute((trx) => consumirNaTransacao(trx, { autorId: gerente.usuarioId, chave, itens: [{ ingredienteId, quantidade }] }));
 const linhas = (ingredienteId: number, l: Record<string, unknown>, ator = gerente) => definirLinhas(db, ator, { ingredienteId, ...l });
 
-/** Avisos de reposição do ingrediente (pelo `dados`), em ordem. */
+/** Avisos de reposição do ingrediente (pelo `itemId` do `dados`, que todo aviso leva), em ordem. */
 async function avisosDe(ingredienteId: number, tipo?: string) {
   const r = await sql<{ id: string; tipo: string; prioridade: string; para_cargos: string[]; texto: string; dados: Record<string, unknown> }>`
     SELECT a.id::text AS id, a.tipo, a.prioridade, a.para_cargos, a.texto, a.dados FROM aviso a
-    WHERE a.tipo LIKE 'estoque.%' AND (a.dados->>'ingredienteId')::int = ${ingredienteId} AND (${tipo ?? null}::text IS NULL OR a.tipo = ${tipo ?? null}::text)
+    WHERE a.tipo LIKE 'estoque.%' AND (a.dados->>'itemId')::int = (SELECT id FROM estoque_item WHERE ingrediente_id = ${ingredienteId}) AND (${tipo ?? null}::text IS NULL OR a.tipo = ${tipo ?? null}::text)
     ORDER BY a.id`.execute(db);
   return r.rows;
 }
 const tipos = async (ingredienteId: number) => (await avisosDe(ingredienteId)).map((a) => a.tipo);
+const itemDe = async (ingredienteId: number) => (await sql<{ id: number }>`SELECT id FROM estoque_item WHERE ingrediente_id = ${ingredienteId}`.execute(db)).rows[0]!.id;
+const hojeNaLoja = async (mais = 0) => (await sql<{ d: string }>`SELECT to_char(hoje_na_loja() + ${mais}::int, 'YYYY-MM-DD') AS d`.execute(db)).rows[0]!.d;
+/** Só no teste: faz algo que a trava do banco proíbe (simular dado de antes da migração, ou o tempo passando). */
+const semTrava = (tabela: string, gatilho: string, f: (trx: Banco) => Promise<unknown>) =>
+  db.transaction().execute(async (trx) => {
+    await sql.raw(`ALTER TABLE ${tabela} DISABLE TRIGGER ${gatilho}`).execute(trx);
+    await f(trx);
+    await sql.raw(`ALTER TABLE ${tabela} ENABLE TRIGGER ${gatilho}`).execute(trx);
+  });
+/** O item fica como se o saldo fosse de antes da migração 0025 (sem estado de reposição). */
+const esquecerEstado = async (ingredienteId: number) => {
+  const id = await itemDe(ingredienteId);
+  await semTrava("estoque_reposicao_estado", "estoque_reposicao_estado_sem_apagar", (trx) => sql`DELETE FROM estoque_reposicao_estado WHERE item_id = ${id}`.execute(trx));
+};
+/** As chaves do `dados` de um aviso que vai para quem não compra (cozinheira, supervisor): sem quantidades nem linhas. */
+const DADOS_CEGOS = ["acao", "area", "estado", "itemId", "movimentoId"];
 async function estado(ingredienteId: number, area = "cozinha") {
   const r = await sql<{ situacao: string; usando_guardado: boolean; abastecer: boolean; quantidade: string; em_uso: string; guardado: string }>`
     SELECT st.situacao, st.usando_guardado, st.abastecer, st.quantidade::text AS quantidade, st.em_uso::text AS em_uso, st.guardado::text AS guardado
@@ -95,8 +115,8 @@ async function estado(ingredienteId: number, area = "cozinha") {
 describe("um aviso por cruzamento (critério 5)", () => {
   it("cruzar a linha saudável gera um aviso; dez vendas seguintes abaixo dela não geram outros", async () => {
     const x = await ingrediente("Farinha");
-    await linhas(x, { saudavel: "500", emergencia: "100" });
     await entrada(x, "1000", "em_uso");
+    await linhas(x, { saudavel: "500", emergencia: "100" });
     await consumir(x, "400");
     expect(await tipos(x)).toEqual([]);
     expect(await estado(x)).toMatchObject({ situacao: "saudavel", quantidade: 600 });
@@ -129,8 +149,9 @@ describe("um aviso por cruzamento (critério 5)", () => {
     const ev = await sql<{ de: string; para: string; tem_aviso: boolean; tem_mov: boolean }>`
       SELECT ev.de, ev.para, ev.aviso_id IS NOT NULL AS tem_aviso, ev.movimento_id IS NOT NULL AS tem_mov
       FROM estoque_reposicao_evento ev JOIN estoque_item e ON e.id = ev.item_id WHERE e.ingrediente_id = ${x} AND ev.tipo = 'situacao' ORDER BY ev.id`.execute(db);
-    // (A linha definida com o item vazio só começou o estado em "esgotado", sem aviso nem evento.)
+    // A linha definida com o item ainda vazio, na área dele, já é "esgotado" (aviso e evento, sem movimento).
     expect(ev.rows).toEqual([
+      { de: "saudavel", para: "esgotado", tem_aviso: true, tem_mov: false },
       { de: "esgotado", para: "saudavel", tem_aviso: false, tem_mov: true },
       { de: "saudavel", para: "repor", tem_aviso: true, tem_mov: true },
       { de: "repor", para: "saudavel", tem_aviso: false, tem_mov: true },
@@ -143,8 +164,8 @@ describe("um aviso por cruzamento (critério 5)", () => {
 describe("emergência e esgotado (critério 6)", () => {
   it("cruzar a emergência é urgente (um só, sem repetir); zerar é esgotado, urgente também para quem cuida da área", async () => {
     const x = await ingrediente("Óleo");
-    await linhas(x, { saudavel: "500", emergencia: "200" });
     await entrada(x, "600", "em_uso");
+    await linhas(x, { saudavel: "500", emergencia: "200" });
     await consumir(x, "450"); // 150: pulou direto para emergência (um aviso, o mais grave)
     expect(await tipos(x)).toEqual(["estoque.emergencia"]);
     const [e] = await avisosDe(x, "estoque.emergencia");
@@ -157,11 +178,16 @@ describe("emergência e esgotado (critério 6)", () => {
     expect(await tipos(x)).toEqual(["estoque.emergencia", "estoque.esgotado"]);
     const [z] = await avisosDe(x, "estoque.esgotado");
     expect(z).toMatchObject({ prioridade: "urgente", para_cargos: ["gerente_geral", "cozinheira"] });
+    // Vai também para a cozinheira: o `dados` não leva quantidades nem linhas.
+    expect(Object.keys(z!.dados).sort()).toEqual(DADOS_CEGOS);
+    expect(z!.dados).toMatchObject({ itemId: await itemDe(x), area: "cozinha", estado: "esgotado", movimentoId: expect.any(String) });
+    // O de emergência (só para o gerente geral) leva tudo.
+    expect(e!.dados).toMatchObject({ quantidade: "150", emUso: "150", guardado: "0", saudavel: "500", emergencia: "200" });
     expect(await estado(x)).toMatchObject({ situacao: "esgotado", quantidade: 0 });
     // Saldo que não chega a zerar: da repor para a emergência avisa a emergência.
     const y = await ingrediente("Sal");
-    await linhas(y, { saudavel: "500", emergencia: "200" });
     await entrada(y, "600", "em_uso");
+    await linhas(y, { saudavel: "500", emergencia: "200" });
     await consumir(y, "200");
     await consumir(y, "250");
     expect(await tipos(y)).toEqual(["estoque.repor", "estoque.emergencia"]);
@@ -184,8 +210,8 @@ describe("emergência e esgotado (critério 6)", () => {
     expect(await estado(x)).toMatchObject({ situacao: "esgotado", quantidade: 0 });
     // No guardado também: o bloqueado não entra no total.
     const y = await ingrediente("Polvilho");
-    await linhas(y, { saudavel: "100" });
     await entrada(y, "150", "guardado");
+    await linhas(y, { saudavel: "100" });
     await bloquear(db, gerente, { ingredienteId: y, quantidade: "100", area: "cozinha", local: "guardado", motivo: "suspeita" });
     expect(await estado(y)).toMatchObject({ situacao: "repor", quantidade: 50, guardado: 50 });
     expect(await tipos(y)).toEqual(["estoque.repor"]);
@@ -207,6 +233,8 @@ describe("uso do guardado e abastecimento (critérios 2 e 5a)", () => {
     const [ab] = await avisosDe(x, "estoque.abastecer");
     expect(ab).toMatchObject({ prioridade: "normal", para_cargos: ["cozinheira"] });
     expect(ab!.texto).not.toMatch(/\d+ g/); // para quem cuida: sem quantidades (contagem cega)
+    expect(Object.keys(ab!.dados).sort()).toEqual(DADOS_CEGOS); // nem no `dados`
+    expect(g!.dados).toMatchObject({ guardado: "36", emUso: "0", quantidade: "36" }); // o do gerente geral leva tudo
     expect((await caixaDeAvisos(db, cozinheira)).some((a) => a.id === ab!.id)).toBe(true);
     await consumir(x, "5");
     await consumir(x, "5");
@@ -223,15 +251,15 @@ describe("uso do guardado e abastecimento (critérios 2 e 5a)", () => {
 
   it("aviso do guardado desligado ou rebaixado por item", async () => {
     const x = await ingrediente("Limão");
-    await linhas(x, { avisoGuardado: "desligado" });
     await entrada(x, "1", "em_uso");
+    await linhas(x, { avisoGuardado: "desligado" });
     await entrada(x, "50", "guardado");
     await consumir(x, "5");
     expect(await estado(x)).toMatchObject({ usando_guardado: true });
     expect(await tipos(x)).toEqual(["estoque.abastecer"]); // a tarefa de trazer continua
     const y = await ingrediente("Hortelã");
-    await linhas(y, { avisoGuardado: "normal" });
     await entrada(y, "1", "em_uso");
+    await linhas(y, { avisoGuardado: "normal" });
     await entrada(y, "50", "guardado");
     await consumir(y, "5");
     expect((await avisosDe(y, "estoque.usando_guardado")).map((a) => a.prioridade)).toEqual(["normal"]);
@@ -239,8 +267,8 @@ describe("uso do guardado e abastecimento (critérios 2 e 5a)", () => {
 
   it("em uso abaixo do nível de abastecimento avisa quem cuida; sem guardado para trazer, não", async () => {
     const x = await ingrediente("Queijo");
-    await linhas(x, { abastecimento: "50" });
     await entrada(x, "100", "em_uso");
+    await linhas(x, { abastecimento: "50" });
     await entrada(x, "200", "guardado");
     await consumir(x, "60"); // em uso 40 < 50
     expect(await tipos(x)).toEqual(["estoque.abastecer"]);
@@ -251,8 +279,8 @@ describe("uso do guardado e abastecimento (critérios 2 e 5a)", () => {
     await consumir(x, "90"); // 40 de novo
     expect(await tipos(x)).toEqual(["estoque.abastecer", "estoque.abastecer"]);
     const y = await ingrediente("Presunto");
-    await linhas(y, { abastecimento: "50" });
     await entrada(y, "100", "em_uso");
+    await linhas(y, { abastecimento: "50" });
     await consumir(y, "60");
     expect(await estado(y)).toMatchObject({ em_uso: 40, guardado: 0, abastecer: false });
     expect(await tipos(y)).toEqual([]);
@@ -264,8 +292,11 @@ describe("o que entra e o que não entra no total", () => {
     const x = await ingrediente("Leite");
     await entrada(x, "1000", "guardado");
     await linhas(x, { area: "cafeteria", saudavel: "100" }, supervisor);
-    // Definir a linha numa área vazia já avisa (o item está abaixo dela agora).
+    // Linha numa área que nunca teve o item (e não é a dele): o estado começa calado, sem aviso nem evento.
     expect(await estado(x, "cafeteria")).toMatchObject({ situacao: "esgotado" });
+    expect(await tipos(x)).toEqual([]);
+    const evCafe = await sql<{ n: number }>`SELECT count(*)::int AS n FROM estoque_reposicao_evento WHERE item_id = ${await itemDe(x)} AND area = 'cafeteria'`.execute(db);
+    expect(evCafe.rows[0]!.n).toBe(0);
     const t = await transferir(db, gerente, { ingredienteId: x, quantidade: "300", de: { area: "cozinha", local: "guardado" }, para: { area: "cafeteria", local: "em_uso" }, recebidoPor: supervisor.usuarioId });
     expect(await estado(x, "cafeteria")).toMatchObject({ situacao: "esgotado", quantidade: 0 });
     const lista = await itensParaRepor(db, gerente, { area: "cafeteria" });
@@ -279,8 +310,8 @@ describe("o que entra e o que não entra no total", () => {
 
   it("desfazer que recupera muda o estado; cair depois avisa de novo", async () => {
     const x = await ingrediente("Manteiga");
-    await linhas(x, { saudavel: "300" });
     await entrada(x, "500", "em_uso");
+    await linhas(x, { saudavel: "300" });
     const p = await registrarPerda(db, gerente, { ingredienteId: x, quantidade: "300", area: "cozinha", local: "em_uso", motivo: "estragou" });
     expect(await estado(x)).toMatchObject({ situacao: "repor", quantidade: 200 });
     await desfazerMovimento(db, gerente, { movimentoId: p.movimentoId, observacao: "lançado errado" });
@@ -294,8 +325,8 @@ describe("concorrência e repetição (critério 10)", () => {
   it("duas vendas ao mesmo tempo cruzando a linha: exatamente um aviso", async () => {
     for (let rodada = 0; rodada < 3; rodada++) {
       const x = await ingrediente("Pão");
-      await linhas(x, { saudavel: "500" });
       await entrada(x, "600", "em_uso");
+      await linhas(x, { saudavel: "500" });
       await Promise.all([consumir(x, "100"), consumir(x, "100")]);
       expect(await estado(x)).toMatchObject({ situacao: "repor", quantidade: 400 });
       expect(await tipos(x)).toEqual(["estoque.repor"]);
@@ -313,8 +344,8 @@ describe("concorrência e repetição (critério 10)", () => {
 
   it("o mesmo consumo de novo (mesma chave) não gera aviso nem evento novo", async () => {
     const x = await ingrediente("Ovo");
-    await linhas(x, { saudavel: "50" });
     await entrada(x, "60", "em_uso");
+    await linhas(x, { saudavel: "50" });
     const chave = `pedido-${randomUUID()}`;
     const eventos = async () =>
       (await sql<{ n: number }>`SELECT count(*)::int AS n FROM estoque_reposicao_evento ev JOIN estoque_item e ON e.id = ev.item_id WHERE e.ingrediente_id = ${x}`.execute(db)).rows[0]!.n;
@@ -378,6 +409,98 @@ describe("quem define as linhas e o histórico", () => {
     await linhas(x, { saudavel: "200" });
     expect(await estado(x)).toMatchObject({ situacao: "saudavel" });
     expect(await tipos(x)).toEqual(["estoque.repor"]);
+  });
+});
+
+describe("linha definida sobre saldo sem movimento depois da migração", () => {
+  it("item com 300 e linha saudável 500: um aviso de repor, com o 'desde'; a venda seguinte não repete", async () => {
+    const x = await ingrediente("Fubá");
+    await entrada(x, "300", "em_uso");
+    await esquecerEstado(x); // como um saldo de antes da migração 0025
+    await linhas(x, { saudavel: "500" });
+    expect(await tipos(x)).toEqual(["estoque.repor"]);
+    const [a] = await avisosDe(x);
+    expect(a!.dados).toMatchObject({ estado: "repor", quantidade: "300", paraRepor: "200", movimentoId: null });
+    expect(await estado(x)).toMatchObject({ situacao: "repor", quantidade: 300 });
+    const item = (await itensParaRepor(db, gerente)).find((i) => i.ingredienteId === x);
+    expect(item).toMatchObject({ situacao: "repor", paraRepor: "200" });
+    expect(item!.desde).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    await consumir(x, "10");
+    expect(await tipos(x)).toEqual(["estoque.repor"]);
+  });
+
+  it("área que já teve o item (sem estado, porque não tinha linha): a linha nova avisa", async () => {
+    const x = await ingrediente("Canela");
+    await entrada(x, "100", "guardado");
+    const t = await transferir(db, gerente, { ingredienteId: x, quantidade: "30", de: { area: "cozinha", local: "guardado" }, para: { area: "cafeteria", local: "em_uso" }, recebidoPor: supervisor.usuarioId });
+    await confirmarRecebimento(db, supervisor, { recebimentoId: t.aReceber!.recebimentoId, local: "em_uso" });
+    expect(await estado(x, "cafeteria")).toBeUndefined(); // sem linha lá, a cafeteria não era avaliada
+    await linhas(x, { area: "cafeteria", saudavel: "50" }, supervisor);
+    expect(await estado(x, "cafeteria")).toMatchObject({ situacao: "repor", quantidade: 30 });
+    expect(await tipos(x)).toEqual(["estoque.repor"]);
+  });
+
+  it("item zerado e linha definida: um aviso de esgotado, com o 'desde'; mudar a linha de novo não repete", async () => {
+    const x = await ingrediente("Gergelim");
+    await entrada(x, "100", "em_uso");
+    await consumir(x, "100");
+    await esquecerEstado(x);
+    const antes = (await tipos(x)).length;
+    await linhas(x, { saudavel: "50" });
+    expect((await tipos(x)).slice(antes)).toEqual(["estoque.esgotado"]);
+    expect(await estado(x)).toMatchObject({ situacao: "esgotado", quantidade: 0 });
+    expect((await itensParaRepor(db, gerente)).find((i) => i.ingredienteId === x)!.desde).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    await linhas(x, { saudavel: "80" });
+    expect((await tipos(x)).slice(antes)).toEqual(["estoque.esgotado"]);
+  });
+});
+
+describe("virada do dia: lote que vence sem movimento", () => {
+  it("o lote venceu: a situação vai para emergência e avisa uma vez; rodar de novo, inclusive em paralelo, não repete", async () => {
+    const hoje = await hojeNaLoja();
+    const amanha = new Date(Date.now() + 86_400_000);
+    const comLote = async (base: string) => {
+      const x = await ingrediente(base);
+      await registrarEntrada(db, gerente, { itens: [
+        { ingredienteId: x, quantidade: "100", local: "em_uso", validade: "2099-01-01" },
+        { ingredienteId: x, quantidade: "400", local: "guardado", validade: hoje },
+      ] });
+      await linhas(x, { saudavel: "500", emergencia: "200" });
+      return x;
+    };
+    const x = await comLote("Iogurte");
+    expect(await estado(x)).toMatchObject({ situacao: "saudavel", quantidade: 500 });
+    await reavaliarReposicao(db); // hoje o lote ainda vale: nada muda
+    expect(await tipos(x)).toEqual([]);
+    await reavaliarReposicao(db, { agora: amanha });
+    expect(await estado(x)).toMatchObject({ situacao: "emergencia", quantidade: 100, guardado: 0 });
+    const [a] = await avisosDe(x);
+    expect(a).toMatchObject({ tipo: "estoque.emergencia", prioridade: "urgente", para_cargos: ["gerente_geral"] });
+    expect(a!.dados).toMatchObject({ quantidade: "100", movimentoId: null });
+    await reavaliarReposicao(db, { agora: amanha });
+    expect(await tipos(x)).toEqual(["estoque.emergencia"]);
+    // Duas execuções ao mesmo tempo (dois workers, ou a hora cheia junto com a virada): um aviso só.
+    for (let rodada = 0; rodada < 3; rodada++) {
+      const y = await comLote("Requeijão");
+      await Promise.all([reavaliarReposicao(db, { agora: amanha }), reavaliarReposicao(db, { agora: amanha })]);
+      expect(await tipos(y)).toEqual(["estoque.emergencia"]);
+      const ev = await sql<{ n: number }>`SELECT count(*)::int AS n FROM estoque_reposicao_evento WHERE item_id = ${await itemDe(y)} AND tipo = 'situacao'`.execute(db);
+      expect(ev.rows[0]!.n).toBe(1);
+    }
+    expect(await tipos(x)).toEqual(["estoque.emergencia"]);
+  });
+
+  it("a conferência acusa a reavaliação atrasada; a reavaliação de agora corrige", async () => {
+    const x = await ingrediente("Ricota");
+    await registrarEntrada(db, gerente, { itens: [{ ingredienteId: x, quantidade: "50", local: "em_uso", validade: await hojeNaLoja() }] });
+    const id = await itemDe(x);
+    // O tempo passou: o lote venceu há 3 dias e o estado é de 4 dias atrás (o worker não rodou).
+    await semTrava("estoque_lote", "estoque_lote_imutavel", (trx) => sql`UPDATE estoque_lote SET validade = hoje_na_loja() - 3 WHERE item_id = ${id}`.execute(trx));
+    await sql`UPDATE estoque_reposicao_estado SET dia = hoje_na_loja() - 4 WHERE item_id = ${id}`.execute(db);
+    expect(await conferirEstoque(db)).toEqual([`reposição ${id}/cozinha sem a reavaliação da virada do dia (lote vencido)`]);
+    await reavaliarReposicao(db);
+    expect(await estado(x)).toMatchObject({ situacao: "esgotado", quantidade: 0 });
+    expect(await tipos(x)).toEqual(["estoque.esgotado"]);
   });
 });
 
