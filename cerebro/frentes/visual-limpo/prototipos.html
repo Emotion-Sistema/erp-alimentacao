@@ -352,6 +352,34 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
 .pa-tk.atraso .pa-barra i { background: var(--a-per); }
 .pa-tk .pa-btn { margin: 0; padding: 9px; font-size: 13.5px; border-radius: 10px; }
 .pa-tk .pa-sec { justify-content: center; }
+/* produção: cartão inteiro na cor da etapa, para ler de longe */
+.pa-tk { background: var(--tk-bg); color: var(--tk-txt); border-radius: 16px; box-shadow: 0 1px 2px rgba(30,18,14,.14), 0 10px 20px -12px rgba(30,18,14,.45); }
+.pa-tk.est-fila { --tk-bg: #2e5e7e; --tk-txt: #ffffff; --tk-sub: #d6e6f0; }
+.pa-tk.est-preparo { --tk-bg: #f6a52b; --tk-txt: #2a1710; --tk-sub: #4a2c12; }
+.pa-tk.est-atencao { --tk-bg: #e77019; --tk-txt: #1f0f08; --tk-sub: #2a1710; }
+.pa-tk.est-atencao:not(span) { background: repeating-linear-gradient(-45deg, #e77019 0 14px, #dc6512 14px 28px); }
+.pa-tk.est-atraso { --tk-bg: #a3261a; --tk-txt: #ffffff; --tk-sub: #fbdcd5; animation: pa-pulsa 1.4s ease-in-out infinite; }
+.pa-tk.est-pronto { --tk-bg: #2f6b3a; --tk-txt: #ffffff; --tk-sub: #d9eedc; }
+@keyframes pa-pulsa { 50% { box-shadow: 0 0 0 5px rgba(163,38,26,.35), 0 10px 20px -12px rgba(30,18,14,.45); } }
+.pa-etapa { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pa-etapa span { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.pa-etapa svg.i { width: 17px; height: 17px; stroke-width: 2.2; }
+.pa-etapa b { font-family: var(--f-mono); font-size: 13px; }
+.pa-tk .l1 { color: var(--tk-sub); justify-content: flex-start; }
+.pa-tk ul { color: var(--tk-txt); font-size: 15px; }
+.pa-tk li.obs { color: var(--tk-txt); background: rgba(255,255,255,.24); border-radius: 6px; padding: 1px 7px; justify-self: start; }
+.pa-tk .pa-cron b, .pa-tk .pa-cron.atraso b, .pa-tk .pa-cron.atencao b { color: var(--tk-txt); font-size: 26px; }
+.pa-tk .pa-cron small { color: var(--tk-sub); }
+.pa-tk .pa-barra { background: rgba(0,0,0,.18); }
+.pa-tk .pa-barra i, .pa-tk.atraso .pa-barra i { background: var(--tk-txt); }
+.pa-tk .acao { border: 0; border-radius: 11px; padding: 11px; font-weight: 800; font-size: 14.5px; background: var(--tk-txt); color: var(--tk-bg); display: flex; gap: 6px; justify-content: center; align-items: center; }
+.pa-tk .acao svg.i { width: 17px; height: 17px; stroke-width: 2.4; }
+.pa-tk .acao:active { transform: scale(.97); }
+.pa-legenda { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.pa-legenda span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 5px 10px; border-radius: 999px; background: var(--tk-bg); color: var(--tk-txt); }
+.pa-legenda svg.i { width: 14px; height: 14px; stroke-width: 2.4; }
+.pa-legenda small { font-weight: 500; text-transform: none; letter-spacing: 0; opacity: .9; font-size: 11.5px; }
+@media (prefers-reduced-motion: reduce) { .pa-tk.est-atraso { animation: none; box-shadow: 0 0 0 4px rgba(163,38,26,.35); } }
 /* estoque */
 .pa-abas { display: flex; gap: 4px; background: var(--a-sup2); border-radius: 10px; padding: 3px; }
 .pa-abas button { border: 0; background: transparent; padding: 6px 12px; border-radius: 8px; font-size: 13px; color: var(--a-apoio); }
@@ -1093,13 +1121,23 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
   const segs = t => t.est === 'pronto' ? t.base : t.base + Math.floor((Date.now() - t.desde) / 1000);
   const mmss = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   function estadoTempo(t) { if (t.est !== 'preparo') return ''; const m = segs(t) / 60; return m > t.prev ? 'atraso' : (t.prev - m <= 2 ? 'atencao' : ''); }
+  const ETAPAS = [['est-fila', 'Na fila', 'relogio', 'esperando começar'], ['est-preparo', 'Preparando', 'producao', 'dentro do tempo'], ['est-atencao', 'Quase no tempo', 'relogio', 'faltam 2 min ou menos'], ['est-atraso', 'Atrasado', 'alerta', 'passou do previsto'], ['est-pronto', 'Pronto', 'check', 'chamar o atendente']];
+  function etapa(t) {
+    if (t.est === 'fila') return ETAPAS[0];
+    if (t.est === 'pronto') return ETAPAS[4];
+    const m = segs(t) / 60;
+    if (m > t.prev) return ['est-atraso', 'Atrasado +' + Math.max(1, Math.floor(m - t.prev)) + ' min', 'alerta'];
+    if (t.prev - m <= 2) return ['est-atencao', 'Faltam ' + Math.max(1, Math.ceil(t.prev - m)) + ' min', 'relogio'];
+    return ETAPAS[1];
+  }
+  const rotEtapa = (t, e) => '<span>' + ic(e[2]) + e[1] + '</span><b>#' + t.n + '</b>';
   function ticket(t) {
-    const s = segs(t); const st = estadoTempo(t);
-    const rot = t.est === 'fila' ? 'Na fila há' : t.est === 'pronto' ? 'Ficou pronto em' : 'Preparando';
-    const acao = t.est === 'fila' ? '<button class="pa-sec" data-tk="' + t.id + '">' + ic('producao') + 'Começar</button>' : t.est === 'preparo' ? '<button class="pa-btn" data-tk="' + t.id + '">' + ic('check') + 'Pronto</button>' : '<button class="pa-sec" data-tk="' + t.id + '">Saiu para o salão</button>';
-    return '<article class="pa-tk ' + (t.est === 'preparo' ? st : t.est) + '" data-tkc="' + t.id + '"><div class="l1"><b>#' + t.n + '</b><span>' + ic(t.tipo) + t.onde + '</span></div>' +
+    const s = segs(t); const e = etapa(t);
+    const rot = t.est === 'fila' ? 'na fila há' : t.est === 'pronto' ? 'ficou pronto em' : 'de ' + t.prev + ' min previstos';
+    const acao = t.est === 'fila' ? '<button class="acao" data-tk="' + t.id + '">' + ic('producao') + 'Começar</button>' : t.est === 'preparo' ? '<button class="acao" data-tk="' + t.id + '">' + ic('check') + 'Pronto</button>' : '<button class="acao" data-tk="' + t.id + '">' + ic('enviar') + 'Saiu para o salão</button>';
+    return '<article class="pa-tk ' + e[0] + '" data-tkc="' + t.id + '"><div class="pa-etapa" data-rot="' + t.id + '">' + rotEtapa(t, e) + '</div><div class="l1"><span>' + ic(t.tipo) + t.onde + '</span></div>' +
       '<ul>' + t.itens.map(x => x.startsWith('obs:') ? '<li class="obs">' + x.slice(4).trim() + '</li>' : '<li>' + x + '</li>').join('') + '</ul>' +
-      '<div class="pa-cron ' + st + '" data-cron="' + t.id + '"><b>' + mmss(s) + '</b><small>' + rot.toLowerCase() + (t.est === 'preparo' ? ' · previsto ' + t.prev + ' min' : '') + '</small></div>' +
+      '<div class="pa-cron" data-cron="' + t.id + '"><b>' + mmss(s) + '</b><small>' + rot + '</small></div>' +
       (t.est === 'preparo' ? '<div class="pa-barra"><i data-barra="' + t.id + '" style="width:' + Math.min(100, Math.round(s / 60 / t.prev * 100)) + '%"></i></div>' : '') + acao + '</article>';
   }
   function producaoA() {
@@ -1109,7 +1147,7 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
     const ver = E.setor === 'todos' ? setores[0][0] : E.setor;
     return '<div class="pa-barra-tit"><div class="pa-chips" style="margin:0"><button class="pa-chip" data-setor="todos" aria-pressed="' + (E.setor === 'todos') + '">Todas as telas</button>' + setores.map(([k, n]) => '<button class="pa-chip" data-setor="' + k + '" aria-pressed="' + (E.setor === k) + '">' + n + ' <em>' + TK.filter(t => t.setor === k && t.est !== 'pronto').length + '</em></button>').join('') + '</div>' +
       '<div class="pa-resumo-l"><span class="pa-tempo">' + ativos.length + ' em andamento</span>' + (atraso ? '<span class="pa-tempo atraso">' + atraso + ' atrasado</span>' : '') + '</div></div>' +
-      '<div class="pa-prod-cols">' + setores.filter(([k]) => E.setor === 'todos' || E.setor === k).map(([k, n]) => {
+      '<div class="pa-legenda" aria-label="Cores das etapas">' + ETAPAS.map(e => '<span class="pa-tk ' + e[0] + '" style="animation:none;box-shadow:none;margin:0;display:inline-flex;padding:5px 10px">' + ic(e[2]) + e[1] + ' <small>' + e[3] + '</small></span>').join('') + '</div>' + '<div class="pa-prod-cols">' + setores.filter(([k]) => E.setor === 'todos' || E.setor === k).map(([k, n]) => {
         const ts = TK.filter(t => t.setor === k).sort((a, b) => ({ preparo: 0, fila: 1, pronto: 2 })[a.est] - ({ preparo: 0, fila: 1, pronto: 2 })[b.est] || segs(b) - segs(a));
         return '<section class="pa-col' + (k === ver ? ' on' : '') + '"><h3>' + n + ' <span>' + ts.filter(t => t.est !== 'pronto').length + '</span></h3>' + (ts.length ? ts.map(ticket).join('') : '<div class="vazio">Nada por aqui agora</div>') + '</section>';
       }).join('') + '</div><p class="pa-nota" style="margin-top:14px">Começar e marcar pronto não mexem no estoque: a baixa já aconteceu uma vez, quando o pedido foi liberado.</p>';
@@ -1365,7 +1403,8 @@ select.pa-inp { appearance: none; background-image: linear-gradient(45deg, trans
       const c = mold.querySelector('[data-cron="' + t.id + '"]'); if (!c) return;
       const s = segs(t); c.querySelector('b').textContent = mmss(s);
       const st = estadoTempo(t); c.className = 'pa-cron ' + st;
-      const card = mold.querySelector('[data-tkc="' + t.id + '"]'); if (card && t.est === 'preparo') card.className = 'pa-tk ' + st;
+      const card = mold.querySelector('[data-tkc="' + t.id + '"]');
+      if (card) { const e = etapa(t); if (card.className !== 'pa-tk ' + e[0]) card.className = 'pa-tk ' + e[0]; const r = mold.querySelector('[data-rot="' + t.id + '"]'); if (r) r.innerHTML = rotEtapa(t, e); }
       const bar = mold.querySelector('[data-barra="' + t.id + '"]'); if (bar) bar.style.width = Math.min(100, Math.round(s / 60 / t.prev * 100)) + '%';
     });
   }, 1000);

@@ -40,6 +40,10 @@ fotos, comanda à direita).
   - **Produção** (RC-10): colunas por tipo de preparo (Chapa, Cozinha, Fritadeira, Cafeteria), relógio
     correndo, aviso de atraso, Começar/Pronto. **Estoque:** por área, em uso/guardado/total, nível e mínimo.
   - Escuro continua só como opção de ver; a gestão segue clara até decisão nova.
+  - **Produção com cores fortes (pedido de 25/11/2026, versão 3):** o cartão inteiro fica na cor da etapa,
+    com o nome escrito no topo e legenda na tela: Na fila = azul; Preparando = âmbar; Faltam N min =
+    laranja com listras; Atrasado +N min = vermelho pulsando; Pronto = verde. Cor nunca sozinha:
+    sempre nome e ícone. O cartão muda de cor sozinho quando o tempo passa.
 
 ## Falta
 - Responsável testar a versão 2 e dizer o que ajustar.
