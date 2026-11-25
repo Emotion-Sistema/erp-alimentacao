@@ -11,11 +11,13 @@
  *   repetição como o resto do motor e, no banco, a chave primária do fim.
  * - Quem pode: cuidar da área de destino (cargo ativo) E ser a pessoa indicada ou ter
  *   `caixa.autorizar` (supervisão e gestão: supervisor, gerente geral, dono e administrador).
+ *   Quem mandou NUNCA confirma nem recusa o próprio envio, nem pela supervisão (revisão do PR 146).
  * - Contagem cega: com contagem aberta do item na área, quem não é da gestão não vê a quantidade.
  * - Custo médio inalterado: só muda de lugar (o total e o valor do item não mudam).
  */
 import { z } from "zod";
 import { sql, type Banco } from "@erp/banco";
+import { auditar } from "./auditoria";
 import { AREAS_ESTOQUE, NOME_DA_AREA, type AreaEstoque } from "./cadastros";
 import { ErroDeRegra } from "./erros";
 import { motorDoEstoque as m, type Lancado } from "./estoque";
@@ -67,22 +69,32 @@ type Recebimento = {
   area_destino: AreaEstoque;
   recebido_por: number;
   recebido_por_nome: string;
+  /** Quem lançou a transferência (autor do movimento). */
+  enviado_por: number;
 };
 
 async function lerRecebimento(db: Banco, id: number, travar: boolean): Promise<Recebimento | undefined> {
   const r = await sql<Recebimento>`
-    SELECT r.id, r.movimento_id::text AS movimento_id, r.item_id, r.area_origem, r.local_origem, r.area_destino, r.recebido_por, u.nome AS recebido_por_nome
-    FROM estoque_recebimento r JOIN usuario u ON u.id = r.recebido_por
+    SELECT r.id, r.movimento_id::text AS movimento_id, r.item_id, r.area_origem, r.local_origem, r.area_destino, r.recebido_por, u.nome AS recebido_por_nome,
+      mv.autor_id AS enviado_por
+    FROM estoque_recebimento r JOIN usuario u ON u.id = r.recebido_por JOIN estoque_movimento mv ON mv.id = r.movimento_id
     WHERE r.id = ${id} ${travar ? sql`FOR UPDATE OF r` : sql``}`.execute(db);
   return r.rows[0];
 }
 
+export const MSG_PROPRIO_ENVIO = "Quem mandou não pode confirmar nem recusar o próprio envio.";
+
 /**
- * Pode confirmar ou recusar: cuida da área de destino (cargo ativo) e é a pessoa indicada ou tem
- * `caixa.autorizar` (supervisão e gestão). Recusas ficam na auditoria.
+ * Pode confirmar ou recusar: cuida da área de destino (cargo ativo), não foi quem mandou e é a
+ * pessoa indicada ou tem `caixa.autorizar` (supervisão e gestão). Recusas ficam na auditoria.
  */
 async function exigirQuemRecebe(db: Banco, ator: Ator | null, r: Recebimento): Promise<Ator> {
   const a = await m.exigirAreas(db, ator, [r.area_destino]);
+  // Duas pessoas sempre: quem mandou não confere o próprio envio, nem com cargo de supervisão.
+  if (a.usuarioId === r.enviado_por) {
+    await auditar(db, { usuarioId: a.usuarioId, acao: "estoque.receber", resultado: "recusado", alvoTipo: "estoque_recebimento", alvoId: r.id, detalhes: { motivo: "proprio_envio" }, ip: a.ip });
+    throw new ErroDeRegra("sem_permissao", MSG_PROPRIO_ENVIO);
+  }
   if (a.usuarioId === r.recebido_por) return a;
   try {
     return await exigir(db, a, "caixa.autorizar", { tipo: "estoque_recebimento", id: r.id });
@@ -196,8 +208,10 @@ export type RecebimentoPendente = {
   enviadoPor: string;
   recebidoPor: { usuarioId: number; nome: string };
   quando: string;
-  /** Esta pessoa pode confirmar ou recusar (a indicada ou a supervisão; o servidor confere de novo). */
+  /** Esta pessoa pode confirmar ou recusar (a indicada ou a supervisão, nunca quem mandou; o servidor confere de novo). */
   podeConfirmar: boolean;
+  /** Foi esta pessoa quem mandou (não confirma nem recusa o próprio envio). */
+  enviadoPorMim: boolean;
 };
 
 const esquemaPendentes = z.object({ area: z.enum(AREAS_ESTOQUE, { error: "Área de estoque inválida." }).optional() }, { error: "Filtro em formato inválido." });
@@ -222,6 +236,7 @@ export async function recebimentosPendentes(db: Banco, ator: Ator | null, filtro
     local_sugerido: LocalDoEstoque;
     quantidade: string;
     enviado_por: string;
+    enviado_por_id: number;
     recebido_por: number;
     recebido_por_nome: string;
     quando: string;
@@ -229,7 +244,7 @@ export async function recebimentosPendentes(db: Banco, ator: Ator | null, filtro
   }>`
     SELECT r.id, r.movimento_id::text AS movimento_id, r.item_id, e.ingrediente_id, e.preparo_id, coalesce(i.nome, fi.nome) AS nome,
       coalesce(i.unidade_base, fi.unidade_rendimento) AS unidade, r.area_origem, r.local_origem, r.area_destino, r.local_sugerido,
-      r.quantidade::text AS quantidade, ua.nome AS enviado_por, r.recebido_por, ur.nome AS recebido_por_nome,
+      r.quantidade::text AS quantidade, ua.nome AS enviado_por, mv.autor_id AS enviado_por_id, r.recebido_por, ur.nome AS recebido_por_nome,
       to_char(r.criado_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS quando,
       EXISTS (SELECT 1 FROM estoque_contagem c JOIN estoque_contagem_item ci ON ci.contagem_id = c.id
               WHERE ci.item_id = r.item_id AND c.area = r.area_destino
@@ -264,7 +279,8 @@ export async function recebimentosPendentes(db: Banco, ator: Ator | null, filtro
       enviadoPor: x.enviado_por,
       recebidoPor: { usuarioId: x.recebido_por, nome: x.recebido_por_nome },
       quando: x.quando,
-      podeConfirmar: supervisao || x.recebido_por === a.usuarioId,
+      podeConfirmar: x.enviado_por_id !== a.usuarioId && (supervisao || x.recebido_por === a.usuarioId),
+      enviadoPorMim: x.enviado_por_id === a.usuarioId,
     };
   });
 }

@@ -109,6 +109,13 @@ test("gerente dá entrada pela nota e vê no painel e no detalhe", async ({ page
   await expect(detalhe.getByTestId("historico")).toContainText("Esperando quem recebe");
   await detalhe.getByRole("button", { name: "Fechar" }).click();
   await expect(detalhe).toHaveCount(0);
+  // Quem mandou nunca confirma nem recusa o próprio envio (nem como supervisão): no painel do salão
+  // o gerente vê o aviso, sem os botões. Quem confirma é o supervisor (próximo teste).
+  await page.goto("/estoque/salao");
+  const enviado = page.getByTestId("a-receber").getByTestId(`receber-${TOMATE}`);
+  await expect(enviado).toContainText("Você mandou: outra pessoa confirma ou recusa.");
+  await expect(enviado.getByRole("button", { name: `Confirmar ${TOMATE}` })).toHaveCount(0);
+  await expect(enviado.getByRole("button", { name: `Recusar ${TOMATE}` })).toHaveCount(0);
 });
 
 test("o supervisor da cafeteria confirma o que veio da cozinha", async ({ page }) => {

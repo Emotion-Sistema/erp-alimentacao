@@ -3,7 +3,7 @@
 /**
  * Bloco "A receber" do painel (E09; migração 0024; decisão do responsável em 25/11/2026: quem recebe
  * confirma). Mostra o que outra área mandou para as áreas desta tela e ainda espera confirmação.
- * Quem pode (a pessoa indicada ou a supervisão; o servidor confere de novo) confirma escolhendo em
+ * Quem pode (a pessoa indicada ou a supervisão, nunca quem mandou; o servidor confere de novo) confirma escolhendo em
  * uso ou guardado, ou recusa com o motivo (volta para onde estava). Lê GET /api/estoque/recebimentos.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -79,7 +79,7 @@ export function Recebimentos({ contexto, areas, aoMudar }: { contexto: ContextoD
                   </Botao>
                 </div>
               ) : (
-                <span className="est-linha__texto">{T.soQuem(r.recebidoPor.nome)}</span>
+                <span className="est-linha__texto">{r.enviadoPorMim ? T.proprioEnvio : T.soQuem(r.recebidoPor.nome)}</span>
               )}
               {aberto?.id === r.recebimentoId && aberto.modo === "confirmar" && <FormDeConfirmar r={r} aoCancelar={() => setAberto(null)} aoGravar={pronto} />}
               {aberto?.id === r.recebimentoId && aberto.modo === "recusar" && <FormDeRecusar r={r} contexto={contexto} aoCancelar={() => setAberto(null)} aoGravar={pronto} />}

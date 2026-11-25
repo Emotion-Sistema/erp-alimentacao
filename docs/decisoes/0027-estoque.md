@@ -57,7 +57,11 @@ hoje no fuso da loja.
    `feat/e09-confirmar-recebimento`). Quem manda indica quem recebe (ativo, com cargo que cuida da
    área de destino). **Quem manda não pode ser quem recebe** ("Quem manda não pode ser quem
    recebe."; a lista de quem recebe não traz a própria pessoa; revisão do PR 146): a confirmação é
-   sempre de outra pessoa, e a supervisão continua podendo confirmar por quem foi indicado. O item sai da origem e os MESMOS lotes ficam na área de destino num local novo,
+   sempre de outra pessoa. **Quem mandou NUNCA confirma nem recusa o próprio envio, nem pelo
+   caminho da supervisão** (`caixa.autorizar`): "Quem mandou não pode confirmar nem recusar o
+   próprio envio." (recusa registrada na auditoria; na lista, `podeConfirmar` é falso para quem
+   mandou). A supervisão continua podendo confirmar por quem foi indicado, desde que não tenha sido
+   ela a mandar. O item sai da origem e os MESMOS lotes ficam na área de destino num local novo,
    **"a receber"** (`estoque_recebimento`, pendente até ter `estoque_recebimento_fim`; nada muda nem
    some, TRUNCATE bloqueado). O local de destino escolhido por quem manda vira só sugestão.
    - "A receber" não é livre para venda, não é consumido (`consumirNaTransacao` só pega em uso e
@@ -71,7 +75,7 @@ hoje no fuso da loja.
      uma vez só: trava da linha do recebimento (FOR UPDATE), chave contra repetição e chave
      primária do fim; a segunda chamada (mesmo ao mesmo tempo) recebe "já foi confirmado/recusado".
    - **Quem confirma ou recusa** (hipótese, fácil de mudar): cuidar da área de destino no cargo
-     ativo E ser a pessoa indicada ou ter `caixa.autorizar` (a permissão de supervisão que já
+     ativo, NÃO ser quem mandou, E ser a pessoa indicada ou ter `caixa.autorizar` (a permissão de supervisão que já
      existe: supervisor, gerente geral, dono e administrador). Nenhuma ação nova na matriz.
    - **Desfazer**: a transferência entre áreas, a confirmação e a recusa não se desfazem. Pendente:
      quem recebe recusa (o item volta); depois: muda-se de lugar de novo. É a opção mais segura: o
@@ -79,15 +83,20 @@ hoje no fuso da loja.
    - Lista `recebimentosPendentes` só das áreas da pessoa; com contagem aberta do item na área, quem
      não é da gestão não vê a quantidade (como o resto). Telas: bloco "A receber" no painel da
      Cozinha e do Salão com Confirmar (em uso ou guardado) e Recusar (motivo).
-   - **Contagem bloqueada com recebimento pendente** (revisão do PR 146): a mercadoria pode já estar
-     no balcão enquanto o sistema a tem "a receber"; contá-la criaria sobra e a confirmação somaria
-     de novo (estoque em dobro). Então, com algo "a receber" do item na área da contagem: abrir com
-     o item escolhido, contar e fechar recusam ("Há mercadoria a receber deste item nesta área:
-     confirme ou recuse o recebimento antes de contar."); a contagem rápida do dia e o inventário
-     pulam o item (e só olham em uso e guardado). No fechar, a conferência é feita depois de travar
+   - **Contagem bloqueada com recebimento pendente** (revisão do PR 146, duas rodadas): no
+     DESTINO, a mercadoria pode já estar no balcão enquanto o sistema a tem "a receber"; contá-la
+     criaria sobra e a confirmação somaria de novo. Na ORIGEM, a mercadoria pode ainda não ter
+     saído (cozinha com 500 manda 300: o sistema mostra 200, mas os 300 seguem lá); contar 500
+     criaria sobra de 300 e confirmar ou recusar depois deixaria 800. Então, com recebimento
+     pendente do item cujo destino OU origem é a área da contagem: abrir com o item escolhido,
+     contar e fechar recusam, dizendo qual item, sem quantidade (contagem cega): "Há mercadoria a
+     receber ou a enviar de <item> nesta área: confirme ou recuse o recebimento antes de contar.";
+     a contagem rápida do dia e o inventário pulam o item (e só olham em uso e guardado). No fechar, a conferência é feita depois de travar
      os itens contados (ordem: chave da contagem, depois itens por id; o "a receber" só muda sob a
      trava do item, então não há impasse com transferir, confirmar ou recusar). Recebimento
-     confirmado depois de contar faz o fechar pedir "Conte de novo" (como ajuste e desfazer).
+     terminado depois de contar faz o fechar pedir "Conte de novo" (como ajuste e desfazer) quando
+     o movimento cai na área e no local contados: confirmado (entra no destino) ou recusado (a
+     devolução entra na área e no local de origem).
    - Recebimento de área que a pessoa não cuida responde "Recebimento não encontrado.", igual a
      um id que não existe (não revela que existe). `conferirEstoque` confere que o "a receber" de
      cada lote e área é a soma dos recebimentos pendentes.

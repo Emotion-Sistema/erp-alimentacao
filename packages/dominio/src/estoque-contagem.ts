@@ -7,9 +7,12 @@
  *   item e local, num movimento "ajuste" ligado à contagem. Venda entre contar e fechar não
  *   atrapalha: ela já saiu do saldo e não entra na diferença.
  * - Permissão: a área da contagem (`estoque.cozinha` ou `estoque.salao`). Valores só com `custos.ver`.
- * - Item com mercadoria "a receber" na área (transferência entre áreas ainda não confirmada) não é
- *   contado: a mercadoria já pode estar ali e a confirmação a somaria de novo (estoque em dobro).
- *   Abrir, contar e fechar recusam; a contagem rápida e o inventário pulam o item (decisão 0027).
+ * - Item com transferência entre áreas pendente (nem confirmada nem recusada) com destino OU origem
+ *   na área não é contado. No destino, a mercadoria já pode estar ali e a confirmação a somaria de
+ *   novo; na origem, ela pode ainda não ter saído e a contagem a acharia como sobra (estoque em
+ *   dobro nos dois casos). Abrir, contar e fechar recusam; a contagem rápida e o inventário pulam o
+ *   item. Recebimento terminado (confirmado no destino ou recusado de volta à origem) depois de
+ *   contar pede recontagem no fechamento (decisão 0027).
  */
 import { z } from "zod";
 import { sql, type Banco } from "@erp/banco";
@@ -41,23 +44,33 @@ const textoCurto = (rotulo: string, max: number) =>
     .max(max, `${rotulo} com no máximo ${max} letras.`)
     .refine((v) => !/\p{Cc}/u.test(v), `${rotulo} com caractere inválido.`);
 
-export const MSG_A_RECEBER = "Há mercadoria a receber deste item nesta área: confirme ou recuse o recebimento antes de contar.";
+/** Mensagem da contagem recusada por recebimento pendente (só o nome do item: contagem cega). */
+export const msgRecebimentoPendente = (nomeDoItem: string) =>
+  `Há mercadoria a receber ou a enviar de ${nomeDoItem} nesta área: confirme ou recuse o recebimento antes de contar.`;
 
 /**
- * Recusa se algum dos itens tem saldo "a receber" na área. Para valer de fato, chame com os itens
- * já travados: o "a receber" só muda sob a trava do item (transferir, confirmar e recusar a usam).
+ * Itens com recebimento pendente (transferência entre áreas nem confirmada nem recusada) que chega
+ * à área ou sai dela (SQL; para a contagem rápida e o inventário pularem).
  */
-async function exigirNadaAReceber(db: Banco, itemIds: readonly number[], areaDaContagem: AreaEstoque): Promise<void> {
-  if (!itemIds.length) return;
-  const r = await sql<{ n: number }>`
-    SELECT count(*)::int AS n FROM estoque_saldo
-    WHERE item_id = ANY(${[...new Set(itemIds)]}::int[]) AND area = ${areaDaContagem} AND local = 'a_receber' AND quantidade > 0`.execute(db);
-  if (r.rows[0]!.n > 0) throw new ErroDeRegra("conflito", MSG_A_RECEBER);
-}
+const comRecebimentoPendente = (areaDaContagem: AreaEstoque) =>
+  sql`SELECT rp.item_id FROM estoque_recebimento rp
+      WHERE (rp.area_destino = ${areaDaContagem} OR rp.area_origem = ${areaDaContagem})
+        AND NOT EXISTS (SELECT 1 FROM estoque_recebimento_fim rpf WHERE rpf.recebimento_id = rp.id)`;
 
-/** Itens com algo "a receber" na área (SQL; para a contagem rápida e o inventário pularem). */
-const comAReceber = (areaDaContagem: AreaEstoque) =>
-  sql`SELECT s.item_id FROM estoque_saldo s WHERE s.area = ${areaDaContagem} AND s.local = 'a_receber' AND s.quantidade > 0`;
+/**
+ * Recusa se algum dos itens tem recebimento pendente com destino ou origem na área. Para valer de
+ * fato, chame com os itens já travados: transferir, confirmar e recusar mudam o recebimento sob a
+ * trava do item.
+ */
+async function exigirNadaPendente(db: Banco, itemIds: readonly number[], areaDaContagem: AreaEstoque): Promise<void> {
+  if (!itemIds.length) return;
+  const r = await sql<{ nome: string }>`
+    SELECT coalesce(i.nome, f.nome) AS nome FROM estoque_item e
+    LEFT JOIN ingrediente i ON i.id = e.ingrediente_id LEFT JOIN ficha f ON f.id = e.preparo_id
+    WHERE e.id = ANY(${[...new Set(itemIds)]}::int[]) AND e.id IN (${comRecebimentoPendente(areaDaContagem)})
+    ORDER BY e.id LIMIT 1`.execute(db);
+  if (r.rows[0]) throw new ErroDeRegra("conflito", msgRecebimentoPendente(r.rows[0].nome));
+}
 
 type Contagem = { id: number; tipo: "item" | "rapida" | "inventario"; area: AreaEstoque; situacao: "aberta" | "fechada" | "cancelada" };
 
@@ -114,11 +127,11 @@ export async function abrirContagem(db: Banco, ator: Ator | null, dados: unknown
     let linhas: { itemId: number; local: LocalDoEstoque }[];
     if (d.tipo === "item") {
       const ids = await m.garantirItens(trx, d.itens!);
-      await exigirNadaAReceber(trx, ids, d.area);
+      await exigirNadaPendente(trx, ids, d.area);
       linhas = d.itens!.flatMap((i, k) => (i.local ? [i.local] : LOCAIS).map((l) => ({ itemId: ids[k]!, local: l })));
     } else {
-      // Só em uso e guardado contam; item com algo a receber na área fica de fora (conte depois de
-      // confirmar ou recusar).
+      // Só em uso e guardado contam; item com recebimento pendente que chega ou sai da área fica de
+      // fora (conte depois de confirmar ou recusar).
       const r = await sql<{ ingrediente_id: number | null; preparo_id: number | null }>`
         SELECT t.ingrediente_id, t.preparo_id FROM (
           SELECT i.id AS ingrediente_id, NULL::int AS preparo_id FROM ingrediente i WHERE i.ativo AND i.area_estoque = ${d.area}
@@ -130,7 +143,7 @@ export async function abrirContagem(db: Banco, ator: Ator | null, dados: unknown
             WHERE EXISTS (SELECT 1 FROM estoque_saldo s WHERE s.item_id = e.id AND s.area = ${d.area} AND s.local IN ('em_uso', 'guardado') AND s.quantidade > 0)
         ) t
         WHERE NOT EXISTS (SELECT 1 FROM estoque_item e WHERE (e.ingrediente_id = t.ingrediente_id OR e.preparo_id = t.preparo_id)
-                            AND e.id IN (${comAReceber(d.area)}))`.execute(trx);
+                            AND e.id IN (${comRecebimentoPendente(d.area)}))`.execute(trx);
       if (r.rows.length === 0) throw new ErroDeRegra("conflito", `Não há itens em ${NOME_DA_AREA[d.area]} para contar.`);
       if (r.rows.length > 2000) throw new ErroDeRegra("conflito", "Itens demais para um inventário de uma vez.");
       const ids = await m.garantirItens(
@@ -175,7 +188,7 @@ export async function contagemRapidaDoDia(db: Banco, ator: Ator | null, dados: u
       WITH na_area AS (
         SELECT DISTINCT s.item_id FROM estoque_saldo s WHERE s.area = ${d.area} AND s.local IN ('em_uso', 'guardado') AND s.quantidade > 0
       ),
-      a_receber AS (${comAReceber(d.area)}),
+      pendente AS (${comRecebimentoPendente(d.area)}),
       faltou AS (
         SELECT mi.item_id, 1 AS ordem, max(m.id) AS peso FROM estoque_movimento_item mi JOIN estoque_movimento m ON m.id = mi.movimento_id
         WHERE mi.faltou > 0 AND m.criado_em > now() - interval '7 days'
@@ -209,7 +222,7 @@ export async function contagemRapidaDoDia(db: Banco, ator: Ator | null, dados: u
       ),
       -- Item com algo a receber na área fica para outro dia (não se conta antes de confirmar).
       primeiro AS (
-        SELECT DISTINCT ON (item_id) item_id, ordem, peso, motivo FROM todos WHERE item_id NOT IN (SELECT item_id FROM a_receber)
+        SELECT DISTINCT ON (item_id) item_id, ordem, peso, motivo FROM todos WHERE item_id NOT IN (SELECT item_id FROM pendente)
         ORDER BY item_id, ordem, peso DESC NULLS LAST
       )
       SELECT item_id, motivo, ordem FROM primeiro ORDER BY ordem, peso DESC NULLS LAST, item_id LIMIT ${quantos}`.execute(trx);
@@ -372,7 +385,7 @@ export async function registrarContagem(db: Banco, ator: Ator | null, dados: unk
     const ci = await trx.selectFrom("estoque_contagem_item").select(["item_id", "local"]).where("id", "=", d.contagemItemId).where("contagem_id", "=", c.id).executeTakeFirst();
     if (!ci) throw new ErroDeRegra("nao_encontrado", "Item da contagem não encontrado.");
     const itens = await m.travarItens(trx, [ci.item_id]);
-    await exigirNadaAReceber(trx, [ci.item_id], c.area);
+    await exigirNadaPendente(trx, [ci.item_id], c.area);
     const item = itens.get(ci.item_id)!;
     const q = d.quantidade === "0" ? 0n : await m.quantidadeNaBase(trx, item, d.quantidade, d.unidade);
     const r = await sql<{ q: string }>`
@@ -421,15 +434,17 @@ export async function fecharContagem(db: Banco, ator: Ator | null, dados: unknow
       .execute();
     if (ids.length === 0) throw new ErroDeRegra("conflito", "Nada foi contado ainda. Conte ao menos um item ou cancele a contagem.");
     await m.travarItens(trx, ids.map((x) => x.item_id));
-    await exigirNadaAReceber(trx, ids.map((x) => x.item_id), c.area);
+    await exigirNadaPendente(trx, ids.map((x) => x.item_id), c.area);
     const contadas = await sql<{ ci_id: number; item_id: number; local: LocalDoEstoque; contado: string; esperado: string; nome: string; mexeu: boolean }>`
       SELECT ci.id AS ci_id, ci.item_id, ci.local, r.contado::text AS contado, r.esperado::text AS esperado, coalesce(i.nome, f.nome) AS nome,
-        -- Ajuste (de outra contagem), desfazer ou recebimento confirmado depois de contar: o esperado
-        -- guardado não vale mais (a mercadoria recebida pode já estar no que foi contado).
+        -- Ajuste (de outra contagem), desfazer ou recebimento terminado depois de contar: o esperado
+        -- guardado não vale mais. Confirmado: a linha cai no destino (a mercadoria recebida pode já
+        -- estar no que foi contado). Recusado: a linha da devolução cai na área e no local de origem
+        -- (a mercadoria pode nunca ter saído). A linha tem de cair nesta área e neste local.
         EXISTS (SELECT 1 FROM estoque_movimento m JOIN estoque_movimento_linha l ON l.movimento_id = m.id
                 WHERE l.item_id = ci.item_id AND l.area = ${c.area} AND l.local = ci.local AND m.criado_em > r.contado_em
                   AND (m.tipo IN ('ajuste', 'estorno')
-                       OR EXISTS (SELECT 1 FROM estoque_recebimento_fim rf WHERE rf.movimento_id = m.id AND rf.situacao = 'confirmado'))) AS mexeu
+                       OR EXISTS (SELECT 1 FROM estoque_recebimento_fim rf WHERE rf.movimento_id = m.id AND rf.situacao IN ('confirmado', 'recusado')))) AS mexeu
       FROM estoque_contagem_item ci
       JOIN LATERAL (SELECT * FROM estoque_contagem_registro r WHERE r.contagem_item_id = ci.id ORDER BY r.id DESC LIMIT 1) r ON true
       JOIN estoque_item e ON e.id = ci.item_id LEFT JOIN ingrediente i ON i.id = e.ingrediente_id LEFT JOIN ficha f ON f.id = e.preparo_id
@@ -439,7 +454,7 @@ export async function fecharContagem(db: Banco, ator: Ator | null, dados: unknow
     if (recontar.length)
       throw new ErroDeRegra(
         "conflito",
-        `Conte de novo: ${recontar.map((x) => `"${x.nome}" (${x.local === "em_uso" ? "em uso" : "guardado"})`).join(", ")}. O estoque deles foi ajustado, desfeito ou recebido depois da contagem.`,
+        `Conte de novo: ${recontar.map((x) => `"${x.nome}" (${x.local === "em_uso" ? "em uso" : "guardado"})`).join(", ")}. O estoque deles foi ajustado, desfeito, recebido ou devolvido depois da contagem.`,
       );
     // Valor lançado por linha (contagem_item), para a tela mostrar o que de fato entrou ou saiu.
     const valores: Record<string, string> = {};

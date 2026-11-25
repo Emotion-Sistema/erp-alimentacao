@@ -469,8 +469,9 @@ test.describe("telas do estoque (gerente geral)", () => {
   });
 
   test("painel do salão: a receber (confirmar e recusar)", async ({ page }) => {
-    // Manda 100 g para a Cafeteria, com o supervisor como quem recebe (quem manda não recebe); o
-    // gerente confirma ou recusa como supervisão.
+    // O gerente manda 100 g para a Cafeteria, com o supervisor como quem recebe. Quem mandou nunca
+    // confirma nem recusa o próprio envio: o gerente vê o aviso, e o supervisor (outra pessoa) é quem
+    // confirma ou recusa.
     await page.goto("/estoque");
     await page.getByLabel("Buscar item").fill(ITEM);
     await page.getByRole("button", { name: `Abrir ${ITEM}` }).click();
@@ -484,6 +485,14 @@ test.describe("telas do estoque (gerente geral)", () => {
     await mover.getByRole("button", { name: "Gravar" }).click();
     await expect(detalhe.getByTestId("lancamento-feito")).toHaveText("Fica a receber na Cafeteria até Teste supervisor confirmar.");
 
+    await page.goto("/estoque/salao");
+    const doGerente = page.getByTestId("a-receber").getByTestId(`receber-${ITEM}`);
+    await expect(doGerente).toContainText("Você mandou: outra pessoa confirma ou recusa.");
+    await expect(doGerente.getByRole("button", { name: `Confirmar ${ITEM}` })).toHaveCount(0);
+    await expect(doGerente.getByRole("button", { name: `Recusar ${ITEM}` })).toHaveCount(0);
+
+    await page.context().clearCookies();
+    await entrar(page, "supervisor");
     await page.goto("/estoque/salao");
     const linha = page.getByTestId("a-receber").getByTestId(`receber-${ITEM}`);
     await linha.getByRole("button", { name: `Confirmar ${ITEM}` }).click();

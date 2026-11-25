@@ -187,6 +187,7 @@ export const TE = {
     paraQuem: (nome: string) => `Quem recebe: ${nome}.`,
     sugestao: (local: string) => `Sugestão de quem mandou: ${local}.`,
     soQuem: (nome: string) => `Só ${nome} ou a supervisão da área confirma.`,
+    proprioEnvio: "Você mandou: outra pessoa confirma ou recusa.",
     confirmar: (nome: string) => `Confirmar ${nome}`,
     recusar: (nome: string) => `Recusar ${nome}`,
     local: "Onde fica",
