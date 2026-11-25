@@ -14,6 +14,8 @@ import {
 import { CentralDeAvisos } from "./CentralDeAvisos";
 import { BotaoSair } from "./BotaoSair";
 import { BotaoTelaCheia } from "./BotaoTelaCheia";
+import { BotaoDaLetra, BotaoDoTema } from "./Preferencias";
+import { minhasPreferencias } from "./preferencias-servidor";
 import { entradaDoAplicativo } from "./aplicativos-ui";
 import { ICONE_DO_APP } from "./icones-do-menu";
 import { Menu } from "./Menu";
@@ -31,7 +33,7 @@ export function nomeDoCargo(codigo: string | null): string {
  * Moldura das páginas internas: nome, cargo ativo sempre visível e menu.
  * O menu só ESCONDE o que o cargo não permite; quem decide é o servidor.
  */
-export function Casca({
+export async function Casca({
   ator,
   exige,
   app,
@@ -44,6 +46,7 @@ export function Casca({
   children: React.ReactNode;
 }) {
   const permitido = !exige || pode(ator.cargoAtivo, exige);
+  const preferencias = await minhasPreferencias();
   const aplicativo = app ? aplicativoPorCodigo(app) : undefined;
   const dosCargo = aplicativosDoCargo(ator.cargoAtivo);
   const links = aplicativo
@@ -94,8 +97,9 @@ export function Casca({
             />
             <div className="casca__lado">
               <Relogio />
+              <BotaoDoTema inicial={preferencias.tema} />
               <CentralDeAvisos />
-              {/* A conta (trocar cargo, tela cheia, minha conta, sair) abre no botão redondo:
+              {/* A conta (trocar cargo, tela cheia, letra, minha conta, sair) abre no botão redondo:
                 janela pequena no computador, gaveta de baixo no celular (decisão 0028). */}
               <button
                 type="button"
@@ -126,6 +130,7 @@ export function Casca({
                   />
                 )}
                 <BotaoTelaCheia className="tela-cheia casca__link" />
+                <BotaoDaLetra className="casca__link" inicial={preferencias.letra} />
                 <Link href="/minha-conta" className="casca__link">
                   Minha conta
                 </Link>

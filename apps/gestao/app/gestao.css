@@ -1,5 +1,9 @@
 /* Equipe: sempre claro, mesmo com o celular no modo escuro (o navegador não pode escurecer sozinho). */
 :root, html { color-scheme: only light; }
+/* Escuro só por escolha da pessoa (decisão 0030). */
+:root[data-tema="escuro"], :root[data-tema="escuro"] body { color-scheme: only dark; }
+/* Letra grande por escolha da pessoa (decisão 0030): tudo cresce junto (as medidas são em rem). */
+:root[data-letra="grande"] { font-size: 112.5%; }
 :root {
   /* Ícone do sino (máscara; a cor vem do texto). */
   --icone-sino: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9'/%3E%3Cpath d='M10.3 21a1.94 1.94 0 0 0 3.4 0'/%3E%3C/svg%3E");
@@ -76,12 +80,12 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 .casca__lado { display: flex; align-items: center; gap: var(--espaco-2); margin-left: auto; flex: none; }
 
 /* Sino e conta: botões redondos de 48 px, sem moldura. */
-.casca__lado .avisos__sino, .casca__conta-botao {
+.casca__lado .avisos__sino, .casca__conta-botao, .casca__tema {
   position: relative; display: inline-grid; place-items: center; width: var(--alvo-toque); height: var(--alvo-toque); min-height: var(--alvo-toque); padding: 0;
   border: 0; border-radius: 50%; background: transparent; box-shadow: none; color: var(--cor-texto-suave);
   font: inherit; font-weight: var(--peso-forte); cursor: pointer; transition: background-color var(--transicao), color var(--transicao);
 }
-.casca__lado .avisos__sino:hover, .casca__lado .avisos__sino[aria-expanded="true"] { background: var(--cor-superficie); color: var(--cor-texto); }
+.casca__tema:hover, .casca__lado .avisos__sino:hover, .casca__lado .avisos__sino[aria-expanded="true"] { background: var(--cor-superficie); color: var(--cor-texto); }
 .casca__lado .avisos__sino > span[aria-hidden="true"]:first-child { font-size: 0; }
 .casca__lado .avisos__sino::before {
   content: ""; width: 22px; height: 22px; background: currentColor;
@@ -91,6 +95,7 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
   position: absolute; top: 2px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center;
   border-radius: 999px; font-size: 0.75rem; line-height: 1; box-shadow: 0 0 0 2px var(--cor-fundo);
 }
+.casca__tema svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .casca__conta-botao { width: 44px; height: 44px; min-height: 44px; margin: 2px; background: var(--cor-ouro); color: var(--cor-ouro-texto); font-size: 1rem; box-shadow: 0 0 0 1.5px var(--cor-borda); } /* contorno 3:1 sobre o fundo claro */
 .casca__conta-botao::after { content: ""; position: absolute; inset: -2px; } /* alvo de toque de 48 px */
 .casca__conta-botao:hover { background: color-mix(in srgb, var(--cor-ouro) 80%, var(--cor-texto)); }

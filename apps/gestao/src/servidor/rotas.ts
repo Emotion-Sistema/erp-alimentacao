@@ -90,6 +90,7 @@ import {
   telaDaEstacao,
   tirarCargo,
   trocarCargoAtivo,
+  mudarPreferencias,
   conferirPlanilha,
   exigir,
   gravarPlanilha,
@@ -222,6 +223,8 @@ export const quemSouEu = seguro(async (req) => {
   return json(resumo(a));
 });
 
+/** A pessoa muda o próprio tema ou letra (decisão 0030). Qualquer cargo; só precisa estar dentro. */
+export const mudarMinhasPreferencias = seguro(async (req) => json(await mudarPreferencias(obterBanco(), await ator(req), await corpoJson(req))));
 export const trocarCargo = seguro(async (req) => json(resumo(await trocarCargoAtivo(obterBanco(), await ator(req), await corpoJson(req)))));
 
 export const meuCodigo = seguro(async (req) => {

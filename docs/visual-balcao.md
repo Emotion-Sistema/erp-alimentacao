@@ -37,6 +37,10 @@ estilo.
 - Sombra: só a `--sombra-cartao` (contorno fino + sombra curta). Nada de sombra forte.
 - Alvos: 44 px no computador, 48 px em tela de toque (`--alvo-controle`).
 
+## Claro, escuro e letra grande (decisão 0030)
+Cada pessoa escolhe (sol/lua no topo; "Letra grande" no menu da conta). A tela não faz nada: use só
+as variáveis do tema e medidas em rem, e ela funciona nos dois temas e nas duas letras.
+
 ## Proibido (era o que deixava a tela "poluída")
 - Borda de 2 px em botão, campo ou cartão; cartão dentro de cartão; faixa escura no topo.
 - Letra grande no conteúdo (título de página acima de 22 px, texto acima de 15 px).

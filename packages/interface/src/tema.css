@@ -141,6 +141,71 @@ html {
   color-scheme: light;
   scrollbar-color: var(--cor-borda) transparent;
 }
+/* ===== Escuro da gestão (decisão 0030): só quando a PESSOA escolhe (botão sol/lua no topo).
+ * Nunca automático pelo aparelho (pedido de 15/11/2026 continua: o navegador não escurece sozinho).
+ * Mesma paleta "Noite de Torra" dos apps do cliente (publico.css); o teste cores.teste.ts confere que
+ * os valores são iguais e o contraste AA de cada par. ===== */
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+    --cor-fundo: #1b1411;
+    --cor-superficie: #221915;
+    --cor-cartao: #2a201b;
+    --cor-texto: #f6eadb;
+    --cor-texto-suave: #cdb8a3;
+    --cor-borda: #8a735f;
+    --cor-borda-suave: #4a382e;
+    --cor-primaria: #f6a52b;
+    --cor-primaria-texto: #2a1710;
+    --cor-primaria-hover: #ffb948;
+    --cor-preco: #f6b54a;
+    --cor-marca: #f7750e;
+    --cor-ambar: #f6a52b;
+    --cor-ouro: #f6dd8c;
+    --cor-faixa-escura: #120d0b;
+    --cor-faixa-escura-texto: #f6dd8c;
+    --cor-faixa-escura-suave: #cdb8a3;
+    --cor-sucesso: #8fcb98;
+    --cor-atencao: #f2c063;
+    --cor-perigo: #f49a86;
+    --cor-info: #8cbbda;
+    --selo-neutro-fundo: #3a2e28;
+    --selo-neutro-texto: #f6eadb;
+    --selo-info-fundo: #1c2d38;
+    --selo-info-texto: #9cc4de;
+    --selo-sucesso-fundo: #1f3324;
+    --selo-sucesso-texto: #8fcb98;
+    --selo-alerta-fundo: #3a2e14;
+    --selo-alerta-texto: #f2c063;
+    --selo-perigo-fundo: #3e1e18;
+    --selo-perigo-texto: #f49a86;
+    --selo-cozinha-fundo: #42230f;
+    --selo-cozinha-texto: #f6a77a;
+    --selo-bebidas-salao-fundo: #173138;
+    --selo-bebidas-salao-texto: #8fcfe0;
+    --selo-cafeteria-fundo: #3a2a1c;
+    --selo-cafeteria-texto: #e8c9a0;
+    --selo-sorvete-fundo: #3d1a2b;
+    --selo-sorvete-texto: #f2a6c6;
+    /* Sombras no escuro: mais fundas, e um fio de luz em cima dos cartões. */
+    --sombra-1:
+      0 1px 0 color-mix(in srgb, #ffffff 4%, transparent) inset,
+      0 1px 3px color-mix(in srgb, #000000 40%, transparent);
+    --sombra-2:
+      0 1px 0 color-mix(in srgb, #ffffff 5%, transparent) inset,
+      0 8px 24px -6px color-mix(in srgb, #000000 60%, transparent);
+    --sombra-3:
+      0 1px 0 color-mix(in srgb, #ffffff 6%, transparent) inset,
+      0 24px 56px -12px color-mix(in srgb, #000000 70%, transparent);
+    --brilho-botao: inset 0 1px 0 color-mix(in srgb, #ffffff 30%, transparent);
+  /* Só da gestão. */
+  --cor-brasa-suave: #42230f; /* seção aberta no trilho; letra em --cor-primaria-hover */
+  --cor-ouro-texto: #2a1710;
+  --mesa-ocupada-fundo: #f6eadb;
+  --mesa-ocupada-texto: #2a1710;
+  --mesa-ocupada-borda: #f6eadb;
+  --mesa-ocupada-cadeira: #cdb8a3;
+}
+
 body {
   margin: 0;
   background: var(--cor-fundo);

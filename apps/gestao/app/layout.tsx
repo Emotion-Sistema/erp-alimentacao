@@ -7,6 +7,7 @@ import "./gestao.css";
 import "./balcao.css";
 import { CORES_DO_TEMA_CLARO } from "@erp/interface";
 import { ProvedorDeAjuda } from "./Campo";
+import { minhasPreferencias } from "./preferencias-servidor";
 
 export const metadata: Metadata = {
   title: "Gestão",
@@ -19,14 +20,19 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: CORES_DO_TEMA_CLARO.faixaEscura,
-  // Sempre claro, inclusive quando o navegador do celular escurece os sites sozinho
-  // (pedido do responsável, 15/11 e 18/11/2026). Gera <meta name="color-scheme" content="only light">.
+  // O navegador nunca escurece a gestão sozinho (pedido de 15/11 e 18/11/2026): o escuro só vem
+  // quando a pessoa escolhe (decisão 0030), pelo atributo data-tema. Gera <meta name="color-scheme" content="only light">.
   colorScheme: "only light",
 };
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+/**
+ * Tema e letra de quem está dentro (decisão 0030), já no HTML que sai do servidor: a página nasce
+ * com a escolha da pessoa, sem piscar claro antes do escuro. Sem sessão: claro, letra normal.
+ */
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const { tema, letra } = await minhasPreferencias();
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" data-tema={tema} data-letra={letra}>
       <body>
         <ProvedorDeAjuda>{children}</ProvedorDeAjuda>
       </body>
