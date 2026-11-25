@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Aviso, Botao, Selo } from "@erp/interface";
-import type { EntradaDaLista, ItemDoPainel } from "@erp/dominio";
+import type { EntradaDaLista } from "@erp/dominio";
 import { centavosDoTexto } from "@erp/dominio/produtos";
 import { chamar } from "../../chamar";
 import { Campo, Marcador } from "../../Campo";
@@ -25,7 +25,6 @@ export function ListaDeEntradas({ contexto, versao }: { contexto: ContextoDoEsto
   const [temMais, setTemMais] = useState(false);
   const [soEstimadas, setSoEstimadas] = useState(false);
   const [erro, setErro] = useState("");
-  const [painel, setPainel] = useState<ItemDoPainel[]>([]);
 
   const carregar = useCallback(async (so: boolean) => {
     const r = await chamar<EntradaDaLista[]>(`/api/estoque/entradas${consulta({ soEstimadas: so || null, limite: POR_VEZ })}`);
@@ -38,12 +37,6 @@ export function ListaDeEntradas({ contexto, versao }: { contexto: ContextoDoEsto
   useEffect(() => {
     void carregar(soEstimadas);
   }, [carregar, soEstimadas, versao]);
-
-  // A correção de custo pede o ingrediente (ou preparo); a lista traz o item do estoque: o painel liga um ao outro.
-  useEffect(() => {
-    if (!contexto.podeVerCusto) return;
-    void chamar<ItemDoPainel[]>("/api/estoque").then((r) => r.ok && r.dados && setPainel(r.dados));
-  }, [contexto.podeVerCusto, versao]);
 
   async function mais() {
     const ultima = entradas?.[entradas.length - 1];
@@ -63,7 +56,7 @@ export function ListaDeEntradas({ contexto, versao }: { contexto: ContextoDoEsto
       {entradas && entradas.length > 0 && (
         <ul className="est-lista" data-testid="lista-de-entradas">
           {entradas.map((e) => (
-            <UmaEntrada key={e.movimentoId} entrada={e} contexto={contexto} painel={painel} aoMudar={() => void carregar(soEstimadas)} />
+            <UmaEntrada key={e.movimentoId} entrada={e} contexto={contexto} aoMudar={() => void carregar(soEstimadas)} />
           ))}
         </ul>
       )}
@@ -76,7 +69,7 @@ export function ListaDeEntradas({ contexto, versao }: { contexto: ContextoDoEsto
   );
 }
 
-function UmaEntrada({ entrada: e, contexto, painel, aoMudar }: { entrada: EntradaDaLista; contexto: ContextoDoEstoque; painel: ItemDoPainel[]; aoMudar: () => void }) {
+function UmaEntrada({ entrada: e, contexto, aoMudar }: { entrada: EntradaDaLista; contexto: ContextoDoEstoque; aoMudar: () => void }) {
   const [anexando, setAnexando] = useState(false);
   const [corrigindo, setCorrigindo] = useState(false);
   return (
@@ -120,12 +113,12 @@ function UmaEntrada({ entrada: e, contexto, painel, aoMudar }: { entrada: Entrad
         )}
       </div>
       {anexando && <AnexarFoto movimentoId={e.movimentoId} aoAnexar={aoMudar} />}
-      {corrigindo && <CorrigirCusto entrada={e} painel={painel} aoGravar={aoMudar} />}
+      {corrigindo && <CorrigirCusto entrada={e} aoGravar={aoMudar} />}
     </li>
   );
 }
 
-function CorrigirCusto({ entrada: e, painel, aoGravar }: { entrada: EntradaDaLista; painel: ItemDoPainel[]; aoGravar: () => void }) {
+function CorrigirCusto({ entrada: e, aoGravar }: { entrada: EntradaDaLista; aoGravar: () => void }) {
   const [valores, setValores] = useState<Record<number, string>>(() =>
     Object.fromEntries(e.itens.map((i) => [i.itemId, i.valorCentavos !== null ? reais(i.valorCentavos).replace("R$ ", "") : ""])),
   );
@@ -144,9 +137,7 @@ function CorrigirCusto({ entrada: e, painel, aoGravar }: { entrada: EntradaDaLis
       if (!t) continue;
       const c = centavosDoTexto(t);
       if (c === null) return setErro(`${i.nome}: valor em reais, como 142,30.`);
-      const p = painel.find((x) => x.itemId === i.itemId);
-      if (!p) return setErro(`${i.nome}: item não encontrado no estoque. Abra a tela de novo.`);
-      itens.push({ ...(p.ingredienteId !== null ? { ingredienteId: p.ingredienteId } : { preparoId: p.preparoId }), valorCentavos: c });
+      itens.push({ ...(i.ingredienteId !== null ? { ingredienteId: i.ingredienteId } : { preparoId: i.preparoId }), valorCentavos: c });
     }
     setOcupado(true);
     const r = await chamar<{ aplicadoCentavos: string; repetido: boolean }>("/api/estoque/entradas/custo", "POST", { chave, movimentoId: e.movimentoId, itens });

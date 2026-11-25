@@ -6,7 +6,8 @@ import { entrar, semEstouroDeLargura, sql } from "./ajudas";
 // Estoque (E09, decisão 0027), caminho principal no celular: o gerente dá entrada de 2 kg com
 // fornecedor, nota e valor; o item aparece no painel com 2 kg guardados e o lote no detalhe; a
 // cozinheira conta às cegas (a tela nunca mostra o esperado; o painel dela mostra "Em contagem") e
-// fecha: a diferença e o que foi acertado aparecem, e o painel volta com 1,5 kg. Só dados fictícios.
+// fecha: a diferença e o que foi acertado aparecem. Também: mudar de lugar para outra área com
+// "quem recebeu" e a cozinheira dando entrada pelo próprio painel, sem valor em reais. Só dados fictícios.
 // Com CAPTURAS=<pasta>, salva as telas do celular para conferir.
 
 test.describe.configure({ mode: "serial" });
@@ -85,8 +86,46 @@ test("gerente dá entrada pela nota e vê no painel e no detalhe", async ({ page
   await mover.getByRole("button", { name: "Gravar" }).click();
   await expect(detalhe.getByTestId("lancamento-feito")).toHaveText("Pronto: mudou de lugar.");
   await expect(detalhe.getByTestId("lotes")).toContainText("Em uso, Alimentos da cozinha: 500 g");
+
+  // Para outra área: escolhe a Cafeteria e quem recebeu (lista do servidor).
+  await detalhe.getByRole("button", { name: "Mudar de lugar" }).click();
+  const outra = detalhe.getByTestId("form-transferencia");
+  await outra.getByLabel("Sai de").selectOption("em_uso");
+  await outra.getByLabel("Vai para").selectOption("cafeteria");
+  await outra.getByLabel("Fica em").selectOption("em_uso");
+  await outra.getByLabel("Quantidade").fill("100");
+  await outra.getByLabel("Unidade").selectOption("g");
+  await outra.getByRole("button", { name: "Gravar" }).click();
+  await expect(outra.getByTestId("erro-do-lancamento")).toHaveText("Entre áreas, informe quem recebeu.");
+  await outra.getByLabel("Quem recebeu").selectOption({ label: "Teste supervisor" });
+  await capturar(page, "entre-areas", detalhe);
+  await outra.getByRole("button", { name: "Gravar" }).click();
+  await expect(detalhe.getByTestId("lancamento-feito")).toHaveText("Pronto: mudou de lugar.");
+  await expect(detalhe.getByTestId("lotes")).toContainText("Em uso, Cafeteria: 100 g");
+  await expect(detalhe.getByTestId("lotes")).toContainText("Em uso, Alimentos da cozinha: 400 g");
   await detalhe.getByRole("button", { name: "Fechar" }).click();
   await expect(detalhe).toHaveCount(0);
+});
+
+test("cozinheira dá entrada pelo painel da cozinha, sem valor em reais", async ({ page }) => {
+  await entrar(page, "cozinheira");
+  await page.goto("/estoque");
+  await page.getByRole("tab", { name: "Dar entrada" }).click();
+  const linha = page.getByTestId("linha-da-entrada-1");
+  await linha.getByLabel("Ingrediente").selectOption({ label: TOMATE });
+  await linha.getByLabel("Quantidade").fill("300");
+  await linha.getByLabel("Unidade").selectOption("g");
+  await expect(page.getByLabel("Valor pago (R$)")).toHaveCount(0);
+  // Só as áreas desta tela (a cozinha).
+  await expect(linha.getByLabel("Área").locator("option")).toHaveText(["Área do cadastro", "Alimentos da cozinha"]);
+  await semEstouroDeLargura(page);
+  await capturar(page, "entrada-cozinha");
+  await page.getByRole("button", { name: "Dar entrada em 1 item" }).click();
+  await expect(page.getByTestId("entrada-gravada")).toHaveText("Entrada gravada: 1 item.");
+  await page.getByRole("tab", { name: "Itens" }).click();
+  await page.getByLabel("Buscar item").fill(TOMATE);
+  // 2 kg - 100 g que foram para a cafeteria + 300 g = 2,2 kg na cozinha.
+  await expect(page.getByTestId(`item-${TOMATE}`).getByTestId("livre")).toHaveText("Livre 2,2 kg");
 });
 
 test("cozinheira conta às cegas e fecha: aparecem a diferença e o acerto", async ({ page }) => {
@@ -100,7 +139,7 @@ test("cozinheira conta às cegas e fecha: aparecem a diferença e o acerto", asy
   await expect(tela.getByTestId("situacao-da-contagem")).toHaveText("Aberta");
   // Cega: nenhum número do sistema na tela de contar.
   await expect(tela).not.toContainText("esperava");
-  await expect(tela).not.toContainText("1,5 kg");
+  await expect(tela).not.toContainText("1,8 kg");
   const guardado = tela.getByTestId(`contar-${TOMATE}-guardado`);
   await guardado.getByLabel(`Quanto você contou ${TOMATE} (Guardado)`).fill("1,2");
   await guardado.getByRole("button", { name: `Gravar ${TOMATE} (Guardado)` }).click();
@@ -120,14 +159,15 @@ test("cozinheira conta às cegas e fecha: aparecem a diferença e o acerto", asy
   await expect(tela.getByTestId("situacao-da-contagem")).toHaveText("Fechada");
   await expect(tela.getByTestId("contagem-fechada")).toHaveText("Contagem fechada. Veja as diferenças:");
   const fechada = tela.getByTestId(`contar-${TOMATE}-guardado`);
-  await expect(fechada).toContainText("Diferença: -300 g");
-  await expect(fechada).toContainText("Sistema esperava: 1,5 kg");
-  await expect(fechada).toContainText("Acertado no estoque: -300 g");
+  await expect(fechada).toContainText("Diferença: -600 g");
+  await expect(fechada).toContainText("Sistema esperava: 1,8 kg");
+  await expect(fechada).toContainText("Acertado no estoque: -600 g");
   await capturar(page, "contagem-fechada");
 
   await page.getByRole("tab", { name: "Itens" }).click();
   await page.getByLabel("Buscar item").fill(TOMATE);
-  await expect(page.getByTestId(`item-${TOMATE}`).getByTestId("livre")).toHaveText("Livre 1,7 kg");
+  // 1,2 kg contado no guardado + 400 g em uso.
+  await expect(page.getByTestId(`item-${TOMATE}`).getByTestId("livre")).toHaveText("Livre 1,6 kg");
   // A cozinheira não vê valores nem tem "Desfazer".
   await expect(page.getByTestId(`item-${TOMATE}`)).not.toContainText("R$");
   await page.getByRole("button", { name: `Abrir ${TOMATE}` }).click();

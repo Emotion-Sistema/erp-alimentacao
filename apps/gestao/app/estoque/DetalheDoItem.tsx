@@ -278,7 +278,22 @@ function FormDoLancamento({ acao, item, contexto, areas, aoCancelar, aoGravar }:
   // Rendimento muito longe do previsto: o servidor pede para conferir; a pessoa confirma e reenvia.
   const [confirmar, setConfirmar] = useState(false);
   const pedeConfirmacao = acao === "producao" && /confira o número/i.test(erro);
-  const para = local === "em_uso" ? "guardado" : "em_uso";
+  // Mudar de lugar: para o outro local da mesma área ou para outra área (aí, com quem recebeu).
+  const [paraArea, setParaArea] = useState(area);
+  const [paraLocal, setParaLocal] = useState("em_uso");
+  const [recebidoPor, setRecebidoPor] = useState("");
+  const [quemRecebe, setQuemRecebe] = useState<{ usuarioId: number; nome: string }[] | null>(null);
+  const outraArea = acao === "transferencia" && paraArea !== area;
+  useEffect(() => {
+    setRecebidoPor("");
+    setQuemRecebe(null);
+    if (!outraArea) return;
+    let vivo = true;
+    void chamar<{ usuarioId: number; nome: string }[]>(`/api/estoque/quem-recebe${consulta({ area: paraArea })}`).then((r) => vivo && setQuemRecebe(r.ok && r.dados ? r.dados : []));
+    return () => {
+      vivo = false;
+    };
+  }, [outraArea, paraArea]);
   const bloqueadoNoLote = acao === "desbloqueio" || (acao === "perda" && doBloqueado);
   const lotes = item.lotes.filter((l) => l.saldos.some((x) => x.area === area && x.local === local && x.bloqueado === bloqueadoNoLote && x.quantidade !== "0"));
   const opcoesDeLocal = Object.entries(NOME_DO_LOCAL).map(([valor, texto]) => ({ valor, texto }));
@@ -292,7 +307,7 @@ function FormDoLancamento({ acao, item, contexto, areas, aoCancelar, aoGravar }:
     let corpo: Record<string, unknown>;
     if (acao === "producao")
       corpo = { preparoId: item.preparoId, previsto: quantidade, rendimento, local, ...(confirmarRendimento ? { confirmarRendimento: true } : {}), ...(validade ? { validade } : {}), ...(codigoLote.trim() ? { lote: codigoLote } : {}), ...(observacao.trim() ? { observacao } : {}) };
-    else if (acao === "transferencia") corpo = { ...comum, quantidade, unidade, de: { area, local }, para: { area, local: para } };
+    else if (acao === "transferencia") corpo = { ...comum, quantidade, unidade, de: { area, local }, para: { area: paraArea, local: paraLocal }, ...(outraArea && recebidoPor ? { recebidoPor: Number(recebidoPor) } : {}) };
     else if (acao === "perda") corpo = { ...comum, quantidade, unidade, area, local, motivo, ...(doBloqueado ? { doBloqueado: true } : {}) };
     else if (acao === "bloqueio") corpo = { ...comum, quantidade, unidade, area, local, motivo };
     else corpo = { ...comum, quantidade, unidade, area, local };
@@ -319,14 +334,40 @@ function FormDoLancamento({ acao, item, contexto, areas, aoCancelar, aoGravar }:
         <Selecao rotulo={TE.form.area} explicacao={TE.form.areaAjuda} exemplo={TE.form.areaExemplo} value={area} onChange={(e) => setArea(e.target.value)} opcoes={areas} />
       )}
       {acao === "transferencia" ? (
-        <Selecao
-          rotulo={TE.form.de}
-          explicacao={TE.form.localAjuda}
-          exemplo={TE.form.localExemplo}
-          value={local}
-          onChange={(e) => setLocal(e.target.value)}
-          opcoes={opcoesDeLocal.map((o) => ({ valor: o.valor, texto: `${o.texto} para ${NOME_DO_LOCAL[o.valor === "em_uso" ? "guardado" : "em_uso"]}` }))}
-        />
+        <>
+          <Selecao
+            rotulo={TE.form.de}
+            explicacao={TE.form.localAjuda}
+            exemplo={TE.form.localExemplo}
+            value={local}
+            onChange={(e) => {
+              setLocal(e.target.value);
+              if (paraArea === area) setParaLocal(e.target.value === "em_uso" ? "guardado" : "em_uso");
+            }}
+            opcoes={opcoesDeLocal}
+          />
+          <div className="est-form__linha">
+            <Selecao
+              rotulo={TE.form.para}
+              explicacao={TE.form.paraAjuda}
+              exemplo={TE.form.paraExemplo}
+              value={paraArea}
+              onChange={(e) => setParaArea(e.target.value)}
+              opcoes={Object.entries(contexto.nomeDaArea).map(([valor, texto]) => ({ valor, texto: valor === area ? `${texto} (a mesma)` : texto }))}
+            />
+            <Selecao rotulo={TE.form.localDestino} explicacao={TE.form.localDestinoAjuda} exemplo={TE.form.localDestinoExemplo} value={paraLocal} onChange={(e) => setParaLocal(e.target.value)} opcoes={opcoesDeLocal} />
+          </div>
+          {outraArea && (
+            <Selecao
+              rotulo={TE.form.recebido}
+              explicacao={TE.form.recebidoAjuda}
+              exemplo={TE.form.recebidoExemplo}
+              value={recebidoPor}
+              onChange={(e) => setRecebidoPor(e.target.value)}
+              opcoes={[{ valor: "", texto: quemRecebe === null ? TE.carregando : TE.form.escolhaQuem }, ...(quemRecebe ?? []).map((q) => ({ valor: String(q.usuarioId), texto: q.nome }))]}
+            />
+          )}
+        </>
       ) : (
         <Selecao rotulo={TE.form.local} explicacao={TE.form.localAjuda} exemplo={TE.form.localExemplo} value={local} onChange={(e) => setLocal(e.target.value)} opcoes={opcoesDeLocal} />
       )}

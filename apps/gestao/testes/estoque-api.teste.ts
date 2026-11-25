@@ -108,18 +108,41 @@ describe("estoque pela API", () => {
     expect((await r.verPainelDoEstoque(req("/api/estoque?area=cozinha", "GET", supervisor))).status).toBe(403);
   });
 
+  it("entre áreas: a lista de quem recebe e a mudança com recebidoPor", async () => {
+    const quem = await r.verQuemRecebe(req("/api/estoque/quem-recebe?area=cafeteria", "GET", cozinheira));
+    expect(quem.status).toBe(200);
+    const lista = (await quem.json()) as { usuarioId: number; nome: string }[];
+    const sup = lista.find((x) => x.nome === "Teste supervisor")!;
+    expect(sup).toBeDefined();
+    expect(lista.some((x) => x.nome === "Teste cozinheira")).toBe(false);
+    expect((await r.verQuemRecebe(req("/api/estoque/quem-recebe?area=cafeteria", "GET", caixa))).status).toBe(403);
+    // Sem quem recebeu: a mensagem do domínio.
+    const corpo = { ingredienteId, quantidade: "100", de: { area: "cozinha", local: "guardado" }, para: { area: "cafeteria", local: "em_uso" } };
+    const sem = await r.transferirNoEstoque(req("/api/estoque/transferir", "POST", cozinheira, corpo));
+    expect(((await sem.json()) as { mensagem: string }).mensagem).toBe("Entre áreas, informe quem recebeu.");
+    expect((await r.transferirNoEstoque(req("/api/estoque/transferir", "POST", cozinheira, { ...corpo, recebidoPor: sup.usuarioId }))).status).toBe(200);
+    // E volta, pelo supervisor (para o resto dos testes contar só a cozinha).
+    const coz = ((await (await r.verQuemRecebe(req("/api/estoque/quem-recebe?area=cozinha", "GET", supervisor))).json()) as { usuarioId: number; nome: string }[]).find((x) => x.nome === "Teste cozinheira")!;
+    const volta = { ingredienteId, quantidade: "100", de: { area: "cafeteria", local: "em_uso" }, para: { area: "cozinha", local: "guardado" }, recebidoPor: coz.usuarioId };
+    expect((await r.transferirNoEstoque(req("/api/estoque/transferir", "POST", supervisor, volta))).status).toBe(200);
+  });
+
   it("detalhe, histórico e lista de entradas leem o filtro da URL", async () => {
     const det = await r.verItemDoEstoque(req(`/api/estoque/item?ingredienteId=${ingredienteId}`, "GET", cozinheira));
     expect(det.status).toBe(200);
     const item = (await det.json()) as { lotes: { saldos: { local: string; quantidade: string }[] }[] };
     expect(item.lotes[0]!.saldos[0]).toMatchObject({ local: "guardado", quantidade: "2000" });
     const hist = (await (await r.verHistoricoDoItem(req(`/api/estoque/item/historico?ingredienteId=${ingredienteId}&limite=5`, "GET", gerente))).json()) as { tipo: string; quantidadeDepois: string }[];
-    expect(hist[0]).toMatchObject({ tipo: "entrada", quantidadeDepois: "2000" });
+    // Mais novo primeiro: as duas mudanças entre áreas e, antes delas, a entrada.
+    expect(hist.map((h) => h.tipo)).toEqual(["transferencia", "transferencia", "entrada"]);
+    expect(hist[2]).toMatchObject({ tipo: "entrada", quantidadeDepois: "2000" });
     // Sem item: a mensagem do domínio.
     const sem = await r.verItemDoEstoque(req("/api/estoque/item", "GET", gerente));
     expect(sem.status).toBe(400);
     expect(((await sem.json()) as { mensagem: string }).mensagem).toBe("Escolha um ingrediente ou um preparo.");
     const so = (await (await r.verEntradas(req("/api/estoque/entradas?soEstimadas=true", "GET", gerente))).json()) as { notaNumero: string | null }[];
+    const lista = (await (await r.verEntradas(req("/api/estoque/entradas?limite=10", "GET", gerente))).json()) as { notaNumero: string | null; itens: { ingredienteId: number | null }[] }[];
+    expect(lista.find((e) => e.notaNumero === "123")!.itens[0]!.ingredienteId).toBe(ingredienteId);
     expect(so.some((e) => e.notaNumero === "123")).toBe(false);
     const todas = (await (await r.verEntradas(req("/api/estoque/entradas?soEstimadas=false&limite=10", "GET", gerente))).json()) as { notaNumero: string | null; movimentoId: string }[];
     expect(todas.some((e) => e.notaNumero === "123")).toBe(true);

@@ -18,9 +18,10 @@ import { custoMedio, dia, hojeNaLoja, q4, qtd, reais, somarDias, textoQ4 } from 
 import type { ContextoDoEstoque } from "./contexto";
 import { Contagens } from "./Contagens";
 import { DetalheDoItem } from "./DetalheDoItem";
+import { EntradaDeMercadoria } from "./compras/EntradaDeMercadoria";
 import { TE } from "./textos";
 
-type Aba = "itens" | "contagem";
+type Aba = "itens" | "contagem" | "entrada";
 const DIAS_DO_VENCE_LOGO = 3;
 
 /** Soma das áreas visíveis nesta tela (o servidor já manda só as áreas da pessoa). */
@@ -102,6 +103,7 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
           abas={[
             { valor: "itens", texto: TE.painel.abaItens },
             { valor: "contagem", texto: TE.painel.abaContagem },
+            { valor: "entrada", texto: TE.painel.abaEntrada },
           ]}
           atual={aba}
           aoTrocar={setAba}
@@ -136,6 +138,8 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
               )}
             </>
           )}
+          {/* Quem recebe a mercadoria (cozinha ou salão) dá entrada aqui, nas áreas desta tela. Valor só com custos.ver. */}
+          {aba === "entrada" && <EntradaDeMercadoria contexto={{ ...contexto, areas: minhas }} aoGravar={() => void recarregar()} />}
           {aba === "contagem" && <Contagens contexto={contexto} areas={minhas} itens={daPagina} aoMudar={() => void recarregar()} />}
         </Abas>
       )}

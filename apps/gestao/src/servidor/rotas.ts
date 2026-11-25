@@ -121,6 +121,7 @@ import {
   relatorioDePerdas,
   relatorioDeContagens,
   valorDoEstoquePorArea,
+  quemRecebeNaArea,
   type Ator,
 } from "@erp/dominio";
 import QRCode from "qrcode";
@@ -586,6 +587,12 @@ export const verItemDoEstoque = seguro(async (req) => {
 export const verHistoricoDoItem = seguro(async (req) => {
   const { db, a } = await comAlgumaArea(req);
   return json(await historicoDoItem(db, a, filtroDaUrl(req, [...ITEM_DA_URL, "limite"])));
+});
+
+/** Quem pode receber numa área (para mudar de lugar entre áreas: "quem recebeu"). */
+export const verQuemRecebe = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await quemRecebeNaArea(db, a, filtroDaUrl(req)));
 });
 
 // Lançamentos (a chave contra toque duplo vem no corpo)

@@ -126,6 +126,7 @@ const ROTAS: Rota[] = [
   { metodo: "GET", caminho: "/api/estoque", ...AREA, chamar: (c) => r.verPainelDoEstoque(req("/api/estoque?area=inventada", "GET", c)) },
   { metodo: "GET", caminho: "/api/estoque/item", ...AREA, chamar: (c) => r.verItemDoEstoque(req(`/api/estoque/item?ingredienteId=${INEXISTENTE}`, "GET", c)) },
   { metodo: "GET", caminho: "/api/estoque/item/historico", ...AREA, chamar: (c) => r.verHistoricoDoItem(req(`/api/estoque/item/historico?ingredienteId=${INEXISTENTE}`, "GET", c)) },
+  { metodo: "GET", caminho: "/api/estoque/quem-recebe", ...AREA, chamar: (c) => r.verQuemRecebe(req("/api/estoque/quem-recebe?area=inventada", "GET", c)) },
   { metodo: "GET", caminho: "/api/estoque/entradas", ...AREA, chamar: (c) => r.verEntradas(req("/api/estoque/entradas?limite=1&desde=2000-01-01&ate=2000-01-01", "GET", c)) },
   { metodo: "POST", caminho: "/api/estoque/entradas", ...AREA, chamar: (c) => r.darEntrada(req("/api/estoque/entradas", "POST", c, {})) },
   { metodo: "POST", caminho: "/api/estoque/entradas/custo", acao: "custos.ver", chamar: (c) => r.corrigirCusto(req("/api/estoque/entradas/custo", "POST", c, {})) },
