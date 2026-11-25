@@ -3,7 +3,7 @@
  * propósito: mudar o que um cargo vê exige mudar o código e este teste no mesmo PR.
  */
 import { describe, expect, it } from "vitest";
-import { ACOES, ACOES_FINANCEIRAS, APLICATIVOS, CARGOS, aplicativosDoCargo, itensVisiveis, pode, type Cargo } from "../src/index";
+import { ACOES, ACOES_FINANCEIRAS, APLICATIVOS, CARGOS, aplicativosDoCargo, itensDaBarra, itensVisiveis, pode, type Cargo } from "../src/index";
 
 const ESPERADO: Record<Cargo, string[]> = {
   dono: ["caixa", "atendimento", "producao", "estoque", "gestao", "cadastros", "financeiro"],
@@ -61,6 +61,15 @@ describe("aplicativos por cargo", () => {
     expect(cadastros.indexOf("/cadastros/fichas")).toBe(cadastros.indexOf("/cadastros/produtos") + 1);
     for (const c of ["dono", "gerente_geral", "supervisor", "financeiro", "cozinheira"] as const) expect(itens("cadastros", c)).toContain("/cadastros/fichas");
     for (const c of ["atendente", "caixa", "auxiliar_cozinha", "motoboy", "contador"] as const) expect(itensVisiveis(APLICATIVOS.find((a) => a.codigo === "cadastros")!, c)).toEqual([]);
+  });
+
+  it("Atendimento: Novo pedido no menu e no botão grande do celular, sem repetir na barra", () => {
+    const app = APLICATIVOS.find((a) => a.codigo === "atendimento")!;
+    expect(itensVisiveis(app, "atendente").map((i) => i.caminho)).toEqual(["/atendimento", "/atendimento/novo-pedido", "/atendimento/pedidos"]);
+    expect(app.principal).toMatchObject({ caminho: "/atendimento/novo-pedido", acao: "pedidos.lancar" });
+    const barra = itensDaBarra(app, "atendente");
+    expect(barra.naBarra.map((i) => i.caminho)).toEqual(["/atendimento", "/atendimento/pedidos"]);
+    expect(barra.noMais).toEqual([]);
   });
 
   it("caixa e gerente geral não veem nenhum item do financeiro", () => {

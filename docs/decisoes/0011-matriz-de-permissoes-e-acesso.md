@@ -23,7 +23,7 @@ A permissão vem **só do cargo ativo**. O que não está listado é recusado e 
 | Ver cadastros: ingredientes, fornecedores (E07, decisão 0015) | ✓ | ✓ | ✓ | ✓ | | | ✓ | | | |
 | Mudar cadastros (E07, decisão 0015) | ✓ | ✓ | | | | | | | | |
 | Ver e mudar as regras do Clube E-MOTION: desconto, pontos, prêmios, presentes, campanhas (decisão 0024) | ✓ | ✓ | | | | | | | | |
-| Lançar pedido | ✓ | ✓ | | ✓ | ✓ | | | | | |
+| Lançar pedido (inclui ler o cardápio para lançar, `GET /api/cardapio`: nome, categoria, preço da loja, foto e tempo; nunca custo; 25/11/2026) | ✓ | ✓ | | ✓ | ✓ | | | | | |
 | Ver os próprios pedidos / todos | ✓ | ✓ | | – / ✓ | ✓ / – | – / ✓ | | | | |
 | Alterar pedido | ✓ | ✓ | | ✓ | ✓ (avisa os supervisores) | | | | | |
 | Cancelar pedido | ✓ | ✓ | | ✓ | | | | | | |

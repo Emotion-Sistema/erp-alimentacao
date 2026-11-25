@@ -94,3 +94,72 @@ test.describe("Mesas", () => {
     }
   });
 });
+
+/** "R$ 1.234,56" a partir de centavos (o mesmo formato da tela). */
+const reais = (c: number) => `R$ ${String(Math.floor(c / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ".")},${String(c % 100).padStart(2, "0")}`;
+
+test.describe("Novo pedido", () => {
+  test("atendente monta a comanda da mesa: soma em centavos certa e o envio fica desligado até a E13", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await entrar(page, "atendente");
+    // Preços vêm do servidor (semente inventada): a conta da tela tem de bater com eles.
+    const cardapio = (await (await page.request.get("/api/cardapio")).json()) as { nome: string; precoCentavos: number }[];
+    const cafe = cardapio.find((p) => p.nome === "Café expresso")!;
+    const refri = cardapio.find((p) => p.nome === "Refrigerante lata")!;
+    expect(Number.isInteger(cafe.precoCentavos) && Number.isInteger(refri.precoCentavos)).toBe(true);
+
+    await page.goto("/atendimento/novo-pedido?mesa=4");
+    await expect(page.getByTestId("titulo-da-tela")).toHaveText("Novo pedido");
+    await expect(page.getByTestId("comanda-mesa")).toHaveText("Mesa 4");
+    await expect(page.getByRole("button", { name: /^Lançar / })).toHaveCount(cardapio.length);
+
+    const lancar = (nome: string) => page.getByRole("button", { name: new RegExp(`^Lançar ${nome},`) });
+    await lancar("Café expresso").click();
+    await lancar("Café expresso").click();
+    await page.getByRole("searchbox", { name: "Buscar produto" }).fill("refri");
+    await expect(page.getByRole("button", { name: /^Lançar / })).toHaveCount(1);
+    await lancar("Refrigerante lata").click();
+    await lancar("Refrigerante lata").click();
+    await page.getByRole("button", { name: "Tirar um Refrigerante lata" }).click();
+
+    const itens = cafe.precoCentavos * 2 + refri.precoCentavos;
+    const servico = Math.round((itens * 10) / 100);
+    await expect(page.getByTestId("comanda-itens-valor")).toHaveText(reais(itens));
+    await expect(page.getByTestId("comanda-servico")).toHaveText(reais(servico));
+    await expect(page.getByTestId("comanda-total")).toHaveText(reais(itens + servico));
+    await expect(page.getByLabel("Quantidade de Café expresso")).toHaveText("2");
+    await expect(page.getByRole("button", { name: "Enviar para a cozinha" })).toBeDisabled();
+    await expect(page.getByText("O envio para a cozinha liga na etapa E13 (pedidos). Por enquanto a comanda não é gravada.")).toBeVisible();
+  });
+
+  test("mesa que não existe vira 'Sem mesa'; celular mostra o resumo fixo embaixo", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await entrar(page, "atendente");
+    await page.goto("/atendimento/novo-pedido?mesa=99");
+    await expect(page.getByTestId("comanda-mesa")).toHaveText("Sem mesa");
+    await page.getByRole("button", { name: /^Lançar Pão de queijo,/ }).click();
+    const resumo = page.locator(".np-resumo");
+    await expect(resumo).toBeVisible();
+    await expect(resumo).toContainText("Sem mesa, 1 item");
+    await expect(resumo.getByRole("button", { name: "Enviar" })).toBeDisabled();
+    await semEstouroDeLargura(page);
+  });
+
+  test("sem estouro de largura e alvos de 44 px nos 3 tamanhos", async ({ page }) => {
+    await entrar(page, "atendente");
+    for (const t of TAMANHOS) {
+      await page.setViewportSize(t);
+      await page.goto("/atendimento/novo-pedido?mesa=7");
+      await page.getByRole("button", { name: /^Lançar X-Salada,/ }).click();
+      await semEstouroDeLargura(page);
+      await alvosGrandes(page, page.locator(".np").locator(".balcao-chip, .np-prod, .np-qtd button, .np-total .erp-botao"));
+    }
+  });
+
+  test("caixa não abre o novo pedido", async ({ page }) => {
+    await entrar(page, "caixa");
+    await page.goto("/atendimento/novo-pedido");
+    await expect(page.getByRole("heading", { name: "Seu cargo não permite esta tela" })).toBeVisible();
+    await expect(page.locator(".np")).toHaveCount(0);
+  });
+});
