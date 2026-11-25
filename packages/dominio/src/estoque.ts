@@ -533,7 +533,7 @@ async function quantoHa(trx: Trx, ator: Ator, item: ItemTravado, area: AreaEstoq
     const r = await sql<{ ok: boolean }>`
       SELECT EXISTS (SELECT 1 FROM estoque_contagem c JOIN estoque_contagem_item ci ON ci.contagem_id = c.id
         WHERE ci.item_id = ${item.id} AND c.area = ${area} AND NOT EXISTS (SELECT 1 FROM estoque_contagem_fim f WHERE f.contagem_id = c.id)) AS ok`.execute(trx);
-    if (r.rows[0]!.ok) return prefixo === ": há " ? " (o item está em contagem)" : ", item em contagem,";
+    if (r.rows[0]!.ok) return prefixo === ": há " ? " (o item está em contagem)" : "; o item está em contagem;";
   }
   return `${prefixo}${comUnidade(q, item)}`;
 }
@@ -1558,6 +1558,8 @@ export type EntradaDaLista = {
   maisItens: number;
   itens: {
     itemId: number;
+    ingredienteId: number | null;
+    preparoId: number | null;
     nome: string;
     unidade: string;
     quantidade: string;
@@ -1613,8 +1615,8 @@ export async function listarEntradas(db: Banco, ator: Ator | null, filtro: unkno
     ORDER BY m.id DESC LIMIT ${f.limite ?? 30}`.execute(db);
   if (movs.rows.length === 0) return [];
   const ids = movs.rows.map((m) => m.id);
-  const itens = await sql<{ movimento_id: string; item_id: number; nome: string; unidade: string; quantidade: string; valor: string; estimado: boolean; informado: string | null }>`
-    SELECT mi.movimento_id::text AS movimento_id, mi.item_id, coalesce(i.nome, f.nome) AS nome, coalesce(i.unidade_base, f.unidade_rendimento) AS unidade,
+  const itens = await sql<{ movimento_id: string; item_id: number; ingrediente_id: number | null; preparo_id: number | null; nome: string; unidade: string; quantidade: string; valor: string; estimado: boolean; informado: string | null }>`
+    SELECT mi.movimento_id::text AS movimento_id, mi.item_id, e.ingrediente_id, e.preparo_id, coalesce(i.nome, f.nome) AS nome, coalesce(i.unidade_base, f.unidade_rendimento) AS unidade,
       (SELECT sum(l.quantidade) FROM estoque_movimento_linha l WHERE l.movimento_id = mi.movimento_id AND l.item_id = mi.item_id AND l.area = ANY(${areas}::text[]))::text AS quantidade,
       mi.valor_centavos::text AS valor, mi.custo_estimado AS estimado,
       (SELECT ci.valor_informado::text FROM estoque_movimento c JOIN estoque_movimento_item ci ON ci.movimento_id = c.id
@@ -1642,6 +1644,8 @@ export async function listarEntradas(db: Banco, ator: Ator | null, filtro: unkno
       .slice(0, ITENS_NA_LISTA)
       .map((x) => ({
         itemId: x.item_id,
+        ingredienteId: x.ingrediente_id,
+        preparoId: x.preparo_id,
         nome: x.nome,
         unidade: x.unidade,
         quantidade: textoQ4(q4DoBanco(x.quantidade)),
@@ -1932,3 +1936,23 @@ export const motorDoEstoque = {
   hoje,
   quantidadeNaBase,
 };
+
+/**
+ * Quem pode receber numa área (para a transferência entre áreas): pessoas ativas com um cargo que
+ * cuida da área de destino. Só para quem cuida de alguma área; devolve só id e nome.
+ */
+export async function quemRecebeNaArea(db: Banco, ator: Ator | null, dados: unknown): Promise<{ usuarioId: number; nome: string }[]> {
+  await exigirAlgumaArea(db, ator);
+  const d = validar(z.object({ area }, { error: "Área de estoque inválida." }), dados);
+  const r = await db
+    .selectFrom("usuario as u")
+    .innerJoin("usuario_perfil as up", "up.usuario_id", "u.id")
+    .select(["u.id", "u.nome", "up.perfil_codigo"])
+    .where("u.ativo", "=", true)
+    .where("up.removido_em", "is", null)
+    .orderBy("u.nome")
+    .execute();
+  const vistos = new Map<number, string>();
+  for (const x of r) if (pode(x.perfil_codigo, acaoDaArea(d.area))) vistos.set(x.id, x.nome);
+  return [...vistos.entries()].map(([usuarioId, nome]) => ({ usuarioId, nome }));
+}

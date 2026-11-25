@@ -279,7 +279,9 @@ export const NOME_DA_SITUACAO: Readonly<Record<SituacaoDaLinha | "pulada", strin
  * para importar de novo, sai SEM o apóstrofo (senão ele entraria no valor); a tela avisa.
  */
 function celulaCsv(v: string, protegerFormulas: boolean): string {
-  const seguro = protegerFormulas && /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+  // Número negativo puro (-10, -12,50, -1.234,5) não é fórmula: fica sem apóstrofo para somar na planilha.
+  const numeroNegativo = /^-\d[\d.]*(,\d+)?$/.test(v);
+  const seguro = protegerFormulas && !numeroNegativo && /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
   return /[;"\n\r]/.test(seguro) ? `"${seguro.replace(/"/g, '""')}"` : seguro;
 }
 export const linhasParaCsv = (linhas: readonly (readonly string[])[], { protegerFormulas = true }: { protegerFormulas?: boolean } = {}): string =>

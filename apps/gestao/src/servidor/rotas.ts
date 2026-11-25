@@ -95,6 +95,33 @@ import {
   LIMITE_DE_BYTES,
   LIMITE_DE_CORRECOES,
   modeloDePlanilha,
+  areasDoAtor,
+  painelDoEstoque,
+  estoqueDoItem,
+  historicoDoItem,
+  registrarEntrada,
+  transferir,
+  registrarPerda,
+  bloquear,
+  desbloquear,
+  produzirPreparo,
+  desfazerMovimento,
+  listarEntradas,
+  corrigirCustoDaEntrada,
+  anexarFotoDaNota,
+  arquivoDaFotoDaNota,
+  importarSaldoInicial,
+  abrirContagem,
+  contagemRapidaDoDia,
+  verContagem,
+  registrarContagem,
+  fecharContagem,
+  cancelarContagem,
+  listarContagens,
+  relatorioDePerdas,
+  relatorioDeContagens,
+  valorDoEstoquePorArea,
+  quemRecebeNaArea,
   type Ator,
 } from "@erp/dominio";
 import QRCode from "qrcode";
@@ -513,3 +540,135 @@ export const baixarModeloDePlanilha = seguro(async (req) => {
     },
   });
 });
+
+// ---------- estoque (E09, decisão 0027) ----------
+
+/**
+ * Quem não cuida de nenhuma área de estoque é recusado (e auditado) ANTES de o pedido ser lido: o
+ * domínio confere o formato antes da área, e assim ninguém de fora descobre nada pelo erro. O domínio
+ * confere de novo a área certa de cada lançamento (cozinha ou salão).
+ */
+async function comAlgumaArea(req: Request): Promise<{ db: Banco; a: Ator | null }> {
+  const db = obterBanco();
+  const a = await ator(req);
+  if (!a || areasDoAtor(a).length === 0 || a.segundoFator === "pendente") await exigir(db, a, "estoque.cozinha", { tipo: "estoque" });
+  return { db, a };
+}
+
+/** Filtro da consulta (?chave=valor): números e sim/não viram o tipo certo; o domínio valida tudo. */
+function filtroDaUrl(req: Request, numeros: readonly string[] = [], simOuNao: readonly string[] = []): Record<string, unknown> {
+  const saida: Record<string, unknown> = {};
+  for (const [k, v] of new URL(req.url).searchParams) {
+    if (v === "") continue;
+    if (numeros.includes(k)) saida[k] = /^\d{1,10}$/.test(v) ? Number(v) : v;
+    else if (simOuNao.includes(k)) saida[k] = v === "true" ? true : v === "false" ? false : v;
+    else saida[k] = v;
+  }
+  return saida;
+}
+
+const ITEM_DA_URL = ["ingredienteId", "preparoId"] as const;
+
+/** Lançamento do estoque: corpo lido com limite (uma entrada grande cabe com folga em 256 KB). */
+const LIMITE_DO_LANCAMENTO = 256 * 1024;
+const daArea = (fn: (db: Banco, a: Ator | null, dados: unknown) => Promise<unknown>, status = 200) =>
+  seguro(async (req) => {
+    const { db, a } = await comAlgumaArea(req);
+    return json(await fn(db, a, await corpoJsonLimitado(req, LIMITE_DO_LANCAMENTO, "Pedido grande demais: divida em partes menores.")), status);
+  });
+
+// Consultas
+export const verPainelDoEstoque = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await painelDoEstoque(db, a, filtroDaUrl(req)));
+});
+export const verItemDoEstoque = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await estoqueDoItem(db, a, filtroDaUrl(req, ITEM_DA_URL)));
+});
+export const verHistoricoDoItem = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await historicoDoItem(db, a, filtroDaUrl(req, [...ITEM_DA_URL, "limite"])));
+});
+
+/** Quem pode receber numa área (para mudar de lugar entre áreas: "quem recebeu"). */
+export const verQuemRecebe = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await quemRecebeNaArea(db, a, filtroDaUrl(req)));
+});
+
+// Lançamentos (a chave contra toque duplo vem no corpo)
+export const darEntrada = daArea(registrarEntrada, 201);
+export const transferirNoEstoque = daArea(transferir);
+export const lancarPerda = daArea(registrarPerda);
+export const bloquearNoEstoque = daArea(bloquear);
+export const desbloquearNoEstoque = daArea(desbloquear);
+export const produzirUmPreparo = daArea(produzirPreparo, 201);
+/** `estoque.desfazer` primeiro (o domínio confere antes de ler o pedido). */
+export const desfazerUmMovimento = seguro(async (req) => json(await desfazerMovimento(obterBanco(), await ator(req), await corpoJson(req))));
+
+// Compras
+export const verEntradas = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await listarEntradas(db, a, filtroDaUrl(req, ["fornecedorId", "limite"], ["soEstimadas"])));
+});
+/** `custos.ver` primeiro (o domínio confere antes de ler o pedido). */
+export const corrigirCusto = seguro(async (req) => json(await corrigirCustoDaEntrada(obterBanco(), await ator(req), await corpoJson(req))));
+/** A foto vem em base64: a área é conferida ANTES de ler o arquivo. */
+export const enviarFotoDaNota = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  const corpo = await corpoJsonLimitado(req, LIMITE_DA_FOTO, "Foto grande demais: o máximo é 8 MB.");
+  return json(await anexarFotoDaNota(db, a, corpo), 201);
+});
+/** O arquivo da foto da nota (WebP refeito pelo servidor). A foto de um id nunca muda. */
+export const verFotoDaNota = seguroComId(async (req, p) => {
+  const { db, a } = await comAlgumaArea(req);
+  const f = await arquivoDaFotoDaNota(db, a, p.id);
+  return new Response(new Uint8Array(f.conteudo), {
+    status: 200,
+    headers: {
+      "content-type": f.tipo,
+      "content-length": String(f.conteudo.length),
+      "cache-control": "private, max-age=31536000, immutable",
+      etag: `"${f.sha256}"`,
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; sandbox",
+      "content-disposition": "inline",
+    },
+  });
+});
+
+/** Saldo inicial por planilha: conferir (aplicar falso) ou gravar. A área é conferida ANTES de ler o arquivo. */
+export const saldoInicialDaPlanilha = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  const corpo = await corpoJsonLimitado(req, LIMITE_DO_PEDIDO, mensagemDoPedidoGrande);
+  const r = await importarSaldoInicial(db, a, corpo);
+  return json(r, r.aplicado && !r.repetido ? 201 : 200);
+});
+
+// Contagem (cega: enquanto aberta, a resposta nunca traz o esperado)
+export const verContagens = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await listarContagens(db, a, filtroDaUrl(req, ["limite"])));
+});
+export const novaContagem = daArea(abrirContagem, 201);
+export const contagemRapida = daArea(contagemRapidaDoDia);
+export const verUmaContagem = seguroComId(async (req, p) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await verContagem(db, a, { contagemId: /^\d{1,10}$/.test(p.id ?? "") ? Number(p.id) : p.id }));
+});
+export const contarItem = daArea(registrarContagem);
+export const fecharUmaContagem = daArea(fecharContagem);
+export const cancelarUmaContagem = daArea(cancelarContagem);
+
+// Relatórios (só leitura; valores só com custos.ver)
+export const verRelatorioDePerdas = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await relatorioDePerdas(db, a, filtroDaUrl(req)));
+});
+export const verRelatorioDeContagens = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await relatorioDeContagens(db, a, filtroDaUrl(req)));
+});
+/** `custos.ver` (o domínio confere). */
+export const verValorDoEstoque = seguro(async (req) => json(await valorDoEstoquePorArea(obterBanco(), await ator(req))));

@@ -12,7 +12,7 @@ let db: Banco;
 let gerente: Ator;
 let cozinheira: Ator;
 let cat: number;
-const s = randomUUID().slice(0, 6).replace(/[0-9]/g, "x");
+const s = randomUUID().slice(0, 8).replace(/[0-9a-f]/g, (c) => "abcdefghijklmnop"[parseInt(c, 16)]!);
 
 beforeAll(async () => {
   db = bancoDeTeste();

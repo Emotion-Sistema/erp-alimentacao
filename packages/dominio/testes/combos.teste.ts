@@ -22,7 +22,7 @@ let gerente: Ator;
 let cozinheira: Ator;
 let cat: number;
 let tipo: number;
-const sufixo = randomUUID().slice(0, 6).replace(/[0-9]/g, "x");
+const sufixo = randomUUID().slice(0, 8).replace(/[0-9a-f]/g, (c) => "abcdefghijklmnop"[parseInt(c, 16)]!);
 let n = 0;
 const nome = (b: string) => `${b} ${sufixo} ${n++}`;
 

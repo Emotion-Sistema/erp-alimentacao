@@ -178,7 +178,7 @@ describe("revisão do PR 4", () => {
 
   it("cega também no painel, no item e no histórico para quem conta; a gestão vê", async () => {
     const x = await ingrediente("Arroz", "g");
-    await entrada(x, "37");
+    await entrada(x, "37.4813");
     const c = await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x, local: "em_uso" }] });
     const p = (await painelDoEstoque(db, cozinheira)).find((i) => i.ingredienteId === x)!;
     expect([p.emContagem, p.total, p.areas[0]!.emUso, p.areas[0]!.livre]).toEqual([true, null, null, null]);
@@ -186,17 +186,18 @@ describe("revisão do PR 4", () => {
     expect(i.lotes.flatMap((l) => l.saldos.map((s) => s.quantidade))).toEqual([null]);
     const h = await historicoDoItem(db, cozinheira, { ingredienteId: x });
     expect(h.every((m) => m.quantidade === null && m.quantidadeDepois === null)).toBe(true);
-    expect(JSON.stringify([p, i, h])).not.toMatch(/37/);
-    expect((await estoqueDoItem(db, gerente, { ingredienteId: x })).total).toBe("37");
+    // Número que não aparece em data, hora nem id (o "37" sozinho batia com o horário).
+    expect(JSON.stringify([p, i, h])).not.toMatch(/4813/);
+    expect((await estoqueDoItem(db, gerente, { ingredienteId: x })).total).toBe("37.4813");
     // Nem as mensagens de recusa dizem quanto há.
     const e1 = await erroDe(registrarPerda(db, cozinheira, { ingredienteId: x, quantidade: "99999", area: "cozinha", local: "em_uso", motivo: "estragou" }));
     const e2 = await erroDe(transferir(db, cozinheira, { ingredienteId: x, quantidade: "99999", de: { area: "cozinha", local: "em_uso" }, para: { area: "cozinha", local: "guardado" } }));
     for (const e of [e1, e2]) {
       expect(e.message).toMatch(/em contagem/);
-      expect(e.message).not.toMatch(/37/);
+      expect(e.message).not.toMatch(/4813/);
     }
     await cancelarContagem(db, gerente, { contagemId: c.id, observacao: "teste" });
-    expect((await estoqueDoItem(db, cozinheira, { ingredienteId: x })).total).toBe("37");
+    expect((await estoqueDoItem(db, cozinheira, { ingredienteId: x })).total).toBe("37.4813");
   });
 
   it("contagem fechada mostra o que o ajuste aplicou de fato e o valor lançado; falta tira o livre antes do bloqueado", async () => {

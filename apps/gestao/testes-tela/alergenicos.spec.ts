@@ -10,7 +10,7 @@ import { entrar, semEstouroDeLargura, sql } from "./ajudas";
 test.describe.configure({ mode: "serial" });
 test.use({ viewport: { width: 1280, height: 900 } });
 
-const SUFIXO = Math.random().toString(36).slice(2, 7).replace(/[0-9]/g, "x");
+const SUFIXO = Math.random().toString(36).slice(2, 9).replace(/[0-9]/g, (c) => "qrstuvwxyz"[Number(c)]!);
 const FARINHA = `Farinha tela ${SUFIXO}`;
 const LEITE = `Leite tela ${SUFIXO}`;
 const MASSA = `Massa tela ${SUFIXO}`;

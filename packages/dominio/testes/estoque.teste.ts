@@ -16,6 +16,7 @@ import {
   Fracao,
   historicoDoItem,
   painelDoEstoque,
+  quemRecebeNaArea,
   q4,
   registrarEntrada,
   registrarPerda,
@@ -285,6 +286,11 @@ describe("transferência e perda", () => {
     const base = { ingredienteId: leite, quantidade: "1000", de: { area: "cozinha", local: "guardado" }, para: { area: "cafeteria", local: "em_uso" } };
     expect((await erroDe(transferir(db, gerente, base))).message).toMatch(/quem recebeu/);
     expect((await erroDe(transferir(db, gerente, { ...base, recebidoPor: cozinheira.usuarioId }))).message).toMatch(/cuidar da área Cafeteria/);
+    // A lista de quem pode receber na cafeteria tem o supervisor e não a cozinheira.
+    const quem = await quemRecebeNaArea(db, cozinheira, { area: "cafeteria" });
+    expect(quem.map((q) => q.usuarioId)).toContain(supervisor.usuarioId);
+    expect(quem.map((q) => q.usuarioId)).not.toContain(cozinheira.usuarioId);
+    expect((await erroDe(quemRecebeNaArea(db, atendente, { area: "cafeteria" }))).codigo).toBe("sem_permissao");
     const r = await transferir(db, cozinheira, { ...base, recebidoPor: supervisor.usuarioId });
     const m = await db.selectFrom("estoque_movimento").select(["recebido_por", "autor_id"]).where("id", "=", r.movimentoId).executeTakeFirstOrThrow();
     expect(m).toEqual({ recebido_por: supervisor.usuarioId, autor_id: cozinheira.usuarioId });
