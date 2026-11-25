@@ -323,3 +323,32 @@ test("celular (390 px): lista e janela sem estouro", async ({ page }) => {
     .selectOption({ label: "Hambúrgueres (Cozinha)" });
   await janelaSemEstouro(page);
 });
+
+test("filtro por categoria e busca (visual Balcão): escondem sem mudar o lugar na categoria", async ({ page }) => {
+  await entrar(page, "gerente.geral");
+  await page.goto("/cadastros/produtos");
+  const cafeteria = page.getByTestId("categoria-Cafeteria");
+  await expect(cafeteria.getByTestId("produto-Pão de queijo")).toBeVisible();
+
+  // Busca sem acento: "pao" acha "Pão de queijo", esconde o 1º da categoria e o lugar continua 2º.
+  const busca = page.getByRole("searchbox", { name: "Buscar produto" });
+  await busca.fill("pao");
+  await expect(cafeteria.getByTestId("produto-Pão de queijo")).toContainText("2º na categoria");
+  await expect(cafeteria.getByTestId("produto-Café expresso")).toHaveCount(0);
+  await expect(page.getByTestId("categoria-Bebidas")).toHaveCount(0);
+
+  await busca.fill("zzz nada");
+  await expect(page.getByTestId("nada-na-busca")).toContainText('Nenhum produto com "zzz nada".');
+  await busca.fill("");
+
+  // Chip de uma categoria: só ela aparece (desativados de outras categorias também somem).
+  await page.getByRole("button", { name: "Bebidas", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Bebidas", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("categoria-Bebidas")).toBeVisible();
+  await expect(page.getByTestId("categoria-Cafeteria")).toHaveCount(0);
+  const desativados = page.getByTestId("produtos-desativados");
+  if (await desativados.count()) await expect(desativados.getByText(/Categoria: (?!Bebidas)/)).toHaveCount(0);
+
+  await page.getByRole("button", { name: /^Todas/ }).click();
+  await expect(page.getByTestId("categoria-Cafeteria")).toBeVisible();
+});

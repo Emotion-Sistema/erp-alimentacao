@@ -67,7 +67,6 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 }
 .casca__marca { display: none; }
 .casca__titulo { min-width: 0; display: grid; gap: 1px; }
-.casca__app { margin: 0; font-size: 1rem; font-weight: var(--peso-forte); line-height: 1.25; letter-spacing: -0.01em; }
 .casca__quem { display: block; min-width: 0; overflow-wrap: anywhere; line-height: 1.35; font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
 .casca__quem > * { display: inline; }
 .casca__quem > strong { font-weight: 400; }
@@ -75,8 +74,6 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 .casca__quem strong[data-testid="cargo-ativo"] { color: var(--cor-texto); font-weight: var(--peso-forte); }
 .casca__quem-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* Lançador (sem aplicativo): o nome da pessoa vira o título. */
-.casca__titulo:not(:has(.casca__app)) .casca__quem > strong:first-child { display: block; font-size: 1rem; font-weight: var(--peso-forte); color: var(--cor-texto); }
-.casca__titulo:not(:has(.casca__app)) .casca__quem > strong:first-child::after { content: none; }
 .casca__lado { display: flex; align-items: center; gap: var(--espaco-2); margin-left: auto; flex: none; }
 
 /* Sino e conta: botões redondos de 48 px, sem moldura. */
@@ -139,7 +136,7 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
   .casca__marca { display: inline-flex; align-items: center; min-height: var(--alvo-toque); flex: none; border-radius: var(--raio-pequeno); }
   .casca__simbolo { display: block; width: 44px; height: auto; }
   .casca__titulo { flex: 1; }
-  .casca__app, .casca__quem { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .casca__tela, .casca__quem { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .casca__lado { gap: 0; }
 
   .casca__conta {

@@ -59,3 +59,7 @@ O responsável viu as fotos da parte 1 e pediu: "tudo deve seguir o mesmo layout
   lista num cartão só com cabeçalho de colunas, linha com foto, nome, preparo, preço e ações.
 - **Regra para toda aba nova:** guia `docs/visual-balcao.md`, skill `tela-da-gestao` e linha nas
   regras do `CLAUDE.md`. Nenhuma tela com layout, menu ou estilo próprio.
+- **Exceção à ajuda em todo campo (0012), só para a busca da barra:** o campo `type=search` dentro de
+  `.balcao-busca` segue o protótipo, com a lupa, um nome para o leitor de tela e um exemplo no próprio
+  campo ("Buscar produto (ex.: X-Salada)"); sem a linha de explicação nem o "Ver exemplo". O teste
+  `ajuda-nos-campos.spec.ts` confere o nome e o "ex.:". Todo outro campo continua com a ajuda completa.

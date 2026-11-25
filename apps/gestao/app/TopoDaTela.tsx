@@ -24,14 +24,28 @@ export function TituloDaTela({
   const secao = secoes.find((s) => s.href === atual);
   const titulo = secao?.texto ?? app ?? "Início";
 
+  // O h1 pode chegar depois (página que carrega dados): confere de novo quando o conteúdo muda.
   useEffect(() => {
-    const h1 = document.querySelector<HTMLElement>(".casca__conteudo h1");
-    if (!h1) return;
-    const igual =
-      h1.textContent?.trim().toLocaleLowerCase("pt-BR") ===
-      titulo.toLocaleLowerCase("pt-BR");
-    h1.classList.toggle("titulo-no-topo", igual);
-    return () => h1.classList.remove("titulo-no-topo");
+    const main = document.querySelector<HTMLElement>(".casca__conteudo");
+    if (!main) return;
+    const alvo = titulo.toLocaleLowerCase("pt-BR");
+    const conferir = () => {
+      main.querySelectorAll<HTMLElement>("h1").forEach((h1, i) => {
+        const igual =
+          i === 0 && h1.textContent?.trim().toLocaleLowerCase("pt-BR") === alvo;
+        if (h1.classList.contains("titulo-no-topo") !== igual)
+          h1.classList.toggle("titulo-no-topo", igual);
+      });
+    };
+    conferir();
+    const obs = new MutationObserver(conferir);
+    obs.observe(main, { childList: true, subtree: true, characterData: true });
+    return () => {
+      obs.disconnect();
+      main
+        .querySelectorAll("h1.titulo-no-topo")
+        .forEach((h) => h.classList.remove("titulo-no-topo"));
+    };
   }, [titulo, atual]);
 
   return (

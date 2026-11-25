@@ -131,6 +131,8 @@ export async function janelaNoCentro(page: Page, janela: Locator) {
     )
     .toBeLessThanOrEqual(2);
 }
+/** Nome novo e certo para a mesma conferência (a janela agora é gaveta). */
+export const janelaEmGaveta = janelaNoCentro;
 
 /** Garante que a página não ficou mais larga do que a tela. */
 export async function semEstouroDeLargura(page: Page) {

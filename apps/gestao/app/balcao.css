@@ -76,7 +76,7 @@
 .casca .hor-cat--inativa, .casca .hor-cat--inativa:hover { background: transparent; border-style: solid; }
 .casca .hor-cat__nome { font-size: 0.9375rem; }
 .casca .hor-cat__descricao { font-size: 0.875rem; color: var(--cor-texto-suave); }
-.casca .hor-cat__acoes { grid-column: 2; grid-row: 1 / span 8; align-self: center; padding-top: 0; border-top: 0; justify-content: flex-end; }
+.casca .hor-cat__acoes { grid-column: 2; grid-row: 1 / span 20; align-self: center; padding-top: 0; border-top: 0; justify-content: flex-end; }
 .casca .hor-cat__grade { grid-column: 1 / -1; border-top-color: var(--cor-linha); }
 
 /* ---------- Selos (pílulas): pequenos e leves ---------- */
@@ -151,7 +151,7 @@
   display: inline-flex; align-items: center; gap: var(--espaco-2); min-height: var(--alvo-controle); padding: 0 10px;
   background: var(--cor-cartao); border: 1px solid var(--cor-borda); border-radius: var(--raio-controle); color: var(--cor-texto-suave);
 }
-.balcao-busca:focus-within { border-color: var(--cor-primaria); box-shadow: 0 0 0 1px var(--cor-primaria); }
+.balcao-busca:focus-within { border-color: var(--cor-primaria); box-shadow: 0 0 0 1px var(--cor-primaria), var(--anel-foco); }
 .balcao-busca svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .balcao-busca input { border: 0; outline: 0; background: transparent; font: inherit; font-size: var(--letra-controle); color: var(--cor-texto); width: 12rem; min-width: 0; }
 @media (max-width: 40rem) {
@@ -197,7 +197,6 @@
   background: var(--cor-superficie); color: var(--cor-texto); font-size: 0.75rem;
 }
 .casca .casca__quem > .casca__cargo strong { font-weight: var(--peso-forte); color: var(--cor-texto); }
-.casca .casca__titulo:not(:has(.casca__app)) .casca__quem > strong:first-child { display: inline; font-size: inherit; font-weight: 400; color: var(--cor-texto-suave); }
 .relogio { display: grid; text-align: right; line-height: 1.15; padding: 0 var(--espaco-2); font-variant-numeric: tabular-nums; }
 .relogio b { font-size: 0.875rem; letter-spacing: 0.02em; }
 .relogio small { font-size: 0.6875rem; color: var(--cor-texto-suave); }

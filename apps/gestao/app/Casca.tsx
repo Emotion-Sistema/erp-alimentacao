@@ -88,7 +88,7 @@ export function Casca({
             </Link>
             <TituloDaTela
               secoes={links}
-              app={aplicativo && permitido ? aplicativo.nome : undefined}
+              app={aplicativo?.nome}
               pessoa={ator.nome}
               cargo={nomeDoCargo(ator.cargoAtivo)}
             />

@@ -92,13 +92,21 @@ export function ListaDeProdutos({ podeGerenciar }: { podeGerenciar: boolean }) {
   const grupos = categorias.filter(
     (c) => c.ativo || ativos.some((p) => p.categoriaId === c.id),
   );
-  const termo = busca.trim().toLocaleLowerCase("pt-BR");
+  // Busca sem acento e sem maiúscula ("pao" acha "Pão").
+  const semAcento = (s: string) =>
+    s.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("pt-BR");
+  const termo = semAcento(busca.trim());
+  // Filtro de uma categoria que saiu da lista (ex.: desativada sem produto ativo) volta para "Todas".
+  const filtroValido =
+    filtro === "todas" || grupos.some((c) => c.id === filtro)
+      ? filtro
+      : "todas";
   const passa = (p: Produto) =>
-    (filtro === "todas" || p.categoriaId === filtro) &&
-    (!termo || p.nome.toLocaleLowerCase("pt-BR").includes(termo));
+    (filtroValido === "todas" || p.categoriaId === filtroValido) &&
+    (!termo || semAcento(p.nome).includes(termo));
   const gruposVisiveis = grupos.filter(
     (c) =>
-      (filtro === "todas" || c.id === filtro) &&
+      (filtroValido === "todas" || c.id === filtroValido) &&
       (!termo || ativos.some((p) => p.categoriaId === c.id && passa(p))),
   );
   const inativosVisiveis = inativos.filter(passa);
@@ -155,17 +163,20 @@ export function ListaDeProdutos({ podeGerenciar }: { podeGerenciar: boolean }) {
             <button
               type="button"
               className="balcao-chip"
-              aria-pressed={filtro === "todas"}
+              aria-pressed={filtroValido === "todas"}
               onClick={() => setFiltro("todas")}
             >
-              {TP.pagina.todas} <em>{ativos.length}</em>
+              {TP.pagina.todas}{" "}
+              <em aria-label={TP.pagina.quantos(produtos.length)}>
+                {produtos.length}
+              </em>
             </button>
             {grupos.map((c) => (
               <button
                 key={c.id}
                 type="button"
                 className="balcao-chip"
-                aria-pressed={filtro === c.id}
+                aria-pressed={filtroValido === c.id}
                 onClick={() => setFiltro(c.id)}
               >
                 {c.nome}
@@ -208,6 +219,13 @@ export function ListaDeProdutos({ podeGerenciar }: { podeGerenciar: boolean }) {
       )}
       {dados && produtos.length === 0 && podeGerenciar && temCategoriaAtiva && (
         <div className="balcao-acoes">
+          <Link
+            className="erp-botao erp-botao--secundario hor-secao__acao"
+            href="/cadastros/importar?tipo=produtos"
+          >
+            <Icone nome="documento" />
+            {TP.pagina.importar}
+          </Link>
           <Botao onClick={() => setJanela({})} className="hor-secao__acao">
             <Icone nome="mais" />
             {TP.pagina.novo}
@@ -292,10 +310,14 @@ export function ListaDeProdutos({ podeGerenciar }: { podeGerenciar: boolean }) {
           </div>
         )}
       {dados &&
-        termo &&
+        produtos.length > 0 &&
         gruposVisiveis.length === 0 &&
         inativosVisiveis.length === 0 && (
-          <p className="hor-vazio">{TP.pagina.nadaNaBusca(busca.trim())}</p>
+          <p className="hor-vazio" data-testid="nada-na-busca">
+            {termo
+              ? TP.pagina.nadaNaBusca(busca.trim())
+              : TP.pagina.nadaNoFiltro}
+          </p>
         )}
       {janela && dados && (
         <JanelaDoProduto
@@ -309,6 +331,10 @@ export function ListaDeProdutos({ podeGerenciar }: { podeGerenciar: boolean }) {
           aoMudouSemFechar={() => void recarregar()}
           aoSalvo={(p, criado) => {
             setJanela(null);
+            // O produto salvo aparece mesmo se o filtro ou a busca o esconderiam.
+            if (filtro !== "todas" && filtro !== p.categoriaId)
+              setFiltro("todas");
+            setBusca("");
             void recarregar();
             avisar(criado ? TP.avisos.criado(p.nome) : TP.avisos.salvo(p.nome));
           }}
