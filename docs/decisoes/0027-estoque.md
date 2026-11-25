@@ -55,7 +55,9 @@ hoje no fuso da loja.
    Valor em reais (informar ou ver) só com `custos.ver`.
    **Entre áreas, quem recebe confirma** (decisão do responsável, 25/11/2026; migração 0024; PR
    `feat/e09-confirmar-recebimento`). Quem manda indica quem recebe (ativo, com cargo que cuida da
-   área de destino). O item sai da origem e os MESMOS lotes ficam na área de destino num local novo,
+   área de destino). **Quem manda não pode ser quem recebe** ("Quem manda não pode ser quem
+   recebe."; a lista de quem recebe não traz a própria pessoa; revisão do PR 146): a confirmação é
+   sempre de outra pessoa, e a supervisão continua podendo confirmar por quem foi indicado. O item sai da origem e os MESMOS lotes ficam na área de destino num local novo,
    **"a receber"** (`estoque_recebimento`, pendente até ter `estoque_recebimento_fim`; nada muda nem
    some, TRUNCATE bloqueado). O local de destino escolhido por quem manda vira só sugestão.
    - "A receber" não é livre para venda, não é consumido (`consumirNaTransacao` só pega em uso e
@@ -77,6 +79,18 @@ hoje no fuso da loja.
    - Lista `recebimentosPendentes` só das áreas da pessoa; com contagem aberta do item na área, quem
      não é da gestão não vê a quantidade (como o resto). Telas: bloco "A receber" no painel da
      Cozinha e do Salão com Confirmar (em uso ou guardado) e Recusar (motivo).
+   - **Contagem bloqueada com recebimento pendente** (revisão do PR 146): a mercadoria pode já estar
+     no balcão enquanto o sistema a tem "a receber"; contá-la criaria sobra e a confirmação somaria
+     de novo (estoque em dobro). Então, com algo "a receber" do item na área da contagem: abrir com
+     o item escolhido, contar e fechar recusam ("Há mercadoria a receber deste item nesta área:
+     confirme ou recuse o recebimento antes de contar."); a contagem rápida do dia e o inventário
+     pulam o item (e só olham em uso e guardado). No fechar, a conferência é feita depois de travar
+     os itens contados (ordem: chave da contagem, depois itens por id; o "a receber" só muda sob a
+     trava do item, então não há impasse com transferir, confirmar ou recusar). Recebimento
+     confirmado depois de contar faz o fechar pedir "Conte de novo" (como ajuste e desfazer).
+   - Recebimento de área que a pessoa não cuida responde "Recebimento não encontrado.", igual a
+     um id que não existe (não revela que existe). `conferirEstoque` confere que o "a receber" de
+     cada lote e área é a soma dos recebimentos pendentes.
    - Na mesma área, a mudança continua na hora, sem recebimento.
 10. **Cada um vê só a própria área**: painel, item e histórico mostram o saldo das áreas da pessoa;
    quem não vê todas as áreas não vê o total geral, o "depois" nem os movimentos sem linha nas
@@ -164,8 +178,13 @@ histórico da cozinha; reenvio do consumo por outro autor.
 contado, perdido, bloqueado nem transferido; confirmar move (custo médio inalterado); recusar
 devolve aos mesmos lotes, área e local; dois recebimentos do mesmo lote; repetição pela chave;
 confirmação dupla e confirmação x recusa ao mesmo tempo (Promise.all) aplicam uma só; quem não
-pode recebe `sem_permissao` (auditado); área alheia; contagem cega não vaza; desfazer recusado;
-imutável. Teste de mutação: sem o FOR UPDATE do recebimento, o teste de concorrência falha (a
+pode recebe `sem_permissao` (auditado); área alheia ("não encontrado", igual a id inexistente);
+quem manda não recebe; contagem cega não vaza; desfazer recusado; imutável. Contagem com
+pendente (cenário da revisão: 500 g na cozinha, 300 g a receber na cafeteria; contar recusado,
+confirmar, contar; total 500); contado antes de a transferência chegar (fechar recusa; confirmado,
+pede recontagem); rápida e inventário pulam o item; conferência acusa "a receber" sem recebimento.
+Mutação (PR 146): sem cada checagem nova (abrir, contar, fechar, rápida, inventário, recontagem
+por confirmação, área no "não encontrado", quem manda, lista, conferência), um teste falha. Teste de mutação: sem o FOR UPDATE do recebimento, o teste de concorrência falha (a
 segunda chamada cai no CHECK do saldo em vez de "já foi confirmado"); contando o "a receber" como
 livre, três testes falham. Testes de mutação: sem a trava do item ou
 sem a trava da chave, os testes de concorrência falham. A ordem das travas é defesa a mais (um

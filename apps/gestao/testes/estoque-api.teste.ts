@@ -128,9 +128,11 @@ describe("estoque pela API", () => {
     const pendentes = await r.verRecebimentos(req("/api/estoque/recebimentos?area=cafeteria", "GET", supervisor));
     expect(pendentes.status).toBe(200);
     expect(((await pendentes.json()) as { recebimentoId: number; quantidade: string; podeConfirmar: boolean }[]).find((x) => x.recebimentoId === aReceber.recebimentoId)).toMatchObject({ quantidade: "100", podeConfirmar: true });
-    // A cozinheira não cuida da cafeteria: nem a lista dela nem a confirmação.
+    // A cozinheira não cuida da cafeteria: nem a lista dela nem a confirmação (para ela, o recebimento
+    // "não existe": a mesma resposta de um id que não existe).
     expect((await r.verRecebimentos(req("/api/estoque/recebimentos?area=cafeteria", "GET", cozinheira))).status).toBe(403);
-    expect((await r.confirmarUmRecebimento(req("/api/estoque/recebimentos/confirmar", "POST", cozinheira, { recebimentoId: aReceber.recebimentoId, local: "em_uso" }))).status).toBe(403);
+    expect((await r.confirmarUmRecebimento(req("/api/estoque/recebimentos/confirmar", "POST", cozinheira, { recebimentoId: aReceber.recebimentoId, local: "em_uso" }))).status).toBe(404);
+    expect((await r.confirmarUmRecebimento(req("/api/estoque/recebimentos/confirmar", "POST", cozinheira, { recebimentoId: 2_000_000_000, local: "em_uso" }))).status).toBe(404);
     // Sem o local: a mensagem do domínio.
     const semLocal = await r.confirmarUmRecebimento(req("/api/estoque/recebimentos/confirmar", "POST", supervisor, { recebimentoId: aReceber.recebimentoId }));
     expect(semLocal.status).toBe(400);

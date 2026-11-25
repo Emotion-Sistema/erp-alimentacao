@@ -3,7 +3,8 @@
  * responsável em 25/11/2026: quem recebe confirma). Contra PostgreSQL real, com itens inventados.
  * Cobre: "a receber" não é vendável, consumido, contado, perdido, bloqueado nem transferido;
  * confirmar move; recusar devolve aos mesmos lotes, área e local; uma vez só (repetição e
- * concorrência); quem pode; área alheia; contagem cega; desfazer; custo médio inalterado.
+ * concorrência); quem pode; área alheia; contagem cega; desfazer; custo médio inalterado; contagem
+ * recusada com recebimento pendente (sem estoque em dobro); quem manda não recebe.
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -15,13 +16,16 @@ import {
   conferirEstoque,
   confirmarRecebimento,
   consumirNaTransacao,
+  contagemRapidaDoDia,
   criarUsuario,
   desfazerMovimento,
   ErroDeRegra,
   estoqueDoItem,
   fecharContagem,
   historicoDoItem,
+  MSG_A_RECEBER,
   painelDoEstoque,
+  quemRecebeNaArea,
   recebimentosPendentes,
   recusarRecebimento,
   registrarContagem,
@@ -122,20 +126,6 @@ describe("a receber: fora do livre, do consumo, da contagem e dos outros lançam
     expect(item.lotes.flatMap((l) => l.saldos)).toEqual([{ area: "cafeteria", local: "a_receber", bloqueado: false, quantidade: "400" }]);
   });
 
-  it("a contagem não conta o a receber (o esperado é só em uso e guardado)", async () => {
-    const x = await ingrediente("Creme");
-    await entrada(x, "500", "guardado");
-    const t = await paraCafeteria(x, "300");
-    const c = await abrirContagem(db, supervisor, { tipo: "item", area: "cafeteria", itens: [{ ingredienteId: x }] });
-    expect(c.linhas.map((l) => l.local).sort()).toEqual(["em_uso", "guardado"]);
-    for (const l of c.linhas) await registrarContagem(db, supervisor, { contagemId: c.id, contagemItemId: l.contagemItemId, quantidade: "0" });
-    const f = await fecharContagem(db, supervisor, { contagemId: c.id });
-    // Contou zero e o sistema esperava zero: nada a acertar; o a receber continua lá.
-    expect(f.ajustes).toEqual([]);
-    expect(await areaNoPainel(gerente, x, "cafeteria")).toMatchObject({ aReceber: "300" });
-    await confirmarRecebimento(db, supervisor, { recebimentoId: t.aReceber!.recebimentoId, local: "guardado" });
-  });
-
   it("mesma área continua na hora, sem recebimento", async () => {
     const x = await ingrediente("Arroz");
     await entrada(x, "1000", "guardado");
@@ -145,6 +135,102 @@ describe("a receber: fora do livre, do consumo, da contagem e dos outros lançam
     expect(await db.selectFrom("estoque_recebimento").select("id").where("movimento_id", "=", t.movimentoId).execute()).toEqual([]);
     // E continua se desfazendo.
     await desfazerMovimento(db, gerente, { movimentoId: t.movimentoId, observacao: "lançado errado" });
+  });
+});
+
+describe("contagem com recebimento pendente (sem estoque em dobro)", () => {
+  type Aberta = { id: number; linhas: { contagemItemId: number; local: string }[] };
+  const contar = (c: Aberta, local: "em_uso" | "guardado", quantidade: string) =>
+    registrarContagem(db, supervisor, { contagemId: c.id, contagemItemId: c.linhas.find((l) => l.local === local)!.contagemItemId, quantidade });
+  const doCozinhaEmUso = (ingredienteId: number, quantidade: string) =>
+    paraCafeteria(ingredienteId, quantidade, { de: { area: "cozinha", local: "em_uso" } });
+  const total = async (x: number) => (await estoqueDoItem(db, gerente, { ingredienteId: x })).total;
+
+  it("cenário da revisão: 300 g a receber na cafeteria; contar é recusado; depois de confirmar, conta e o total fica 500", async () => {
+    const x = await ingrediente("Creme");
+    await entrada(x, "500", "em_uso");
+    // Contagem aberta antes de a transferência chegar (abrir depois já é recusado; ver abaixo).
+    const c = await abrirContagem(db, supervisor, { tipo: "item", area: "cafeteria", itens: [{ ingredienteId: x }] });
+    const t = await doCozinhaEmUso(x, "300");
+    // Os 300 g já estão no balcão, mas ainda "a receber": contar é recusado.
+    const e = await erroDe(contar(c, "em_uso", "300"));
+    expect([e.codigo, e.message]).toEqual(["conflito", MSG_A_RECEBER]);
+    // Abrir outra contagem com o item é recusado com a mesma mensagem.
+    const e2 = await erroDe(abrirContagem(db, supervisor, { tipo: "item", area: "cafeteria", itens: [{ ingredienteId: x, local: "em_uso" }] }));
+    expect([e2.codigo, e2.message]).toEqual(["conflito", MSG_A_RECEBER]);
+    // Na cozinha (origem) o item conta normalmente.
+    const cz = await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x, local: "em_uso" }] });
+    await cancelarContagem(db, gerente, { contagemId: cz.id, observacao: "só para ver que abre" });
+    await confirmarRecebimento(db, supervisor, { recebimentoId: t.aReceber!.recebimentoId, local: "em_uso" });
+    await contar(c, "em_uso", "300");
+    await contar(c, "guardado", "0");
+    const f = await fecharContagem(db, supervisor, { contagemId: c.id });
+    expect(f.ajustes).toEqual([]);
+    expect(await total(x)).toBe("500");
+    expect(await areaNoPainel(gerente, x, "cafeteria")).toMatchObject({ emUso: "300", aReceber: "0" });
+    expect(await areaNoPainel(gerente, x, "cozinha")).toMatchObject({ emUso: "200" });
+  });
+
+  it("contou antes da transferência chegar: fechar recusa com pendente e, depois de confirmado, pede recontagem", async () => {
+    const x = await ingrediente("Requeijão");
+    await entrada(x, "500", "em_uso");
+    const c = await abrirContagem(db, supervisor, { tipo: "item", area: "cafeteria", itens: [{ ingredienteId: x }] });
+    // A mercadoria chegou ao balcão antes de alguém lançar a transferência: conta 300.
+    await contar(c, "em_uso", "300");
+    await contar(c, "guardado", "0");
+    const t = await doCozinhaEmUso(x, "300");
+    // Fechar agora criaria sobra de 300 e a confirmação somaria mais 300 (800 no total).
+    const e = await erroDe(fecharContagem(db, supervisor, { contagemId: c.id }));
+    expect([e.codigo, e.message]).toEqual(["conflito", MSG_A_RECEBER]);
+    // Recebimento confirmado durante a contagem aberta: o que foi contado antes não vale mais.
+    await confirmarRecebimento(db, supervisor, { recebimentoId: t.aReceber!.recebimentoId, local: "em_uso" });
+    expect((await erroDe(fecharContagem(db, supervisor, { contagemId: c.id }))).message).toMatch(/Conte de novo: .*\(em uso\).*recebido depois da contagem/);
+    await contar(c, "em_uso", "300");
+    const f = await fecharContagem(db, supervisor, { contagemId: c.id });
+    expect(f.ajustes).toEqual([]);
+    expect(await total(x)).toBe("500");
+  });
+
+  it("contagem rápida e inventário pulam o item com algo a receber na área", async () => {
+    const area = "sorvete";
+    const pendente = await ingrediente("Calda pendente", area);
+    const livre = await ingrediente("Calda livre", area);
+    for (const x of [pendente, livre]) {
+      await entrada(x, "100", "em_uso", {}, area);
+      await entrada(x, "500", "guardado", {}, "cozinha");
+    }
+    const t = await transferir(db, gerente, { ingredienteId: pendente, quantidade: "300", de: { area: "cozinha", local: "guardado" }, para: { area, local: "em_uso" }, recebidoPor: supervisor.usuarioId });
+    // Os dois faltam numa venda do sorvete (vêm primeiro na rápida); o a receber não é consumido.
+    for (const x of [pendente, livre])
+      await db.transaction().execute((trx) => consumirNaTransacao(trx, { autorId: gerente.usuarioId, chave: `teste-${randomUUID()}`, itens: [{ ingredienteId: x, quantidade: "150", area }], permitirFalta: true }));
+    const nomes = async (ids: number[]) => Promise.all(ids.map(async (i) => (await estoqueDoItem(db, gerente, { ingredienteId: i })).nome));
+    const [nmPendente, nmLivre] = await nomes([pendente, livre]);
+    const r = await contagemRapidaDoDia(db, supervisor, { area, quantos: 20 });
+    expect(r.linhas.some((l) => l.nome === nmLivre)).toBe(true);
+    expect(r.linhas.some((l) => l.nome === nmPendente)).toBe(false);
+    const inv = await abrirContagem(db, supervisor, { tipo: "inventario", area });
+    expect(inv.linhas.some((l) => l.nome === nmLivre)).toBe(true);
+    expect(inv.linhas.some((l) => l.nome === nmPendente)).toBe(false);
+    await cancelarContagem(db, supervisor, { contagemId: inv.id, observacao: "fim do teste" });
+    await recusarRecebimento(db, supervisor, { recebimentoId: t.aReceber!.recebimentoId, observacao: "fim do teste" });
+  });
+
+  it("a conferência acusa a receber sem recebimento pendente", async () => {
+    const x = await ingrediente("Doce");
+    await entrada(x, "100", "guardado");
+    const t = await paraCafeteria(x, "40");
+    class Desfazer extends Error {}
+    const achado = await db
+      .transaction()
+      .execute(async (trx) => {
+        // Marca o recebimento como terminado sem mover nada: o "a receber" fica sem dono.
+        await trx.insertInto("estoque_recebimento_fim").values({ recebimento_id: t.aReceber!.recebimentoId, situacao: "confirmado", movimento_id: t.movimentoId, local: "em_uso", observacao: null, por: supervisor.usuarioId }).execute();
+        const p = await conferirEstoque(trx);
+        throw Object.assign(new Desfazer(), { p });
+      })
+      .catch((e: unknown) => (e instanceof Desfazer ? (e as Desfazer & { p: string[] }).p : Promise.reject(e)));
+    expect(achado).toEqual([expect.stringMatching(/^a receber \d+\/cafeteria difere dos recebimentos pendentes$/)]);
+    await recusarRecebimento(db, supervisor, { recebimentoId: t.aReceber!.recebimentoId, observacao: "fim do teste" });
   });
 });
 
@@ -257,8 +343,13 @@ describe("quem pode confirmar", () => {
     // Da cafeteria para a cozinha, indicada a cozinheira.
     const t = await transferir(db, supervisor, { ingredienteId: x, quantidade: "100", de: { area: "cafeteria", local: "guardado" }, para: { area: "cozinha", local: "guardado" }, recebidoPor: cozinheira.usuarioId });
     const id = t.aReceber!.recebimentoId;
-    // O supervisor não cuida da cozinha: nem vê nem confirma.
-    expect((await erroDe(confirmarRecebimento(db, supervisor, { recebimentoId: id, local: "em_uso" }))).codigo).toBe("sem_permissao");
+    // O supervisor não cuida da cozinha: nem vê nem confirma, e a resposta é a mesma de um id que
+    // não existe (não descobre que o recebimento existe).
+    const alheio = await erroDe(confirmarRecebimento(db, supervisor, { recebimentoId: id, local: "em_uso" }));
+    const inexistente = await erroDe(confirmarRecebimento(db, supervisor, { recebimentoId: 2_000_000_000, local: "em_uso" }));
+    expect([alheio.codigo, alheio.message]).toEqual(["nao_encontrado", "Recebimento não encontrado."]);
+    expect([inexistente.codigo, inexistente.message]).toEqual([alheio.codigo, alheio.message]);
+    expect((await erroDe(recusarRecebimento(db, supervisor, { recebimentoId: id, observacao: "não é meu" }))).codigo).toBe("nao_encontrado");
     expect((await erroDe(recebimentosPendentes(db, supervisor, { area: "cozinha" }))).codigo).toBe("sem_permissao");
     expect(await recebimentosPendentes(db, supervisor)).not.toContainEqual(expect.objectContaining({ recebimentoId: id }));
     // A atendente não cuida de área nenhuma.
@@ -286,6 +377,20 @@ describe("quem pode confirmar", () => {
     expect(await areaNoPainel(cozinheira, x, "cozinha")).toMatchObject({ emUso: "100", aReceber: "0" });
   });
 
+  it("quem manda não pode ser quem recebe; a lista de quem recebe não traz quem pergunta", async () => {
+    const x = await ingrediente("Fermento");
+    await entrada(x, "100", "guardado");
+    const e = await erroDe(paraCafeteria(x, "10", { recebidoPor: gerente.usuarioId }));
+    expect([e.codigo, e.message]).toEqual(["dados_invalidos", "Quem manda não pode ser quem recebe."]);
+    const doGerente = (await quemRecebeNaArea(db, gerente, { area: "cafeteria" })).map((q) => q.usuarioId);
+    expect(doGerente).toContain(supervisor.usuarioId);
+    expect(doGerente).not.toContain(gerente.usuarioId);
+    const doSupervisor = (await quemRecebeNaArea(db, supervisor, { area: "cafeteria" })).map((q) => q.usuarioId);
+    expect(doSupervisor).toContain(gerente.usuarioId);
+    expect(doSupervisor).not.toContain(supervisor.usuarioId);
+    expect(await areaNoPainel(gerente, x, "cozinha")).toMatchObject({ guardado: "100" });
+  });
+
   it("supervisão confirma por quem foi indicado", async () => {
     const x = await ingrediente("Gelo");
     await entrada(x, "500", "guardado");
@@ -301,8 +406,9 @@ describe("contagem cega e desfazer", () => {
   it("com contagem aberta, quem não é da gestão não vê quanto há a receber", async () => {
     const x = await ingrediente("Biscoito");
     await entrada(x, "800", "guardado");
-    await paraCafeteria(x, "120");
+    // A contagem abre antes (com o item a receber, abrir é recusado) e a transferência chega durante.
     const c = await abrirContagem(db, supervisor, { tipo: "item", area: "cafeteria", itens: [{ ingredienteId: x }] });
+    await paraCafeteria(x, "120");
     const doSup = (await recebimentosPendentes(db, supervisor)).find((r) => r.itemId !== undefined && r.nome.startsWith("Biscoito"))!;
     expect(doSup).toMatchObject({ quantidade: null, emContagem: true });
     expect(JSON.stringify(doSup)).not.toContain("120");

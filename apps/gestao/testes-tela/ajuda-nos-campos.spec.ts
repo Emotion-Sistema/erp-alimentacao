@@ -469,7 +469,8 @@ test.describe("telas do estoque (gerente geral)", () => {
   });
 
   test("painel do salão: a receber (confirmar e recusar)", async ({ page }) => {
-    // Manda 100 g para a Cafeteria, com o próprio gerente como quem recebe.
+    // Manda 100 g para a Cafeteria, com o supervisor como quem recebe (quem manda não recebe); o
+    // gerente confirma ou recusa como supervisão.
     await page.goto("/estoque");
     await page.getByLabel("Buscar item").fill(ITEM);
     await page.getByRole("button", { name: `Abrir ${ITEM}` }).click();
@@ -479,9 +480,9 @@ test.describe("telas do estoque (gerente geral)", () => {
     await mover.getByLabel("Vai para").selectOption("cafeteria");
     await mover.getByLabel("Quantidade").fill("100");
     await mover.getByLabel("Unidade").selectOption("g");
-    await mover.getByLabel("Quem recebe").selectOption({ label: "Teste gerente geral" });
+    await mover.getByLabel("Quem recebe").selectOption({ label: "Teste supervisor" });
     await mover.getByRole("button", { name: "Gravar" }).click();
-    await expect(detalhe.getByTestId("lancamento-feito")).toHaveText("Fica a receber na Cafeteria até Teste gerente geral confirmar.");
+    await expect(detalhe.getByTestId("lancamento-feito")).toHaveText("Fica a receber na Cafeteria até Teste supervisor confirmar.");
 
     await page.goto("/estoque/salao");
     const linha = page.getByTestId("a-receber").getByTestId(`receber-${ITEM}`);

@@ -98,6 +98,8 @@ test("gerente dá entrada pela nota e vê no painel e no detalhe", async ({ page
   await outra.getByLabel("Unidade").selectOption("g");
   await outra.getByRole("button", { name: "Gravar" }).click();
   await expect(outra.getByTestId("erro-do-lancamento")).toHaveText("Entre áreas, informe quem recebeu.");
+  // Quem manda não recebe: o próprio gerente não aparece na lista.
+  await expect(outra.getByLabel("Quem recebe").locator("option", { hasText: "Teste gerente geral" })).toHaveCount(0);
   await outra.getByLabel("Quem recebe").selectOption({ label: "Teste supervisor" });
   await capturar(page, "entre-areas", detalhe);
   await outra.getByRole("button", { name: "Gravar" }).click();

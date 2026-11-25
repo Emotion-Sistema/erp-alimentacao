@@ -716,7 +716,7 @@ export async function transferir(db: Banco, ator: Ator | null, dados: unknown): 
     const assinatura = assinar("transferencia", d);
     const ja = await jaLancado(trx, d.chave, assinatura);
     if (ja) return { ...ja, aReceber: await aReceberDaTransferencia(trx, ja.movimentoId) };
-    if (entreAreas) await conferirQuemRecebe(trx, d.recebidoPor!, d.para.area);
+    if (entreAreas) await conferirQuemRecebe(trx, ator!.usuarioId, d.recebidoPor!, d.para.area);
     const [itemId] = await garantirItens(trx, [d]);
     const itens = await travarItens(trx, [itemId!]);
     const mov = await novoMovimento(trx, {
@@ -768,8 +768,12 @@ async function aReceberDaTransferencia(trx: Trx, movimentoId: string): Promise<R
   return r ? { recebimentoId: r.id, area: r.area_destino, recebidoPor: { usuarioId: r.recebido_por, nome: r.nome } } : null;
 }
 
-/** Quem recebe numa área tem de estar ativo e ter um cargo que cuida dela. */
-async function conferirQuemRecebe(trx: Trx, usuarioId: number, destino: AreaEstoque): Promise<void> {
+/**
+ * Quem recebe numa área tem de estar ativo, ter um cargo que cuida dela e não ser quem manda (a
+ * confirmação é de outra pessoa; decisão 0027, item 9).
+ */
+async function conferirQuemRecebe(trx: Trx, quemManda: number, usuarioId: number, destino: AreaEstoque): Promise<void> {
+  if (usuarioId === quemManda) throw new ErroDeRegra("dados_invalidos", "Quem manda não pode ser quem recebe.");
   const cargos = await trx
     .selectFrom("usuario_perfil as up")
     .innerJoin("usuario as u", "u.id", "up.usuario_id")
@@ -1424,7 +1428,25 @@ export async function conferirEstoque(db: Banco): Promise<string[]> {
     LEFT JOIN (SELECT movimento_id, item_id, sum(quantidade) AS q FROM estoque_movimento_linha GROUP BY 1, 2) l USING (movimento_id, item_id)
     WHERE mi.quantidade <> coalesce(l.q, 0)
     UNION ALL
-    SELECT 'lote ' || l.id || ' de outro item' FROM estoque_movimento_linha x JOIN estoque_lote l ON l.id = x.lote_id WHERE l.item_id <> x.item_id`.execute(db);
+    SELECT 'lote ' || l.id || ' de outro item' FROM estoque_movimento_linha x JOIN estoque_lote l ON l.id = x.lote_id WHERE l.item_id <> x.item_id
+    UNION ALL
+    -- O "a receber" de cada lote e área é a soma do que os recebimentos pendentes deixaram lá.
+    SELECT 'a receber ' || coalesce(s.lote_id, p.lote_id) || '/' || coalesce(s.area, p.area) || ' difere dos recebimentos pendentes'
+    FROM (SELECT lote_id, area, sum(quantidade) AS q FROM estoque_saldo WHERE local = 'a_receber' GROUP BY 1, 2 HAVING sum(quantidade) <> 0) s
+    FULL JOIN (
+      SELECT x.lote_id, x.area, sum(x.quantidade) AS q
+      FROM estoque_recebimento r JOIN estoque_movimento_linha x
+        ON x.movimento_id = r.movimento_id AND x.item_id = r.item_id AND x.area = r.area_destino AND x.local = 'a_receber'
+      WHERE NOT EXISTS (SELECT 1 FROM estoque_recebimento_fim f WHERE f.recebimento_id = r.id)
+      GROUP BY 1, 2
+    ) p ON p.lote_id = s.lote_id AND p.area = s.area
+    WHERE coalesce(s.q, 0) <> coalesce(p.q, 0)
+    UNION ALL
+    SELECT 'recebimento ' || r.id || ' difere das linhas a receber'
+    FROM estoque_recebimento r
+    LEFT JOIN (SELECT movimento_id, item_id, area, sum(quantidade) AS q FROM estoque_movimento_linha WHERE local = 'a_receber' AND quantidade > 0 GROUP BY 1, 2, 3) x
+      ON x.movimento_id = r.movimento_id AND x.item_id = r.item_id AND x.area = r.area_destino
+    WHERE r.quantidade <> coalesce(x.q, 0)`.execute(db);
   return r.rows.map((x) => x.problema);
 }
 
@@ -2011,10 +2033,11 @@ export const motorDoEstoque = {
 
 /**
  * Quem pode receber numa área (para a transferência entre áreas): pessoas ativas com um cargo que
- * cuida da área de destino. Só para quem cuida de alguma área; devolve só id e nome.
+ * cuida da área de destino, menos quem pergunta (quem manda não recebe). Só para quem cuida de
+ * alguma área; devolve só id e nome.
  */
 export async function quemRecebeNaArea(db: Banco, ator: Ator | null, dados: unknown): Promise<{ usuarioId: number; nome: string }[]> {
-  await exigirAlgumaArea(db, ator);
+  const { ator: a } = await exigirAlgumaArea(db, ator);
   const d = validar(z.object({ area }, { error: "Área de estoque inválida." }), dados);
   const r = await db
     .selectFrom("usuario as u")
@@ -2022,6 +2045,7 @@ export async function quemRecebeNaArea(db: Banco, ator: Ator | null, dados: unkn
     .select(["u.id", "u.nome", "up.perfil_codigo"])
     .where("u.ativo", "=", true)
     .where("up.removido_em", "is", null)
+    .where("u.id", "<>", a.usuarioId)
     .orderBy("u.nome")
     .execute();
   const vistos = new Map<number, string>();

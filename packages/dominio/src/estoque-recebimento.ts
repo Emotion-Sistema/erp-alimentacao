@@ -3,7 +3,8 @@
  * responsável em 25/11/2026: quem recebe confirma).
  * - A transferência entre áreas (`transferir`) tira da origem e deixa os mesmos lotes "a receber"
  *   na área de destino. Esse saldo não é livre, não é consumido, não entra em contagem e não muda de
- *   lugar por outro caminho (os lançamentos só aceitam em uso ou guardado).
+ *   lugar por outro caminho (os lançamentos só aceitam em uso ou guardado). Enquanto há "a receber"
+ *   do item na área, a contagem dele ali é recusada (estoque-contagem.ts).
  * - `confirmarRecebimento`: leva do "a receber" para o em uso ou o guardado do destino.
  * - `recusarRecebimento` (motivo obrigatório): devolve aos mesmos lotes, área e local de onde saiu.
  * - Cada recebimento termina uma vez só: trava da linha do recebimento (FOR UPDATE), chave contra
@@ -92,11 +93,14 @@ async function exigirQuemRecebe(db: Banco, ator: Ator | null, r: Recebimento): P
   }
 }
 
-/** Antes da transação: o recebimento existe e a pessoa pode mexer nele (quem não pode não descobre nada). */
+/**
+ * Antes da transação: o recebimento existe e a pessoa pode mexer nele. Quem não cuida da área de
+ * destino recebe a mesma resposta de um id que não existe ("não encontrado"): não descobre nada.
+ */
 async function prepararFim(db: Banco, ator: Ator | null, recebimentoId: number): Promise<{ quem: Ator; r: Recebimento }> {
-  const { ator: a } = await m.exigirAlgumaArea(db, ator);
+  const { ator: a, areas } = await m.exigirAlgumaArea(db, ator);
   const r = await lerRecebimento(db, recebimentoId, false);
-  if (!r) throw new ErroDeRegra("nao_encontrado", "Recebimento não encontrado.");
+  if (!r || !areas.includes(r.area_destino)) throw new ErroDeRegra("nao_encontrado", "Recebimento não encontrado.");
   return { quem: await exigirQuemRecebe(db, a, r), r };
 }
 
