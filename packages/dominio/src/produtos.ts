@@ -301,15 +301,17 @@ export function validarDadosDoProduto(dados: unknown): DadosDoProduto {
 export function traduzirErroDoProduto(e: unknown): never {
   if (e instanceof ErroDeRegra) throw e;
   const code = (e as { code?: string }).code;
-  if (code === "23505")
-    throw new ErroDeRegra(
-      "conflito",
-      ({
-        produto_tamanho_nome: "Tamanho repetido neste produto.",
-        combo_parte_nome: "Parte repetida no combo.",
-        combo_opcao_unica: "A mesma opção veio duas vezes na parte do combo.",
-      } as Record<string, string>)[(e as { constraint?: string }).constraint ?? ""] ?? "Já existe um produto ativo com esse nome.",
-    );
+  if (code === "23505") {
+    // Só as recusas conhecidas viram mensagem; outra (ex.: chave primária) sobe como erro de verdade,
+    // em vez de se passar por "nome repetido".
+    const mensagem = ({
+      produto_nome: "Já existe um produto ativo com esse nome.",
+      produto_tamanho_nome: "Tamanho repetido neste produto.",
+      combo_parte_nome: "Parte repetida no combo.",
+      combo_opcao_unica: "A mesma opção veio duas vezes na parte do combo.",
+    } as Record<string, string>)[(e as { constraint?: string }).constraint ?? ""];
+    if (mensagem) throw new ErroDeRegra("conflito", mensagem);
+  }
   if (code === "23503")
     throw new ErroDeRegra(
       "dados_invalidos",

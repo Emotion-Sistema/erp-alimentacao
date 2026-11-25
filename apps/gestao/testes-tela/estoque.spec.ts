@@ -13,7 +13,7 @@ import { entrar, semEstouroDeLargura, sql } from "./ajudas";
 test.describe.configure({ mode: "serial" });
 test.use({ viewport: { width: 390, height: 844 } });
 
-const SUFIXO = Math.random().toString(36).slice(2, 7).replace(/[0-9]/g, "x");
+const SUFIXO = Math.random().toString(36).slice(2, 9).replace(/[0-9]/g, (c) => "qrstuvwxyz"[Number(c)]!);
 const TOMATE = `Tomate tela ${SUFIXO}`;
 const FORNECEDOR = `Hortifruti tela ${SUFIXO}`;
 const PASTA = process.env.CAPTURAS;
