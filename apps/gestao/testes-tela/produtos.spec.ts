@@ -328,12 +328,16 @@ test("filtro por categoria e busca (visual Balcão): escondem sem mudar o lugar 
   await entrar(page, "gerente.geral");
   await page.goto("/cadastros/produtos");
   const cafeteria = page.getByTestId("categoria-Cafeteria");
-  await expect(cafeteria.getByTestId("produto-Pão de queijo")).toBeVisible();
+  const pao = cafeteria.getByTestId("produto-Pão de queijo");
+  await expect(pao).toBeVisible();
+  // O lugar antes da busca (outros testes podem ter posto produtos antes dele na categoria).
+  const lugar = (await pao.textContent())!.match(/(\d+)º na categoria/)![1]!;
+  expect(Number(lugar)).toBeGreaterThan(1);
 
-  // Busca sem acento: "pao" acha "Pão de queijo", esconde o 1º da categoria e o lugar continua 2º.
+  // Busca sem acento: "pao" acha "Pão de queijo", esconde o 1º da categoria e o lugar não muda.
   const busca = page.getByRole("searchbox", { name: "Buscar produto" });
   await busca.fill("pao");
-  await expect(cafeteria.getByTestId("produto-Pão de queijo")).toContainText("2º na categoria");
+  await expect(pao).toContainText(`${lugar}º na categoria`);
   await expect(cafeteria.getByTestId("produto-Café expresso")).toHaveCount(0);
   await expect(page.getByTestId("categoria-Bebidas")).toHaveCount(0);
 

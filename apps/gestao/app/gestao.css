@@ -73,7 +73,6 @@ form { display: grid; gap: var(--espaco-4, 1rem); }
 .casca__quem > strong::after { content: " · " / ""; } /* o leitor de tela não lê o ponto */
 .casca__quem strong[data-testid="cargo-ativo"] { color: var(--cor-texto); font-weight: var(--peso-forte); }
 .casca__quem-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-/* Lançador (sem aplicativo): o nome da pessoa vira o título. */
 .casca__lado { display: flex; align-items: center; gap: var(--espaco-2); margin-left: auto; flex: none; }
 
 /* Sino e conta: botões redondos de 48 px, sem moldura. */
