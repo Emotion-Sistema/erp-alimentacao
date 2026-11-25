@@ -116,11 +116,11 @@ test("filtro 'Alergênicos em conferência' no painel", async ({ page }) => {
   await page.goto("/cadastros/fichas");
   await page.getByLabel("Procurar ficha").fill("alergia");
   await expect(page.getByTestId(`ficha-${LANCHE}`)).toBeVisible();
-  await page.getByLabel("Situação").selectOption({ label: "Alergênicos em conferência" });
+  await page.getByRole("group", { name: "Situação" }).getByRole("button", { name: "Alergênicos em conferência" }).click();
   await expect(page.getByTestId(`ficha-${OUTRO}`)).toBeVisible();
   await expect(page.getByTestId(`ficha-${LANCHE}`)).toHaveCount(0);
   // Cartão da lista: selos compactos do lanche.
-  await page.getByLabel("Situação").selectOption({ label: "Todas" });
+  await page.getByRole("group", { name: "Situação" }).getByRole("button", { name: "Todas", exact: true }).click();
   await expect(page.getByTestId(`ficha-${LANCHE}`).getByTestId("contem-gluten")).toBeVisible();
 });
 

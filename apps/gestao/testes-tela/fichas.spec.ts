@@ -174,14 +174,14 @@ test("custo de referência em R$ 45,90 por 1 kg muda o custo, e o limite põe a 
   await expect(cartao.getByTestId("custo-loja")).toHaveText("Na loja: 9,47% do preço, acima do limite de 5%");
   await expect(cartao.getByTestId("situacao-da-ficha")).toHaveText("Incompleta (1 pendência)");
   // Filtros: incompletas mostra o lanche; preparos mostra só o molho.
-  await page.getByLabel("Situação").selectOption("incompletas");
+  await page.getByRole("group", { name: "Situação" }).getByRole("button", { name: "Incompletas" }).click();
   await expect(cartao).toBeVisible();
   await expect(page.getByTestId(`ficha-${MOLHO}`)).toHaveCount(0);
-  await page.getByLabel("Situação").selectOption("todas");
-  await page.getByLabel("Tipo", { exact: true }).selectOption("preparo");
+  await page.getByRole("group", { name: "Situação" }).getByRole("button", { name: "Todas", exact: true }).click();
+  await page.getByRole("group", { name: "Tipo" }).getByRole("button", { name: "Preparo da casa" }).click();
   await expect(page.getByTestId(`ficha-${MOLHO}`)).toBeVisible();
   await expect(cartao).toHaveCount(0);
-  await page.getByLabel("Tipo", { exact: true }).selectOption("todos");
+  await page.getByRole("group", { name: "Tipo" }).getByRole("button", { name: "Todos os tipos" }).click();
   await page.getByLabel("Procurar ficha").fill(`lanche ficha ${SUFIXO}`);
   await expect(cartao).toBeVisible();
   await expect(page.getByTestId(`ficha-${MOLHO}`)).toHaveCount(0);

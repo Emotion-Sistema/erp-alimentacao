@@ -18,7 +18,7 @@ import type { PainelDeFichas, ResumoDaFicha } from "@erp/dominio";
 import { NOME_DO_TIPO_DE_FICHA, TIPOS_DE_FICHA, type TipoDeFicha } from "@erp/dominio/fichas";
 import { nomeComparavel } from "@erp/dominio/produtos";
 import { chamar } from "../../chamar";
-import { BotaoExemplos, Campo, Selecao } from "../../Campo";
+import { BotaoExemplos } from "../../Campo";
 import { AvisoComDesfazer, type AvisoRapido } from "../embalagens/AvisoComDesfazer";
 import { CartaoDaFicha } from "./CartaoDaFicha";
 import { CatalogoDeAlergenicos } from "./CatalogoDeAlergenicos";
@@ -162,47 +162,58 @@ export function PainelDasFichas() {
               {abaVisivel === "fichas" && (
                 <>
                   <BotaoExemplos />
-                  <div className="fichas__filtros">
-                    <Campo rotulo={TF.filtros.busca} explicacao={TF.filtros.buscaAjuda} exemplo={TF.filtros.buscaExemplo} value={busca} type="search" maxLength={60} autoComplete="off" onChange={(e) => setBusca(e.target.value)} />
-                    <Selecao
-                      rotulo={TF.filtros.tipo}
-                      explicacao={TF.filtros.tipoAjuda}
-                      exemplo={TF.filtros.tipoExemplo}
-                      value={tipo}
-                      onChange={(e) => setTipo(e.target.value as "todos" | TipoDeFicha)}
-                      opcoes={[{ valor: "todos", texto: TF.filtros.todos }, ...TIPOS_DE_FICHA.map((t) => ({ valor: t, texto: NOME_DO_TIPO_DE_FICHA[t] }))]}
-                    />
-                    <Selecao
-                      rotulo={TF.filtros.situacao}
-                      explicacao={TF.filtros.situacaoAjuda}
-                      exemplo={TF.filtros.situacaoExemplo}
-                      value={situacao}
-                      onChange={(e) => setSituacao(e.target.value as Situacao)}
-                      opcoes={[
-                        { valor: "todas", texto: TF.filtros.todas },
-                        { valor: "completas", texto: TF.filtros.completas },
-                        { valor: "incompletas", texto: TF.filtros.incompletas },
-                        { valor: "inativas", texto: TF.filtros.inativas },
-                        { valor: "alergenicos", texto: TF.filtros.alergenicosEmConferencia },
-                      ]}
-                    />
+                  <div className="balcao-barra">
+                    <div className="balcao-chips" role="group" aria-label={TF.filtros.tipo}>
+                      {[{ valor: "todos" as const, texto: TF.filtros.todos }, ...TIPOS_DE_FICHA.map((t) => ({ valor: t, texto: NOME_DO_TIPO_DE_FICHA[t] }))].map((o) => (
+                        <button key={o.valor} type="button" className="balcao-chip" aria-pressed={tipo === o.valor} onClick={() => setTipo(o.valor)}>
+                          {o.texto}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="balcao-acoes">
+                      <label className="balcao-busca">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4" />
+                        </svg>
+                        <input type="search" value={busca} maxLength={60} autoComplete="off" onChange={(e) => setBusca(e.target.value)} placeholder={`${TF.filtros.busca} (ex.: bacon)`} aria-label={TF.filtros.busca} />
+                      </label>
+                    </div>
+                  </div>
+                  <div className="balcao-chips fichas__situacao" role="group" aria-label={TF.filtros.situacao}>
+                    {(
+                      [
+                        ["todas", TF.filtros.todas],
+                        ["completas", TF.filtros.completas],
+                        ["incompletas", TF.filtros.incompletas],
+                        ["alergenicos", TF.filtros.alergenicosEmConferencia],
+                        ["inativas", TF.filtros.inativas],
+                      ] as const
+                    ).map(([valor, texto]) => (
+                      <button key={valor} type="button" className="balcao-chip" aria-pressed={situacao === valor} onClick={() => setSituacao(valor)}>
+                        {texto}
+                      </button>
+                    ))}
                   </div>
                   {painel.fichas.length === 0 ? (
                     <p className="hor-vazio">{TF.filtros.nenhumaCadastrada}</p>
                   ) : filtradas.length === 0 ? (
                     <p className="hor-vazio">{TF.filtros.nenhuma}</p>
                   ) : null}
-                  {emUso.length > 0 && (
-                    <ul className="hor-cats" data-testid="fichas-em-uso">
-                      {emUso.map(cartao)}
-                    </ul>
-                  )}
-                  {noFim.length > 0 && (
-                    <section className="hor-secao hor-secao--discreta" aria-labelledby={`${base}-fim`} data-testid="fichas-no-fim">
-                      <h2 id={`${base}-fim`}>{TF.filtros.noFim}</h2>
-                      <p className="hor-secao__intro">{TF.filtros.noFimExplicacao}</p>
-                      <ul className="hor-cats">{noFim.map(cartao)}</ul>
-                    </section>
+                  {filtradas.length > 0 && (
+                    <div className="balcao-lista">
+                      {emUso.length > 0 && (
+                        <ul className="hor-cats" data-testid="fichas-em-uso">
+                          {emUso.map(cartao)}
+                        </ul>
+                      )}
+                      {noFim.length > 0 && (
+                        <section className="hor-secao hor-secao--discreta" aria-labelledby={`${base}-fim`} data-testid="fichas-no-fim">
+                          <h2 id={`${base}-fim`}>{TF.filtros.noFim}</h2>
+                          <p className="hor-secao__intro">{TF.filtros.noFimExplicacao}</p>
+                          <ul className="hor-cats">{noFim.map(cartao)}</ul>
+                        </section>
+                      )}
+                    </div>
                   )}
                 </>
               )}
