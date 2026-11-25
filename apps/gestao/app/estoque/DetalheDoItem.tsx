@@ -6,17 +6,18 @@
  * o saldo depois de cada movimento. "Desfazer" só para quem tem `estoque.desfazer`; o servidor
  * recusa o que não se desfaz e a mensagem dele aparece. Cada envio leva uma chave (toque duplo).
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Aviso, Botao, Selo, varianteDaArea } from "@erp/interface";
 import type { EstoqueDoItem, ItemDoPainel, MovimentoDoHistorico } from "@erp/dominio";
 import { chamar } from "../chamar";
 import { AreaDeTexto, Campo, Marcador, Selecao } from "../Campo";
 import { JanelaModal } from "../cadastros/JanelaModal";
 import { formatarDataHora } from "../formatar";
-import { consulta, custoMedio, dia, novaChave, qtd, qtdComSinal, reais, unidadesDoItem } from "./comum";
+import { consulta, custoMedio, dia, qtd, qtdComSinal, reais, unidadesDoItem } from "./comum";
 import type { ContextoDoEstoque, Opcao } from "./contexto";
 import { somaDasAreas } from "./PainelDoEstoque";
-import { NAO_SE_DESFAZ, NOME_DO_LOCAL, NOME_DO_MOVIMENTO, TE } from "./textos";
+import { useEnvio } from "./envio";
+import { NAO_SE_DESFAZ, NOME_DO_LOCAL, NOME_DO_LOCAL_DO_SALDO, NOME_DO_MOVIMENTO, NOME_DO_RECEBIMENTO, TE } from "./textos";
 
 type Acao = "transferencia" | "perda" | "bloqueio" | "desbloqueio" | "producao";
 const POR_PAGINA = 20;
@@ -101,6 +102,7 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
                         {TE.painel.livre}: <strong>{qtd(a.livre, item.unidade)}</strong>. {TE.painel.emUso}: {qtd(a.emUso, item.unidade)}. {TE.painel.guardado}: {qtd(a.guardado, item.unidade)}.
                         {a.bloqueado !== null && a.bloqueado !== "0" && ` ${TE.painel.bloqueado}: ${qtd(a.bloqueado, item.unidade)}.`}
                         {a.vencido !== null && a.vencido !== "0" && ` ${TE.painel.vencido}: ${qtd(a.vencido, item.unidade)}.`}
+                        {a.aReceber !== null && a.aReceber !== "0" && ` ${TE.painel.aReceber}: ${qtd(a.aReceber, item.unidade)}.`}
                         {a.valorCentavos !== null && ` ${TE.painel.valor}: ${reais(a.valorCentavos)}.`}
                       </dd>
                     )}
@@ -157,7 +159,7 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
                       <ul className="est-lote__saldos">
                         {l.saldos.map((x) => (
                           <li key={`${x.area}-${x.local}-${x.bloqueado}`}>
-                            {NOME_DO_LOCAL[x.local]}, {contexto.nomeDaArea[x.area]}: <strong>{x.quantidade === null ? TE.painel.emContagem : qtd(x.quantidade, item.unidade)}</strong>
+                            {NOME_DO_LOCAL_DO_SALDO[x.local]}, {contexto.nomeDaArea[x.area]}: <strong>{x.quantidade === null ? TE.painel.emContagem : qtd(x.quantidade, item.unidade)}</strong>
                             {x.bloqueado && ` (${TE.painel.bloqueado.toLowerCase()})`}
                           </li>
                         ))}
@@ -176,7 +178,8 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
               ) : (
                 <ol className="est-historico" data-testid="historico">
                   {historico.map((m) => {
-                    const pode = contexto.podeDesfazer && !NAO_SE_DESFAZ.has(m.tipo) && !m.desfeitoPor;
+                    // Mudança entre áreas (com recebimento) não se desfaz: quem recebe recusa (o servidor recusa também).
+                    const pode = contexto.podeDesfazer && !NAO_SE_DESFAZ.has(m.tipo) && !m.desfeitoPor && m.recebimento === null;
                     const quando = formatarDataHora(m.quando);
                     return (
                       <li key={m.movimentoId} className="est-mov" data-testid={`movimento-${m.movimentoId}`}>
@@ -193,6 +196,7 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
                           {m.usouGuardado && <Selo variante="info">{TE.item.usouGuardado}</Selo>}
                           {m.faltou !== "0" && <Selo variante="perigo">{TE.item.faltou(qtd(m.faltou, item.unidade))}</Selo>}
                           {m.desfeitoPor && <Selo variante="neutro">{TE.item.desfeito}</Selo>}
+                          {m.recebimento && <Selo variante={m.recebimento === "a_receber" ? "alerta" : "neutro"}>{NOME_DO_RECEBIMENTO[m.recebimento]}</Selo>}
                         </span>
                         {pode && desfazendo !== m.movimentoId && (
                           <Botao variante="secundario" className="est-mov__desfazer" onClick={() => setDesfazendo(m.movimentoId)}>
@@ -225,30 +229,6 @@ function motivoLegivel(m: MovimentoDoHistorico, c: ContextoDoEstoque): string | 
   if (m.tipo === "bloqueio") return c.motivosDeBloqueio.find((x) => x.valor === m.motivo)?.texto ?? m.motivo;
   if (m.motivo === "contagem") return "Contagem";
   return m.motivo;
-}
-
-/** Envio com chave e trava contra toque duplo; devolve a resposta pronta. */
-function useEnvio() {
-  const [chave, setChave] = useState(novaChave);
-  const [ocupado, setOcupado] = useState(false);
-  const [erro, setErro] = useState("");
-  const travado = useRef(false);
-  async function enviar<T>(url: string, corpo: Record<string, unknown>): Promise<T | null> {
-    if (travado.current) return null;
-    travado.current = true;
-    setOcupado(true);
-    setErro("");
-    const r = await chamar<T>(url, "POST", { ...corpo, chave });
-    travado.current = false;
-    setOcupado(false);
-    if (!r.ok || !r.dados) {
-      setErro(r.mensagem);
-      return null;
-    }
-    setChave(novaChave());
-    return r.dados;
-  }
-  return { enviar, ocupado, erro, setErro };
 }
 
 const ROTA: Record<Acao, string> = {
@@ -311,9 +291,11 @@ function FormDoLancamento({ acao, item, contexto, areas, aoCancelar, aoGravar }:
     else if (acao === "perda") corpo = { ...comum, quantidade, unidade, area, local, motivo, ...(doBloqueado ? { doBloqueado: true } : {}) };
     else if (acao === "bloqueio") corpo = { ...comum, quantidade, unidade, area, local, motivo };
     else corpo = { ...comum, quantidade, unidade, area, local };
-    const r = await enviar<{ repetido: boolean; diferenca?: string; custoCentavos?: string | null; custoPorUnidade?: string | null }>(ROTA[acao], corpo);
+    const r = await enviar<{ repetido: boolean; diferenca?: string; custoCentavos?: string | null; custoPorUnidade?: string | null; aReceber?: { area: string; recebidoPor: { nome: string } } | null }>(ROTA[acao], corpo);
     if (!r) return;
     if (r.repetido) return aoGravar(TE.form.repetido);
+    // Entre áreas: fica a receber até quem recebe confirmar (decisão do responsável, 25/11/2026).
+    if (r.aReceber) return aoGravar(TE.form.aReceber(contexto.nomeDaArea[r.aReceber.area] ?? r.aReceber.area, r.aReceber.recebidoPor.nome));
     const extra =
       acao === "producao" && r.diferenca !== undefined
         ? ` ${TE.form.producaoDiferenca(qtdComSinal(r.diferenca, item.unidade))}${r.custoCentavos ? ` ${TE.form.producaoCusto(reais(r.custoCentavos), custoMedio(r.custoPorUnidade ?? null, item.unidade))}` : ""}`

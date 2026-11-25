@@ -1,7 +1,9 @@
 # 0027: estoque por lote, área e local, com movimentos imutáveis e custo médio (E09)
 
 - Data: 24/11/2026
-- Status: aceita (custo médio e "validade na entrada" são hipóteses do responsável, fáceis de mudar)
+- Status: aceita. Custo médio e "a gestão vê as quantidades durante a contagem" CONFIRMADOS pelo
+  responsável em 25/11/2026; "quem recebe confirma" na transferência entre áreas é decisão dele da
+  mesma data (item 9). "Validade na entrada" continua hipótese, fácil de mudar.
 - Assunto da sessão: E09, estoque (RC-09), completa por pedido do responsável (24/11/2026)
 
 ## Contexto
@@ -14,8 +16,9 @@ inventário, transferência entre áreas, desfazer e relatórios. Ela vai em 5 P
 
 Fatos: o ingrediente já tem unidade do estoque fixa (g, ml, un), área e conversões de compra
 (`ingrediente_conversao`, ex.: "caixa" = 12 un); o preparo da casa é uma ficha de tipo `preparo`
-com unidade de rendimento (decisão 0025). Hipóteses: custo médio (não "último preço"); um lote
-por linha de entrada; vencido = validade antes de hoje no fuso da loja.
+com unidade de rendimento (decisão 0025). Custo médio (não "último preço"): confirmado pelo
+responsável em 25/11/2026. Hipóteses: um lote por linha de entrada; vencido = validade antes de
+hoje no fuso da loja.
 
 ## Decisão
 1. **Item de estoque** (`estoque_item`): um ingrediente ou um preparo. Guarda o total e o valor
@@ -49,9 +52,32 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
    **obrigatória** (RC-01: a baixa acontece uma vez).
 9. **Permissão por área**: cozinha = `estoque.cozinha`; bebidas do salão, cafeteria e sorvete =
    `estoque.salao`. Cada lançamento confere a área de onde sai (e a de onde entra, na entrada).
-   Entre áreas, quem recebeu tem de cuidar da área de destino (hipótese: quem registra indica quem
-   recebeu, sem confirmação no aparelho de quem recebe; confirmação pode vir depois). Valor em
-   reais (informar ou ver) só com `custos.ver`.
+   Valor em reais (informar ou ver) só com `custos.ver`.
+   **Entre áreas, quem recebe confirma** (decisão do responsável, 25/11/2026; migração 0024; PR
+   `feat/e09-confirmar-recebimento`). Quem manda indica quem recebe (ativo, com cargo que cuida da
+   área de destino). O item sai da origem e os MESMOS lotes ficam na área de destino num local novo,
+   **"a receber"** (`estoque_recebimento`, pendente até ter `estoque_recebimento_fim`; nada muda nem
+   some, TRUNCATE bloqueado). O local de destino escolhido por quem manda vira só sugestão.
+   - "A receber" não é livre para venda, não é consumido (`consumirNaTransacao` só pega em uso e
+     guardado), não entra na contagem (o esperado é do em uso e do guardado), não pode ser escolhido
+     em perda, bloqueio nem transferência e nunca é bloqueado (CHECK no banco). Aparece no painel,
+     no item e nos lotes como "A receber"; conta no total e no valor do item (custo médio inalterado:
+     só muda de lugar, movimento sem mudança de quantidade nem de valor).
+   - `confirmarRecebimento` leva para o em uso ou o guardado da área de destino;
+     `recusarRecebimento` (motivo obrigatório) devolve aos mesmos lotes, área e local de onde saiu.
+     Ambos são movimentos "transferencia" ligados ao recebimento pelo fim. Cada recebimento termina
+     uma vez só: trava da linha do recebimento (FOR UPDATE), chave contra repetição e chave
+     primária do fim; a segunda chamada (mesmo ao mesmo tempo) recebe "já foi confirmado/recusado".
+   - **Quem confirma ou recusa** (hipótese, fácil de mudar): cuidar da área de destino no cargo
+     ativo E ser a pessoa indicada ou ter `caixa.autorizar` (a permissão de supervisão que já
+     existe: supervisor, gerente geral, dono e administrador). Nenhuma ação nova na matriz.
+   - **Desfazer**: a transferência entre áreas, a confirmação e a recusa não se desfazem. Pendente:
+     quem recebe recusa (o item volta); depois: muda-se de lugar de novo. É a opção mais segura: o
+     recebimento nunca fica pendente sem nada "a receber" (nem o contrário).
+   - Lista `recebimentosPendentes` só das áreas da pessoa; com contagem aberta do item na área, quem
+     não é da gestão não vê a quantidade (como o resto). Telas: bloco "A receber" no painel da
+     Cozinha e do Salão com Confirmar (em uso ou guardado) e Recusar (motivo).
+   - Na mesma área, a mudança continua na hora, sem recebimento.
 10. **Cada um vê só a própria área**: painel, item e histórico mostram o saldo das áreas da pessoa;
    quem não vê todas as áreas não vê o total geral, o "depois" nem os movimentos sem linha nas
    suas áreas.
@@ -99,9 +125,9 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
    contado não muda. Fechar ou cancelar acontece uma vez. A cegueira vale também fora da tela da
    contagem: enquanto houver contagem aberta do item numa área, quem não é da gestão (sem
    `estoque.desfazer`) não vê as quantidades dele nessa área no painel, no item, no histórico nem
-   nas mensagens de recusa (perda, transferência, bloqueio, produção). Hipótese a confirmar com o
-   responsável: a gestão (dono, administrador, gerente geral) continua vendo; se um gerente contar,
-   para ele a contagem não é cega.
+   nas mensagens de recusa (perda, transferência, bloqueio, produção). A gestão (dono,
+   administrador, gerente geral) continua vendo; se um gerente contar, para ele a contagem não é
+   cega (CONFIRMADO pelo responsável em 25/11/2026).
    Se outra contagem ajustou (ou alguém desfez algo) depois de contado, o fechamento pede para
    contar de novo (nada de ajuste em dobro). Na contagem fechada aparecem o que o ajuste aplicou
    de fato e o valor lançado em cada linha (gravado no fechamento). A rápida pede 5 itens por padrão (a tela pode pedir até 20); a do
@@ -112,7 +138,11 @@ por linha de entrada; vencido = validade antes de hoje no fuso da loja.
 - Saldo calculado só pela soma das linhas: lento e difícil de travar; o saldo materializado com
   a linha ao lado dá as duas coisas.
 - Custo por lote (PEPS de custo): mais exato no papel, mas muda o custo do prato a cada lote e
-  complica o ajuste sem lote; o custo médio é o padrão da casa (hipótese).
+  complica o ajuste sem lote; o custo médio é o padrão da casa (confirmado em 25/11/2026).
+- Entre áreas, entrar direto no destino com "quem recebeu" informado por quem manda (era a
+  hipótese até 25/11/2026): o responsável decidiu que quem recebe confirma.
+- Desfazer a transferência pendente como estorno comum: deixaria o recebimento pendente sem nada a
+  receber; a recusa faz o mesmo caminho com o motivo de quem recebe.
 - Saldo negativo na venda sem saldo: esconderia a diferença; gravar o que faltou deixa a
   contagem corrigir.
 
@@ -129,6 +159,14 @@ consumo 10 → passagem automática de 4; custo médio e zerar; o que vence prim
 vencido e bloqueado fora do consumo; permissão por área e de custos; repetição; última porção
 disputada (quem chega depois espera e recebe "sem saldo"); pedidos em ordem trocada sem impasse;
 20 consumos simultâneos com passagem do guardado fecham exato; supervisor não vê o total nem o
-histórico da cozinha; reenvio do consumo por outro autor. Testes de mutação: sem a trava do item ou
+histórico da cozinha; reenvio do consumo por outro autor.
+`packages/dominio/testes/estoque-recebimento.teste.ts`: "a receber" não é vendável, consumido,
+contado, perdido, bloqueado nem transferido; confirmar move (custo médio inalterado); recusar
+devolve aos mesmos lotes, área e local; dois recebimentos do mesmo lote; repetição pela chave;
+confirmação dupla e confirmação x recusa ao mesmo tempo (Promise.all) aplicam uma só; quem não
+pode recebe `sem_permissao` (auditado); área alheia; contagem cega não vaza; desfazer recusado;
+imutável. Teste de mutação: sem o FOR UPDATE do recebimento, o teste de concorrência falha (a
+segunda chamada cai no CHECK do saldo em vez de "já foi confirmado"); contando o "a receber" como
+livre, três testes falham. Testes de mutação: sem a trava do item ou
 sem a trava da chave, os testes de concorrência falham. A ordem das travas é defesa a mais (um
 único SELECT ... FOR UPDATE já trava na ordem lida); nenhum teste a isola.

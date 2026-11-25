@@ -9,6 +9,7 @@ import { sql, type Banco } from "@erp/banco";
 import {
   bloquear,
   conferirEstoque,
+  confirmarRecebimento,
   consumirNaTransacao,
   desbloquear,
   ErroDeRegra,
@@ -294,8 +295,13 @@ describe("transferência e perda", () => {
     const r = await transferir(db, cozinheira, { ...base, recebidoPor: supervisor.usuarioId });
     const m = await db.selectFrom("estoque_movimento").select(["recebido_por", "autor_id"]).where("id", "=", r.movimentoId).executeTakeFirstOrThrow();
     expect(m).toEqual({ recebido_por: supervisor.usuarioId, autor_id: cozinheira.usuarioId });
+    // Fica "a receber" na cafeteria até o supervisor confirmar (decisão do responsável, 25/11/2026).
+    expect(r.aReceber).toMatchObject({ area: "cafeteria", recebidoPor: { usuarioId: supervisor.usuarioId } });
     const p = (await painelDoEstoque(db, supervisor)).find((x) => x.ingredienteId === leite);
-    expect(p?.areas).toEqual([expect.objectContaining({ area: "cafeteria", emUso: "1000" })]);
+    expect(p?.areas).toEqual([expect.objectContaining({ area: "cafeteria", emUso: "0", livre: "0", aReceber: "1000" })]);
+    await confirmarRecebimento(db, supervisor, { recebimentoId: r.aReceber!.recebimentoId, local: "em_uso" });
+    const depois = (await painelDoEstoque(db, supervisor)).find((x) => x.ingredienteId === leite);
+    expect(depois?.areas).toEqual([expect.objectContaining({ area: "cafeteria", emUso: "1000", livre: "1000", aReceber: "0" })]);
     // O supervisor não tira da cozinha.
     expect((await erroDe(transferir(db, supervisor, { ...base, recebidoPor: supervisor.usuarioId }))).codigo).toBe("sem_permissao");
   });
@@ -316,7 +322,8 @@ describe("cada um vê só a própria área (RC-09 seção 4)", () => {
   it("o supervisor não vê o total, o histórico nem a observação da cozinha", async () => {
     const leite = await ingrediente("Leite", "ml");
     await registrarEntrada(db, gerente, { observacao: "nota secreta da cozinha", itens: [{ ingredienteId: leite, quantidade: "9000", local: "guardado", valorCentavos: 9000 }] });
-    await transferir(db, gerente, { ingredienteId: leite, quantidade: "1", de: { area: "cozinha", local: "guardado" }, para: { area: "cafeteria", local: "em_uso" }, recebidoPor: supervisor.usuarioId });
+    const t = await transferir(db, gerente, { ingredienteId: leite, quantidade: "1", de: { area: "cozinha", local: "guardado" }, para: { area: "cafeteria", local: "em_uso" }, recebidoPor: supervisor.usuarioId });
+    await confirmarRecebimento(db, supervisor, { recebimentoId: t.aReceber!.recebimentoId, local: "em_uso" });
     const p = (await painelDoEstoque(db, supervisor)).find((x) => x.ingredienteId === leite)!;
     expect(p.total).toBe("1");
     expect(p.valorCentavos).toBeNull();
@@ -324,16 +331,19 @@ describe("cada um vê só a própria área (RC-09 seção 4)", () => {
     expect(item.total).toBe("1");
     expect(item.lotes.flatMap((l) => l.saldos.map((x) => x.area))).toEqual(["cafeteria"]);
     const h = await historicoDoItem(db, supervisor, { ingredienteId: leite });
-    expect(h).toHaveLength(1);
-    expect(h[0]).toMatchObject({ tipo: "transferencia", quantidade: "1", quantidadeDepois: null });
+    // A mudança (chegou 1 "a receber" na cafeteria) e a confirmação (mudou de lugar dentro dela).
+    expect(h).toHaveLength(2);
+    expect(h[0]).toMatchObject({ tipo: "transferencia", quantidade: "0", quantidadeDepois: null, recebimento: "confirmacao" });
+    expect(h[1]).toMatchObject({ tipo: "transferencia", quantidade: "1", quantidadeDepois: null, recebimento: "confirmado" });
     expect(JSON.stringify(h)).not.toContain("secreta");
     // A cafeteria zera: o supervisor continua vendo o histórico da área dele.
     await registrarPerda(db, supervisor, { ingredienteId: leite, quantidade: "1", area: "cafeteria", local: "em_uso", motivo: "estragou" });
-    expect((await historicoDoItem(db, supervisor, { ingredienteId: leite })).map((m) => m.tipo)).toEqual(["perda", "transferencia"]);
+    expect((await historicoDoItem(db, supervisor, { ingredienteId: leite })).map((m) => m.tipo)).toEqual(["perda", "transferencia", "transferencia"]);
     // O gerente vê tudo, com o total depois.
     const hg = await historicoDoItem(db, gerente, { ingredienteId: leite });
     expect(hg.map((x) => [x.tipo, x.quantidade, x.quantidadeDepois])).toEqual([
       ["perda", "-1", "8999"],
+      ["transferencia", "0", "9000"],
       ["transferencia", "0", "9000"],
       ["entrada", "9000", "9000"],
     ]);

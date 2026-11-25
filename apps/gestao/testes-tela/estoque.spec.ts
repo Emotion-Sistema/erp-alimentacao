@@ -6,8 +6,9 @@ import { entrar, semEstouroDeLargura, sql } from "./ajudas";
 // Estoque (E09, decisão 0027), caminho principal no celular: o gerente dá entrada de 2 kg com
 // fornecedor, nota e valor; o item aparece no painel com 2 kg guardados e o lote no detalhe; a
 // cozinheira conta às cegas (a tela nunca mostra o esperado; o painel dela mostra "Em contagem") e
-// fecha: a diferença e o que foi acertado aparecem. Também: mudar de lugar para outra área com
-// "quem recebeu" e a cozinheira dando entrada pelo próprio painel, sem valor em reais. Só dados fictícios.
+// fecha: a diferença e o que foi acertado aparecem. Também: mudar de lugar para outra área (fica "a
+// receber" até alguém da cafeteria confirmar, decisão do responsável de 25/11/2026) e a cozinheira
+// dando entrada pelo próprio painel, sem valor em reais. Só dados fictícios.
 // Com CAPTURAS=<pasta>, salva as telas do celular para conferir.
 
 test.describe.configure({ mode: "serial" });
@@ -87,7 +88,7 @@ test("gerente dá entrada pela nota e vê no painel e no detalhe", async ({ page
   await expect(detalhe.getByTestId("lancamento-feito")).toHaveText("Pronto: mudou de lugar.");
   await expect(detalhe.getByTestId("lotes")).toContainText("Em uso, Alimentos da cozinha: 500 g");
 
-  // Para outra área: escolhe a Cafeteria e quem recebeu (lista do servidor).
+  // Para outra área: escolhe a Cafeteria e quem recebe (lista do servidor). Fica a receber lá.
   await detalhe.getByRole("button", { name: "Mudar de lugar" }).click();
   const outra = detalhe.getByTestId("form-transferencia");
   await outra.getByLabel("Sai de").selectOption("em_uso");
@@ -97,14 +98,41 @@ test("gerente dá entrada pela nota e vê no painel e no detalhe", async ({ page
   await outra.getByLabel("Unidade").selectOption("g");
   await outra.getByRole("button", { name: "Gravar" }).click();
   await expect(outra.getByTestId("erro-do-lancamento")).toHaveText("Entre áreas, informe quem recebeu.");
-  await outra.getByLabel("Quem recebeu").selectOption({ label: "Teste supervisor" });
+  await outra.getByLabel("Quem recebe").selectOption({ label: "Teste supervisor" });
   await capturar(page, "entre-areas", detalhe);
   await outra.getByRole("button", { name: "Gravar" }).click();
-  await expect(detalhe.getByTestId("lancamento-feito")).toHaveText("Pronto: mudou de lugar.");
-  await expect(detalhe.getByTestId("lotes")).toContainText("Em uso, Cafeteria: 100 g");
+  await expect(detalhe.getByTestId("lancamento-feito")).toHaveText("Fica a receber na Cafeteria até Teste supervisor confirmar.");
+  await expect(detalhe.getByTestId("lotes")).toContainText("A receber, Cafeteria: 100 g");
   await expect(detalhe.getByTestId("lotes")).toContainText("Em uso, Alimentos da cozinha: 400 g");
+  await expect(detalhe.getByTestId("historico")).toContainText("Esperando quem recebe");
   await detalhe.getByRole("button", { name: "Fechar" }).click();
   await expect(detalhe).toHaveCount(0);
+});
+
+test("o supervisor da cafeteria confirma o que veio da cozinha", async ({ page }) => {
+  await entrar(page, "supervisor");
+  await page.goto("/estoque/salao");
+  await expect(page.getByRole("heading", { level: 1, name: "Estoque do salão" })).toBeVisible();
+  const bloco = page.getByTestId("a-receber");
+  const linha = bloco.getByTestId(`receber-${TOMATE}`);
+  await expect(linha).toContainText("100 g de Alimentos da cozinha, mandado por Teste gerente geral");
+  await expect(linha).toContainText("Quem recebe: Teste supervisor.");
+  // Enquanto não confirma, não é livre na cafeteria.
+  await page.getByLabel("Buscar item").fill(TOMATE);
+  const cartao = page.getByTestId(`item-${TOMATE}`);
+  await expect(cartao.getByTestId("livre")).toHaveText("Livre 0 g");
+  await expect(cartao.locator(".est-numero", { hasText: "A receber" })).toContainText("100 g");
+  await linha.getByRole("button", { name: `Confirmar ${TOMATE}` }).click();
+  const form = linha.getByTestId("form-confirmar-recebimento");
+  // A sugestão de quem mandou vem escolhida; quem recebe decide.
+  await expect(form.getByLabel("Onde fica")).toHaveValue("em_uso");
+  await form.getByLabel("Onde fica").selectOption("guardado");
+  await semEstouroDeLargura(page);
+  await capturar(page, "a-receber");
+  await form.getByRole("button", { name: "Confirmar o recebimento" }).click();
+  await expect(bloco.getByTestId("recebimento-feito")).toHaveText(`Recebido: ${TOMATE} ficou em guardado.`);
+  await expect(linha).toHaveCount(0);
+  await expect(cartao.getByTestId("livre")).toHaveText("Livre 100 g");
 });
 
 test("cozinheira dá entrada pelo painel da cozinha, sem valor em reais", async ({ page }) => {

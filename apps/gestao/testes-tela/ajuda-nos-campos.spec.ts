@@ -441,7 +441,7 @@ test.describe("telas do estoque (gerente geral)", () => {
     await expect(mover.getByLabel("Lote")).toBeVisible();
     await conferirAjuda(page, "estoque (mudar de lugar)", 9);
     await mover.getByLabel("Vai para").selectOption("cafeteria");
-    await expect(mover.getByLabel("Quem recebeu")).toBeVisible();
+    await expect(mover.getByLabel("Quem recebe")).toBeVisible();
     await conferirAjuda(page, "estoque (mudar de lugar para outra área)", 10);
     await semEstouroDeLargura(page);
 
@@ -466,6 +466,37 @@ test.describe("telas do estoque (gerente geral)", () => {
     await expect(detalhe.getByTestId("form-desfazer")).toBeVisible();
     await conferirAjuda(page, "estoque (desfazer)", 3);
     await semEstouroDeLargura(page);
+  });
+
+  test("painel do salão: a receber (confirmar e recusar)", async ({ page }) => {
+    // Manda 100 g para a Cafeteria, com o próprio gerente como quem recebe.
+    await page.goto("/estoque");
+    await page.getByLabel("Buscar item").fill(ITEM);
+    await page.getByRole("button", { name: `Abrir ${ITEM}` }).click();
+    const detalhe = page.getByTestId("detalhe-do-item");
+    await detalhe.getByRole("button", { name: "Mudar de lugar" }).click();
+    const mover = detalhe.getByTestId("form-transferencia");
+    await mover.getByLabel("Vai para").selectOption("cafeteria");
+    await mover.getByLabel("Quantidade").fill("100");
+    await mover.getByLabel("Unidade").selectOption("g");
+    await mover.getByLabel("Quem recebe").selectOption({ label: "Teste gerente geral" });
+    await mover.getByRole("button", { name: "Gravar" }).click();
+    await expect(detalhe.getByTestId("lancamento-feito")).toHaveText("Fica a receber na Cafeteria até Teste gerente geral confirmar.");
+
+    await page.goto("/estoque/salao");
+    const linha = page.getByTestId("a-receber").getByTestId(`receber-${ITEM}`);
+    await linha.getByRole("button", { name: `Confirmar ${ITEM}` }).click();
+    await expect(linha.getByLabel("Onde fica")).toBeVisible();
+    // Busca, área e "vence logo" do painel, mais o "Onde fica".
+    await conferirAjuda(page, "salão (confirmar recebimento)", 4);
+    await linha.getByRole("button", { name: `Recusar ${ITEM}` }).click();
+    await expect(linha.getByLabel("Por que recusar")).toBeVisible();
+    await conferirAjuda(page, "salão (recusar recebimento)", 4);
+    await semEstouroDeLargura(page);
+    // Recusa: volta para a cozinha (o resto dos testes conta só a cozinha).
+    await linha.getByLabel("Por que recusar").fill("Teste da ajuda nos campos");
+    await linha.getByRole("button", { name: "Recusar e devolver" }).click();
+    await expect(page.getByTestId("recebimento-feito")).toHaveText(`Recusado: ${ITEM} voltou para Alimentos da cozinha.`);
   });
 
   test("painel da cozinha: dar entrada e contagem (escolher, contar e cancelar)", async ({ page }) => {
