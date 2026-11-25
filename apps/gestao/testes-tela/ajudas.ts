@@ -35,8 +35,8 @@ export async function aguardarInicio(page: Page) {
 }
 
 /**
- * No celular, trocar cargo, tela cheia, minha conta e sair ficam na gaveta da conta (18/11/2026).
- * Abre a gaveta quando o botão da conta está à vista; no computador não faz nada.
+ * Trocar cargo, tela cheia, minha conta e sair ficam na conta: gaveta no celular, janela pequena no
+ * computador (decisão 0028). Abre quando o botão da conta está à vista.
  */
 export async function abrirConta(page: Page) {
   const botao = page.getByRole("button", { name: /^Conta de / });
@@ -47,7 +47,7 @@ export async function abrirConta(page: Page) {
 }
 
 /**
- * Nomes de tudo que o menu oferece. No computador, o menu de cima. No celular (18/11/2026), a barra
+ * Nomes de tudo que o menu oferece. No computador, o trilho de ícones (decisão 0028). No celular (18/11/2026), a barra
  * de baixo mais a gaveta "Mais" (abre, lê e fecha); no lançador do celular não há barra: valem os
  * cartões dos aplicativos. A ordem da barra pode ser outra (as mais usadas primeiro).
  */
