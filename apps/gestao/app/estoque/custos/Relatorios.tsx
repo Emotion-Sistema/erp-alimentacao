@@ -18,7 +18,7 @@ import type { ContextoDoEstoque } from "../contexto";
 import { NOME_DO_LOCAL, NOME_DO_TIPO_DE_CONTAGEM, TE } from "../textos";
 
 const T = TE.relatorios;
-type Diferencas = { linhas: LinhaDeDiferenca[]; faltaCentavos: string | null; sobraCentavos: string | null };
+type Diferencas = { linhas: LinhaDeDiferenca[]; cortado: boolean; faltaCentavos: string | null; sobraCentavos: string | null };
 type Valor = { areas: { area: string; valorCentavos: string; itens: number }[]; totalCentavos: string };
 type Parte<X> = { dados: X | null; erro: string };
 
@@ -173,6 +173,7 @@ export function Relatorios({ contexto }: { contexto: ContextoDoEstoque }) {
         <p className="hor-secao__intro">{T.diferencasIntro}</p>
         {difs.erro && <Aviso tipo="perigo">{difs.erro}</Aviso>}
         {difs.dados && difs.dados.linhas.length === 0 && <p className="hor-vazio">{T.semDiferencas}</p>}
+        {difs.dados?.cortado && <Aviso tipo="info">{T.cortado}</Aviso>}
         {difs.dados && difs.dados.linhas.length > 0 && (
           <>
             {(difs.dados.faltaCentavos !== null || difs.dados.sobraCentavos !== null) && (

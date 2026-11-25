@@ -8,7 +8,7 @@ import { sql, type Banco } from "@erp/banco";
 import { AREAS_ESTOQUE, type AreaEstoque } from "./cadastros";
 import { ErroDeRegra } from "./erros";
 import { motorDoEstoque as m, painelDoEstoque } from "./estoque";
-import { q4DoBanco, textoQ4, valorDaSaida } from "./estoque-comum";
+import { q4DoBanco, textoQ4 } from "./estoque-comum";
 import { pode } from "./permissoes";
 import { exigir, type Ator } from "./sessao";
 
@@ -96,56 +96,77 @@ export type LinhaDeDiferenca = {
   local: string;
   esperado: string;
   contado: string;
+  /** Contado menos esperado. */
   diferenca: string;
+  /** O que o ajuste lançou de fato (a falta pode ser limitada pelo que havia). */
+  aplicado: string;
+  /** Valor que o ajuste lançou no fechamento (não muda com compras depois). */
   valorCentavos: string | null;
 };
 
-/** Diferenças das contagens fechadas no período (só as linhas com diferença). */
-export async function relatorioDeContagens(db: Banco, ator: Ator | null, dados: unknown): Promise<{ linhas: LinhaDeDiferenca[]; faltaCentavos: string | null; sobraCentavos: string | null }> {
+const MAX_LINHAS = 2000;
+
+/** Diferenças das contagens fechadas no período (só as linhas com diferença; ajuste desfeito não conta). */
+export async function relatorioDeContagens(
+  db: Banco,
+  ator: Ator | null,
+  dados: unknown,
+): Promise<{ linhas: LinhaDeDiferenca[]; cortado: boolean; faltaCentavos: string | null; sobraCentavos: string | null }> {
   const d = validar(esquemaPeriodo, dados);
   const { areas, comValor } = await areasDoPedido(db, ator, d.area);
-  const r = await sql<{ contagem_id: number; tipo: string; area: AreaEstoque; em: string; item_id: number; nome: string; unidade: string; local: string; esperado: string; contado: string; q: string; v: string }>`
-    SELECT c.id AS contagem_id, c.tipo, c.area, to_char(fi.em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS em,
-      ci.item_id, coalesce(i.nome, f.nome) AS nome, coalesce(i.unidade_base, f.unidade_rendimento) AS unidade, ci.local,
-      r.esperado::text AS esperado, r.contado::text AS contado, e.quantidade::text AS q, e.valor_centavos::text AS v
+  const origem = sql`
     FROM estoque_contagem c JOIN estoque_contagem_fim fi ON fi.contagem_id = c.id AND fi.situacao = 'fechada'
     JOIN estoque_contagem_item ci ON ci.contagem_id = c.id
-    JOIN LATERAL (SELECT * FROM estoque_contagem_registro r WHERE r.contagem_item_id = ci.id ORDER BY r.id DESC LIMIT 1) r ON true
-    JOIN estoque_item e ON e.id = ci.item_id LEFT JOIN ingrediente i ON i.id = e.ingrediente_id LEFT JOIN ficha f ON f.id = e.preparo_id
+    JOIN LATERAL (SELECT * FROM estoque_contagem_registro r WHERE r.contagem_item_id = ci.id ORDER BY r.id DESC LIMIT 1) r ON true`;
+  const filtro = sql`
     WHERE c.area = ANY(${areas}::text[]) AND r.contado <> r.esperado
-      AND (fi.em AT TIME ZONE coalesce((SELECT fuso_horario FROM unidade ORDER BY id LIMIT 1), 'America/Sao_Paulo'))::date BETWEEN ${d.desde}::date AND ${d.ate}::date
-    ORDER BY fi.em DESC, nome LIMIT 2000`.execute(db);
-  let falta = 0n;
-  let sobra = 0n;
-  const linhas = r.rows.map((x) => {
-    const dif = q4DoBanco(x.contado) - q4DoBanco(x.esperado);
-    const qI = q4DoBanco(x.q);
-    const vI = BigInt(x.v);
-    // Valor de hoje da diferença pelo custo médio (referência, não o valor lançado na época).
-    const v = dif < 0n ? -valorDaSaida(qI, vI, -dif) : qI > 0n ? (vI * dif + qI / 2n) / qI : 0n;
-    if (v < 0n) falta += -v;
-    else sobra += v;
-    return {
-      contagemId: x.contagem_id,
-      tipo: x.tipo,
-      area: x.area,
-      fechadaEm: x.em,
-      itemId: x.item_id,
-      nome: x.nome,
-      unidade: x.unidade,
-      local: x.local,
-      esperado: textoQ4(q4DoBanco(x.esperado)),
-      contado: textoQ4(q4DoBanco(x.contado)),
-      diferenca: textoQ4(dif),
-      valorCentavos: comValor ? v.toString() : null,
-    };
-  });
-  return { linhas, faltaCentavos: comValor ? falta.toString() : null, sobraCentavos: comValor ? sobra.toString() : null };
+      AND NOT EXISTS (SELECT 1 FROM estoque_movimento x WHERE x.estorno_de = fi.movimento_id)
+      AND (fi.em AT TIME ZONE coalesce((SELECT fuso_horario FROM unidade ORDER BY id LIMIT 1), 'America/Sao_Paulo'))::date BETWEEN ${d.desde}::date AND ${d.ate}::date`;
+  const r = await sql<{ contagem_id: number; tipo: string; area: AreaEstoque; em: string; item_id: number; nome: string; unidade: string; local: string; esperado: string; contado: string; aplicado: string | null; v: string | null }>`
+    SELECT c.id AS contagem_id, c.tipo, c.area, to_char(fi.em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS em,
+      ci.item_id, coalesce(i.nome, f.nome) AS nome, coalesce(i.unidade_base, f.unidade_rendimento) AS unidade, ci.local,
+      r.esperado::text AS esperado, r.contado::text AS contado,
+      (SELECT sum(l.quantidade) FROM estoque_movimento_linha l WHERE l.movimento_id = fi.movimento_id AND l.item_id = ci.item_id AND l.area = c.area AND l.local = ci.local)::text AS aplicado,
+      fi.valores ->> ci.id::text AS v
+    ${origem}
+    JOIN estoque_item e ON e.id = ci.item_id LEFT JOIN ingrediente i ON i.id = e.ingrediente_id LEFT JOIN ficha f ON f.id = e.preparo_id
+    ${filtro}
+    ORDER BY fi.em DESC, nome, ci.id LIMIT ${MAX_LINHAS + 1}`.execute(db);
+  // Totais sobre o período inteiro, mesmo quando a lista é cortada.
+  const t = await sql<{ falta: string; sobra: string }>`
+    SELECT coalesce(sum(-(fi.valores ->> ci.id::text)::bigint) FILTER (WHERE (fi.valores ->> ci.id::text)::bigint < 0), 0)::text AS falta,
+      coalesce(sum((fi.valores ->> ci.id::text)::bigint) FILTER (WHERE (fi.valores ->> ci.id::text)::bigint > 0), 0)::text AS sobra
+    ${origem}
+    ${filtro}`.execute(db);
+  const linhas = r.rows.slice(0, MAX_LINHAS).map((x) => ({
+    contagemId: x.contagem_id,
+    tipo: x.tipo,
+    area: x.area,
+    fechadaEm: x.em,
+    itemId: x.item_id,
+    nome: x.nome,
+    unidade: x.unidade,
+    local: x.local,
+    esperado: textoQ4(q4DoBanco(x.esperado)),
+    contado: textoQ4(q4DoBanco(x.contado)),
+    diferenca: textoQ4(q4DoBanco(x.contado) - q4DoBanco(x.esperado)),
+    aplicado: textoQ4(x.aplicado === null ? 0n : q4DoBanco(x.aplicado)),
+    valorCentavos: comValor ? BigInt(x.v ?? "0").toString() : null,
+  }));
+  return {
+    linhas,
+    cortado: r.rows.length > MAX_LINHAS,
+    faltaCentavos: comValor ? t.rows[0]!.falta : null,
+    sobraCentavos: comValor ? t.rows[0]!.sobra : null,
+  };
 }
 
 /** Valor do estoque por área (e o total), pelo custo médio. Exige `custos.ver` e cuidar de alguma área (o financeiro, sem área, não vê). */
 export async function valorDoEstoquePorArea(db: Banco, ator: Ator | null): Promise<{ areas: { area: AreaEstoque; valorCentavos: string; itens: number }[]; totalCentavos: string }> {
   const quem = await exigir(db, ator, "custos.ver", { tipo: "estoque_valor" });
+  // Mesma regra dos outros relatórios: valor só para quem vê todas as áreas.
+  const { areas: minhas } = await m.exigirAlgumaArea(db, quem);
+  if (minhas.length !== AREAS_ESTOQUE.length) throw new ErroDeRegra("sem_permissao", "O valor do estoque é para quem cuida de todas as áreas.");
   const painel = await painelDoEstoque(db, quem, {});
   const porArea = new Map<AreaEstoque, { v: bigint; itens: number }>();
   for (const i of painel)

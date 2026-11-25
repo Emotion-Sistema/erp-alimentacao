@@ -13,9 +13,11 @@ import {
   relatorioDeContagens,
   relatorioDePerdas,
   salvarIngrediente,
+  verContagem,
   valorDoEstoquePorArea,
   type Ator,
 } from "../src/index";
+import { linhasParaCsv } from "../src/importar-comum";
 import { atorDoCargo, bancoDeTeste, prepararDados } from "./apoio";
 
 let db: Banco;
@@ -77,5 +79,46 @@ describe("relatórios do estoque", () => {
     const v = await valorDoEstoquePorArea(db, gerente);
     expect(BigInt(v.areas.find((a) => a.area === "cafeteria")!.valorCentavos)).toBeGreaterThanOrEqual(4500n);
     expect((await erroDe(valorDoEstoquePorArea(db, supervisor))).codigo).toBe("sem_permissao");
+  });
+
+  it("diferença vale o que o ajuste lançou (não muda com compra mais cara); ajuste desfeito sai; área alheia é recusada", async () => {
+    const nomeTampa = nome("Tampa");
+    const x = (await salvarIngrediente(db, gerente, { nome: nomeTampa, unidadeBase: "un", area: "cafeteria" })).id;
+    await registrarEntrada(db, gerente, { itens: [{ ingredienteId: x, quantidade: "100", local: "guardado", area: "cafeteria", valorCentavos: 1000 }] });
+    const contar = async (q: string) => {
+      const c = await abrirContagem(db, supervisor, { tipo: "item", area: "cafeteria", itens: [{ ingredienteId: x, local: "guardado" }] });
+      await registrarContagem(db, supervisor, { contagemId: c.id, contagemItemId: c.linhas[0]!.contagemItemId, quantidade: q });
+      await fecharContagem(db, supervisor, { contagemId: c.id });
+      return c.id;
+    };
+    const c1 = await contar("90");
+    const minha = async () => (await relatorioDeContagens(db, gerente, { desde: hoje, ate: hoje, area: "cafeteria" })).linhas.filter((l) => l.nome === nomeTampa);
+    expect(await minha()).toEqual([expect.objectContaining({ contagemId: c1, diferenca: "-10", aplicado: "-10", valorCentavos: "-100" })]);
+    // Compra bem mais cara depois: o valor lançado na contagem não muda.
+    await registrarEntrada(db, gerente, { itens: [{ ingredienteId: x, quantidade: "10", local: "guardado", area: "cafeteria", valorCentavos: 10000 }] });
+    expect((await minha())[0]!.valorCentavos).toBe("-100");
+    const antes = await relatorioDeContagens(db, gerente, { desde: hoje, ate: hoje, area: "cafeteria" });
+    expect(antes.cortado).toBe(false);
+    // Desfeito o ajuste, a linha sai do relatório e dos totais.
+    const fim = (await verContagem(db, gerente, { contagemId: c1 })).fim!;
+    await desfazerMovimento(db, gerente, { movimentoId: fim.movimentoId!, observacao: "contei errado" });
+    expect(await minha()).toEqual([]);
+    const depois = await relatorioDeContagens(db, gerente, { desde: hoje, ate: hoje, area: "cafeteria" });
+    expect(BigInt(antes.faltaCentavos!) - BigInt(depois.faltaCentavos!)).toBe(100n);
+    // Quem não cuida da área não filtra por ela.
+    expect((await erroDe(relatorioDeContagens(db, cozinheira, { desde: hoje, ate: hoje, area: "cafeteria" }))).codigo).toBe("sem_permissao");
+    expect((await erroDe(relatorioDePerdas(db, cozinheira, { desde: hoje, ate: hoje, area: "cafeteria" }))).codigo).toBe("sem_permissao");
+  });
+
+  it("valor por área soma exatamente a entrada nova", async () => {
+    const x = (await salvarIngrediente(db, gerente, { nome: nome("Guardanapo"), unidadeBase: "un", area: "cafeteria" })).id;
+    const caf = async () => BigInt((await valorDoEstoquePorArea(db, gerente)).areas.find((a) => a.area === "cafeteria")?.valorCentavos ?? "0");
+    const antes = await caf();
+    await registrarEntrada(db, gerente, { itens: [{ ingredienteId: x, quantidade: "30", local: "guardado", area: "cafeteria", valorCentavos: 3333 }] });
+    expect((await caf()) - antes).toBe(3333n);
+  });
+
+  it("CSV: número negativo fica número; fórmula continua protegida", () => {
+    expect(linhasParaCsv([["-10", "-12,50", "-1.234,5", "=1+1", "-1+2", "@x", "+5"]])).toBe("\ufeff-10;-12,50;-1.234,5;'=1+1;'-1+2;'@x;'+5\r\n");
   });
 });

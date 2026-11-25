@@ -569,10 +569,12 @@ function filtroDaUrl(req: Request, numeros: readonly string[] = [], simOuNao: re
 
 const ITEM_DA_URL = ["ingredienteId", "preparoId"] as const;
 
+/** Lançamento do estoque: corpo lido com limite (uma entrada grande cabe com folga em 256 KB). */
+const LIMITE_DO_LANCAMENTO = 256 * 1024;
 const daArea = (fn: (db: Banco, a: Ator | null, dados: unknown) => Promise<unknown>, status = 200) =>
   seguro(async (req) => {
     const { db, a } = await comAlgumaArea(req);
-    return json(await fn(db, a, await corpoJson(req)), status);
+    return json(await fn(db, a, await corpoJsonLimitado(req, LIMITE_DO_LANCAMENTO, "Pedido grande demais: divida em partes menores.")), status);
   });
 
 // Consultas
