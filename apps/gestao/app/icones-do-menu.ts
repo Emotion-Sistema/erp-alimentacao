@@ -43,3 +43,15 @@ export const ICONES_DO_MENU: Record<IconeDoMenu, string> = {
 
 export const ICONE_MAIS = "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z";
 export const ICONE_INICIO = "M4 11l8-7 8 7v9h-5v-6H9v6H4z";
+
+/** Ícone de cada aplicativo no trilho do lançador (decisão 0028). Aplicativo novo sem ícone usa o painel. */
+export const ICONE_DO_APP: Record<string, IconeDoMenu> = {
+  caixa: "dinheiro",
+  atendimento: "mesa",
+  producao: "chama",
+  estoque: "caixa",
+  gestao: "painel",
+  cadastros: "lista",
+  financeiro: "moeda",
+  entregas: "moto",
+};

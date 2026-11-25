@@ -106,7 +106,16 @@ fotos, comanda à direita).
   ocupa a página inteira. No sistema real entra na casca (V1): botão no topo, útil no tablet da cozinha
   e no caixa.
 
-## Plano de implantação proposto (aguarda o "ok" do responsável)
+## Parte 1 em andamento (25/11/2026, "ok" do responsável)
+- Decisão 0028 (revê o item 5 da 0019 e o "sempre clara" da 0012). Casca nova: trilho de ícones claro
+  (`apps/gestao/app/Menu.tsx`, ícones do catálogo; lançador usa `ICONE_DO_APP`), topo claro com
+  aplicativo, pessoa · cargo, sino e conta em janela (`Casca.tsx`), letra 15 px na casca (tablet 18 px
+  até a parte 4), tokens `--cor-brasa-suave` e `--cor-linha` em `tema.css` (contraste testado).
+- Fotos antes/depois: `pnpm exec tsx scripts/comparar-telas.ts <antes> <depois> <saida.html>` sobre as
+  fotos do `cascas.spec.ts` (`apps/gestao/test-results/telas`).
+- Tokens do escuro ficaram para a parte 4, junto da escolha por pessoa (testar contraste com a troca).
+
+## Plano de implantação (aprovado com "ok" em 25/11/2026)
 Nesta frente, em PRs pequenos, só sobre o que já existe:
 1. **V1 · Decisão e casca:** registro de decisão novo (visual A; revê a 0012 "gestão sempre clara" e o
    tamanho de letra; tema claro/escuro escolhido pela pessoa). Tema (`tema.css`: letra 15 px, bordas leves,

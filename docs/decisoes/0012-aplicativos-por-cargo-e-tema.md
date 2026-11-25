@@ -1,7 +1,7 @@
 # 0012: aplicativos por cargo, lançador e tema neutro
 
 - Data: 14/11/2026
-- Status: aceita (E04)
+- Status: aceita (E04); "gestão sempre clara" revisto pela 0028 (claro/escuro por pessoa, parte 4)
 - Assunto da sessão: E04, base visual e cascas
 - Complementa: RC-03, decisão 0011
 

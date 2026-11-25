@@ -120,6 +120,13 @@ const PARES = [
   ["cor-faixa-escura-suave", "cor-faixa-escura"],
 ] as const;
 
+describe("trilho da gestão (decisão 0028, só no claro): contraste AA", () => {
+  it("seção aberta: brasa funda sobre brasa suave", () =>
+    expect(contraste(valor("cor-primaria-hover")!, valor("cor-brasa-suave")!)).toBeGreaterThanOrEqual(4.5));
+  it("nome das seções: texto suave sobre o fundo", () =>
+    expect(contraste(valor("cor-texto-suave")!, valor("cor-fundo")!)).toBeGreaterThanOrEqual(4.5));
+});
+
 describe("modo escuro dos apps do cliente (publico.css): contraste AA", () => {
   it("só existe no publico.css, nunca no tema da gestão", () => {
     expect(publico).toMatch(/prefers-color-scheme:\s*dark/);
