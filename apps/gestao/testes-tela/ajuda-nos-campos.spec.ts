@@ -275,7 +275,9 @@ test.describe("telas internas do administrador", () => {
   test("funcionários", async ({ page }) => {
     await page.goto("/funcionarios");
     await expect(page.getByRole("table", { name: "Funcionários" })).toBeVisible();
+    await page.getByRole("button", { name: "Novo funcionário" }).click();
     await conferirAjuda(page, "funcionários (novo)", 4);
+    await page.getByRole("button", { name: "Cancelar" }).click();
     const gerenciar = page.locator("details.acoes > summary");
     for (let i = 0; i < (await gerenciar.count()); i++) await gerenciar.nth(i).click();
     await conferirAjuda(page, "funcionários (gerenciar)", 6);

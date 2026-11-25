@@ -105,6 +105,13 @@
 }
 .casca .erp-tabela td { padding: 9px 10px; border-bottom: 1px solid var(--cor-linha); }
 .casca .erp-tabela tbody tr:hover td { background: color-mix(in srgb, var(--cor-superficie) 45%, transparent); }
+.casca .erp-tabela td { vertical-align: middle; }
+/* Tabela dentro da lista (ex.: Funcionários): o cartão é a lista; a tabela não desenha outro. */
+.casca .balcao-lista .erp-tabela-rolagem { border: 0; border-radius: 0; box-shadow: none; background: none; }
+/* No celular cada linha da tabela já vira um cartão: a lista some como moldura. */
+@media (max-width: 40rem) {
+  .casca .balcao-lista:has(> .erp-tabela-rolagem) { background: none; box-shadow: none; padding: 0; }
+}
 
 /* ---------- Avisos: filete fino, sem moldura ---------- */
 .casca .erp-aviso { border: 0; border-left: 3px solid var(--cor-info); border-radius: var(--raio-controle); font-size: 0.875rem; }

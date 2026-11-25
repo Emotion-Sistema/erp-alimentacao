@@ -1,3 +1,4 @@
+import "../cadastros/ingredientes.css";
 import { metadadosDoApp } from "../manifesto-do-app";
 
 export const metadata = metadadosDoApp("gestao");

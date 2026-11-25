@@ -158,3 +158,4 @@ Responsável deu "ok" (25/11/2026) para a parte 3: passar Ingredientes, Estoque,
 formato de lista do protótipo (como Produtos: `balcao-barra`, `balcao-lista`, linhas `hor-cat`), uma tela por PR,
 com a skill `tela-da-gestao` e fotos antes/depois (`scripts/comparar-telas.ts`). Não foi feito nesta sessão por
 falta de orçamento de tokens.
+- **Funcionários feito (25/11/2026):** chips Todos/Ativos/Desligados, busca, "Novo funcionário" na gaveta, tabela dentro de `balcao-lista` (no celular a lista some como moldura). Faltam Ingredientes, Estoque e Fichas.

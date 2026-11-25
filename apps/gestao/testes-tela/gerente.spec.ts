@@ -15,12 +15,25 @@ test("gerente cria um atendente, mas não consegue dar cargo de financeiro", asy
   await entrar(page, "gerente.geral");
   await page.goto("/funcionarios");
 
+  // Cadastro abre na gaveta à direita (visual Balcão, decisão 0028).
+  await page.getByRole("button", { name: "Novo funcionário" }).click();
+  await expect(page.getByTestId("janela-funcionario")).toBeVisible();
   await page.getByLabel("Nome", { exact: true }).fill("Ana Atendente");
   await page.getByLabel("Usuário (para entrar)").fill("ana.atendente");
   await page.getByLabel("Senha inicial").fill("uma-senha-longa-123");
   await page.getByLabel("Cargo", { exact: true }).selectOption("atendente");
   await page.getByRole("button", { name: "Criar funcionário" }).click();
   await expect(page.getByText("Funcionário criado.")).toBeVisible();
+  await expect(page.getByTestId("janela-funcionario")).toHaveCount(0);
+
+  // Busca e filtro da barra.
+  await page.getByRole("searchbox", { name: /Buscar funcionário/ }).fill("ana aten");
+  await expect(page.getByTestId("linha-ana.atendente")).toBeVisible();
+  await expect(page.locator('[data-testid^="linha-"]')).toHaveCount(1);
+  await page.getByRole("button", { name: /^Desligados/ }).click();
+  await expect(page.getByTestId("nada-na-busca")).toBeVisible();
+  await page.getByRole("button", { name: /^Todos/ }).click();
+  await page.getByRole("searchbox", { name: /Buscar funcionário/ }).fill("");
 
   const linha = page.getByTestId("linha-ana.atendente");
   await expect(linha).toContainText("Ana Atendente");
