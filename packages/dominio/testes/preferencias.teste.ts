@@ -63,6 +63,12 @@ describe("preferências de tela (decisão 0030)", () => {
     ]);
   });
 
+  it("duas trocas ao mesmo tempo (tema e letra) não se apagam", async () => {
+    const p = await pessoaDentro();
+    await Promise.all([mudarPreferencias(db, p.ator, { tema: "escuro" }), mudarPreferencias(db, p.ator, { letra: "grande" })]);
+    expect(await preferenciasDaSessao(db, p.token)).toEqual({ tema: "escuro", letra: "grande" });
+  });
+
   it("a escolha de uma pessoa não muda a de outra", async () => {
     const a = await pessoaDentro();
     const b = await pessoaDentro();

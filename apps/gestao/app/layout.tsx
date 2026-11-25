@@ -5,12 +5,9 @@ import "@fontsource/atkinson-hyperlegible-next/latin-700.css";
 import "@erp/interface/tema.css";
 import "./gestao.css";
 import "./balcao.css";
-import { cookies } from "next/headers";
-import { banco } from "@erp/banco";
-import { preferenciasDaSessao } from "@erp/dominio";
 import { CORES_DO_TEMA_CLARO } from "@erp/interface";
-import { COOKIE_SESSAO } from "@/src/servidor/http";
 import { ProvedorDeAjuda } from "./Campo";
+import { minhasPreferencias } from "./preferencias-servidor";
 
 export const metadata: Metadata = {
   title: "Gestão",
@@ -33,7 +30,7 @@ export const viewport: Viewport = {
  * com a escolha da pessoa, sem piscar claro antes do escuro. Sem sessão: claro, letra normal.
  */
 export default async function Layout({ children }: { children: React.ReactNode }) {
-  const { tema, letra } = await preferenciasDaSessao(banco(), (await cookies()).get(COOKIE_SESSAO)?.value);
+  const { tema, letra } = await minhasPreferencias();
   return (
     <html lang="pt-BR" data-tema={tema} data-letra={letra}>
       <body>

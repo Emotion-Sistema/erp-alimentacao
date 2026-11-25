@@ -38,9 +38,13 @@ export async function mudarPreferencias(db: Banco, ator: Ator | null, dados: unk
   if (ator.segundoFator === "pendente") throw new ErroDeRegra("segundo_fator", "Confirme o código do aplicativo autenticador.");
   const lido = esquema.safeParse(dados);
   if (!lido.success) throw new ErroDeRegra("dados_invalidos", "Escolha tema claro ou escuro, ou letra normal ou grande.");
-  const antes = await db.selectFrom("usuario").select(["tema", "letra"]).where("id", "=", ator.usuarioId).executeTakeFirstOrThrow();
-  const depois: Preferencias = { tema: lido.data.tema ?? antes.tema, letra: lido.data.letra ?? antes.letra };
-  await db.updateTable("usuario").set(depois).where("id", "=", ator.usuarioId).execute();
-  await auditar(db, { usuarioId: ator.usuarioId, acao: "sessao.preferencias", resultado: "permitido", detalhes: { de: antes, para: depois }, ip: ator.ip });
-  return depois;
+  // Numa transação, com a linha da pessoa travada: duas trocas quase juntas (sol/lua e logo depois
+  // "Letra grande") não se apagam, e o "antes" da auditoria é o de verdade.
+  return db.transaction().execute(async (t) => {
+    const antes = await t.selectFrom("usuario").select(["tema", "letra"]).where("id", "=", ator.usuarioId).forUpdate().executeTakeFirstOrThrow();
+    const depois: Preferencias = { tema: lido.data.tema ?? antes.tema, letra: lido.data.letra ?? antes.letra };
+    await t.updateTable("usuario").set(depois).where("id", "=", ator.usuarioId).execute();
+    await auditar(t, { usuarioId: ator.usuarioId, acao: "sessao.preferencias", resultado: "permitido", detalhes: { de: antes, para: depois }, ip: ator.ip });
+    return depois;
+  });
 }
