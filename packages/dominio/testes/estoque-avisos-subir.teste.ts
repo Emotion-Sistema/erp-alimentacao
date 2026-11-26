@@ -56,7 +56,7 @@ async function avisosDe(ingredienteId: number, tipo?: string) {
 async function envelhecer(ids: string[], minutos: number, valeMaisMinutos = 60) {
   await db.transaction().execute(async (trx) => {
     await sql`ALTER TABLE aviso DISABLE TRIGGER aviso_so_insercao`.execute(trx);
-    await sql`UPDATE aviso SET criado_em = now() - make_interval(mins => ${minutos}), expira_em = now() + make_interval(mins => ${valeMaisMinutos})
+    await sql`UPDATE aviso SET criado_em = now() - make_interval(secs => ${Math.round(minutos * 60)}), expira_em = now() + make_interval(mins => ${valeMaisMinutos})
       WHERE id = ANY(${ids}::bigint[])`.execute(trx);
     await sql`ALTER TABLE aviso ENABLE TRIGGER aviso_so_insercao`.execute(trx);
   });
@@ -91,10 +91,10 @@ describe("superior de cada cargo", () => {
 describe("urgente não visto sobe (RC-18)", () => {
   it(`antes de ${MINUTOS_PARA_SUBIR} minutos não sobe; depois sobe uma vez só, ao dono, com o mesmo texto`, async () => {
     const { x, e } = await emEmergencia("Fermento");
-    await envelhecer([e.id], MINUTOS_PARA_SUBIR - 1);
+    await envelhecer([e.id], MINUTOS_PARA_SUBIR - 5 / 60); // 5 segundos antes do prazo
     await subirAvisosNaoVistos(db);
     expect(await avisosDe(x, TIPO_DO_AVISO_QUE_SUBIU)).toEqual([]);
-    await envelhecer([e.id], MINUTOS_PARA_SUBIR + 1);
+    await envelhecer([e.id], MINUTOS_PARA_SUBIR); // no prazo exato já sobe
     await subirAvisosNaoVistos(db);
     await subirAvisosNaoVistos(db);
     const subiu = await avisosDe(x, TIPO_DO_AVISO_QUE_SUBIU);
@@ -110,12 +110,73 @@ describe("urgente não visto sobe (RC-18)", () => {
     await expect(sql`DELETE FROM aviso_subida WHERE aviso_id = ${e.id}::bigint`.execute(db)).rejects.toThrow();
   });
 
-  it("duas execuções ao mesmo tempo sobem uma vez só", async () => {
+  it("duas execuções ao mesmo tempo sobem uma vez só, sem erro (a trava faz a segunda esperar)", async () => {
     const { x, e } = await emEmergencia("Polvilho");
     await envelhecer([e.id], MINUTOS_PARA_SUBIR + 5);
-    const r = await Promise.all([subirAvisosNaoVistos(db), subirAvisosNaoVistos(db), subirAvisosNaoVistos(db)]);
-    expect(r.reduce((t, k) => t + k.subiram, 0)).toBeGreaterThanOrEqual(1);
+    // Uma transação de fora segura a vaga do aviso em aviso_subida (sem gravar): as execuções que
+    // chegarem a gravar esperam por ela. Assim as duas se sobrepõem de verdade. Desfeita, só uma grava;
+    // sem a trava, a segunda já teria lido e falharia com chave repetida.
+    const [outro] = await avisosDe(x, "estoque.repor").then(async (l) => (l.length ? l : await avisosDe(x)));
+    let soltar!: () => void;
+    let segurou!: () => void;
+    const segurando = new Promise<void>((r) => (segurou = r));
+    const fora = db
+      .transaction()
+      .execute(async (trx) => {
+        await sql`INSERT INTO aviso_subida (aviso_id, novo_aviso_id) VALUES (${e.id}::bigint, ${outro!.id}::bigint)`.execute(trx);
+        segurou();
+        await new Promise<void>((r) => (soltar = r));
+        throw new Error("desfaz");
+      })
+      .catch(() => undefined);
+    await segurando;
+    const execucoes = Promise.all([subirAvisosNaoVistos(db), subirAvisosNaoVistos(db)]);
+    await new Promise((r) => setTimeout(r, 300));
+    soltar();
+    await fora;
+    const r = await execucoes;
+    expect(r.reduce((t, k) => t + k.subiram, 0)).toBe(1);
     expect(await avisosDe(x, TIPO_DO_AVISO_QUE_SUBIU)).toHaveLength(1);
+  });
+
+  it("esgotou e voltou só até a emergência: continua urgente e sobe", async () => {
+    const x = await ingrediente("Sagu");
+    await entrada(x, "300", "em_uso");
+    await definirLinhas(db, gerente, { ingredienteId: x, saudavel: "500", emergencia: "200" });
+    await consumir(x, "300"); // esgotou
+    await entrada(x, "100", "em_uso"); // 100: emergência (melhora, sem aviso novo)
+    const [g] = await avisosDe(x, "estoque.esgotado");
+    await envelhecer([g!.id], MINUTOS_PARA_SUBIR + 1);
+    await subirAvisosNaoVistos(db);
+    expect((await avisosDe(x, TIPO_DO_AVISO_QUE_SUBIU)).map((k) => k.dados.avisoDeOrigem)).toEqual([g!.id]);
+  });
+
+  it("emergência e 'usando o guardado' do mesmo movimento: sobe um só (o mais novo)", async () => {
+    const x = await ingrediente("Canjica");
+    await entrada(x, "100", "em_uso");
+    await entrada(x, "200", "guardado");
+    await definirLinhas(db, gerente, { ingredienteId: x, saudavel: "500", emergencia: "200" });
+    const antes = (await avisosDe(x)).map((a) => a.id);
+    await consumir(x, "150"); // 150: emergência, e o em uso acabou (usando o guardado)
+    const novos = (await avisosDe(x)).filter((a) => !antes.includes(a.id) && a.prioridade === "urgente");
+    expect(novos.map((a) => a.tipo).sort()).toEqual(["estoque.emergencia", "estoque.usando_guardado"]);
+    await envelhecer(novos.map((a) => a.id), MINUTOS_PARA_SUBIR + 1);
+    await subirAvisosNaoVistos(db);
+    const subiu = await avisosDe(x, TIPO_DO_AVISO_QUE_SUBIU);
+    expect(subiu).toHaveLength(1);
+    expect(subiu[0]!.dados.avisoDeOrigem).toBe(novos.map((a) => a.id).sort((a, b) => Number(b) - Number(a))[0]);
+  });
+
+  it("um aviso mais novo do mesmo item já visto: o antigo não sobe", async () => {
+    const { x, e } = await emEmergencia("Tapioca");
+    await entrada(x, "1000", "em_uso"); // recuperou
+    await consumir(x, "1000"); // caiu de novo: emergência (150) com aviso novo
+    const emerg = await avisosDe(x, "estoque.emergencia");
+    expect(emerg).toHaveLength(2);
+    await viu(emerg[1]!.id, gerente, "gerente_geral");
+    await envelhecer([e.id, emerg[1]!.id], MINUTOS_PARA_SUBIR + 1);
+    await subirAvisosNaoVistos(db);
+    expect(await avisosDe(x, TIPO_DO_AVISO_QUE_SUBIU)).toEqual([]);
   });
 
   it("visto por alguém não sobe (entregue e não visto, sobe)", async () => {

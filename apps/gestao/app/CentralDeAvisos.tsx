@@ -9,6 +9,8 @@ import { agruparAvisos } from "./agrupar-avisos";
 import { GrupoDeAvisos, ItemDeAviso, type AvisoDaCaixa } from "./ItemDeAviso";
 
 const A_CADA_MS = 15_000;
+/** Cartões mostrados no painel do sino (o resto fica em "Ver todos os avisos"). */
+const MOSTRADOS = 15;
 const A_CADA_ESCONDIDA_MS = 30_000;
 
 /** Bipe curto (dois se urgente), vibração e notificação do sistema. Tudo opcional: nada aqui pode quebrar a central. */
@@ -149,7 +151,11 @@ export function CentralDeAvisos() {
   // Com o painel aberto, tudo que aparece como novo passa a "visto".
   useEffect(() => {
     if (!aberto) return;
-    const ids = avisos.filter((a) => a.situacao === "novo" && !jaMarcados.current.has(a.id)).map((a) => a.id);
+    // Só o que aparece no painel (os 15 primeiros cartões): o "visto" decide se o urgente sobe ao superior.
+    const mostrados = agruparAvisos(avisos)
+      .slice(0, MOSTRADOS)
+      .flatMap((c) => (c.tipo === "um" ? [c.aviso] : c.avisos));
+    const ids = mostrados.filter((a) => a.situacao === "novo" && !jaMarcados.current.has(a.id)).map((a) => a.id);
     if (ids.length === 0) return;
     ids.forEach((i) => jaMarcados.current.add(i));
     void chamar("/api/avisos/vistos", "POST", { ids: ids.slice(0, 100).map(Number) }).then((r) => {
@@ -258,7 +264,7 @@ export function CentralDeAvisos() {
             <p>Nenhum aviso por enquanto.</p>
           ) : (
             <ul className="lista-simples">
-              {cartoes.slice(0, 15).map((c) =>
+              {cartoes.slice(0, MOSTRADOS).map((c) =>
                 c.tipo === "um" ? (
                   <li key={c.aviso.id}>
                     <ItemDeAviso aviso={c.aviso} aoResolver={(id) => void resolver(id)} />

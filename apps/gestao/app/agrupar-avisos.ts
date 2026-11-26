@@ -13,7 +13,7 @@ export type CartaoDeAviso = { tipo: "um"; aviso: AvisoDaCaixa } | { tipo: "grupo
 
 /** Junta os avisos do mesmo tipo (dos que se juntam), na posição do mais novo; com um só, fica como está. */
 export function agruparAvisos(lista: readonly AvisoDaCaixa[]): CartaoDeAviso[] {
-  const juntavel = (a: AvisoDaCaixa) => a.situacao !== "resolvido" && a.prioridade !== "urgente" && a.tipo in TIPOS_QUE_SE_JUNTAM;
+  const juntavel = (a: AvisoDaCaixa) => a.situacao !== "resolvido" && a.prioridade !== "urgente" && Object.hasOwn(TIPOS_QUE_SE_JUNTAM, a.tipo);
   const porTipo = new Map<string, AvisoDaCaixa[]>();
   for (const a of lista) if (juntavel(a)) porTipo.set(a.tipo, [...(porTipo.get(a.tipo) ?? []), a]);
   const saida: CartaoDeAviso[] = [];

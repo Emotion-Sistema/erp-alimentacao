@@ -168,16 +168,22 @@ reavaliação ignorando o dia; sem acusar a atrasada.
   guardado" que ainda vale (turno), nasceu há 15 minutos ou mais e ninguém viu vira um aviso novo,
   urgente, `estoque.subiu`, para o superior de quem devia ter visto (cozinheira, auxiliar e supervisor
   -> gerente geral; gerente geral -> dono), com o mesmo texto e o mesmo `dados` (sem quantidades se
-  o original já ia sem elas). Só sobe se o problema continua (situação igual ou pior; ainda usando o
-  guardado). Cada aviso sobe uma vez só: `aviso_subida` com chave primária, sob uma trava, mesmo
+  o original já ia sem elas). Só sobe se o problema continua (o item segue em emergência ou esgotou;
+  segue usando o guardado), no máximo um por item e área a cada vez (o mais novo), e não sobe se um
+  aviso mais novo do mesmo item e área já foi visto. O sino só marca "visto" o que aparece nele (os 15
+  primeiros cartões): o resto não conta como visto e pode subir. Cada aviso sobe uma vez só: `aviso_subida` com chave primária, sob uma trava, mesmo
   com duas execuções ao mesmo tempo. Hipótese: 15 minutos para todos, até existir configuração; o
   aviso que subiu não sobe de novo. Vale só para os avisos do estoque; o RC-18 pede o mesmo para
-  todo urgente, o que fica para a frente de avisos.
+  todo urgente, o que fica para a frente de avisos. A migração cria um índice sem `CONCURRENTLY`
+  (segundos com o tamanho atual da tabela `aviso`); reverter e aplicar de novo deixa subir outra vez
+  os urgentes do turno que já tinham subido.
 - **Vários itens em reposição viram um cartão só** na central de avisos (o sino): "5 itens entraram
   em reposição", com a lista e um "Resolvido (todos)". Só os normais ainda não resolvidos; urgentes
   nunca se juntam; o histórico (/avisos) continua um por um. É só na tela: o aviso não muda depois de
   criado (RC-17), então juntar no banco exigiria atrasar o aviso.
 - Evidência: `estoque-avisos-subir.teste.ts` (antes de 15 min não sobe; depois uma vez só; três
-  execuções juntas = uma; visto não sobe e entregue sem ver sobe; resolvido não sobe, piorou sobe;
+  execuções sobrepostas de verdade = uma, sem erro; no prazo exato sobe e 5 s antes não;
+  esgotou que voltou à emergência sobe; emergência e guardado do mesmo movimento = um; mais novo visto = nenhum; visto não sobe e entregue sem ver sobe; resolvido não sobe, piorou sobe;
   turno acabado não sobe; esgotou sobe ao dono sem quantidades; guardado trazido não sobe) e
-  `agrupar-avisos.teste.ts`. Mutações que derrubam: sem conferir se continua; sem olhar o "visto".
+  `agrupar-avisos.teste.ts`. Mutações que derrubam: sem conferir se continua; sem olhar o "visto"; sem a trava; sem o "um
+  por item e área". Revisão independente aprovada (26/11/2026), com os ajustes acima.
