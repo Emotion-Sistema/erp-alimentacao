@@ -103,7 +103,7 @@ Tudo sobre um núcleo único. Detalhes em `docs/01-visao-e-escopo.md`.
 ## Histórico de sessões
 | Data | Assunto | Resultado | Diário |
 |---|---|---|---|
-| 26/11/2026 | Apresentação aos sócios (HTML animado com a marca) | v3 com 33 slides: hierarquia e acessos, app do cliente e Clube com exemplos, estoque e cozinha animados, celular do gerente e do dono; antes: escopo, pronto, roteiro, prazo em 2 cenários (19 e 29 semanas), auditoria de valor de mercado e simulador; arquivo entregue fora do repositório (repositório público e assunto comercial) | — |
+| 26/11/2026 | Apresentação aos sócios (HTML animado com a marca) | v4 (26/11, E10 concluída: 10 de 36 etapas, 32%) com 33 slides: hierarquia e acessos, app do cliente e Clube com exemplos, estoque e cozinha animados, celular do gerente e do dono; antes: escopo, pronto, roteiro, prazo em 2 cenários (19 e 29 semanas), auditoria de valor de mercado e simulador; arquivo entregue fora do repositório (repositório público e assunto comercial) | — |
 | 18/11/2026 | Site emotionjf.com.br (planejamento) | RC-07 v2, ideias 8 a 10 (site, equipe, CMS, desconto de funcionário), sugestões S1 a S13 aprovadas com agenda, skill `pagina-publica`; sem código | `diario/2026-11-18-site-emotionjf.md` |
 | 17/11/2026 | E07 parte 2, PR 1: categorias e horários | PRs 51 e 52 juntados (horários, categorias, asterisco nos itens a confirmar) | `diario/2026-11-17-e07-parte2-horarios.md` |
 | 15/11/2026 | E07: cadastros (parte 1) | Ingredientes, fornecedores, conversões; PR 26 juntado; revisão aprovou na 3ª rodada | `diario/2026-11-15-e07-cadastros.md` |
