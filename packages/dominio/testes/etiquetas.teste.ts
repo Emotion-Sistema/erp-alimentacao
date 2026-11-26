@@ -408,7 +408,7 @@ describe("achar pela etiqueta", () => {
     const gaveta = await estoqueDoItem(db, cozinheira, { ingredienteId: x });
     expect(gaveta.lotes.map((l) => l.etiqueta)).toEqual([null]);
     expect((await painelDoEstoque(db, cozinheira)).find((i) => i.ingredienteId === x)!.etiquetas).toEqual([]);
-    // A mesma resposta para o lote que existe e para o que não tem saldo.
+    // O lote que existe responde "em contagem" (sem olhar o saldo); a etiqueta que nunca existiu, "não encontrado".
     const existe = await erroDe(acharPelaEtiqueta(db, cozinheira, `${cod}-001`));
     await entrada(x); // 002, entra depois de aberta a contagem
     const outro = await erroDe(acharPelaEtiqueta(db, cozinheira, `${cod}-009`));
