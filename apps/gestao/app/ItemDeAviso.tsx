@@ -63,3 +63,34 @@ export function ItemDeAviso({ aviso: a, aoResolver }: { aviso: AvisoDaCaixa; aoR
     </Aviso>
   );
 }
+
+/** Vários avisos do mesmo tipo num cartão só: o título com quantos, a lista e "Resolvido" para todos. */
+export function GrupoDeAvisos({ titulo, avisos, aoResolver }: { titulo: string; avisos: AvisoDaCaixa[]; aoResolver: (ids: string[]) => void }) {
+  const algumNovo = avisos.some((a) => a.situacao === "novo");
+  return (
+    <Aviso tipo="atencao" data-testid="aviso-grupo" data-situacao={algumNovo ? "novo" : "visto"} data-prioridade="normal">
+      <FichaDeDados compacta className="aviso__meta">
+        <Dado rotulo="Prioridade">
+          <SeloDaPrioridade prioridade="normal" />
+        </Dado>
+        <Dado rotulo="Quando" icone="calendario">
+          {formatarDataHora(avisos[0]!.criadoEm)}
+        </Dado>
+      </FichaDeDados>
+      <p>
+        <strong>{titulo}</strong>
+      </p>
+      <ul>
+        {avisos.map((a) => (
+          <li key={a.id}>{a.texto}</li>
+        ))}
+      </ul>
+      <p>
+        <strong>{algumNovo ? "Novo" : "Visto"}</strong>
+      </p>
+      <Botao variante="secundario" onClick={() => aoResolver(avisos.map((a) => a.id))}>
+        Resolvido (todos)
+      </Botao>
+    </Aviso>
+  );
+}
