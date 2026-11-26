@@ -236,6 +236,9 @@ export type Ingrediente = {
   ativo: boolean;
   /** Validade mínima na entrada, em dias (D4a). Nulo = sem alerta. */
   validadeMinimaDias: number | null;
+  /** Código da etiqueta do lote (BAC; ideia nº 16). Troca em `mudarCodigoDaEtiqueta`. */
+  codigoEtiqueta: string | null;
+  usaEtiqueta: boolean;
   conversoes: Conversao[];
   /** Alergênicos marcados (S1, decisão 0026): códigos do catálogo. */
   alergenicos: { codigo: string; tipo: "contem" | "tracos" }[];
@@ -257,7 +260,10 @@ export async function listarIngredientes(
     .selectFrom("ingrediente as i")
     .leftJoin("fornecedor as f", "f.id", "i.fornecedor_id")
     .leftJoin("usuario as u", "u.id", "i.alergenicos_conferidos_por")
+    .leftJoin("etiqueta_produto as ep", "ep.ingrediente_id", "i.id")
     .select([
+      "ep.codigo as codigoEtiqueta",
+      "ep.usa_etiqueta as usaEtiqueta",
       "i.id",
       "i.nome",
       "i.unidade_base",
@@ -303,6 +309,8 @@ export async function listarIngredientes(
       fornecedor: l.fornecedor,
       ativo: l.ativo,
       validadeMinimaDias: l.validade_minima_dias,
+      codigoEtiqueta: l.codigoEtiqueta,
+      usaEtiqueta: l.usaEtiqueta ?? true,
       conversoes: conversoes
         .filter((c) => c.ingrediente_id === l.id)
         .map((c) => ({ id: c.id, nome: c.nome, quantidadeBase: decimalLimpo(c.quantidade_base), ativo: c.ativo, modeloId: c.modelo_id })),

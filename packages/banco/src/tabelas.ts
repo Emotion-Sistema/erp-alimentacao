@@ -659,8 +659,27 @@ export interface EstoqueLoteTabela {
   item_id: number;
   validade: ColumnType<string, string | null | undefined, string | null> | null;
   codigo: string | null;
+  /** BAC-002 (migração 0030). Quem preenche é o gatilho do banco. */
+  etiqueta: Generated<string | null>;
   movimento_id: Inteirao;
   criado_em: Instante;
+}
+
+/** Código da etiqueta de cada ingrediente ou preparo (migração 0030; ideia nº 16). */
+export interface EtiquetaProdutoTabela {
+  id: Generated<number>;
+  ingrediente_id: number | null;
+  preparo_id: number | null;
+  codigo: string;
+  usa_etiqueta: Generated<boolean>;
+  atualizado_em: Generated<Instante>;
+  atualizado_por: number | null;
+}
+
+/** Último número de etiqueta usado por código (nunca volta). */
+export interface EtiquetaSequenciaTabela {
+  codigo: string;
+  ultimo: number;
 }
 
 /** Aviso de validade de um lote numa área, um por tipo (migração 0029; D1 e D7). */
@@ -888,6 +907,8 @@ export interface BancoTabelas {
   estoque_lote: EstoqueLoteTabela;
   estoque_saldo: EstoqueSaldoTabela;
   estoque_lote_aviso: EstoqueLoteAvisoTabela;
+  etiqueta_produto: EtiquetaProdutoTabela;
+  etiqueta_sequencia: EtiquetaSequenciaTabela;
   estoque_movimento_item: EstoqueMovimentoItemTabela;
   estoque_movimento_linha: EstoqueMovimentoLinhaTabela;
   estoque_nota_foto: EstoqueNotaFotoTabela;

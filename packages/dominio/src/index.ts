@@ -48,3 +48,4 @@ export * from "./cardapio";
 export * from "./cardapio-comum";
 export * from "./preferencias-comum";
 export * from "./preferencias";
+export * from "./etiquetas";

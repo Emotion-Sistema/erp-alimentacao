@@ -410,7 +410,8 @@ describe("histórico imutável e repetição", () => {
     const chave = `teste-${randomUUID()}`;
     const a = await registrarEntrada(db, gerente, { chave, itens: [{ ingredienteId: x, quantidade: "500", local: "guardado" }] });
     const b = await registrarEntrada(db, gerente, { chave, itens: [{ ingredienteId: x, quantidade: "500", local: "guardado" }] });
-    expect(b).toEqual({ movimentoId: a.movimentoId, repetido: true, validadeCurta: [] });
+    expect(a.etiquetas).toHaveLength(1);
+    expect(b).toEqual({ movimentoId: a.movimentoId, repetido: true, validadeCurta: [], etiquetas: a.etiquetas });
     expect((await erroDe(registrarEntrada(db, gerente, { chave, itens: [{ ingredienteId: x, quantidade: "501", local: "guardado" }] }))).codigo).toBe("conflito");
     expect((await saldo(x)).total).toBe("500");
     // Consumo da E11: o mesmo pedido reenviado não baixa de novo.

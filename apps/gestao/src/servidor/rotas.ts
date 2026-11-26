@@ -57,6 +57,8 @@ import {
   salvarConversao,
   salvarFornecedor,
   salvarIngrediente,
+  mudarCodigoDaEtiqueta,
+  acharPelaEtiqueta,
   caixaDeAvisos,
   continuarNoTurno,
   mudarMargemDeTroca,
@@ -701,6 +703,13 @@ export const verRelatorioDeContagens = seguro(async (req) => {
 export const verValorDoEstoque = seguro(async (req) => json(await valorDoEstoquePorArea(obterBanco(), await ator(req))));
 /** Dinheiro em risco (D1, ideia nº 15): R$ que vence em 3 e 7 dias. `custos.ver` (o domínio confere). */
 export const verDinheiroEmRisco = seguro(async (req) => json(await dinheiroEmRisco(obterBanco(), await ator(req))));
+
+// Etiqueta do lote (ideia nº 16): trocar o código no cadastro e achar o lote pelo que está no pacote.
+export const gravarCodigoDaEtiqueta = seguro(async (req) => json(await mudarCodigoDaEtiqueta(obterBanco(), await ator(req), await corpoJson(req))));
+export const verLotePelaEtiqueta = seguro(async (req) => {
+  const { db, a } = await comAlgumaArea(req);
+  return json(await acharPelaEtiqueta(db, a, new URL(req.url).searchParams.get("etiqueta") ?? ""));
+});
 
 // Linhas de reposição (E10 parte 1; decisão 0029). Quem cuida da área define e vê; a lista para
 // repor é de quem compra (`compras.gerenciar`, conferido no domínio).

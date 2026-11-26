@@ -141,7 +141,7 @@ describe("D1: aviso de lote perto do vencimento", () => {
     const a = await avisosDoItem(item, TIPOS_DE_AVISO_DE_VALIDADE.perto);
     expect(a).toHaveLength(1);
     expect(a[0]).toMatchObject({ prioridade: "normal", para_cargos: ["cozinheira", "gerente_geral"] });
-    expect(a[0]!.texto).toMatch(new RegExp(`^Perto do vencimento: ".*Presunto.*" \\(lote L77\\) vence em 2 dias \\(${ddmm(mais(hoje, 5))}\\), em Alimentos da cozinha\\. Use primeiro ou registre o descarte\\.$`));
+    expect(a[0]!.texto).toMatch(new RegExp(`^Perto do vencimento: ".*Presunto.*" \\(([A-Z][A-Z0-9]{1,4}-\\d{3})\\) vence em 2 dias \\(${ddmm(mais(hoje, 5))}\\), em Alimentos da cozinha\\. Use primeiro o \\1 ou registre o descarte\\.$`));
     expect(a[0]!.texto).not.toMatch(/800/);
     expect(a[0]!.dados).toMatchObject({ itemId: item, area: "cozinha", validade: mais(hoje, 5), codigo: "L77", acao: "usar_primeiro" });
   });
@@ -194,7 +194,7 @@ describe("D7: vencido parado sem perda registrada", () => {
     const a = await avisosDoItem(item, TIPOS_DE_AVISO_DE_VALIDADE.vencido);
     expect(a).toHaveLength(1);
     expect(a[0]).toMatchObject({ prioridade: "normal", para_cargos: ["cozinheira"] });
-    expect(a[0]!.texto).toMatch(new RegExp(`^Vencido parado: ".*Frango.*" venceu em ${ddmm(mais(hoje, -1))} e continua em Alimentos da cozinha\\. Registre a perda com o motivo "Venceu"`));
+    expect(a[0]!.texto).toMatch(new RegExp(`^Vencido parado: ".*Frango.*" \\([A-Z][A-Z0-9]{1,4}-\\d{3}\\) venceu em ${ddmm(mais(hoje, -1))} e continua em Alimentos da cozinha\\. Registre a perda com o motivo "Venceu"`));
     expect(a[0]!.dados).toMatchObject({ itemId: item, acao: "registrar_perda" });
     expect(await avisosDoItem(await itemDe(y), TIPOS_DE_AVISO_DE_VALIDADE.vencido)).toEqual([]);
     // Nunca avisou "perto" (já entrou vencido).
@@ -257,7 +257,7 @@ describe("D4a: validade curta na entrada", () => {
     expect(lotes).toHaveLength(3);
     // Reenvio (resposta perdida, toque duplo): mesmo movimento, o alerta volta, sem aviso novo.
     const de_novo = await registrarEntrada(db, cozinheira, dados);
-    expect(de_novo).toEqual({ movimentoId: r.movimentoId, repetido: true, validadeCurta: r.validadeCurta });
+    expect(de_novo).toEqual({ movimentoId: r.movimentoId, repetido: true, validadeCurta: r.validadeCurta, etiquetas: r.etiquetas });
     const total = await sql<{ n: number }>`SELECT count(*)::int AS n FROM aviso WHERE tipo = ${TIPO_DO_AVISO_DE_VALIDADE_CURTA} AND dados->>'movimentoId' = ${r.movimentoId}`.execute(db);
     expect(total.rows[0]!.n).toBe(1);
   });
