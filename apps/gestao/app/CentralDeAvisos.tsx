@@ -5,7 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Aviso } from "@erp/interface";
 import { Campo } from "./Campo";
 import { chamar } from "./chamar";
-import { ItemDeAviso, type AvisoDaCaixa } from "./ItemDeAviso";
+import { agruparAvisos } from "./agrupar-avisos";
+import { GrupoDeAvisos, ItemDeAviso, type AvisoDaCaixa } from "./ItemDeAviso";
 
 const A_CADA_MS = 15_000;
 const A_CADA_ESCONDIDA_MS = 30_000;
@@ -161,15 +162,21 @@ export function CentralDeAvisos() {
     });
   }, [aberto, avisos]);
 
-  async function resolver(id: string) {
+  async function resolver(id: string): Promise<boolean> {
     setErro("");
     const r = await chamar(`/api/avisos/${id}/resolver`, "POST");
     if (!r.ok) {
       setErro(r.mensagem);
-      return;
+      return false;
     }
     const agora = new Date().toISOString();
     setAvisos((l) => l.map((a) => (a.id === id ? { ...a, situacao: "resolvido", vistoEm: a.vistoEm ?? agora, resolvidoEm: agora } : a)));
+    return true;
+  }
+
+  /** Resolve os avisos de um cartão agrupado, um por um (para no primeiro erro). */
+  async function resolverVarios(ids: string[]) {
+    for (const id of ids) if (!(await resolver(id))) return;
   }
 
   async function continuar() {
@@ -188,7 +195,9 @@ export function CentralDeAvisos() {
     }
   }
 
-  const novos = avisos.filter((a) => a.situacao === "novo").length;
+  // Os avisos que se juntam (vários itens em reposição) contam como um cartão só.
+  const cartoes = agruparAvisos(avisos);
+  const novos = cartoes.filter((c) => (c.tipo === "um" ? c.aviso.situacao === "novo" : c.avisos.some((a) => a.situacao === "novo"))).length;
   const rotulo = novos > 0 ? `Avisos: ${novos} ${novos === 1 ? "aviso novo" : "avisos novos"}` : "Avisos: nenhum aviso novo";
   return (
     <div className="avisos">
@@ -249,11 +258,17 @@ export function CentralDeAvisos() {
             <p>Nenhum aviso por enquanto.</p>
           ) : (
             <ul className="lista-simples">
-              {avisos.slice(0, 15).map((a) => (
-                <li key={a.id}>
-                  <ItemDeAviso aviso={a} aoResolver={(id) => void resolver(id)} />
-                </li>
-              ))}
+              {cartoes.slice(0, 15).map((c) =>
+                c.tipo === "um" ? (
+                  <li key={c.aviso.id}>
+                    <ItemDeAviso aviso={c.aviso} aoResolver={(id) => void resolver(id)} />
+                  </li>
+                ) : (
+                  <li key={c.chave}>
+                    <GrupoDeAvisos titulo={c.titulo} avisos={c.avisos} aoResolver={(ids) => void resolverVarios(ids)} />
+                  </li>
+                ),
+              )}
             </ul>
           )}
           <Link href="/avisos" className="casca__link" onClick={() => setAberto(false)}>

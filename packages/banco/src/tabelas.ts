@@ -139,6 +139,13 @@ export interface AvisoDestinoTabela {
   resolvido_em: Instante | null;
 }
 
+/** Aviso urgente do estoque que subiu para o superior (migração 0028). */
+export interface AvisoSubidaTabela {
+  aviso_id: string;
+  novo_aviso_id: string;
+  em: Generated<Instante>;
+}
+
 export interface TurnoTabela {
   id: Generated<number>;
   unidade_id: number;
@@ -829,6 +836,7 @@ export interface BancoTabelas {
   estacao_presenca: EstacaoPresencaTabela;
   aviso: AvisoTabela;
   aviso_destino: AvisoDestinoTabela;
+  aviso_subida: AvisoSubidaTabela;
   turno: TurnoTabela;
   unidade_medida: UnidadeMedidaTabela;
   fornecedor: FornecedorTabela;
