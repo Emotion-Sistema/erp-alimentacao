@@ -242,15 +242,17 @@ de amanhã, validades diferentes). Migração 0030, `packages/dominio/src/etique
 - **Etiqueta do lote.** Cada lote de compra, saldo inicial ou produção de preparo ganha código +
   número que nunca se repete (BAC-001, BAC-002; passa a 4 dígitos sozinho). A numeração fica pelo
   código: trocar o código não reaproveita número. Quem preenche é o banco (ninguém escolhe à mão);
-  dois lançamentos ao mesmo tempo não repetem número (o item já está travado pelo lançamento).
+  dois lançamentos ao mesmo tempo não repetem número (a linha do contador fica travada até o lançamento gravar). Trocar o código espera o lançamento aberto gravar; o banco recusa código já impresso em lote de outro produto, e o contador só anda para a frente.
   Sobra de contagem e lotes de antes da 0030 ficam sem etiqueta. "Usa etiqueta" desligado (sal,
   açúcar, descartáveis): o lote entra sem etiqueta; ligado de novo, a numeração continua.
 - **Onde aparece.** Na entrada e na produção ("Escreva na etiqueta: BAC-002 · vence 30/11"), no
   painel (achar por "BAC" ou "BAC-002"), na gaveta do item e nos avisos de validade ("Use primeiro
   o BAC-001"). A peça dividida entre áreas continua o mesmo lote, com a mesma etiqueta.
 - **Achar pela etiqueta.** Aceita como estiver escrito ("bac 2", "BAC002"). Só acha lote com saldo
-  nas áreas da pessoa; "não existe" e "não é seu" respondem igual. Durante a contagem cega a lista
-  de etiquetas do item some (revelaria quantos lotes há).
+  nas áreas da pessoa; "não existe" e "não é seu" respondem igual. Durante a contagem cega as etiquetas
+  somem do painel e da gaveta, e a busca responde "está em contagem" antes de olhar o saldo. Sem
+  traço, código com número (BA1005) pode ter duas leituras: a busca tenta as duas e, se as duas
+  existirem para a pessoa, pede o traço.
 - **Hipótese (reversível):** "usa etiqueta" nasce ligado para todos; o responsável desliga o que
   não precisa.
 - **Fica para a versão 2:** etiqueta impressa com QR e leitura pela câmera (depende de testar a
