@@ -16,6 +16,9 @@
   from { background: color-mix(in srgb, var(--cor-ouro) 60%, var(--cor-cartao)); }
   to { background: color-mix(in srgb, var(--cor-ouro) 22%, var(--cor-cartao)); }
 }
+/* Código da etiqueta (ideia nº 16): discreto ao lado do nome, e o campo sempre em maiúsculas. */
+.ingredientes__codigo { font-size: var(--texto-pequeno); font-weight: normal; color: var(--cor-texto-suave); letter-spacing: 0.04em; white-space: nowrap; }
+.cadastros__codigo-etiqueta { text-transform: uppercase; letter-spacing: 0.06em; max-width: 9rem; }
 .ingredientes__form { display: grid; gap: var(--espaco-3); min-width: 0; }
 .ingredientes__form > * { min-width: 0; }
 .ingredientes__form .erp-aviso { margin: 0; }

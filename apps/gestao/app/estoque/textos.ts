@@ -50,8 +50,8 @@ export const TE = {
     abaEntrada: "Dar entrada",
     abas: "Partes do estoque",
     busca: "Buscar item",
-    buscaAjuda: "Digite parte do nome do ingrediente ou do preparo.",
-    buscaExemplo: "farinha",
+    buscaAjuda: "Digite parte do nome do ingrediente ou do preparo, o código (BAC) ou a etiqueta do pacote (BAC-002).",
+    buscaExemplo: "farinha ou BAC-002",
     area: "Área",
     areaAjuda: "Mostra só os itens desta área.",
     areaExemplo: "Cafeteria, para ver só o café, o leite e o que é do balcão.",
@@ -84,6 +84,19 @@ export const TE = {
     emergencia: "Emergência",
     esgotou: "Esgotou",
     trazerDoGuardado: "Trazer do guardado",
+  },
+  /**
+   * Etiqueta do lote (ideia nº 16). A linha é o TEXTO para escrever no pacote: aqui o ponto do meio
+   * é permitido, porque é o que vai na etiqueta (não é resumo de tela).
+   */
+  etiqueta: {
+    titulo: "Escreva na etiqueta",
+    intro: "Escreva no pacote, antes de guardar. Na hora de usar, ache o lote pela etiqueta na busca do estoque.",
+    entrada: (etiqueta: string, validade: string | null, dia: string) => (validade ? `${etiqueta} · vence ${validade}` : `${etiqueta} · entrou ${dia}`),
+    producao: (etiqueta: string, validade: string | null, dia: string) => (validade ? `${etiqueta} · feito ${dia} · vence ${validade}` : `${etiqueta} · feito ${dia}`),
+    procurando: (e: string) => `Procurando o lote ${e}...`,
+    lote: "Lote da etiqueta",
+    codigoDoItem: "código",
   },
   /** Dinheiro em risco (D1, ideia nº 15): só para quem vê custos. */
   emRisco: {

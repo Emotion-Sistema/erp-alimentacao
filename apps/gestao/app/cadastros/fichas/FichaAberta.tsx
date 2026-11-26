@@ -17,6 +17,7 @@ import { NOME_DO_TIPO_DE_FICHA } from "@erp/dominio/fichas";
 import type { Produto } from "@erp/dominio/produtos";
 import { chamar } from "../../chamar";
 import { AvisoComDesfazer, type AvisoRapido } from "../embalagens/AvisoComDesfazer";
+import { BlocoDaEtiqueta } from "../CodigoDaEtiqueta";
 import { BlocoDeAlergenicos } from "./AlergenicosDaFicha";
 import { PercentualDoPreco, SeloDaSituacao } from "./CartaoDaFicha";
 import { quando, quantidadeAmigavel, quantidadeLegivel, textoDoCusto } from "./contas";
@@ -90,6 +91,7 @@ export function FichaAberta({ id, podeGerenciar, podeVerCusto }: { id: string; p
   const porcao = r.tipo === "preparo" ? `1 ${r.unidadeRendimento ?? "un"}` : "porção";
   const comCusto = podeVerCusto && ficha.custoDosItens.some((c) => c !== null);
   const custoDaReceita = ficha.custoDosItens.reduce<number>((s, c) => s + (c ?? 0), 0);
+  const etiquetaDoPreparo = painel.etiquetasDosPreparos.find((e) => e.preparoId === r.id);
 
   if (cozinha)
     return (
@@ -289,6 +291,16 @@ export function FichaAberta({ id, podeGerenciar, podeVerCusto }: { id: string; p
           </>
         )}
       </section>
+
+      {/* Ideia nº 16: código da etiqueta do preparo (cada produção vira um lote com etiqueta). */}
+      {r.tipo === "preparo" && (
+        <BlocoDaEtiqueta
+          alvo={{ preparoId: r.id }}
+          atual={{ codigo: etiquetaDoPreparo?.codigo ?? null, usaEtiqueta: etiquetaDoPreparo?.usaEtiqueta ?? true }}
+          podeGerenciar={podeGerenciar}
+          aoGravado={() => recarregar()}
+        />
+      )}
 
       {r.tipo === "preparo" && (
         <section className="hor-secao" aria-labelledby="ficha-usado" data-testid="usado-em">

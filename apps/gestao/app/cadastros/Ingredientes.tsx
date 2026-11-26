@@ -27,6 +27,8 @@ import { EmbalagensDoIngrediente } from "./embalagens/EmbalagensDoIngrediente";
 import { ProvedorDoCatalogo, usarCatalogo } from "./embalagens/usarCatalogo";
 import { JanelaModal, usarPedirFechar } from "./JanelaModal";
 import { AlergenicosDoIngrediente } from "./AlergenicosDoIngrediente";
+import { CamposDaEtiqueta, gravarEtiqueta, mudancasDaEtiqueta, type EtiquetaDoCadastro } from "./CodigoDaEtiqueta";
+import { TEXTOS_DA_ETIQUETA } from "./textos-da-etiqueta";
 
 type Opcao = { valor: string; texto: string };
 type Conversao = { id: number; nome: string; quantidadeBase: string; ativo: boolean; modeloId?: number | null };
@@ -41,6 +43,9 @@ type Ingrediente = {
   ativo: boolean;
   /** Validade mínima na entrada, em dias (D4a). Nulo = sem alerta. */
   validadeMinimaDias: number | null;
+  /** Código da etiqueta do lote (BAC; ideia nº 16) e se o produto usa etiqueta. */
+  codigoEtiqueta: string | null;
+  usaEtiqueta: boolean;
   conversoes: Conversao[];
   alergenicos: { codigo: string; tipo: "contem" | "tracos" }[];
   alergenicosConferidosEm: string | null;
@@ -319,7 +324,19 @@ export function Ingredientes({ areas, podeGerenciar }: Props) {
               className={realce.has(i.id) ? "ingredientes__realce" : undefined}
             >
               <ItemDeLista
-                titulo={i.nome}
+                titulo={
+                  i.codigoEtiqueta && i.usaEtiqueta ? (
+                    <>
+                      {i.nome}{" "}
+                      <span className="ingredientes__codigo" data-testid="codigo-da-etiqueta">
+                        <span className="ajuda__so-leitor">{TEXTOS_DA_ETIQUETA.codigoNaLista} </span>
+                        {i.codigoEtiqueta}
+                      </span>
+                    </>
+                  ) : (
+                    i.nome
+                  )
+                }
                 ativo={i.ativo}
                 acoes={
                   podeGerenciar && (
@@ -507,6 +524,8 @@ function FormularioIngrediente({
   const [validadeMinima, setValidadeMinima] = useState(ingrediente?.validadeMinimaDias == null ? "" : String(ingrediente.validadeMinimaDias));
   /** Embalagens do ingrediente NOVO (no que já existe, as conversões são salvas uma a uma, abaixo). */
   const [embalagens, setEmbalagens] = useState<LinhaDeEmbalagem[]>(() => embalagensDe(modelo?.embalagens ?? []));
+  /** Ideia nº 16: código da etiqueta e se usa etiqueta (só na edição; no novo, o banco gera pelo nome). */
+  const [etiqueta, setEtiqueta] = useState<EtiquetaDoCadastro>({ codigo: ingrediente?.codigoEtiqueta ?? "", usaEtiqueta: ingrediente?.usaEtiqueta ?? true });
   const [sugerido, setSugerido] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -547,6 +566,8 @@ function FormularioIngrediente({
       // Vazio = não avisar (null). Só número inteiro; o servidor confere de 1 a 365.
       const minimo = validadeMinima.trim();
       if (minimo && !/^\d+$/.test(minimo)) return setErro("Validade mínima: um número inteiro de dias, de 1 a 365. Deixe vazio para não avisar.");
+      const mudouEtiqueta = mudancasDaEtiqueta({ codigo: ingrediente.codigoEtiqueta, usaEtiqueta: ingrediente.usaEtiqueta }, etiqueta);
+      if (mudouEtiqueta.erro) return setErro(mudouEtiqueta.erro);
       setEnviando(true);
       const r = await chamar<{ id: number }>("/api/cadastros/ingredientes", "POST", {
         id: ingrediente.id,
@@ -557,8 +578,18 @@ function FormularioIngrediente({
         ativo,
         validadeMinimaDias: minimo ? Number(minimo) : null,
       });
+      if (!r.ok || !r.dados) {
+        setEnviando(false);
+        return setErro(r.mensagem);
+      }
+      // A etiqueta grava à parte (uma chamada a mais, só se mudou).
+      const falha = await gravarEtiqueta({ ingredienteId: ingrediente.id }, mudouEtiqueta.corpo);
       setEnviando(false);
-      if (!r.ok || !r.dados) return setErro(r.mensagem);
+      if (falha) {
+        // O ingrediente já foi salvo: a janela fica aberta para acertar o código.
+        await aoMudarConversao();
+        return setErro(TEXTOS_DA_ETIQUETA.ingredienteSemEtiqueta(falha));
+      }
       return aoSalvar(r.dados.id, "Ingrediente salvo.");
     }
     const faltas = faltaNasEmbalagens({ nome, unidadeBase: unidadeBase as UnidadeBase, unidadeExibicao, area, embalagens });
@@ -656,6 +687,7 @@ function FormularioIngrediente({
             onChange={(e) => setValidadeMinima(e.target.value)}
           />
         )}
+        {ingrediente && <CamposDaEtiqueta valor={etiqueta} aoMudar={setEtiqueta} />}
         {ingrediente && (
           <Marcador
             rotulo="Ativo (desmarque para tirar de uso; nada é apagado)"

@@ -8,18 +8,22 @@
  * Reposição (E10, decisão 0029): selo da pior situação nas áreas vistas (Repor, Emergência,
  * Esgotou) e "Trazer do guardado"; o chip "Para repor" mostra só o que não está saudável.
  * Lê tudo de GET /api/estoque, que confere a área no servidor.
+ * Etiqueta do lote (ideia nº 16): a busca acha também pelo código do produto (BAC) e pela etiqueta
+ * do pacote (BAC-002, "bac 2", "bac2"). Etiqueta que não está na lista carregada vai a GET
+ * /api/estoque/etiqueta (o servidor decide e a mensagem dele aparece como veio), que abre a gaveta
+ * do item com o lote marcado.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Aviso, Selo, varianteDaArea } from "@erp/interface";
 import type { ItemDoPainel } from "@erp/dominio";
 import { nomeComparavel } from "@erp/dominio/produtos";
 import { chamar } from "../chamar";
 import { BotaoExemplos } from "../Campo";
 import { Abas } from "./Abas";
-import { custoMedio, dia, hojeNaLoja, q4, qtd, reais, somarDias, textoQ4 } from "./comum";
+import { consulta, custoMedio, dia, hojeNaLoja, leiturasDaBusca, q4, qtd, reais, somarDias, textoQ4 } from "./comum";
 import type { ContextoDoEstoque } from "./contexto";
 import { Contagens } from "./Contagens";
-import { DetalheDoItem } from "./DetalheDoItem";
+import { DetalheDoItem, type LoteEmDestaque } from "./DetalheDoItem";
 import { DinheiroEmRisco } from "./DinheiroEmRisco";
 import { EntradaDeMercadoria } from "./compras/EntradaDeMercadoria";
 import { Recebimentos } from "./Recebimentos";
@@ -77,6 +81,12 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
   const [soVence, setSoVence] = useState(false);
   const [soRepor, setSoRepor] = useState(false);
   const [aberto, setAberto] = useState<string | null>(null);
+  /** Lote achado pela etiqueta (marcado na gaveta). */
+  const [destaque, setDestaque] = useState<LoteEmDestaque | null>(null);
+  /** Busca de etiqueta no servidor: procurando ou a mensagem de "não achou". */
+  const [buscaNoServidor, setBuscaNoServidor] = useState<{ etiqueta: string; mensagem: string } | null>(null);
+  /** Última etiqueta perguntada ao servidor (a recarga da lista não pergunta de novo nem reabre a gaveta). */
+  const procurada = useRef<string | null>(null);
   /** Muda a cada recarga: o bloco "Dinheiro em risco" busca de novo. */
   const [versao, setVersao] = useState(0);
 
@@ -100,9 +110,16 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
   const hoje = hojeNaLoja();
   const limite = somarDias(hoje, DIAS_DO_VENCE_LOGO);
   const termo = nomeComparavel(busca);
+  const leituras = useMemo(() => leiturasDaBusca(busca), [busca]);
+  /** O texto que vai ao servidor quando parece etiqueta (nulo se não parece). */
+  const etiquetaBuscada = leituras.length > 0 ? busca.trim().toUpperCase() : null;
+  const etiquetaDoItem = (i: ItemDoPainel) => i.etiquetas.find((e) => leituras.includes(e)) ?? null;
+  const codigoBuscado = busca.trim().toUpperCase();
   const areasVistas = area ? [area] : codigos;
+  const achaNaBusca = (i: ItemDoPainel) =>
+    nomeComparavel(i.nome).includes(termo) || (i.codigo !== null && i.codigo === codigoBuscado) || etiquetaDoItem(i) !== null;
   const filtrados = daPagina.filter((i) => {
-    if (termo && !nomeComparavel(i.nome).includes(termo)) return false;
+    if (termo && !achaNaBusca(i)) return false;
     if (area && i.areaPadrao !== area && !i.areas.some((a) => a.area === area)) return false;
     if (soVence) {
       const s = somaDasAreas(i, areasVistas);
@@ -111,7 +128,42 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
     if (soRepor && reposicaoDasAreas(i, areasVistas).pior === "saudavel") return false;
     return true;
   });
-  const itemAberto = aberto ? daPagina.find((i) => chaveDoItem(i) === aberto) : undefined;
+  // A gaveta pode abrir um item achado pela etiqueta que não está nesta tela (está em outra área da pessoa).
+  const itemAberto = aberto ? (daPagina.find((i) => chaveDoItem(i) === aberto) ?? itens?.find((i) => chaveDoItem(i) === aberto)) : undefined;
+  const etiquetaNaLista = leituras.length > 0 && daPagina.some((i) => etiquetaDoItem(i) !== null);
+
+  // Parece etiqueta e não está na lista carregada: pergunta ao servidor (que confere as áreas da
+  // pessoa) e abre a gaveta do item com o lote marcado. Espera a pessoa parar de digitar.
+  useEffect(() => {
+    if (etiquetaBuscada === null || etiquetaNaLista || !itens) {
+      procurada.current = null;
+      setBuscaNoServidor(null);
+      return;
+    }
+    if (procurada.current === etiquetaBuscada) return;
+    let vivo = true;
+    setBuscaNoServidor({ etiqueta: etiquetaBuscada, mensagem: TE.etiqueta.procurando(etiquetaBuscada) });
+    const espera = window.setTimeout(async () => {
+      const r = await chamar<{ itemId: number; ingredienteId: number | null; preparoId: number | null; loteId: number; etiqueta: string }>(`/api/estoque/etiqueta${consulta({ etiqueta: etiquetaBuscada })}`);
+      if (!vivo) return;
+      procurada.current = etiquetaBuscada;
+      if (!r.ok || !r.dados) return setBuscaNoServidor({ etiqueta: etiquetaBuscada, mensagem: r.mensagem });
+      setBuscaNoServidor(null);
+      setDestaque({ loteId: r.dados.loteId, etiqueta: r.dados.etiqueta });
+      setAberto(chaveDoItem(r.dados));
+    }, 400);
+    return () => {
+      vivo = false;
+      window.clearTimeout(espera);
+    };
+  }, [etiquetaBuscada, etiquetaNaLista, itens]);
+
+  /** Tocar num item: se a busca é uma etiqueta dele, o lote fica marcado na gaveta. */
+  const abrirItem = (i: ItemDoPainel) => {
+    const etiqueta = etiquetaDoItem(i);
+    setDestaque(etiqueta !== null ? { loteId: null, etiqueta } : null);
+    setAberto(chaveDoItem(i));
+  };
 
   return (
     <div className="hor-tela est-tela">
@@ -132,7 +184,10 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
           versao={versao}
           aoAbrirItem={(itemId) => {
             const i = daPagina.find((x) => x.itemId === itemId);
-            if (i) setAberto(chaveDoItem(i));
+            if (i) {
+              setDestaque(null);
+              setAberto(chaveDoItem(i));
+            }
           }}
         />
       )}
@@ -180,6 +235,11 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
                   </label>
                 </div>
               </div>
+              {buscaNoServidor && (
+                <p className="est-busca__aviso" aria-live="polite" data-testid="busca-da-etiqueta">
+                  {buscaNoServidor.mensagem}
+                </p>
+              )}
               {daPagina.length === 0 ? (
                 <p className="hor-vazio">{TE.painel.vazio}</p>
               ) : filtrados.length === 0 ? (
@@ -188,7 +248,7 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
                 <div className="balcao-lista">
                   <ul className="est-itens" data-testid="itens-do-estoque">
                     {filtrados.map((i) => (
-                      <CartaoDoItem key={chaveDoItem(i)} item={i} areas={areasVistas} contexto={contexto} limite={limite} aoAbrir={() => setAberto(chaveDoItem(i))} />
+                      <CartaoDoItem key={chaveDoItem(i)} item={i} areas={areasVistas} contexto={contexto} limite={limite} aoAbrir={() => abrirItem(i)} />
                     ))}
                   </ul>
                 </div>
@@ -205,7 +265,11 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
           resumo={itemAberto}
           contexto={contexto}
           areas={minhas}
-          aoFechar={() => setAberto(null)}
+          destaque={destaque}
+          aoFechar={() => {
+            setAberto(null);
+            setDestaque(null);
+          }}
           aoMudar={() => void recarregar()}
         />
       )}
@@ -225,7 +289,18 @@ function CartaoDoItem({ item, areas, contexto, limite, aoAbrir }: { item: ItemDo
     <li className="est-item" data-testid={`item-${item.nome}`}>
       <button type="button" className="est-item__botao" onClick={aoAbrir} aria-label={TE.painel.abrir(item.nome)}>
         <span className="est-item__cabeca">
-          <span className="est-item__nome">{item.nome}</span>
+          <span className="est-item__nome">
+            {item.nome}
+            {item.codigo && item.usaEtiqueta && (
+              <>
+                {" "}
+                <span className="est-item__codigo" data-testid="codigo-do-item">
+                  <span className="ajuda__so-leitor">{TE.etiqueta.codigoDoItem} </span>
+                  {item.codigo}
+                </span>
+              </>
+            )}
+          </span>
           <span className="est-item__livre" data-testid="livre">
             <span className="est-item__rotulo">{TE.painel.livre}</span> {n(s.livre)}
           </span>
