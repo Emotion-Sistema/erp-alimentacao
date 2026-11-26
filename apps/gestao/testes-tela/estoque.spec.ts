@@ -36,6 +36,8 @@ test("gerente dá entrada pela nota e vê no painel e no detalhe", async ({ page
   await entrar(page, "gerente.geral");
   await page.goto("/estoque/compras");
   await expect(page.getByRole("heading", { level: 1, name: "Compras do estoque" })).toBeVisible();
+  // A primeira aba é "Para repor" (E10); a entrada fica na segunda.
+  await page.getByRole("tab", { name: "Dar entrada" }).click();
   const form = page.getByTestId("form-entrada");
   await form.getByLabel("Fornecedor").selectOption({ label: FORNECEDOR });
   await form.getByLabel("Número da nota").fill("4567");

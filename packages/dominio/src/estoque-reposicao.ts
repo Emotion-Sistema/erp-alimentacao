@@ -95,6 +95,7 @@ export type LinhasDaArea = {
   emergencia: string | null;
   abastecimento: string | null;
   avisoGuardado: AvisoDoGuardado;
+  observacao: string | null;
   alteradoPor: string | null;
   alteradoEm: string | null;
   /** Nulo enquanto há contagem aberta do item nesta área para quem não é da gestão (contagem cega). */
@@ -192,8 +193,8 @@ export async function linhasDoItem(db: Banco, ator: Ator | null, ref: unknown): 
     .executeTakeFirst();
   const unidade = await unidadeDe(db, r);
   const linhas = item
-    ? await sql<{ area: AreaEstoque; saudavel: string | null; emergencia: string | null; abastecimento: string | null; aviso_guardado: AvisoDoGuardado | null; por: string | null; em: string | null; situacao: SituacaoDeReposicao | null; usando: boolean | null; abastecer: boolean | null }>`
-        SELECT ar.area, ln.saudavel::text AS saudavel, ln.emergencia::text AS emergencia, ln.abastecimento::text AS abastecimento, ln.aviso_guardado,
+    ? await sql<{ area: AreaEstoque; saudavel: string | null; emergencia: string | null; abastecimento: string | null; aviso_guardado: AvisoDoGuardado | null; observacao: string | null; por: string | null; em: string | null; situacao: SituacaoDeReposicao | null; usando: boolean | null; abastecer: boolean | null }>`
+        SELECT ar.area, ln.saudavel::text AS saudavel, ln.emergencia::text AS emergencia, ln.abastecimento::text AS abastecimento, ln.aviso_guardado, ln.observacao,
           u.nome AS por, to_char(ln.alterado_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS em,
           st.situacao, st.usando_guardado AS usando, st.abastecer
         FROM (SELECT area FROM estoque_linha WHERE item_id = ${item.id} UNION SELECT area FROM estoque_reposicao_estado WHERE item_id = ${item.id}) ar
@@ -216,6 +217,7 @@ export async function linhasDoItem(db: Banco, ator: Ator | null, ref: unknown): 
       emergencia: x?.emergencia == null ? null : textoQ4(q4DoBanco(x.emergencia)),
       abastecimento: x?.abastecimento == null ? null : textoQ4(q4DoBanco(x.abastecimento)),
       avisoGuardado: x?.aviso_guardado ?? "urgente",
+      observacao: x?.observacao ?? null,
       alteradoPor: x?.por ?? null,
       alteradoEm: x?.em ?? null,
       situacao: cego ? null : (x?.situacao ?? null),

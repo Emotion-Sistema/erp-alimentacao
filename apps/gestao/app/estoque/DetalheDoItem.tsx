@@ -5,6 +5,7 @@
  * ação (mudar de lugar, perda, bloquear, desbloquear e, se for preparo, produzir) e o histórico com
  * o saldo depois de cada movimento. "Desfazer" só para quem tem `estoque.desfazer`; o servidor
  * recusa o que não se desfaz e a mensagem dele aparece. Cada envio leva uma chave (toque duplo).
+ * As linhas de reposição (E10) ficam no bloco LinhasDoItem, aqui dentro.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Aviso, Botao, Selo, varianteDaArea } from "@erp/interface";
@@ -17,6 +18,7 @@ import { consulta, custoMedio, dia, qtd, qtdComSinal, reais, unidadesDoItem } fr
 import type { ContextoDoEstoque, Opcao } from "./contexto";
 import { somaDasAreas } from "./PainelDoEstoque";
 import { useEnvio } from "./envio";
+import { LinhasDoItem } from "./LinhasDoItem";
 import { NAO_SE_DESFAZ, NOME_DO_LOCAL, NOME_DO_LOCAL_DO_SALDO, NOME_DO_MOVIMENTO, NOME_DO_RECEBIMENTO, TE } from "./textos";
 
 type Acao = "transferencia" | "perda" | "bloqueio" | "desbloqueio" | "producao";
@@ -140,6 +142,17 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
               </div>
               {acao && <FormDoLancamento key={acao} acao={acao} item={item} contexto={contexto} areas={areas} aoCancelar={() => setAcao(null)} aoGravar={pronto} />}
             </section>
+
+            <LinhasDoItem
+              refDoItem={ref}
+              unidade={item.unidade}
+              preparo={item.preparoId !== null}
+              contexto={contexto}
+              codigos={codigos}
+              areasDoItem={[item.areaPadrao, ...item.areas.map((a) => a.area)]}
+              cegas={item.areas.filter((a) => a.emContagem || a.livre === null).map((a) => a.area)}
+              aoMudar={aoMudar}
+            />
 
             <section className="est-bloco" aria-labelledby="est-lotes">
               <h3 id="est-lotes">{TE.item.lotes}</h3>
