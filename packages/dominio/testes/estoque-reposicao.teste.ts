@@ -16,7 +16,9 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { sql, type Banco } from "@erp/banco";
 import {
+  abrirContagem,
   bloquear,
+  cancelarContagem,
   caixaDeAvisos,
   calcularSugestao,
   conferirEstoque,
@@ -27,6 +29,7 @@ import {
   ErroDeRegra,
   itensParaRepor,
   linhasDoItem,
+  painelDoEstoque,
   reavaliarReposicao,
   registrarEntrada,
   registrarPerda,
@@ -149,9 +152,9 @@ describe("um aviso por cruzamento (critério 5)", () => {
     const ev = await sql<{ de: string; para: string; tem_aviso: boolean; tem_mov: boolean }>`
       SELECT ev.de, ev.para, ev.aviso_id IS NOT NULL AS tem_aviso, ev.movimento_id IS NOT NULL AS tem_mov
       FROM estoque_reposicao_evento ev JOIN estoque_item e ON e.id = ev.item_id WHERE e.ingrediente_id = ${x} AND ev.tipo = 'situacao' ORDER BY ev.id`.execute(db);
-    // A linha definida com o item ainda vazio, na área dele, já é "esgotado" (aviso e evento, sem movimento).
+    // A linha definida com o item que nunca teve saldo começa calada (E10 parte 2): o estado nasce
+    // "esgotado", sem aviso e sem evento; a primeira entrada recupera (sem aviso).
     expect(ev.rows).toEqual([
-      { de: "saudavel", para: "esgotado", tem_aviso: true, tem_mov: false },
       { de: "esgotado", para: "saudavel", tem_aviso: false, tem_mov: true },
       { de: "saudavel", para: "repor", tem_aviso: true, tem_mov: true },
       { de: "repor", para: "saudavel", tem_aviso: false, tem_mov: true },
@@ -395,6 +398,8 @@ describe("quem define as linhas e o histórico", () => {
       ["400", "Teste gerente geral", "menos movimento"],
       ["500", "Teste cozinheira", null],
     ]);
+    // A observação atual vem com as linhas (a tela reabre o formulário com ela).
+    expect(h.areas.find((a) => a.area === "cozinha")).toMatchObject({ saudavel: "400", observacao: "menos movimento" });
     await expect(sql`UPDATE estoque_linha_mudanca SET saudavel = 1 WHERE item_id = (SELECT id FROM estoque_item WHERE ingrediente_id = ${x})`.execute(db)).rejects.toThrow(/não muda/);
     await expect(sql`DELETE FROM estoque_linha WHERE item_id = (SELECT id FROM estoque_item WHERE ingrediente_id = ${x})`.execute(db)).rejects.toThrow(/não muda/);
     await expect(sql`DELETE FROM estoque_reposicao_estado WHERE item_id = (SELECT id FROM estoque_item WHERE ingrediente_id = ${x})`.execute(db)).rejects.toThrow(/não muda/);
@@ -586,5 +591,54 @@ describe("conferência", () => {
     await sql`UPDATE estoque_reposicao_estado SET situacao = 'saudavel', em_uso = 90, quantidade = 90 WHERE item_id = ${id} AND area = 'cozinha'`.execute(db);
     expect(await conferirEstoque(db)).toEqual([`reposição ${id}/cozinha difere do saldo livre`]);
     await sql`UPDATE estoque_reposicao_estado SET em_uso = 100, quantidade = 100 WHERE item_id = ${id} AND area = 'cozinha'`.execute(db);
+  });
+});
+
+describe("E10 parte 2: começo calado e situação no painel", () => {
+  it("ingrediente que nunca teve saldo: definir a linha não avisa 'esgotou', mas entra na lista para repor", async () => {
+    const x = await ingrediente("Cúrcuma");
+    await linhas(x, { saudavel: "500", emergencia: "100" });
+    expect(await tipos(x)).toEqual([]);
+    expect(await estado(x)).toMatchObject({ situacao: "esgotado", quantidade: 0 });
+    const ev = await sql<{ n: number }>`SELECT count(*)::int AS n FROM estoque_reposicao_evento WHERE item_id = ${await itemDe(x)}`.execute(db);
+    expect(ev.rows[0]!.n).toBe(0);
+    expect((await itensParaRepor(db, gerente)).find((i) => i.ingredienteId === x)).toMatchObject({ situacao: "esgotado", paraRepor: "500" });
+    // Mudar a linha de novo também não avisa (o estado já existe e segue esgotado).
+    await linhas(x, { saudavel: "600", emergencia: "100" });
+    expect(await tipos(x)).toEqual([]);
+    // Depois da primeira compra, cair avisa normalmente.
+    await entrada(x, "700", "em_uso");
+    await consumir(x, "650");
+    expect(await tipos(x)).toEqual(["estoque.emergencia"]);
+  });
+
+  it("item que já teve saldo e zerou: definir a linha avisa 'esgotou' (houve estoque antes)", async () => {
+    const x = await ingrediente("Páprica");
+    await entrada(x, "200", "em_uso");
+    await consumir(x, "200"); // zerou: "esgotou" (a área do item avisa mesmo sem linha)
+    expect(await tipos(x)).toEqual(["estoque.esgotado"]);
+    await esquecerEstado(x); // como se o saldo fosse de antes da migração 0025
+    await linhas(x, { saudavel: "300" });
+    expect(await tipos(x)).toEqual(["estoque.esgotado", "estoque.esgotado"]);
+  });
+
+  it("o painel mostra a situação por área, sem quantidades; some na área em contagem para quem conta", async () => {
+    const x = await ingrediente("Cominho");
+    await entrada(x, "1000", "em_uso");
+    await linhas(x, { saudavel: "500" });
+    await consumir(x, "600");
+    const doPainel = async (a: Ator) => (await painelDoEstoque(db, a)).find((i) => i.ingredienteId === x)!;
+    expect((await doPainel(cozinheira)).reposicao).toEqual([{ area: "cozinha", situacao: "repor", usandoGuardado: false, abastecer: false }]);
+    // Item sem linha nem estado: lista vazia.
+    const y = await ingrediente("Louro");
+    expect((await painelDoEstoque(db, cozinheira)).find((i) => i.ingredienteId === y)!.reposicao).toEqual([]);
+    // Contagem cega: a cozinheira não vê a situação; a gestão vê.
+    const c = await abrirContagem(db, cozinheira, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x, local: "em_uso" }] });
+    expect((await doPainel(cozinheira)).reposicao).toEqual([]);
+    expect((await doPainel(gerente)).reposicao).toMatchObject([{ area: "cozinha", situacao: "repor" }]);
+    await cancelarContagem(db, cozinheira, { contagemId: c.id, observacao: "teste" });
+    expect((await doPainel(cozinheira)).reposicao).toMatchObject([{ area: "cozinha", situacao: "repor" }]);
+    // O atendente (sem área de estoque) não chega ao painel.
+    await expect(painelDoEstoque(db, atendente)).rejects.toThrow();
   });
 });

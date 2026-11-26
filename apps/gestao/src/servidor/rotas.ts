@@ -91,6 +91,7 @@ import {
   tirarCargo,
   trocarCargoAtivo,
   mudarPreferencias,
+  numerarMesas,
   conferirPlanilha,
   exigir,
   gravarPlanilha,
@@ -99,6 +100,7 @@ import {
   modeloDePlanilha,
   areasDoAtor,
   painelDoEstoque,
+  dinheiroEmRisco,
   estoqueDoItem,
   historicoDoItem,
   registrarEntrada,
@@ -225,6 +227,8 @@ export const quemSouEu = seguro(async (req) => {
 
 /** A pessoa muda o próprio tema ou letra (decisão 0030). Qualquer cargo; só precisa estar dentro. */
 export const mudarMinhasPreferencias = seguro(async (req) => json(await mudarPreferencias(obterBanco(), await ator(req), await corpoJson(req))));
+/** Supervisor e acima escolhem o número das mesas (25/11/2026). Corpo: { numeros: { codigo: número } }. */
+export const gravarNumerosDasMesas = seguro(async (req) => json(await numerarMesas(obterBanco(), await ator(req), await corpoJson(req))));
 export const trocarCargo = seguro(async (req) => json(resumo(await trocarCargoAtivo(obterBanco(), await ator(req), await corpoJson(req)))));
 
 export const meuCodigo = seguro(async (req) => {
@@ -695,6 +699,8 @@ export const verRelatorioDeContagens = seguro(async (req) => {
 });
 /** `custos.ver` (o domínio confere). */
 export const verValorDoEstoque = seguro(async (req) => json(await valorDoEstoquePorArea(obterBanco(), await ator(req))));
+/** Dinheiro em risco (D1, ideia nº 15): R$ que vence em 3 e 7 dias. `custos.ver` (o domínio confere). */
+export const verDinheiroEmRisco = seguro(async (req) => json(await dinheiroEmRisco(obterBanco(), await ator(req))));
 
 // Linhas de reposição (E10 parte 1; decisão 0029). Quem cuida da área define e vê; a lista para
 // repor é de quem compra (`compras.gerenciar`, conferido no domínio).

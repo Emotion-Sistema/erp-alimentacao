@@ -86,3 +86,16 @@
   .casca .balcao-lista .est-item__botao { grid-template-columns: minmax(12rem, 1.2fr) minmax(0, 1fr) auto; align-items: center; column-gap: var(--espaco-4); }
   .casca .balcao-lista .est-item__rodape { grid-column: 1 / -1; }
 }
+
+/* Linhas de reposição (E10): subtítulo das mudanças dentro do bloco. */
+.est-linhas__subtitulo { margin: 0; font-size: var(--texto-pequeno); font-weight: var(--peso-forte); color: var(--cor-texto-suave); }
+
+/* Para repor (compras, E10): quanto comprar à direita, em destaque discreto. */
+.est-repor__apoio { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
+.est-repor__comprar { font-variant-numeric: tabular-nums; text-align: right; }
+/* Três linhas à esquerda (nome, números, fornecedor): o "Comprar" fica no meio delas, à direita. */
+.casca .hor-cat.est-repor > .hor-cat__acoes { grid-row: 1 / span 3; }
+@media (max-width: 40rem) {
+  .est-repor__comprar { text-align: left; }
+  .casca .hor-cat.est-repor > .hor-cat__acoes { grid-row: auto; }
+}

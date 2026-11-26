@@ -68,6 +68,48 @@ test.describe("Mesas", () => {
     await page.waitForURL("**/atendimento/novo-pedido?mesa=4");
   });
 
+  test("supervisor numera as mesas (troca duas e renumera a 11); repetido é recusado; atendente não vê o botão", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await entrar(page, "atendente");
+    await page.goto("/atendimento");
+    await expect(page.locator("button.mesa")).toHaveCount(11);
+    await expect(page.getByRole("button", { name: "Numerar mesas" })).toHaveCount(0);
+
+    await entrar(page, "supervisor");
+    await page.goto("/atendimento");
+    const padrao = { m1: 1, m2: 2, m3: 3, m4: 4, m5: 5, m6: 6, m7: 7, m8: 8, m9: 9, m10: 10, m11: 11 };
+    try {
+      await page.getByRole("button", { name: "Numerar mesas" }).click();
+      const janela = page.getByTestId("janela-numerar");
+      await expect(janela).toBeVisible();
+      // Repetido: o servidor recusa e a gaveta continua aberta com o aviso.
+      await janela.getByTestId("numero-m2").fill("1");
+      await janela.getByRole("button", { name: "Gravar números" }).click();
+      await expect(janela.getByText(/está em duas mesas/)).toBeVisible();
+      // Troca 1 e 2 e muda a 11 para 40.
+      await janela.getByTestId("numero-m1").fill("2");
+      await janela.getByTestId("numero-m11").fill("40");
+      await janela.getByRole("button", { name: "Gravar números" }).click();
+      await expect(janela).toHaveCount(0);
+      await expect(page.getByTestId("mesa-40")).toBeVisible();
+      await expect(page.getByTestId("mesa-11")).toHaveCount(0);
+      await page.getByTestId("mesa-2").click();
+      const popup = page.getByRole("dialog", { name: /Mesa 2/ });
+      await expect(popup).toContainText("Área da TV");
+      await popup.getByRole("link", { name: "Abrir pedido" }).click();
+      await page.waitForURL("**/atendimento/novo-pedido?mesa=2");
+      await expect(page.getByText("Mesa 2", { exact: true }).first()).toBeVisible();
+      await semEstouroDeLargura(page);
+    } finally {
+      await page.goto("/atendimento");
+      const vista = Object.fromEntries(
+        await page.locator("button.mesa").evaluateAll((els) => els.map((e) => [e.getAttribute("data-codigo"), Number(e.getAttribute("data-testid")!.slice(5))])),
+      );
+      const r = await page.request.post("/api/mesas/numeros", { data: { numeros: padrao, antes: vista } });
+      expect(r.ok(), await r.text()).toBe(true);
+    }
+  });
+
   test("caixa vê o mapa sem o botão de abrir pedido", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await entrar(page, "caixa");

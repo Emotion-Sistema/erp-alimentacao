@@ -58,6 +58,7 @@ const ROTAS: Rota[] = [
   { metodo: "POST", caminho: "/api/avisos/[id]/resolver", acao: "sessao" },
   { metodo: "GET", caminho: "/api/eu/turno", acao: "sessao" },
   { metodo: "POST", caminho: "/api/eu/turno", acao: "sessao" },
+  { metodo: "POST", caminho: "/api/mesas/numeros", acao: "mesas.numerar", chamar: (c) => r.gravarNumerosDasMesas(req("/api/mesas/numeros", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/turnos", acao: "horarios.gerenciar", chamar: (c) => r.verTurnosDaUnidade(req("/api/turnos", "GET", c)) },
   { metodo: "POST", caminho: "/api/turnos", acao: "horarios.gerenciar", chamar: (c) => r.mudarMargem(req("/api/turnos", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/comunicados", acao: "comunicados.enviar", chamar: (c) => r.verComunicados(req("/api/comunicados", "GET", c)) },
@@ -154,6 +155,7 @@ const ROTAS: Rota[] = [
   { metodo: "GET", caminho: "/api/estoque/relatorios/perdas", ...AREA, chamar: (c) => r.verRelatorioDePerdas(req("/api/estoque/relatorios/perdas", "GET", c)) },
   { metodo: "GET", caminho: "/api/estoque/relatorios/contagens", ...AREA, chamar: (c) => r.verRelatorioDeContagens(req("/api/estoque/relatorios/contagens", "GET", c)) },
   { metodo: "GET", caminho: "/api/estoque/relatorios/valor", ...AREA, tambem: ["custos.ver"], chamar: (c) => r.verValorDoEstoque(req("/api/estoque/relatorios/valor", "GET", c)) },
+  { metodo: "GET", caminho: "/api/estoque/em-risco", acao: "custos.ver", chamar: (c) => r.verDinheiroEmRisco(req("/api/estoque/em-risco", "GET", c)) },
   // Linhas de reposição (E10 parte 1, decisão 0029).
   { metodo: "GET", caminho: "/api/estoque/linhas", ...AREA, chamar: (c) => r.verLinhasDoItem(req(`/api/estoque/linhas?ingredienteId=${INEXISTENTE}`, "GET", c)) },
   { metodo: "POST", caminho: "/api/estoque/linhas", ...AREA, chamar: (c) => r.gravarLinhas(req("/api/estoque/linhas", "POST", c, {})) },

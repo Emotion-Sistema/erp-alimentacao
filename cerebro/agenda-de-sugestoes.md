@@ -35,9 +35,9 @@ validade, vencido bloqueado sozinho. Não mexe no RC-01; cada item é só leitur
 
 | # | Sugestão | Gatilho (quando entra) | Situação |
 |---|---|---|---|
-| D1 | Dinheiro em risco: R$ que vence em 3 e 7 dias, por área e item (lote x custo médio), no painel do estoque e no resumo do dia | **E10**, num PR próprio depois das regras de reposição, junto do aviso "lote perto do vencimento" (RC-09) | pendente |
-| D7 | Lembrete de vencido bloqueado há X dias sem perda registrada (uma vez por lote, para quem cuida da área) | **E10**, mesmo PR do D1 | pendente |
-| D4a | Alerta na entrada quando a validade recebida for curta (dias mínimos por item, opcional) | **E10**, mesmo PR do D1 | pendente |
+| D1 | Dinheiro em risco: R$ que vence em 3 e 7 dias, por área e item (lote x custo médio), no painel do estoque e no resumo do dia | **E10**, num PR próprio depois das regras de reposição, junto do aviso "lote perto do vencimento" (RC-09) | **feita** em 26/11/2026 (PR da branch feat/e10-desperdicio; migração 0029) |
+| D7 | Lembrete de vencido bloqueado há X dias sem perda registrada (uma vez por lote, para quem cuida da área) | **E10**, mesmo PR do D1 | **feita** em 26/11/2026 (PR da branch feat/e10-desperdicio; migração 0029) |
+| D4a | Alerta na entrada quando a validade recebida for curta (dias mínimos por item, opcional) | **E10**, mesmo PR do D1 | **feita** em 26/11/2026 (PR da branch feat/e10-desperdicio; migração 0029) |
 | D2 | Ao avisar "perto do vencimento", mostrar os pratos que usam o ingrediente (fichas técnicas) e sugerir prato do dia/promoção (sugestão, nunca automático) | Logo depois da E10 (precisa do aviso D1); a promoção usa o simulador do RC-16 | pendente |
 | D3 | Compra ajustada: item com perda por "Venceu" frequente tem a sugestão da lista de compras reduzida e aviso de embalagem menor (o responsável aprova) | Na lista de compras (frente LC3), com algumas semanas de dados reais | pendente |
 | D4b | Desperdício por fornecedor (perda por vencimento e validade média na entrega) | Calculadora "Desperdício" do RC-16 | pendente |

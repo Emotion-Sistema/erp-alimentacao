@@ -5,6 +5,8 @@
  * Salão), com em uso, guardado, bloqueado, vencido e livre; "vence logo"; valor e custo médio só
  * quando o servidor manda (custos.ver). Filtro por área e busca. Tocar num item abre o detalhe
  * (lotes, histórico e lançamentos). A aba Contagem tem a contagem rápida, o inventário e a lista.
+ * Reposição (E10, decisão 0029): selo da pior situação nas áreas vistas (Repor, Emergência,
+ * Esgotou) e "Trazer do guardado"; o chip "Para repor" mostra só o que não está saudável.
  * Lê tudo de GET /api/estoque, que confere a área no servidor.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -18,6 +20,7 @@ import { custoMedio, dia, hojeNaLoja, q4, qtd, reais, somarDias, textoQ4 } from 
 import type { ContextoDoEstoque } from "./contexto";
 import { Contagens } from "./Contagens";
 import { DetalheDoItem } from "./DetalheDoItem";
+import { DinheiroEmRisco } from "./DinheiroEmRisco";
 import { EntradaDeMercadoria } from "./compras/EntradaDeMercadoria";
 import { Recebimentos } from "./Recebimentos";
 import { TE } from "./textos";
@@ -46,6 +49,21 @@ export function somaDasAreas(i: ItemDoPainel, areas: readonly string[]) {
   return s;
 }
 
+/** Gravidade da situação de reposição (quanto pior, maior), para mostrar só a pior das áreas vistas. */
+const GRAVIDADE: Record<string, number> = { saudavel: 0, repor: 1, emergencia: 2, esgotado: 3 };
+
+/** A pior situação de reposição nas áreas vistas e se alguma precisa trazer do guardado. Contagem cega: o servidor não manda. */
+export function reposicaoDasAreas(i: Pick<ItemDoPainel, "reposicao">, areas: readonly string[]) {
+  let pior: string = "saudavel";
+  let abastecer = false;
+  for (const r of i.reposicao ?? []) {
+    if (!areas.includes(r.area)) continue;
+    if ((GRAVIDADE[r.situacao] ?? 0) > (GRAVIDADE[pior] ?? 0)) pior = r.situacao;
+    if (r.abastecer) abastecer = true;
+  }
+  return { pior, abastecer };
+}
+
 export const chaveDoItem = (i: Pick<ItemDoPainel, "ingredienteId" | "preparoId">) => (i.ingredienteId !== null ? `i${i.ingredienteId}` : `p${i.preparoId}`);
 
 export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto: ContextoDoEstoque; areasDaPagina: readonly string[]; titulo: string }) {
@@ -57,9 +75,13 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
   const [busca, setBusca] = useState("");
   const [area, setArea] = useState("");
   const [soVence, setSoVence] = useState(false);
+  const [soRepor, setSoRepor] = useState(false);
   const [aberto, setAberto] = useState<string | null>(null);
+  /** Muda a cada recarga: o bloco "Dinheiro em risco" busca de novo. */
+  const [versao, setVersao] = useState(0);
 
   const recarregar = useCallback(async () => {
+    setVersao((v) => v + 1);
     const r = await chamar<ItemDoPainel[]>("/api/estoque");
     if (r.ok && r.dados) {
       setItens(r.dados);
@@ -86,6 +108,7 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
       const s = somaDasAreas(i, areasVistas);
       if (!(s.vencido > 0n || (i.proximaValidade !== null && i.proximaValidade <= limite))) return false;
     }
+    if (soRepor && reposicaoDasAreas(i, areasVistas).pior === "saudavel") return false;
     return true;
   });
   const itemAberto = aberto ? daPagina.find((i) => chaveDoItem(i) === aberto) : undefined;
@@ -101,6 +124,18 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
       {!itens && !erro && <p aria-live="polite">{TE.carregando}</p>}
       {/* Veio de outra área para esta tela: quem recebe confirma ou recusa (25/11/2026). */}
       {itens && minhas.length > 0 && <Recebimentos contexto={contexto} areas={codigos} aoMudar={() => void recarregar()} />}
+      {/* D1 (ideia nº 15): só quem vê custos; sem custos.ver a rota nem é chamada. */}
+      {itens && minhas.length > 0 && contexto.podeVerCusto && (
+        <DinheiroEmRisco
+          contexto={contexto}
+          areas={codigos}
+          versao={versao}
+          aoAbrirItem={(itemId) => {
+            const i = daPagina.find((x) => x.itemId === itemId);
+            if (i) setAberto(chaveDoItem(i));
+          }}
+        />
+      )}
       {itens && minhas.length > 0 && (
         <Abas
           rotulo={TE.painel.abas}
@@ -131,6 +166,9 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
                   )}
                   <button type="button" className="balcao-chip" aria-pressed={soVence} onClick={() => setSoVence(!soVence)} title={TE.painel.filtroVenceAjuda}>
                     {TE.painel.filtroVence}
+                  </button>
+                  <button type="button" className="balcao-chip" aria-pressed={soRepor} onClick={() => setSoRepor(!soRepor)} title={TE.painel.filtroReporAjuda}>
+                    {TE.painel.filtroRepor}
                   </button>
                 </div>
                 <div className="balcao-acoes">
@@ -182,6 +220,7 @@ function CartaoDoItem({ item, areas, contexto, limite, aoAbrir }: { item: ItemDo
   const n = (v: bigint) => (cego ? TE.painel.emContagem : qtd(textoQ4(v), item.unidade));
   const total = s.emUso + s.guardado + s.aReceber;
   const venceLogo = item.proximaValidade !== null && item.proximaValidade <= limite;
+  const rep = reposicaoDasAreas(item, areas);
   return (
     <li className="est-item" data-testid={`item-${item.nome}`}>
       <button type="button" className="est-item__botao" onClick={aoAbrir} aria-label={TE.painel.abrir(item.nome)}>
@@ -205,7 +244,23 @@ function CartaoDoItem({ item, areas, contexto, limite, aoAbrir }: { item: ItemDo
             </Selo>
           )}
           {cego && <Selo variante="info">{TE.painel.emContagem}</Selo>}
-          {total === 0n && !cego && <Selo>{TE.painel.zerado}</Selo>}
+          {rep.pior === "esgotado" && (
+            <Selo variante="perigo" icone="alerta" data-testid="situacao">
+              {TE.painel.esgotou}
+            </Selo>
+          )}
+          {rep.pior === "emergencia" && (
+            <Selo variante="perigo" data-testid="situacao">
+              {TE.painel.emergencia}
+            </Selo>
+          )}
+          {rep.pior === "repor" && (
+            <Selo variante="alerta" data-testid="situacao">
+              {TE.painel.repor}
+            </Selo>
+          )}
+          {rep.abastecer && <Selo variante="info">{TE.painel.trazerDoGuardado}</Selo>}
+          {total === 0n && !cego && rep.pior !== "esgotado" && <Selo>{TE.painel.zerado}</Selo>}
         </span>
         <span className="est-item__numeros">
           <Numero rotulo={TE.painel.emUso} valor={n(s.emUso)} />

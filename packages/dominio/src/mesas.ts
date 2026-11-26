@@ -3,7 +3,9 @@
  *
  * LAYOUT PROVISÓRIO: é a leitura do esboço à mão do responsável (cerebro/empresa/mapa-das-mesas.md).
  * Lugares confirmados pelo responsável (25/11/2026): salão 6 mesas de 4 e o Mesão de 6; salão menor 3 mesas
- * de 2 e 1 de 3 (a mesa 4, a maior do esboço: hipótese); Bancada 2 lugares. Números das mesas ainda provisórios. As posições
+ * de 2 e 1 de 3 (a mesa 4, a maior do esboço: hipótese); Bancada 2 lugares. Onde era a "Entrada (calçada)" virou
+ * outra bancada de 2 lugares, igual à primeira (26/11/2026). Os números abaixo são o padrão: supervisor e acima escolhem o número de
+ * cada mesa na tela (mesas-numeros.ts); a mesa é sempre a mesma pelo `codigo` (a posição). As posições
  * (coluna e linha) são as mesmas da tela Mesas do protótipo (cerebro/frentes/visual-limpo/prototipos.html).
  *
  * Sem banco e sem permissão: é só o desenho fixo da loja. A situação de cada mesa (livre, ocupada,
@@ -12,12 +14,15 @@
  * Planta em 3 colunas e 9 linhas:
  *   linha 1: 60 Sabores e Cafeteria          linha 2: faixa "Área da TV"
  *   linhas 3-4: mesas 1 a 4, Banheiro e TV   linha 5: faixa "Frente, perto do caixa"
- *   linhas 6-9: mesas 5 a 11, Bancada, Entrada (calçada) e Caixa
+ *   linhas 6-9: mesas 5 a 11, duas Bancadas (a de baixo onde era a entrada) e Caixa
  */
 
 export type AreaDaMesa = "tv" | "frente";
 
 export type Mesa = {
+  /** Identidade fixa da mesa (a posição na loja). Nunca muda, mesmo quando o número muda. */
+  codigo: string;
+  /** Número que aparece na tela (o padrão abaixo, ou o escolhido por supervisor e acima). */
   numero: number;
   area: AreaDaMesa;
   lugares: number;
@@ -35,18 +40,18 @@ export const NOME_DA_AREA_DA_MESA: Readonly<Record<AreaDaMesa, string>> = {
 
 export const MESAS_DA_LOJA: readonly Mesa[] = [
   // Área da TV ("salão menor"): mesas de 2 lugares, em duas colunas.
-  { numero: 1, area: "tv", lugares: 2, coluna: 1, linha: 3 },
-  { numero: 2, area: "tv", lugares: 2, coluna: 2, linha: 3 },
-  { numero: 3, area: "tv", lugares: 2, coluna: 1, linha: 4 },
-  { numero: 4, area: "tv", lugares: 3, coluna: 2, linha: 4 },
+  { codigo: "m1", numero: 1, area: "tv", lugares: 2, coluna: 1, linha: 3 },
+  { codigo: "m2", numero: 2, area: "tv", lugares: 2, coluna: 2, linha: 3 },
+  { codigo: "m3", numero: 3, area: "tv", lugares: 2, coluna: 1, linha: 4 },
+  { codigo: "m4", numero: 4, area: "tv", lugares: 3, coluna: 2, linha: 4 },
   // Frente, perto do caixa: centro (5, 6, 7, 11) e direita (8, Mesão, 10).
-  { numero: 5, area: "frente", lugares: 4, coluna: 2, linha: 6 },
-  { numero: 8, area: "frente", lugares: 4, coluna: 3, linha: 6 },
-  { numero: 6, area: "frente", lugares: 4, coluna: 2, linha: 7 },
-  { numero: 9, area: "frente", lugares: 6, coluna: 3, linha: 7, apelido: "Mesão" },
-  { numero: 7, area: "frente", lugares: 4, coluna: 2, linha: 8 },
-  { numero: 10, area: "frente", lugares: 4, coluna: 3, linha: 8 },
-  { numero: 11, area: "frente", lugares: 4, coluna: 2, linha: 9 },
+  { codigo: "m5", numero: 5, area: "frente", lugares: 4, coluna: 2, linha: 6 },
+  { codigo: "m8", numero: 8, area: "frente", lugares: 4, coluna: 3, linha: 6 },
+  { codigo: "m6", numero: 6, area: "frente", lugares: 4, coluna: 2, linha: 7 },
+  { codigo: "m9", numero: 9, area: "frente", lugares: 6, coluna: 3, linha: 7, apelido: "Mesão" },
+  { codigo: "m7", numero: 7, area: "frente", lugares: 4, coluna: 2, linha: 8 },
+  { codigo: "m10", numero: 10, area: "frente", lugares: 4, coluna: 3, linha: 8 },
+  { codigo: "m11", numero: 11, area: "frente", lugares: 4, coluna: 2, linha: 9 },
 ];
 
 /** Pontos de referência da planta (não são mesas). `colunas` e `linhas` dizem quantas casas ocupam. */
@@ -65,7 +70,8 @@ export const MARCOS_DA_LOJA: readonly MarcoDaLoja[] = [
   { texto: "Banheiro", coluna: 3, linha: 3 },
   { texto: "TV", coluna: 3, linha: 4 },
   { texto: "Bancada", detalhe: "2 lugares virados para a parede, usar em último caso", coluna: 1, linha: 6, linhas: 2 },
-  { texto: "Entrada (calçada)", coluna: 1, linha: 8, linhas: 2 },
+  // Onde era a "Entrada (calçada)": outra bancada de 2 lugares, igual à de cima (pedido do responsável, 26/11/2026).
+  { texto: "Bancada", detalhe: "2 lugares", coluna: 1, linha: 8, linhas: 2 },
   { texto: "Caixa", coluna: 3, linha: 9 },
 ];
 
@@ -75,8 +81,13 @@ export const FAIXAS_DA_LOJA: readonly { texto: string; linha: number }[] = [
   { texto: "Frente, perto do caixa", linha: 5 },
 ];
 
-export function mesaDaLoja(numero: number): Mesa | undefined {
-  return MESAS_DA_LOJA.find((m) => m.numero === numero);
+export function mesaDaLoja(numero: number, mesas: readonly Mesa[] = MESAS_DA_LOJA): Mesa | undefined {
+  return mesas.find((m) => m.numero === numero);
+}
+
+/** As mesas da loja com os números escolhidos (código -> número); sem escolha, fica o padrão. */
+export function aplicarNumeros(numeros: Readonly<Record<string, number>>, mesas: readonly Mesa[] = MESAS_DA_LOJA): Mesa[] {
+  return mesas.map((m) => (numeros[m.codigo] !== undefined ? { ...m, numero: numeros[m.codigo]! } : { ...m }));
 }
 
 /** "Mesa 9 (Mesão)" ou "Mesa 4". */

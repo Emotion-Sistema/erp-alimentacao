@@ -146,3 +146,83 @@ movimento = emergência, um aviso, e duas reavaliações em paralelo (3 rodadas)
 acusa reavaliação atrasada. Mutações que derrubam: começo calado antigo; sem começo calado; área do
 item calada; sem olhar o saldo anterior da área; `dados` sempre completo; reavaliação sem trava;
 reavaliação ignorando o dia; sem acusar a atrasada.
+
+## Parte 2 (26/11/2026): telas e começo calado
+- **Telas (visual Balcão, decisão 0028):** no painel do Estoque, cada item ganha o selo da pior
+  situação nas áreas vistas (Repor, Emergência, Esgotou) e "Trazer do guardado"; chip "Para repor".
+  Na gaveta do item, o bloco "Linhas de reposição" (definir as linhas, "Usar sugestão", "dura até",
+  histórico). Em Compras, a primeira aba é "Para repor" (lista por gravidade, por área, baixar CSV;
+  só `compras.gerenciar`). O painel recebe `reposicao` (situação por área, sem quantidades; some na
+  área em contagem cega para quem conta). `LinhasDaArea` traz a observação atual.
+- **Começo calado também na área do item:** a primeira avaliação, sem movimento (definir a linha), de
+  uma área que nunca teve saldo do item não avisa, nem na área do próprio item. Assim a primeira
+  carga de linhas não vira centenas de "esgotou" para ingredientes que nunca foram comprados. O
+  estado nasce "esgotado" e o item entra na lista para repor. Item que já teve saldo avisa normalmente
+  (também o que só teve saldo "a receber"). Aceito: se a primeira compra ficar abaixo da emergência,
+  esgotado -> emergência é melhora e não avisa; o item fica na lista "Para repor".
+- Evidência: `estoque-reposicao.teste.ts` (parte 2: nunca comprado não avisa e entra na lista; já
+  teve saldo avisa; situação no painel e contagem cega) e `apps/gestao/testes-tela/reposicao.spec.ts`.
+## Parte 2 (26/11/2026): avisos mais calmos
+- **Urgente não visto sobe para o superior** (RC-18; migração 0028; `estoque-avisos-subir.ts`). O
+  worker confere a cada 5 minutos: aviso urgente de emergência, esgotou ou "começou a usar o
+  guardado" que ainda vale (turno), nasceu há 15 minutos ou mais e ninguém viu vira um aviso novo,
+  urgente, `estoque.subiu`, para o superior de quem devia ter visto (cozinheira, auxiliar e supervisor
+  -> gerente geral; gerente geral -> dono), com o mesmo texto e o mesmo `dados` (sem quantidades se
+  o original já ia sem elas). Só sobe se o problema continua (o item segue em emergência ou esgotou;
+  segue usando o guardado), no máximo um por item e área a cada vez (o mais novo), e não sobe se um
+  aviso mais novo do mesmo item e área já foi visto. O sino só marca "visto" o que aparece nele (os 15
+  primeiros cartões): o resto não conta como visto e pode subir. Cada aviso sobe uma vez só: `aviso_subida` com chave primária, sob uma trava, mesmo
+  com duas execuções ao mesmo tempo. Hipótese: 15 minutos para todos, até existir configuração; o
+  aviso que subiu não sobe de novo. Vale só para os avisos do estoque; o RC-18 pede o mesmo para
+  todo urgente, o que fica para a frente de avisos. A migração cria um índice sem `CONCURRENTLY`
+  (segundos com o tamanho atual da tabela `aviso`); reverter e aplicar de novo deixa subir outra vez
+  os urgentes do turno que já tinham subido.
+- **Vários itens em reposição viram um cartão só** na central de avisos (o sino): "5 itens entraram
+  em reposição", com a lista e um "Resolvido (todos)". Só os normais ainda não resolvidos; urgentes
+  nunca se juntam; o histórico (/avisos) continua um por um. É só na tela: o aviso não muda depois de
+  criado (RC-17), então juntar no banco exigiria atrasar o aviso.
+- Evidência: `estoque-avisos-subir.teste.ts` (antes de 15 min não sobe; depois uma vez só; três
+  execuções sobrepostas de verdade = uma, sem erro; no prazo exato sobe e 5 s antes não;
+  esgotou que voltou à emergência sobe; emergência e guardado do mesmo movimento = um; mais novo visto = nenhum; visto não sobe e entregue sem ver sobe; resolvido não sobe, piorou sobe;
+  turno acabado não sobe; esgotou sobe ao dono sem quantidades; guardado trazido não sobe) e
+  `agrupar-avisos.teste.ts`. Mutações que derrubam: sem conferir se continua; sem olhar o "visto"; sem a trava; sem o "um
+  por item e área". Revisão independente aprovada (26/11/2026), com os ajustes acima.
+## Desperdício por vencimento (26/11/2026): ideia nº 15, D1, D7 e D4a
+Migração 0029; `estoque-validade.ts`; entrada em `estoque.ts`. Só leitura e avisos: não muda saldo
+nem o RC-01.
+- **Dinheiro em risco (D1):** `GET /api/estoque/em-risco`, só com `custos.ver`, nas áreas que a
+  pessoa vê. "Vence em 3 dias" = validade de hoje até hoje + 3 (7 dias inclui os 3); só em uso e
+  guardado, sem o bloqueado (quarentena não vai ser usada) e sem o "a receber". Valor = parte do valor
+  do item que cabe à quantidade (custo médio, como na saída). O vencido que continua no estoque
+  (livre ou bloqueado) aparece à parte. Mostrado no painel do estoque. O "resumo do dia" ainda não
+  existe: entra lá quando ele for feito.
+- **Aviso "perto do vencimento" (D1, RC-09):** normal, para quem cuida da área e o gerente geral, uma
+  vez por lote e área (`estoque_lote_aviso`, chave primária, sob trava), quando o lote livre vence
+  hoje ou nos próximos 2 dias. Não avisa o lote que já entrou com 2 dias ou menos de validade (ex.:
+  molho da casa que vale 2 dias): isso se sabe na entrada e a cozinha usa no dia; senão toda produção
+  curta avisaria.
+- **Vencido parado (D7):** normal, para quem cuida da área, uma vez por lote e área, quando o lote está
+  2 dias depois da validade e ainda tem saldo (livre ou bloqueado): ninguém registrou a perda. Lote
+  sem saldo (perda registrada) não avisa.
+- Os dois rodam no worker de hora em hora (minuto 10) e **só com a loja em turno**: o aviso vale até o
+  fim do turno (RC-18), e um aviso nascido de madrugada morreria antes de alguém ver. Os textos não
+  têm quantidade (contagem cega). Aceito: o aviso de um lote aparece só no turno em que nasceu.
+- **Validade curta na entrada (D4a):** campo opcional "validade mínima na entrada (dias)" no
+  ingrediente (1 a 365; nulo = sem alerta; a alteração sem o campo mantém o valor). A compra que chega
+  com menos dias **entra mesmo assim** (já está na loja): a resposta traz `validadeCurta` para a tela
+  e, se quem deu entrada não é de compras, o gerente geral recebe um aviso normal
+  (`estoque.validade_curta`) para falar com o fornecedor. Reenvio da mesma entrada (mesma chave) não
+  repete o alerta nem o aviso. Não vale para saldo inicial nem para preparo da casa.
+- Hipóteses (26/11/2026): 2 dias para "perto" e 2 dias para "vencido parado", até existir configuração.
+- Revisão (26/11/2026): o reenvio da entrada devolve o alerta de novo (sem aviso novo); o dinheiro em
+  risco só lista para quem também tem `estoque.desfazer` (contagem cega, como no painel). Ficam como
+  ruído aceito: a sobra de contagem vira lote novo e pode avisar "perto" mais uma vez; na primeira
+  execução em homologação todo vencido parado avisa de uma vez (um cartão por lote); turno que passe
+  da meia-noite faria o aviso do dia novo morrer no fim desse turno (hoje o último turno acaba 23h30).
+  Reverter a 0029 apaga as validades mínimas e as marcas de "já avisado".
+- Evidência: `estoque-validade.teste.ts` (11 testes: somas em 3 e 7 dias, bloqueado fora, vencido à
+  parte, recusa sem custos.ver com auditoria; perto uma vez só, não para o que entrou perto nem para o
+  bloqueado, não fora do turno; vencido parado depois de 2 dias, não com perda registrada; duas
+  execuções juntas = um aviso; histórico imutável; validade curta com aviso, sem aviso para quem
+  compra, reenvio sem repetir; cadastro guarda, mantém e limpa). Mutações que derrubam: sem a trava;
+  sem a regra do lote que entrou perto.

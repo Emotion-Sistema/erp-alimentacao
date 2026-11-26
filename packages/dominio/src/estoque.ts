@@ -39,6 +39,7 @@ import { Fracao } from "./fichas-comum";
 import { consumoDaFicha } from "./fichas";
 import { pode } from "./permissoes";
 import { exigir, type Ator } from "./sessao";
+import { criarAviso } from "./avisos";
 import { avaliarReposicao, conferirReposicao, type ParParaReavaliar } from "./estoque-reposicao-estado";
 
 type Trx = Banco;
@@ -613,9 +614,17 @@ const esquemaEntrada = z.object(
  * custo de referência) e fica marcado como estimado para alguém corrigir depois.
  * Preparo da casa não entra por compra: entra pela produção.
  */
-export async function registrarEntrada(db: Banco, ator: Ator | null, dados: unknown): Promise<Lancado> {
+export async function registrarEntrada(db: Banco, ator: Ator | null, dados: unknown): Promise<ResultadoDaEntrada> {
   return lancarEntrada(db, ator, dados, "entrada");
 }
+
+/** Linha da entrada com validade mais curta que o mínimo do ingrediente (D4a). Só alerta: a entrada vale. */
+export type ValidadeCurta = { itemId: number; nome: string; validade: string; dias: number; minimoDias: number };
+export type ResultadoDaEntrada = Lancado & { validadeCurta: ValidadeCurta[] };
+export const TIPO_DO_AVISO_DE_VALIDADE_CURTA = "estoque.validade_curta";
+
+/** Dias de `de` até `ate` (AAAA-MM-DD). */
+const diasEntre = (de: string, ate: string) => Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000);
 
 /** O que já havia na loja ao começar a usar o sistema (também aceita preparo). */
 export async function registrarSaldoInicial(db: Banco, ator: Ator | null, dados: unknown): Promise<Lancado> {
@@ -627,7 +636,7 @@ export async function registrarSaldoInicialDaPlanilha(db: Banco, ator: Ator | nu
   return lancarEntrada(db, ator, dados, "saldo_inicial", resumoDoPedido);
 }
 
-async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo: "entrada" | "saldo_inicial", resumoDaPlanilha?: string): Promise<Lancado> {
+async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo: "entrada" | "saldo_inicial", resumoDaPlanilha?: string): Promise<ResultadoDaEntrada> {
   if (!ator) await exigir(db, ator, "estoque.cozinha");
   const d = validar(esquemaEntrada, dados);
   if (tipo === "entrada" && d.itens.length > ITENS_POR_LANCAMENTO) throw new ErroDeRegra("dados_invalidos", `No máximo ${ITENS_POR_LANCAMENTO} itens por entrada.`);
@@ -641,7 +650,11 @@ async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo:
   return db.transaction().execute(async (trx) => {
     const assinatura = assinar(tipo, d);
     const ja = await jaLancado(trx, d.chave, assinatura);
-    if (ja) return ja;
+    if (ja) {
+      // Reenvio (a resposta da primeira vez se perdeu): devolve o alerta de novo, sem aviso novo.
+      const validadeCurta = tipo === "entrada" ? await conferirValidadeCurta(trx, ator!, ja.movimentoId, d.itens, await garantirItens(trx, d.itens), await hoje(trx), false) : [];
+      return { ...ja, validadeCurta };
+    }
     const ids = await garantirItens(trx, d.itens);
     const itens = await travarItens(trx, ids);
     if (d.fornecedorId !== undefined) {
@@ -677,8 +690,54 @@ async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo:
       else l.entrada(item.id, q, l.estimar(item.id, q), { estimado: true });
     }
     await l.fechar();
-    return { movimentoId: mov, repetido: false };
+    const validadeCurta = tipo === "entrada" ? await conferirValidadeCurta(trx, ator!, mov, d.itens, ids, dia, true) : [];
+    return { movimentoId: mov, repetido: false, validadeCurta };
   });
+}
+
+/**
+ * D4a (ideia nº 15): a compra chegou com validade mais curta que o mínimo do ingrediente. Não recusa
+ * (a mercadoria já está na loja): devolve o alerta para a tela e, se quem deu entrada não é de
+ * compras, avisa o gerente geral (normal), para falar com o fornecedor. Um aviso por entrada.
+ */
+async function conferirValidadeCurta(
+  trx: Trx,
+  ator: Ator,
+  movimentoId: string,
+  linhas: readonly { validade?: string | undefined }[],
+  ids: readonly number[],
+  dia: string,
+  avisar: boolean,
+): Promise<ValidadeCurta[]> {
+  const comValidade = linhas.flatMap((x, k) => (x.validade !== undefined ? [{ itemId: ids[k]!, validade: x.validade }] : []));
+  if (!comValidade.length) return [];
+  const minimos = await sql<{ item_id: number; minimo: number; nome: string }>`
+    SELECT e.id AS item_id, i.validade_minima_dias AS minimo, i.nome FROM estoque_item e JOIN ingrediente i ON i.id = e.ingrediente_id
+    WHERE e.id = ANY(${[...new Set(comValidade.map((x) => x.itemId))]}::int[]) AND i.validade_minima_dias IS NOT NULL`.execute(trx);
+  const minimo = new Map(minimos.rows.map((x) => [x.item_id, x]));
+  const curtas: ValidadeCurta[] = [];
+  for (const x of comValidade) {
+    const m = minimo.get(x.itemId);
+    if (m === undefined) continue;
+    const dias = diasEntre(dia, x.validade);
+    if (dias < m.minimo) curtas.push({ itemId: x.itemId, nome: m.nome, validade: x.validade, dias, minimoDias: m.minimo });
+  }
+  if (avisar && curtas.length && !pode(ator.cargoAtivo, "compras.gerenciar")) {
+    const u = await trx.selectFrom("unidade").select("id").orderBy("id").limit(1).executeTakeFirst();
+    if (u) {
+      const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+      const lista = curtas.map((c) => `"${c.nome}" vence ${ddmm(c.validade)} (mínimo ${c.minimoDias} dias)`).join("; ");
+      await criarAviso(trx, {
+        unidadeId: u.id,
+        paraCargos: ["gerente_geral"],
+        tipo: TIPO_DO_AVISO_DE_VALIDADE_CURTA,
+        prioridade: "normal",
+        texto: `Entrada com validade curta: ${lista}. Fale com o fornecedor.`,
+        dados: { movimentoId, itens: curtas.map((c) => ({ itemId: c.itemId, validade: c.validade, minimoDias: c.minimoDias })), acao: "ver_entrada" },
+      });
+    }
+  }
+  return curtas;
 }
 
 // ---------------------------------------------------------------- transferência
@@ -1128,7 +1187,14 @@ export type ItemDoPainel = {
   /** Menor validade com saldo (para "vence logo"). */
   proximaValidade: string | null;
   areas: SaldoDaArea[];
+  /**
+   * Situação de reposição (E10) nas áreas da pessoa que já têm estado (linha definida ou saldo).
+   * Sem quantidades. Some enquanto há contagem aberta do item na área (contagem cega).
+   */
+  reposicao: SituacaoDaArea[];
 };
+
+export type SituacaoDaArea = { area: AreaEstoque; situacao: "saudavel" | "repor" | "emergencia" | "esgotado"; usandoGuardado: boolean; abastecer: boolean };
 
 type LinhaDoSaldo = { item_id: number; area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; vencido: boolean; quantidade: string; validade: string | null };
 
@@ -1215,6 +1281,11 @@ async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor
   );
   const porItem = new Map<number, LinhaDoSaldo[]>();
   for (const s of saldos) porItem.set(s.item_id, [...(porItem.get(s.item_id) ?? []), s]);
+  const situacoes = await situacoesDosItens(
+    db,
+    r.rows.flatMap((x) => (x.item_id === null ? [] : [x.item_id])),
+    areas,
+  );
   return r.rows.map((x) => {
     const qT = q4DoBanco(x.quantidade);
     const vT = BigInt(x.valor);
@@ -1235,8 +1306,26 @@ async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor
       proximaValidade: validades.length ? validades.sort()[0]! : null,
       emContagem: false,
       areas: montarAreas(linhas, areas, qT, vT, comValor),
+      reposicao: x.item_id === null ? [] : (situacoes.get(x.item_id) ?? []),
     };
   });
+}
+
+/** Estado de reposição (E10) dos itens nas áreas vistas, na ordem das áreas. */
+async function situacoesDosItens(db: Banco, itemIds: readonly number[], areas: readonly AreaEstoque[]): Promise<Map<number, SituacaoDaArea[]>> {
+  const m = new Map<number, SituacaoDaArea[]>();
+  if (itemIds.length === 0) return m;
+  const r = (
+    await sql<{ item_id: number; area: string; situacao: string; usando_guardado: boolean; abastecer: boolean }>`
+      SELECT item_id, area, situacao, usando_guardado, abastecer FROM estoque_reposicao_estado
+      WHERE item_id = ANY(${[...itemIds]}::int[]) AND area = ANY(${[...areas]}::text[])`.execute(db)
+  ).rows;
+  for (const x of r.sort((a, b) => AREAS_ESTOQUE.indexOf(a.area as AreaEstoque) - AREAS_ESTOQUE.indexOf(b.area as AreaEstoque)))
+    m.set(x.item_id, [
+      ...(m.get(x.item_id) ?? []),
+      { area: x.area as AreaEstoque, situacao: x.situacao as SituacaoDaArea["situacao"], usandoGuardado: x.usando_guardado, abastecer: x.abastecer },
+    ]);
+  return m;
 }
 
 /**
@@ -1259,7 +1348,9 @@ async function esconderEmContagem<T extends ItemDoPainel>(db: Banco, ator: Ator,
       chaves.has(`${i.itemId}:${a.area}`) ? { ...a, emUso: null, guardado: null, bloqueado: null, vencido: null, livre: null, aReceber: null, valorCentavos: null, emContagem: true } : a,
     );
     const algum = areas.some((a) => a.emContagem) || chaves.has(`${i.itemId}:${i.areaPadrao}`);
-    return algum ? { ...i, areas, total: null, valorCentavos: null, emContagem: true } : i;
+    // A situação também conta quanto há: some na área em contagem.
+    const reposicao = i.reposicao.filter((x) => !chaves.has(`${i.itemId}:${x.area}`));
+    return algum ? { ...i, areas, reposicao, total: null, valorCentavos: null, emContagem: true } : { ...i, reposicao };
   });
 }
 
