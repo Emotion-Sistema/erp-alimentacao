@@ -387,6 +387,7 @@ test.describe("telas do estoque (gerente geral)", () => {
 
   test("compras: entrada de mercadoria (dois itens), lista e correção de custo", async ({ page }) => {
     await page.goto("/estoque/compras");
+    await page.getByRole("tab", { name: "Dar entrada" }).click();
     const form = page.getByTestId("form-entrada");
     await expect(form.getByLabel("Fornecedor")).toBeVisible();
     // Fornecedor, número, data e os 8 campos do item (com valor, pois o gerente vê custos).
@@ -475,6 +476,12 @@ test.describe("telas do estoque (gerente geral)", () => {
     await detalhe.getByTestId("historico").getByRole("button", { name: /^Desfazer/ }).first().click();
     await expect(detalhe.getByTestId("form-desfazer")).toBeVisible();
     await conferirAjuda(page, "estoque (desfazer)", 1);
+    await semEstouroDeLargura(page);
+
+    // Linhas de reposição (E10): saudável, emergência, abastecimento, unidade, aviso e observação.
+    await detalhe.getByTestId("linhas-de-reposicao").getByRole("button", { name: /^Mudar linhas/ }).first().click();
+    await expect(detalhe.getByTestId("form-linhas")).toBeVisible();
+    await conferirAjuda(page, "estoque (linhas de reposição)", 6);
     await semEstouroDeLargura(page);
   });
 
