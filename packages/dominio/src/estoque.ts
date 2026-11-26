@@ -1128,7 +1128,14 @@ export type ItemDoPainel = {
   /** Menor validade com saldo (para "vence logo"). */
   proximaValidade: string | null;
   areas: SaldoDaArea[];
+  /**
+   * Situação de reposição (E10) nas áreas da pessoa que já têm estado (linha definida ou saldo).
+   * Sem quantidades. Some enquanto há contagem aberta do item na área (contagem cega).
+   */
+  reposicao: SituacaoDaArea[];
 };
+
+export type SituacaoDaArea = { area: AreaEstoque; situacao: "saudavel" | "repor" | "emergencia" | "esgotado"; usandoGuardado: boolean; abastecer: boolean };
 
 type LinhaDoSaldo = { item_id: number; area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; vencido: boolean; quantidade: string; validade: string | null };
 
@@ -1215,6 +1222,11 @@ async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor
   );
   const porItem = new Map<number, LinhaDoSaldo[]>();
   for (const s of saldos) porItem.set(s.item_id, [...(porItem.get(s.item_id) ?? []), s]);
+  const situacoes = await situacoesDosItens(
+    db,
+    r.rows.flatMap((x) => (x.item_id === null ? [] : [x.item_id])),
+    areas,
+  );
   return r.rows.map((x) => {
     const qT = q4DoBanco(x.quantidade);
     const vT = BigInt(x.valor);
@@ -1235,8 +1247,27 @@ async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor
       proximaValidade: validades.length ? validades.sort()[0]! : null,
       emContagem: false,
       areas: montarAreas(linhas, areas, qT, vT, comValor),
+      reposicao: x.item_id === null ? [] : (situacoes.get(x.item_id) ?? []),
     };
   });
+}
+
+/** Estado de reposição (E10) dos itens nas áreas vistas, na ordem das áreas. */
+async function situacoesDosItens(db: Banco, itemIds: readonly number[], areas: readonly AreaEstoque[]): Promise<Map<number, SituacaoDaArea[]>> {
+  const m = new Map<number, SituacaoDaArea[]>();
+  if (itemIds.length === 0) return m;
+  const r = await db
+    .selectFrom("estoque_reposicao_estado")
+    .select(["item_id", "area", "situacao", "usando_guardado", "abastecer"])
+    .where("item_id", "in", [...itemIds])
+    .where("area", "in", [...areas])
+    .execute();
+  for (const x of r.sort((a, b) => AREAS_ESTOQUE.indexOf(a.area as AreaEstoque) - AREAS_ESTOQUE.indexOf(b.area as AreaEstoque)))
+    m.set(x.item_id, [
+      ...(m.get(x.item_id) ?? []),
+      { area: x.area as AreaEstoque, situacao: x.situacao as SituacaoDaArea["situacao"], usandoGuardado: x.usando_guardado, abastecer: x.abastecer },
+    ]);
+  return m;
 }
 
 /**
@@ -1259,7 +1290,9 @@ async function esconderEmContagem<T extends ItemDoPainel>(db: Banco, ator: Ator,
       chaves.has(`${i.itemId}:${a.area}`) ? { ...a, emUso: null, guardado: null, bloqueado: null, vencido: null, livre: null, aReceber: null, valorCentavos: null, emContagem: true } : a,
     );
     const algum = areas.some((a) => a.emContagem) || chaves.has(`${i.itemId}:${i.areaPadrao}`);
-    return algum ? { ...i, areas, total: null, valorCentavos: null, emContagem: true } : i;
+    // A situação também conta quanto há: some na área em contagem.
+    const reposicao = i.reposicao.filter((x) => !chaves.has(`${i.itemId}:${x.area}`));
+    return algum ? { ...i, areas, reposicao, total: null, valorCentavos: null, emContagem: true } : { ...i, reposicao };
   });
 }
 

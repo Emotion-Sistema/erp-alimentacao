@@ -196,10 +196,11 @@ export async function avaliarReposicao(trx: Trx, pares: readonly ParParaReavalia
       movimentoId,
     };
     // Começo calado: só a primeira avaliação, sem movimento (mudança de linha), de uma área que nunca
-    // teve saldo do item e não é a área dele (ex.: linha nova do leite na cafeteria). Lá não houve
-    // cruzamento: só registra o estado. Na área do item, ou numa área que já teve saldo (item com
-    // saldo de antes da migração, sem movimento depois), avisa e grava o evento normalmente.
-    const silencioso = a.situacao === null && movimentoId === null && p.area !== a.area_padrao && !(await areaJaUsada(trx, p.itemId, p.area));
+    // teve saldo do item (ex.: linha nova do leite na cafeteria, ou ingrediente que nunca foi comprado
+    // nem teve saldo inicial: a primeira carga de linhas não vira centenas de "esgotou"). Lá não houve
+    // cruzamento: só registra o estado. Numa área que já teve saldo (item com saldo de antes da
+    // migração, sem movimento depois), avisa e grava o evento normalmente. E10 parte 2 (26/11/2026).
+    const silencioso = a.situacao === null && movimentoId === null && !(await areaJaUsada(trx, p.itemId, p.area));
     const avisar = async (tipo: string, prioridade: Prioridade, paraCargos: readonly Cargo[], texto: string, extra: Record<string, unknown>) => {
       if (silencioso) return null;
       const u = await unidade();
