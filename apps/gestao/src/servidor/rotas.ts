@@ -100,6 +100,7 @@ import {
   modeloDePlanilha,
   areasDoAtor,
   painelDoEstoque,
+  dinheiroEmRisco,
   estoqueDoItem,
   historicoDoItem,
   registrarEntrada,
@@ -698,6 +699,8 @@ export const verRelatorioDeContagens = seguro(async (req) => {
 });
 /** `custos.ver` (o domínio confere). */
 export const verValorDoEstoque = seguro(async (req) => json(await valorDoEstoquePorArea(obterBanco(), await ator(req))));
+/** Dinheiro em risco (D1, ideia nº 15): R$ que vence em 3 e 7 dias. `custos.ver` (o domínio confere). */
+export const verDinheiroEmRisco = seguro(async (req) => json(await dinheiroEmRisco(obterBanco(), await ator(req))));
 
 // Linhas de reposição (E10 parte 1; decisão 0029). Quem cuida da área define e vê; a lista para
 // repor é de quem compra (`compras.gerenciar`, conferido no domínio).

@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Aviso, Botao, Cartao, ChipDeEmbalagem, GrupoDeChips, Icone, ItemDeLista } from "@erp/interface";
 import { ResumoDoItem } from "./ResumoDoItem";
 import { chaveDeBusca, type ItemDoCatalogo } from "@erp/dominio/catalogo";
-import { BotaoExemplos, Marcador, Selecao } from "../Campo";
+import { BotaoExemplos, Campo, Marcador, Selecao } from "../Campo";
 import { chamar } from "../chamar";
 import { baseDaUnidade } from "@erp/dominio/unidades";
 import { unidadePorExtenso, type UnidadeBase, type UnidadePadrao } from "./auxiliares";
@@ -39,6 +39,8 @@ type Ingrediente = {
   fornecedorId: number | null;
   fornecedor: string | null;
   ativo: boolean;
+  /** Validade mínima na entrada, em dias (D4a). Nulo = sem alerta. */
+  validadeMinimaDias: number | null;
   conversoes: Conversao[];
   alergenicos: { codigo: string; tipo: "contem" | "tracos" }[];
   alergenicosConferidosEm: string | null;
@@ -501,6 +503,8 @@ function FormularioIngrediente({
   const [area, setArea] = useState(ingrediente?.area ?? modelo?.area ?? areas[0]?.valor ?? "cozinha");
   const [fornecedorId, setFornecedorId] = useState(String(ingrediente?.fornecedorId ?? modelo?.fornecedorId ?? ""));
   const [ativo, setAtivo] = useState(ingrediente?.ativo ?? true);
+  /** D4a: começa com o valor gravado; ao salvar sem mexer, vai o mesmo valor (nunca apaga sem querer). */
+  const [validadeMinima, setValidadeMinima] = useState(ingrediente?.validadeMinimaDias == null ? "" : String(ingrediente.validadeMinimaDias));
   /** Embalagens do ingrediente NOVO (no que já existe, as conversões são salvas uma a uma, abaixo). */
   const [embalagens, setEmbalagens] = useState<LinhaDeEmbalagem[]>(() => embalagensDe(modelo?.embalagens ?? []));
   const [sugerido, setSugerido] = useState("");
@@ -540,6 +544,9 @@ function FormularioIngrediente({
   async function enviar(proximo: boolean) {
     setErro("");
     if (ingrediente) {
+      // Vazio = não avisar (null). Só número inteiro; o servidor confere de 1 a 365.
+      const minimo = validadeMinima.trim();
+      if (minimo && !/^\d+$/.test(minimo)) return setErro("Validade mínima: um número inteiro de dias, de 1 a 365. Deixe vazio para não avisar.");
       setEnviando(true);
       const r = await chamar<{ id: number }>("/api/cadastros/ingredientes", "POST", {
         id: ingrediente.id,
@@ -548,6 +555,7 @@ function FormularioIngrediente({
         area,
         fornecedorId: fornecedorId ? Number(fornecedorId) : null,
         ativo,
+        validadeMinimaDias: minimo ? Number(minimo) : null,
       });
       setEnviando(false);
       if (!r.ok || !r.dados) return setErro(r.mensagem);
@@ -635,6 +643,17 @@ function FormularioIngrediente({
             exibicao={unidadeExibicao}
             unidades={unidades}
             fornecedorId={fornecedorId ? Number(fornecedorId) : null}
+          />
+        )}
+        {ingrediente && (
+          <Campo
+            rotulo="Validade mínima na entrada (dias)"
+            explicacao="Se a compra chegar com menos dias de validade que isto, o sistema avisa. Deixe vazio para não avisar."
+            exemplo="5 para o requeijão: se chegar vencendo em 3 dias, aparece o aviso para falar com o fornecedor."
+            inputMode="numeric"
+            maxLength={3}
+            value={validadeMinima}
+            onChange={(e) => setValidadeMinima(e.target.value)}
           />
         )}
         {ingrediente && (

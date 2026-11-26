@@ -20,6 +20,7 @@ import { custoMedio, dia, hojeNaLoja, q4, qtd, reais, somarDias, textoQ4 } from 
 import type { ContextoDoEstoque } from "./contexto";
 import { Contagens } from "./Contagens";
 import { DetalheDoItem } from "./DetalheDoItem";
+import { DinheiroEmRisco } from "./DinheiroEmRisco";
 import { EntradaDeMercadoria } from "./compras/EntradaDeMercadoria";
 import { Recebimentos } from "./Recebimentos";
 import { TE } from "./textos";
@@ -76,8 +77,11 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
   const [soVence, setSoVence] = useState(false);
   const [soRepor, setSoRepor] = useState(false);
   const [aberto, setAberto] = useState<string | null>(null);
+  /** Muda a cada recarga: o bloco "Dinheiro em risco" busca de novo. */
+  const [versao, setVersao] = useState(0);
 
   const recarregar = useCallback(async () => {
+    setVersao((v) => v + 1);
     const r = await chamar<ItemDoPainel[]>("/api/estoque");
     if (r.ok && r.dados) {
       setItens(r.dados);
@@ -120,6 +124,18 @@ export function PainelDoEstoque({ contexto, areasDaPagina, titulo }: { contexto:
       {!itens && !erro && <p aria-live="polite">{TE.carregando}</p>}
       {/* Veio de outra área para esta tela: quem recebe confirma ou recusa (25/11/2026). */}
       {itens && minhas.length > 0 && <Recebimentos contexto={contexto} areas={codigos} aoMudar={() => void recarregar()} />}
+      {/* D1 (ideia nº 15): só quem vê custos; sem custos.ver a rota nem é chamada. */}
+      {itens && minhas.length > 0 && contexto.podeVerCusto && (
+        <DinheiroEmRisco
+          contexto={contexto}
+          areas={codigos}
+          versao={versao}
+          aoAbrirItem={(itemId) => {
+            const i = daPagina.find((x) => x.itemId === itemId);
+            if (i) setAberto(chaveDoItem(i));
+          }}
+        />
+      )}
       {itens && minhas.length > 0 && (
         <Abas
           rotulo={TE.painel.abas}

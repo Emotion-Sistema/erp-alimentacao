@@ -86,6 +86,17 @@ export const dadosIngrediente = z.object({
   area: z.enum(AREAS_ESTOQUE, { error: "Escolha a área de estoque." }),
   fornecedorId: z.number().int().positive().nullish().transform((v) => v ?? null),
   ativo: z.boolean().default(true),
+  /**
+   * Validade mínima na entrada, em dias (D4a, ideia nº 15): a compra que chega com menos gera um
+   * alerta. Nulo = sem alerta; sem o campo, na alteração, fica o que estava.
+   */
+  validadeMinimaDias: z
+    .number({ error: "Validade mínima: um número de dias." })
+    .int("Validade mínima: um número inteiro de dias.")
+    .min(1, "Validade mínima: de 1 a 365 dias.")
+    .max(365, "Validade mínima: de 1 a 365 dias.")
+    .nullable()
+    .optional(),
 });
 
 export const dadosConversao = z.object({
@@ -223,6 +234,8 @@ export type Ingrediente = {
   fornecedorId: number | null;
   fornecedor: string | null;
   ativo: boolean;
+  /** Validade mínima na entrada, em dias (D4a). Nulo = sem alerta. */
+  validadeMinimaDias: number | null;
   conversoes: Conversao[];
   /** Alergênicos marcados (S1, decisão 0026): códigos do catálogo. */
   alergenicos: { codigo: string; tipo: "contem" | "tracos" }[];
@@ -253,6 +266,7 @@ export async function listarIngredientes(
       "i.fornecedor_id",
       "f.nome as fornecedor",
       "i.ativo",
+      "i.validade_minima_dias",
       "i.alergenicos_conferidos_em",
       "u.nome as conferidoPor",
       sql<string[]>`ARRAY(
@@ -288,6 +302,7 @@ export async function listarIngredientes(
       fornecedorId: l.fornecedor_id,
       fornecedor: l.fornecedor,
       ativo: l.ativo,
+      validadeMinimaDias: l.validade_minima_dias,
       conversoes: conversoes
         .filter((c) => c.ingrediente_id === l.id)
         .map((c) => ({ id: c.id, nome: c.nome, quantidadeBase: decimalLimpo(c.quantidade_base), ativo: c.ativo, modeloId: c.modelo_id })),
@@ -307,7 +322,7 @@ export async function salvarIngrediente(db: Banco, ator: Ator | null, dados: unk
   const baseNova = d.unidadeBase ?? (d.id ? undefined : d.unidadeExibicao && baseDaUnidade(d.unidadeExibicao));
   if (!d.id && !baseNova) throw new ErroDeRegra("dados_invalidos", "Escolha a unidade do estoque: kg, g, L, ml, un ou dz.");
   if (!d.id) conferirFamilia(baseNova!, d.unidadeExibicao);
-  const colunas = ["id", "nome", "unidade_base", "unidade_exibicao", "area_estoque", "fornecedor_id", "ativo"] as const;
+  const colunas = ["id", "nome", "unidade_base", "unidade_exibicao", "area_estoque", "fornecedor_id", "ativo", "validade_minima_dias"] as const;
   try {
     return await db.transaction().execute(async (trx) => {
       if (d.fornecedorId) {
@@ -316,7 +331,13 @@ export async function salvarIngrediente(db: Banco, ator: Ator | null, dados: unk
         if (!f) throw new ErroDeRegra("dados_invalidos", "Fornecedor não encontrado.");
         if (!f.ativo) throw new ErroDeRegra("dados_invalidos", "Esse fornecedor está desativado.");
       }
-      const valores = { nome: d.nome, area_estoque: d.area, fornecedor_id: d.fornecedorId, ativo: d.ativo };
+      const valores = {
+        nome: d.nome,
+        area_estoque: d.area,
+        fornecedor_id: d.fornecedorId,
+        ativo: d.ativo,
+        ...(d.validadeMinimaDias !== undefined ? { validade_minima_dias: d.validadeMinimaDias } : {}),
+      };
       let antes: Record<string, unknown> | undefined;
       let salvo;
       let reabrirAlergenicos = false;

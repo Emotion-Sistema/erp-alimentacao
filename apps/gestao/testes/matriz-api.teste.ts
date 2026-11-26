@@ -155,6 +155,7 @@ const ROTAS: Rota[] = [
   { metodo: "GET", caminho: "/api/estoque/relatorios/perdas", ...AREA, chamar: (c) => r.verRelatorioDePerdas(req("/api/estoque/relatorios/perdas", "GET", c)) },
   { metodo: "GET", caminho: "/api/estoque/relatorios/contagens", ...AREA, chamar: (c) => r.verRelatorioDeContagens(req("/api/estoque/relatorios/contagens", "GET", c)) },
   { metodo: "GET", caminho: "/api/estoque/relatorios/valor", ...AREA, tambem: ["custos.ver"], chamar: (c) => r.verValorDoEstoque(req("/api/estoque/relatorios/valor", "GET", c)) },
+  { metodo: "GET", caminho: "/api/estoque/em-risco", acao: "custos.ver", chamar: (c) => r.verDinheiroEmRisco(req("/api/estoque/em-risco", "GET", c)) },
   // Linhas de reposição (E10 parte 1, decisão 0029).
   { metodo: "GET", caminho: "/api/estoque/linhas", ...AREA, chamar: (c) => r.verLinhasDoItem(req(`/api/estoque/linhas?ingredienteId=${INEXISTENTE}`, "GET", c)) },
   { metodo: "POST", caminho: "/api/estoque/linhas", ...AREA, chamar: (c) => r.gravarLinhas(req("/api/estoque/linhas", "POST", c, {})) },
