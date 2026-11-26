@@ -151,7 +151,8 @@ test("painel: acha pelo código e pela etiqueta; fora da lista pergunta ao servi
   // Um lote que entrou depois que a lista carregou: a tela pergunta ao servidor e abre a gaveta.
   const r = await page.request.post("/api/estoque/entradas", { data: { chave: crypto.randomUUID(), itens: [{ ingredienteId: idDe(), quantidade: "1", unidade: "kg", local: "guardado" }] } });
   expect(r.status(), await r.text()).toBe(201);
-  await busca.fill(`${COD}-003`);
+  // Sem traço, como muita gente digita ("cod3"): o servidor decide qual lote é.
+  await busca.fill(`${COD.toLowerCase()}3`);
   await expect(gaveta.getByTestId(`lote-${COD}-003`)).toHaveAttribute("data-destaque", "sim");
   await gaveta.getByRole("button", { name: "Fechar" }).click();
 
