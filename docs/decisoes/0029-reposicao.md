@@ -157,6 +157,8 @@ reavaliação ignorando o dia; sem acusar a atrasada.
 - **Começo calado também na área do item:** a primeira avaliação, sem movimento (definir a linha), de
   uma área que nunca teve saldo do item não avisa, nem na área do próprio item. Assim a primeira
   carga de linhas não vira centenas de "esgotou" para ingredientes que nunca foram comprados. O
-  estado nasce "esgotado" e o item entra na lista para repor. Item que já teve saldo avisa normalmente.
+  estado nasce "esgotado" e o item entra na lista para repor. Item que já teve saldo avisa normalmente
+  (também o que só teve saldo "a receber"). Aceito: se a primeira compra ficar abaixo da emergência,
+  esgotado -> emergência é melhora e não avisa; o item fica na lista "Para repor".
 - Evidência: `estoque-reposicao.teste.ts` (parte 2: nunca comprado não avisa e entra na lista; já
   teve saldo avisa; situação no painel e contagem cega) e `apps/gestao/testes-tela/reposicao.spec.ts`.

@@ -1256,12 +1256,11 @@ async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor
 async function situacoesDosItens(db: Banco, itemIds: readonly number[], areas: readonly AreaEstoque[]): Promise<Map<number, SituacaoDaArea[]>> {
   const m = new Map<number, SituacaoDaArea[]>();
   if (itemIds.length === 0) return m;
-  const r = await db
-    .selectFrom("estoque_reposicao_estado")
-    .select(["item_id", "area", "situacao", "usando_guardado", "abastecer"])
-    .where("item_id", "in", [...itemIds])
-    .where("area", "in", [...areas])
-    .execute();
+  const r = (
+    await sql<{ item_id: number; area: string; situacao: string; usando_guardado: boolean; abastecer: boolean }>`
+      SELECT item_id, area, situacao, usando_guardado, abastecer FROM estoque_reposicao_estado
+      WHERE item_id = ANY(${[...itemIds]}::int[]) AND area = ANY(${[...areas]}::text[])`.execute(db)
+  ).rows;
   for (const x of r.sort((a, b) => AREAS_ESTOQUE.indexOf(a.area as AreaEstoque) - AREAS_ESTOQUE.indexOf(b.area as AreaEstoque)))
     m.set(x.item_id, [
       ...(m.get(x.item_id) ?? []),
