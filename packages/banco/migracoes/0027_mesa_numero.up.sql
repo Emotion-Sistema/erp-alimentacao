@@ -5,10 +5,12 @@
 -- Número único por unidade, conferido no fim da transação (DEFERRABLE): dá para trocar o número de
 -- duas mesas entre si numa gravação só. Cada mudança fica na auditoria (mesas.numerar, com o antes e o
 -- depois); a linha guarda quem mudou por último e quando.
+-- Mesa que sai do mapa (o desenho da loja ainda é provisório) fica com número vazio: o número dela
+-- volta a ficar livre sem apagar a linha (o único ignora vazio).
 CREATE TABLE mesa_numero (
   unidade_id     integer NOT NULL REFERENCES unidade(id),
   codigo         text NOT NULL CHECK (codigo ~ '^[a-z0-9_]{1,20}$'),
-  numero         integer NOT NULL CHECK (numero BETWEEN 1 AND 999),
+  numero         integer CHECK (numero BETWEEN 1 AND 999),
   atualizado_por integer NOT NULL REFERENCES usuario(id),
   atualizado_em  timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (unidade_id, codigo),

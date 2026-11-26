@@ -12,8 +12,8 @@ import { exigir, type Ator } from "./sessao";
  */
 
 async function numerosGravados(db: Banco, unidadeId: number): Promise<Record<string, number>> {
-  const linhas = await db.selectFrom("mesa_numero").select(["codigo", "numero"]).where("unidade_id", "=", unidadeId).execute();
-  return Object.fromEntries(linhas.map((l) => [l.codigo, l.numero]));
+  const linhas = await db.selectFrom("mesa_numero").select(["codigo", "numero"]).where("unidade_id", "=", unidadeId).where("numero", "is not", null).execute();
+  return Object.fromEntries(linhas.map((l) => [l.codigo, l.numero!]));
 }
 
 /** As mesas da unidade de quem está dentro, com os números escolhidos. `acao`: a da tela que mostra. */
@@ -23,9 +23,10 @@ export async function mesasDaUnidade(db: Banco, ator: Ator | null, acao: Acao): 
   return aplicarNumeros(await numerosGravados(db, a.unidadeId));
 }
 
-const esquema = z
-  .object({ numeros: z.record(z.string().max(20), z.number().int().min(1).max(999)) })
-  .strict();
+const mapa = z.record(z.string().max(20), z.number().int().min(1).max(999));
+// `antes`: os números que a pessoa viu ao abrir a janela. Se alguém gravou no meio, recusa em vez de
+// apagar a mudança do outro sem aviso.
+const esquema = z.object({ numeros: mapa, antes: mapa }).strict();
 
 /**
  * Grava o número de TODAS as mesas de uma vez (código -> número). Recusa número repetido, mesa
@@ -53,6 +54,16 @@ export async function numerarMesas(db: Banco, ator: Ator | null, dados: unknown)
     // Uma numeração de cada vez por loja: duas pessoas gravando juntas não se misturam.
     await sql`SELECT pg_advisory_xact_lock(hashtext('mesa_numero'), ${unidadeId})`.execute(t);
     const antes = aplicarNumeros(await numerosGravados(t, unidadeId));
+    if (antes.some((m) => lido.data.antes[m.codigo] !== m.numero))
+      throw new ErroDeRegra("conflito", "Alguém mudou os números enquanto você editava. Feche, abra de novo e confira.");
+    // Mesa que saiu do mapa: o número dela fica vazio (volta a ficar livre); a linha não se apaga.
+    await t
+      .updateTable("mesa_numero")
+      .set({ numero: null, atualizado_por: a.usuarioId, atualizado_em: sql`now()` })
+      .where("unidade_id", "=", unidadeId)
+      .where("codigo", "not in", codigos)
+      .where("numero", "is not", null)
+      .execute();
     const mudou = antes.filter((m) => numeros[m.codigo] !== m.numero);
     if (mudou.length > 0) {
       await t

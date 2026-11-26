@@ -3,8 +3,8 @@
  *
  * LAYOUT PROVISÓRIO: é a leitura do esboço à mão do responsável (cerebro/empresa/mapa-das-mesas.md).
  * Lugares confirmados pelo responsável (25/11/2026): salão 6 mesas de 4 e o Mesão de 6; salão menor 3 mesas
- * de 2 e 1 de 3 (a mesa 4, a maior do esboço: hipótese); Bancada 2 lugares. Onde era a "Entrada (calçada)" virou um
- * balcão de 2 lugares (25/11/2026). Os números abaixo são o padrão: supervisor e acima escolhem o número de
+ * de 2 e 1 de 3 (a mesa 4, a maior do esboço: hipótese); Bancada 2 lugares. Onde era a "Entrada (calçada)" virou
+ * outra bancada de 2 lugares, igual à primeira (26/11/2026). Os números abaixo são o padrão: supervisor e acima escolhem o número de
  * cada mesa na tela (mesas-numeros.ts); a mesa é sempre a mesma pelo `codigo` (a posição). As posições
  * (coluna e linha) são as mesmas da tela Mesas do protótipo (cerebro/frentes/visual-limpo/prototipos.html).
  *
@@ -14,7 +14,7 @@
  * Planta em 3 colunas e 9 linhas:
  *   linha 1: 60 Sabores e Cafeteria          linha 2: faixa "Área da TV"
  *   linhas 3-4: mesas 1 a 4, Banheiro e TV   linha 5: faixa "Frente, perto do caixa"
- *   linhas 6-9: mesas 5 a 11, Bancada, Balcão (onde era a entrada) e Caixa
+ *   linhas 6-9: mesas 5 a 11, duas Bancadas (a de baixo onde era a entrada) e Caixa
  */
 
 export type AreaDaMesa = "tv" | "frente";
@@ -52,8 +52,6 @@ export const MESAS_DA_LOJA: readonly Mesa[] = [
   { codigo: "m7", numero: 7, area: "frente", lugares: 4, coluna: 2, linha: 8 },
   { codigo: "m10", numero: 10, area: "frente", lugares: 4, coluna: 3, linha: 8 },
   { codigo: "m11", numero: 11, area: "frente", lugares: 4, coluna: 2, linha: 9 },
-  // Onde era a "Entrada (calçada)": balcão de 2 lugares (pedido do responsável, 25/11/2026).
-  { codigo: "balcao", numero: 12, area: "frente", lugares: 2, coluna: 1, linha: 8, apelido: "Balcão" },
 ];
 
 /** Pontos de referência da planta (não são mesas). `colunas` e `linhas` dizem quantas casas ocupam. */
@@ -72,6 +70,8 @@ export const MARCOS_DA_LOJA: readonly MarcoDaLoja[] = [
   { texto: "Banheiro", coluna: 3, linha: 3 },
   { texto: "TV", coluna: 3, linha: 4 },
   { texto: "Bancada", detalhe: "2 lugares virados para a parede, usar em último caso", coluna: 1, linha: 6, linhas: 2 },
+  // Onde era a "Entrada (calçada)": outra bancada de 2 lugares, igual à de cima (pedido do responsável, 26/11/2026).
+  { texto: "Bancada", detalhe: "2 lugares", coluna: 1, linha: 8, linhas: 2 },
   { texto: "Caixa", coluna: 3, linha: 9 },
 ];
 

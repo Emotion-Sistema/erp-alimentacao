@@ -124,6 +124,7 @@ export function MapaDeMesas({
                 style={{ gridColumn: m.coluna, gridRow: m.linha }}
                 aria-label={`Mesa ${m.numero}${m.apelido ? ` (${m.apelido})` : ""}, ${ROTULO[s]}, ${m.lugares} lugares`}
                 data-testid={`mesa-${m.numero}`}
+                data-codigo={m.codigo}
                 onClick={() => abrir(m)}
               >
                 <Cadeiras n={meio} />

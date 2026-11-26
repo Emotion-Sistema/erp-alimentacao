@@ -60,7 +60,8 @@ export interface UsuarioTabela {
 export interface MesaNumeroTabela {
   unidade_id: number;
   codigo: string;
-  numero: number;
+  /** Vazio: mesa que saiu do mapa (o número volta a ficar livre). */
+  numero: number | null;
   atualizado_por: number;
   atualizado_em: Generated<Instante>;
 }

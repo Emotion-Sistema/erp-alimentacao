@@ -38,5 +38,6 @@ Salão (frente): 6 mesas de 4 cadeiras e o Mesão de 6. Salão menor (área da T
 
 
 ## 25/11/2026: numeração e balcão
-- Onde estava "Entrada (calçada)" no mapa virou um **balcão de 2 lugares** (mesa 12 no padrão, código `balcao`).
+- Onde estava "Entrada (calçada)" no mapa virou **outra bancada de 2 lugares**, igual à que já existe (responsável, 26/11/2026; antes eu tinha posto uma mesa redonda "Balcão", corrigido).
 - **Supervisor e acima** (supervisor, gerente geral, administrador, dono) escolhem o número de cada mesa em Mesas > "Numerar mesas" (ação `mesas.numerar`, migração 0027, `POST /api/mesas/numeros`). A mesa é a mesma pelo código da posição; o número é só o nome. Ainda falta o responsável dizer qual mesa do salão menor tem 3 lugares (hipótese: a 4).
+- **Para a E13:** o pedido guarda o `codigo` da mesa (posição), nunca o número: renumerar no meio do serviço não pode mudar a mesa de um pedido aberto. Hoje `?mesa=N` no Novo pedido resolve pelo número escolhido (ainda não grava nada).

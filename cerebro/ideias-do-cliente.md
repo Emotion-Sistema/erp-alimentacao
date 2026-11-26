@@ -57,7 +57,7 @@ Classificação: **núcleo** | **evolução** | **adiar**.
 | Mesa: dividir a conta no popup do caixa (por pessoa ou por item) | Fecha mais rápido; une-se ao "cada um paga a sua" do RC-20 | núcleo do caixa (E17) · **aprovada pelo responsável em 25/11/2026** (no protótipo A) |
 | Mesa: alerta de mesa esquecida (ocupada há X min sem pedido, ou sem ninguém passar) | Ninguém fica esquecido | evolução · **aprovada pelo responsável em 25/11/2026** (no protótipo A) |
 | Mesa (25/11/2026): supervisor e acima escolhem o número de cada mesa na tela Mesas | A numeração real da loja muda sem mexer no código; o pedido guarda a mesa pela posição, o número é só o nome | núcleo do mapa de mesas (E13/E17) · **pedido do responsável, feito em 25/11/2026** (ação `mesas.numerar`, migração 0027) |
-| Mesa (25/11/2026): onde estava "Entrada (calçada)" no mapa vira um balcão de 2 lugares | Mais 2 lugares para clientes | ajuste do layout · **pedido do responsável, feito em 25/11/2026** |
+| Mesa (25/11/2026): onde estava "Entrada (calçada)" no mapa vira outra bancada de 2 lugares, igual à que já existe | Mais 2 lugares para clientes | ajuste do layout · **pedido do responsável, feito em 25/11/2026** |
 | Mesa: "mais uma rodada" com um toque (repete bebidas da mesa) | Venda a mais sem esforço | evolução · **aprovada pelo responsável em 25/11/2026** (no protótipo A) |
 | Gestão: relatório do salão (tempo médio por mesa, giro por horário, mesas mais usadas) | Saber quando reforçar a equipe e como arrumar o salão | evolução · **aprovada pelo responsável em 25/11/2026** (no protótipo A) |
 | Contagem rápida diária de poucos itens no aplicativo de estoque | Mantém o estoque do sistema fiel ao real sem parar a loja | núcleo do estoque (RC-09) |

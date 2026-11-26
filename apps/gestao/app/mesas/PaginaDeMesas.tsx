@@ -19,7 +19,7 @@ export async function paginaDeMesas(codigoApp: string, caminho: string) {
       <div className="hor-tela mesas-tela">
         <h1>{item.texto}</h1>
         <p className="hor-tela__intro">Toque numa mesa para ver a situação dela e o que fazer.</p>
-        <MapaDeMesas mesas={mesas} podeAbrirPedido={pode(ator.cargoAtivo, "pedidos.lancar")} podeNumerar={pode(ator.cargoAtivo, "mesas.numerar")} />
+        <MapaDeMesas mesas={mesas} podeAbrirPedido={pode(ator.cargoAtivo, "pedidos.lancar")} podeNumerar={pode(ator.cargoAtivo, "mesas.numerar") && ator.unidadeId !== null} />
       </div>
     </Casca>
   );

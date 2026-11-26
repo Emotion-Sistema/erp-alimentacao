@@ -37,7 +37,8 @@ function Formulario({ mesas, aoFechar }: { mesas: readonly Mesa[]; aoFechar: () 
       return;
     }
     setGravando(true);
-    const r = await chamar("/api/mesas/numeros", "POST", { numeros: valores });
+    const antes = Object.fromEntries(mesas.map((m) => [m.codigo, m.numero]));
+    const r = await chamar("/api/mesas/numeros", "POST", { numeros: valores, antes });
     setGravando(false);
     if (!r.ok) return setErro(r.mensagem);
     router.refresh();
