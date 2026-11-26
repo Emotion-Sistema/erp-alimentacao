@@ -42,7 +42,7 @@ const esquemaMudar = z
     },
     { error: "Código da etiqueta em formato inválido." },
   )
-  .strict("Código da etiqueta em formato inválido.")
+  .strict()
   .refine((d) => (d.ingredienteId === undefined) !== (d.preparoId === undefined), "Escolha um ingrediente ou um preparo.")
   .refine((d) => d.codigo !== undefined || d.usaEtiqueta !== undefined, "Nada para mudar.");
 

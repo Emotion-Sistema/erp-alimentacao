@@ -102,7 +102,7 @@
 
 /* ---------- etiqueta do lote (ideia nº 16) ----------
  * "Escreva na etiqueta": faixa de destaque (Creme Dourado com a letra dele), uma linha por lote, em
- * letra um pouco maior porque é o texto a copiar para o pacote. Código do item discreto ao lado do
+ * em negrito (limite de 15 px do visual Balcão) porque é o texto a copiar para o pacote. Código do item discreto ao lado do
  * nome; na gaveta, a etiqueta do lote em destaque e o lote achado pela busca marcado. */
 .est-etiquetas {
   display: grid; gap: var(--espaco-2); min-width: 0; padding: var(--espaco-3);
@@ -114,7 +114,7 @@
 .est-etiquetas__intro { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); }
 .est-etiquetas__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); }
 .est-etiquetas__linha { display: grid; gap: 2px; padding: var(--espaco-2) var(--espaco-3); background: var(--cor-cartao); border-radius: var(--raio); box-shadow: 0 0 0 1px var(--cor-linha); }
-.est-etiquetas__texto { font-weight: var(--peso-forte); font-size: 1.125rem; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.est-etiquetas__texto { font-weight: var(--peso-forte); font-size: 0.9375rem; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .est-etiquetas__nome { font-size: var(--texto-pequeno); color: var(--cor-texto-suave); overflow-wrap: anywhere; }
 .est-item__codigo { font-size: var(--texto-pequeno); font-weight: normal; color: var(--cor-texto-suave); letter-spacing: 0.04em; white-space: nowrap; }
 .est-lote__etiqueta { font-weight: var(--peso-forte); letter-spacing: 0.04em; padding: 0 var(--espaco-2); border-radius: var(--raio); background: color-mix(in srgb, var(--cor-ouro) 45%, var(--cor-cartao)); color: var(--cor-texto); }

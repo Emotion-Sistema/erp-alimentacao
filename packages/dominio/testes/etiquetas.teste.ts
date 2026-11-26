@@ -165,7 +165,7 @@ describe("etiqueta do lote", () => {
     expect(e2.etiquetas.map((e) => e.etiqueta)).toEqual([`${cod}-002`, `${cod}-003`]);
     // Saldo inicial também.
     const s = await registrarSaldoInicial(db, gerente, { itens: [{ ingredienteId: x, quantidade: "10", local: "em_uso" }] });
-    expect((s as { etiquetas: { etiqueta: string }[] }).etiquetas.map((e) => e.etiqueta)).toEqual([`${cod}-004`]);
+    expect(s.etiquetas.map((e) => e.etiqueta)).toEqual([`${cod}-004`]);
     const item = await estoqueDoItem(db, gerente, { ingredienteId: x });
     expect(item.lotes.map((l) => l.etiqueta).sort()).toEqual([`${cod}-001`, `${cod}-002`, `${cod}-003`, `${cod}-004`]);
   });
@@ -223,8 +223,8 @@ describe("etiqueta do lote", () => {
     expect(p1.etiquetas).toHaveLength(1);
     expect(p2).toMatchObject({ repetido: true, etiquetas: p1.etiquetas });
     const si = { itens: [{ ingredienteId: tomate, quantidade: "10", local: "em_uso" as const }], chave: `teste-${randomUUID()}` };
-    const s1 = (await registrarSaldoInicial(db, gerente, si)) as unknown as { etiquetas: unknown[] };
-    const s2 = (await registrarSaldoInicial(db, gerente, si)) as unknown as { etiquetas: unknown[]; repetido: boolean };
+    const s1 = await registrarSaldoInicial(db, gerente, si);
+    const s2 = await registrarSaldoInicial(db, gerente, si);
     expect(s1.etiquetas).toHaveLength(1);
     expect(s2).toMatchObject({ repetido: true, etiquetas: s1.etiquetas });
     await mudarCodigoDaEtiqueta(db, gerente, { preparoId: f.resumo.id, usaEtiqueta: false });

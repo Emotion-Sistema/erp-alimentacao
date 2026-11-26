@@ -672,7 +672,7 @@ export interface EtiquetaProdutoTabela {
   preparo_id: number | null;
   codigo: string;
   usa_etiqueta: Generated<boolean>;
-  atualizado_em: Generated<Instante>;
+  atualizado_em: Instante;
   atualizado_por: number | null;
 }
 

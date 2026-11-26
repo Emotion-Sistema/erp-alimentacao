@@ -653,12 +653,12 @@ export const TIPO_DO_AVISO_DE_VALIDADE_CURTA = "estoque.validade_curta";
 const diasEntre = (de: string, ate: string) => Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000);
 
 /** O que já havia na loja ao começar a usar o sistema (também aceita preparo). */
-export async function registrarSaldoInicial(db: Banco, ator: Ator | null, dados: unknown): Promise<Lancado> {
+export async function registrarSaldoInicial(db: Banco, ator: Ator | null, dados: unknown): Promise<ResultadoDaEntrada> {
   return lancarEntrada(db, ator, dados, "saldo_inicial");
 }
 
 /** Saldo inicial gravado pela planilha: guarda o resumo do pedido (para o reenvio). Uso de estoque-importar. */
-export async function registrarSaldoInicialDaPlanilha(db: Banco, ator: Ator | null, dados: unknown, resumoDoPedido: string): Promise<Lancado> {
+export async function registrarSaldoInicialDaPlanilha(db: Banco, ator: Ator | null, dados: unknown, resumoDoPedido: string): Promise<ResultadoDaEntrada> {
   return lancarEntrada(db, ator, dados, "saldo_inicial", resumoDoPedido);
 }
 
