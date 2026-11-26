@@ -91,6 +91,7 @@ import {
   tirarCargo,
   trocarCargoAtivo,
   mudarPreferencias,
+  numerarMesas,
   conferirPlanilha,
   exigir,
   gravarPlanilha,
@@ -225,6 +226,8 @@ export const quemSouEu = seguro(async (req) => {
 
 /** A pessoa muda o próprio tema ou letra (decisão 0030). Qualquer cargo; só precisa estar dentro. */
 export const mudarMinhasPreferencias = seguro(async (req) => json(await mudarPreferencias(obterBanco(), await ator(req), await corpoJson(req))));
+/** Supervisor e acima escolhem o número das mesas (25/11/2026). Corpo: { numeros: { codigo: número } }. */
+export const gravarNumerosDasMesas = seguro(async (req) => json(await numerarMesas(obterBanco(), await ator(req), await corpoJson(req))));
 export const trocarCargo = seguro(async (req) => json(resumo(await trocarCargoAtivo(obterBanco(), await ator(req), await corpoJson(req)))));
 
 export const meuCodigo = seguro(async (req) => {

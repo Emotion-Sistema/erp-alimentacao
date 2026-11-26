@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import { FAIXAS_DA_LOJA, MARCOS_DA_LOJA, MESAS_DA_LOJA, mesaDaLoja, nomeDaMesa } from "../src/mesas";
 
 describe("mesas da loja", () => {
-  it("são 11 mesas, numeradas de 1 a 11 sem repetir", () => {
+  it("são 11 mesas, números padrão de 1 a 11 e códigos fixos sem repetir; onde era a entrada há outra bancada de 2 lugares", () => {
     expect(MESAS_DA_LOJA).toHaveLength(11);
     const numeros = MESAS_DA_LOJA.map((m) => m.numero).sort((a, b) => a - b);
     expect(numeros).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(new Set(MESAS_DA_LOJA.map((m) => m.codigo)).size).toBe(11);
+    expect(MARCOS_DA_LOJA.some((k) => /entrada/i.test(k.texto))).toBe(false);
+    expect(MARCOS_DA_LOJA.filter((k) => k.texto === "Bancada").map((k) => [k.coluna, k.linha, k.linhas])).toEqual([[1, 6, 2], [1, 8, 2]]);
   });
 
   it("lugares: salão menor 3 de 2 e 1 de 3, Mesão 6, demais 4 (respostas do responsável, 25/11/2026)", () => {

@@ -58,6 +58,7 @@ const ROTAS: Rota[] = [
   { metodo: "POST", caminho: "/api/avisos/[id]/resolver", acao: "sessao" },
   { metodo: "GET", caminho: "/api/eu/turno", acao: "sessao" },
   { metodo: "POST", caminho: "/api/eu/turno", acao: "sessao" },
+  { metodo: "POST", caminho: "/api/mesas/numeros", acao: "mesas.numerar", chamar: (c) => r.gravarNumerosDasMesas(req("/api/mesas/numeros", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/turnos", acao: "horarios.gerenciar", chamar: (c) => r.verTurnosDaUnidade(req("/api/turnos", "GET", c)) },
   { metodo: "POST", caminho: "/api/turnos", acao: "horarios.gerenciar", chamar: (c) => r.mudarMargem(req("/api/turnos", "POST", c, {})) },
   { metodo: "GET", caminho: "/api/comunicados", acao: "comunicados.enviar", chamar: (c) => r.verComunicados(req("/api/comunicados", "GET", c)) },

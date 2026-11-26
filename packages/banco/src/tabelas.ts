@@ -56,6 +56,16 @@ export interface UsuarioTabela {
   letra: Generated<"normal" | "grande">;
 }
 
+/** Número escolhido de cada mesa (migração 0027). */
+export interface MesaNumeroTabela {
+  unidade_id: number;
+  codigo: string;
+  /** Vazio: mesa que saiu do mapa (o número volta a ficar livre). */
+  numero: number | null;
+  atualizado_por: number;
+  atualizado_em: Generated<Instante>;
+}
+
 export interface UsuarioPerfilTabela {
   id: Generated<number>;
   usuario_id: number;
@@ -811,6 +821,7 @@ export interface BancoTabelas {
   setor: SetorTabela;
   perfil: PerfilTabela;
   usuario: UsuarioTabela;
+  mesa_numero: MesaNumeroTabela;
   usuario_perfil: UsuarioPerfilTabela;
   sessao: SessaoTabela;
   auditoria: AuditoriaTabela;
