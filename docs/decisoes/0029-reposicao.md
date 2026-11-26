@@ -226,3 +226,33 @@ nem o RC-01.
   execuções juntas = um aviso; histórico imutável; validade curta com aviso, sem aviso para quem
   compra, reenvio sem repetir; cadastro guarda, mantém e limpa). Mutações que derrubam: sem a trava;
   sem a regra do lote que entrou perto.
+
+## Etiqueta do lote (26/11/2026): ideia nº 16, versão 1
+
+Pedido: saber qual pacote é qual quando o mesmo produto entra em dias diferentes (bacalhau de hoje e
+de amanhã, validades diferentes). Migração 0030, `packages/dominio/src/etiquetas.ts`.
+
+- **Código do produto.** Todo ingrediente e preparo da casa tem um código curto, gerado pelo banco
+  ao cadastrar (qualquer caminho: tela, planilha, cadastro em lote), pela regra aprovada: as 3
+  primeiras letras (BAC = bacalhau); se já existir, a inicial de cada palavra completando com a
+  última (QMI = queijo minas); depois a primeira letra + duas consoantes (BCN = bacon); por último 2
+  letras + número (BA1). Só A-Z, sem acento. Os já cadastrados ganharam código em ordem alfabética.
+  Pode ser trocado no cadastro (2 a 5 caracteres, começa com letra); o sistema recusa o código de
+  outro produto (dizendo de quem é) e o que já foi impresso em etiqueta de outro produto.
+- **Etiqueta do lote.** Cada lote de compra, saldo inicial ou produção de preparo ganha código +
+  número que nunca se repete (BAC-001, BAC-002; passa a 4 dígitos sozinho). A numeração fica pelo
+  código: trocar o código não reaproveita número. Quem preenche é o banco (ninguém escolhe à mão);
+  dois lançamentos ao mesmo tempo não repetem número (o item já está travado pelo lançamento).
+  Sobra de contagem e lotes de antes da 0030 ficam sem etiqueta. "Usa etiqueta" desligado (sal,
+  açúcar, descartáveis): o lote entra sem etiqueta; ligado de novo, a numeração continua.
+- **Onde aparece.** Na entrada e na produção ("Escreva na etiqueta: BAC-002 · vence 30/11"), no
+  painel (achar por "BAC" ou "BAC-002"), na gaveta do item e nos avisos de validade ("Use primeiro
+  o BAC-001"). A peça dividida entre áreas continua o mesmo lote, com a mesma etiqueta.
+- **Achar pela etiqueta.** Aceita como estiver escrito ("bac 2", "BAC002"). Só acha lote com saldo
+  nas áreas da pessoa; "não existe" e "não é seu" respondem igual. Durante a contagem cega a lista
+  de etiquetas do item some (revelaria quantos lotes há).
+- **Hipótese (reversível):** "usa etiqueta" nasce ligado para todos; o responsável desliga o que
+  não precisa.
+- **Fica para a versão 2:** etiqueta impressa com QR e leitura pela câmera (depende de testar a
+  impressora, RC-04). Também para depois: contagem lote a lote (hoje a contagem é por item e
+  local), etiqueta nos lotes antigos.
