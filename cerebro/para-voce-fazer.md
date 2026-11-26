@@ -47,6 +47,7 @@ Lista viva do que depende do responsável. O Claude acrescenta e marca como feit
 - [ ] 👉 Perguntar ao dono, para os serviços de empresas: quantidade mínima de pessoas, antecedência, capacidade do salão para eventos e até onde entrega.
 - [x] 👉 Hipóteses da E09 respondidas em 25/11/2026: custo médio ok; quem recebe confirma (feito no PR 146); gestão vê quantidades na contagem ok.
 - [ ] 👉 E09 estoque: testar na homologação (entrada, mudar de lugar, contagem, relatórios) e o recebimento: com o próprio login, criar o funcionário "Teste Supervisor" (cargo Supervisor), mandar um item para a Cafeteria indicando-o; entrar como ele e confirmar/recusar em Estoque → Salão.
+- [ ] 👉 E10 reposição (26/11/2026): na homologação, abrir um item no Estoque, definir as linhas em "Linhas de reposição" (pode usar "Usar sugestão"), lançar uma perda para ele cair abaixo da linha e ver o selo "Repor" e o aviso no sino; conferir Compras → "Para repor".
 - [ ] 👉 Ideia nº 3 (nota pelo QR do cupom): pôr 3 ou 4 fotos de cupons na pasta "08 Compras e notas" do Drive, para testar a leitura antes de prometer.
 - [ ] 👉 Levantar com o cliente: quem cuida do estoque em cada turno, quem cuida das compras, prazo de entrega dos fornecedores e os itens que não podem faltar (pendências 20, 21, 23 e 31).
 - [ ] 👉 Pedir ao cliente a lista de produtos com tempo de preparo e tipo (hambúrguer, prato/grelhado, cafeteria), e quantas pessoas trabalham em cada tipo por turno (pendências 29 e 35).
