@@ -27,7 +27,7 @@ import { AREAS_ESTOQUE, NOME_DA_AREA, type AreaEstoque } from "./cadastros";
 import { q4DoBanco, textoQ4, valorDaSaida } from "./estoque-comum";
 import { quemCuidaDaArea } from "./estoque-reposicao-estado";
 import { areasDoAtor } from "./estoque";
-import type { Cargo } from "./permissoes";
+import { pode, type Cargo } from "./permissoes";
 import { exigir, type Ator } from "./sessao";
 
 export const DIAS_PERTO_DO_VENCIMENTO = 2;
@@ -73,7 +73,9 @@ export type DinheiroEmRisco = {
  */
 export async function dinheiroEmRisco(db: Banco, ator: Ator | null, opcoes: { dia?: string } = {}): Promise<DinheiroEmRisco> {
   await exigir(db, ator, "custos.ver", { tipo: "estoque_validade" });
-  const areas = areasDoAtor(ator);
+  // Contagem cega: quantidades e valores por item só para a gestão (como no painel). Hoje todo cargo
+  // com custos.ver e alguma área tem estoque.desfazer; se um dia não tiver, não vê esta lista.
+  const areas = pode(ator!.cargoAtivo, "estoque.desfazer") ? areasDoAtor(ator) : [];
   const r = await sql<{
     item_id: number;
     nome: string;

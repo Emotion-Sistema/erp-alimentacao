@@ -214,6 +214,12 @@ nem o RC-01.
   (`estoque.validade_curta`) para falar com o fornecedor. Reenvio da mesma entrada (mesma chave) não
   repete o alerta nem o aviso. Não vale para saldo inicial nem para preparo da casa.
 - Hipóteses (26/11/2026): 2 dias para "perto" e 2 dias para "vencido parado", até existir configuração.
+- Revisão (26/11/2026): o reenvio da entrada devolve o alerta de novo (sem aviso novo); o dinheiro em
+  risco só lista para quem também tem `estoque.desfazer` (contagem cega, como no painel). Ficam como
+  ruído aceito: a sobra de contagem vira lote novo e pode avisar "perto" mais uma vez; na primeira
+  execução em homologação todo vencido parado avisa de uma vez (um cartão por lote); turno que passe
+  da meia-noite faria o aviso do dia novo morrer no fim desse turno (hoje o último turno acaba 23h30).
+  Reverter a 0029 apaga as validades mínimas e as marcas de "já avisado".
 - Evidência: `estoque-validade.teste.ts` (11 testes: somas em 3 e 7 dias, bloqueado fora, vencido à
   parte, recusa sem custos.ver com auditoria; perto uma vez só, não para o que entrou perto nem para o
   bloqueado, não fora do turno; vencido parado depois de 2 dias, não com perda registrada; duas

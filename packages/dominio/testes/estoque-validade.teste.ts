@@ -255,9 +255,9 @@ describe("D4a: validade curta na entrada", () => {
     // A entrada valeu (2 lotes novos).
     const lotes = await db.selectFrom("estoque_lote").select("id").where("item_id", "=", item).execute();
     expect(lotes).toHaveLength(3);
-    // Reenvio (toque duplo): mesmo movimento, sem alerta e sem aviso novo.
+    // Reenvio (resposta perdida, toque duplo): mesmo movimento, o alerta volta, sem aviso novo.
     const de_novo = await registrarEntrada(db, cozinheira, dados);
-    expect(de_novo).toEqual({ movimentoId: r.movimentoId, repetido: true, validadeCurta: [] });
+    expect(de_novo).toEqual({ movimentoId: r.movimentoId, repetido: true, validadeCurta: r.validadeCurta });
     const total = await sql<{ n: number }>`SELECT count(*)::int AS n FROM aviso WHERE tipo = ${TIPO_DO_AVISO_DE_VALIDADE_CURTA} AND dados->>'movimentoId' = ${r.movimentoId}`.execute(db);
     expect(total.rows[0]!.n).toBe(1);
   });

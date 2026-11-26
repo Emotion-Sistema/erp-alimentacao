@@ -650,7 +650,11 @@ async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo:
   return db.transaction().execute(async (trx) => {
     const assinatura = assinar(tipo, d);
     const ja = await jaLancado(trx, d.chave, assinatura);
-    if (ja) return { ...ja, validadeCurta: [] };
+    if (ja) {
+      // Reenvio (a resposta da primeira vez se perdeu): devolve o alerta de novo, sem aviso novo.
+      const validadeCurta = tipo === "entrada" ? await conferirValidadeCurta(trx, ator!, ja.movimentoId, d.itens, await garantirItens(trx, d.itens), await hoje(trx), false) : [];
+      return { ...ja, validadeCurta };
+    }
     const ids = await garantirItens(trx, d.itens);
     const itens = await travarItens(trx, ids);
     if (d.fornecedorId !== undefined) {
@@ -686,7 +690,7 @@ async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo:
       else l.entrada(item.id, q, l.estimar(item.id, q), { estimado: true });
     }
     await l.fechar();
-    const validadeCurta = tipo === "entrada" ? await conferirValidadeCurta(trx, ator!, mov, d.itens, ids, dia, (id) => l.item(id).nome) : [];
+    const validadeCurta = tipo === "entrada" ? await conferirValidadeCurta(trx, ator!, mov, d.itens, ids, dia, true) : [];
     return { movimentoId: mov, repetido: false, validadeCurta };
   });
 }
@@ -703,22 +707,22 @@ async function conferirValidadeCurta(
   linhas: readonly { validade?: string | undefined }[],
   ids: readonly number[],
   dia: string,
-  nomeDe: (itemId: number) => string,
+  avisar: boolean,
 ): Promise<ValidadeCurta[]> {
   const comValidade = linhas.flatMap((x, k) => (x.validade !== undefined ? [{ itemId: ids[k]!, validade: x.validade }] : []));
   if (!comValidade.length) return [];
-  const minimos = await sql<{ item_id: number; minimo: number }>`
-    SELECT e.id AS item_id, i.validade_minima_dias AS minimo FROM estoque_item e JOIN ingrediente i ON i.id = e.ingrediente_id
+  const minimos = await sql<{ item_id: number; minimo: number; nome: string }>`
+    SELECT e.id AS item_id, i.validade_minima_dias AS minimo, i.nome FROM estoque_item e JOIN ingrediente i ON i.id = e.ingrediente_id
     WHERE e.id = ANY(${[...new Set(comValidade.map((x) => x.itemId))]}::int[]) AND i.validade_minima_dias IS NOT NULL`.execute(trx);
-  const minimo = new Map(minimos.rows.map((x) => [x.item_id, x.minimo]));
+  const minimo = new Map(minimos.rows.map((x) => [x.item_id, x]));
   const curtas: ValidadeCurta[] = [];
   for (const x of comValidade) {
     const m = minimo.get(x.itemId);
     if (m === undefined) continue;
     const dias = diasEntre(dia, x.validade);
-    if (dias < m) curtas.push({ itemId: x.itemId, nome: nomeDe(x.itemId), validade: x.validade, dias, minimoDias: m });
+    if (dias < m.minimo) curtas.push({ itemId: x.itemId, nome: m.nome, validade: x.validade, dias, minimoDias: m.minimo });
   }
-  if (curtas.length && !pode(ator.cargoAtivo, "compras.gerenciar")) {
+  if (avisar && curtas.length && !pode(ator.cargoAtivo, "compras.gerenciar")) {
     const u = await trx.selectFrom("unidade").select("id").orderBy("id").limit(1).executeTakeFirst();
     if (u) {
       const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
