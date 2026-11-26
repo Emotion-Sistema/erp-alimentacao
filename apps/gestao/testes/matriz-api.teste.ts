@@ -156,6 +156,9 @@ const ROTAS: Rota[] = [
   { metodo: "GET", caminho: "/api/estoque/relatorios/contagens", ...AREA, chamar: (c) => r.verRelatorioDeContagens(req("/api/estoque/relatorios/contagens", "GET", c)) },
   { metodo: "GET", caminho: "/api/estoque/relatorios/valor", ...AREA, tambem: ["custos.ver"], chamar: (c) => r.verValorDoEstoque(req("/api/estoque/relatorios/valor", "GET", c)) },
   { metodo: "GET", caminho: "/api/estoque/em-risco", acao: "custos.ver", chamar: (c) => r.verDinheiroEmRisco(req("/api/estoque/em-risco", "GET", c)) },
+  // Etiqueta do lote (ideia nº 16).
+  { metodo: "GET", caminho: "/api/estoque/etiqueta", ...AREA, chamar: (c) => r.verLotePelaEtiqueta(req("/api/estoque/etiqueta?etiqueta=ZZZ-999", "GET", c)) },
+  { metodo: "POST", caminho: "/api/cadastros/etiqueta", acao: "cadastros.gerenciar", chamar: (c) => r.gravarCodigoDaEtiqueta(req("/api/cadastros/etiqueta", "POST", c, { ingredienteId: Number(INEXISTENTE), codigo: "ZZZ" })) },
   // Linhas de reposição (E10 parte 1, decisão 0029).
   { metodo: "GET", caminho: "/api/estoque/linhas", ...AREA, chamar: (c) => r.verLinhasDoItem(req(`/api/estoque/linhas?ingredienteId=${INEXISTENTE}`, "GET", c)) },
   { metodo: "POST", caminho: "/api/estoque/linhas", ...AREA, chamar: (c) => r.gravarLinhas(req("/api/estoque/linhas", "POST", c, {})) },

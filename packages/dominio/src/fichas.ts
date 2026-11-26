@@ -396,6 +396,8 @@ export type PainelDeFichas = {
   nomesParecidos: { a: { id: number; nome: string }; b: { id: number; nome: string } }[];
   /** Catálogo de alergênicos (ativos e desativados), para a aba "Alergênicos". */
   alergenicos: Alergenico[];
+  /** Código da etiqueta de cada preparo da casa (ideia nº 16). */
+  etiquetasDosPreparos: { preparoId: number; codigo: string; usaEtiqueta: boolean }[];
 };
 
 type Precos = { loja: number | null; delivery: number | null };
@@ -533,7 +535,7 @@ export async function painelDeFichas(db: Banco, ator: Ator | null): Promise<Pain
     })
     .sort((a, b) => Number(b.ativo) - Number(a.ativo) || a.nome.localeCompare(b.nome, "pt-BR"));
 
-  const [config, semFicha, ings, produtos, tamanhos, adicionais] = await Promise.all([
+  const [config, semFicha, ings, produtos, tamanhos, adicionais, etiquetas] = await Promise.all([
     db.selectFrom("ficha_config").select("limite_custo_pb").where("id", "=", 1).executeTakeFirstOrThrow(),
     db
       .selectFrom("produto as p")
@@ -578,6 +580,12 @@ export async function painelDeFichas(db: Banco, ator: Ator | null): Promise<Pain
       .orderBy("g.nome")
       .orderBy("a.ordem")
       .execute(),
+    db
+      .selectFrom("etiqueta_produto")
+      .select(["preparo_id", "codigo", "usa_etiqueta"])
+      .where("preparo_id", "is not", null)
+      .orderBy("preparo_id")
+      .execute(),
   ]);
   return {
     podeVerCusto: verCusto,
@@ -595,6 +603,7 @@ export async function painelDeFichas(db: Banco, ator: Ator | null): Promise<Pain
     adicionais,
     nomesParecidos: nomesParecidos(ings.filter((g) => g.ativo)),
     alergenicos: catalogo,
+    etiquetasDosPreparos: etiquetas.map((e) => ({ preparoId: e.preparo_id!, codigo: e.codigo, usaEtiqueta: e.usa_etiqueta })),
   };
 }
 

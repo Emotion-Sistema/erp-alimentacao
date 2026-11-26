@@ -136,3 +136,38 @@ export function textoQ4(q: bigint): string {
   const resto = (a % 10_000n).toString().padStart(4, "0").replace(/0+$/, "");
   return `${neg ? "-" : ""}${a / 10_000n}${resto ? `.${resto}` : ""}`;
 }
+
+/** Número como etiqueta: 2 -> 002, 1234 -> 1234. Nulo se não for número válido. */
+function comNumero(codigo: string, numero: string): string | null {
+  const n = Number(numero);
+  if (!/^[A-Z][A-Z0-9]{1,4}$/.test(codigo) || !/^[0-9]{1,9}$/.test(numero) || !Number.isSafeInteger(n) || n < 1) return null;
+  const e = `${codigo}-${n < 1000 ? String(n).padStart(3, "0") : String(n)}`;
+  return /^[A-Z][A-Z0-9]{1,4}-[0-9]{3,9}$/.test(e) ? e : null;
+}
+
+/**
+ * As etiquetas de lote que a busca pode ser (ideia nº 16): "bac 2" -> [BAC-002]; sem traço o código
+ * pode ter número ("BA1005" -> BA1-005 ou BA-1005). Vazio se não parece etiqueta.
+ * Cópia para a tela de `leiturasDaEtiqueta` do domínio (que não pode ser importado aqui): serve só
+ * para achar na lista carregada e decidir se pergunta ao servidor. Quem decide é o servidor.
+ */
+export function leiturasDaBusca(texto: string): string[] {
+  if (texto.length > 40) return [];
+  const t = texto.trim().toUpperCase();
+  const comSeparador = /^([A-Z0-9]+)[\s-]+([0-9]+)$/.exec(t);
+  if (comSeparador) {
+    const e = comNumero(comSeparador[1]!, comSeparador[2]!);
+    return e ? [e] : [];
+  }
+  if (!/^[A-Z][A-Z0-9]+$/.test(t)) return [];
+  const primeiroNumero = t.search(/[0-9]/);
+  const saida = new Set<string>();
+  for (let i = 2; i <= 5 && i < t.length; i++) {
+    const numero = t.slice(i);
+    const impresso = numero.length === 3 || (numero.length > 3 && numero[0] !== "0");
+    if (!impresso && i !== primeiroNumero) continue;
+    const e = comNumero(t.slice(0, i), numero);
+    if (e) saida.add(e);
+  }
+  return [...saida];
+}

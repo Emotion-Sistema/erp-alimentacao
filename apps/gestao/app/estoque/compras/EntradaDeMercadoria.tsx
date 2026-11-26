@@ -8,13 +8,14 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Aviso, Botao } from "@erp/interface";
-import type { Fornecedor, Ingrediente, ValidadeCurta } from "@erp/dominio";
+import type { EtiquetaDoLote, Fornecedor, Ingrediente, ValidadeCurta } from "@erp/dominio";
 import { centavosDoTexto } from "@erp/dominio/produtos";
 import { chamar } from "../../chamar";
 import { BotaoExemplos, Campo, Selecao } from "../../Campo";
 import { dia, novaChave, unidadesDoItem } from "../comum";
 import type { ContextoDoEstoque } from "../contexto";
 import { NOME_DO_LOCAL, TE } from "../textos";
+import { EscrevaNaEtiqueta } from "../EscrevaNaEtiqueta";
 import { AnexarFoto } from "./AnexarFoto";
 
 const T = TE.entrada;
@@ -32,7 +33,7 @@ export function EntradaDeMercadoria({ contexto, aoGravar }: { contexto: Contexto
   const [linhas, setLinhas] = useState<Linha[]>(() => [linhaVazia()]);
   const [chave, setChave] = useState(novaChave);
   const [ocupado, setOcupado] = useState(false);
-  const [gravada, setGravada] = useState<{ movimentoId: string; repetido: boolean; itens: number; validadeCurta: ValidadeCurta[] } | null>(null);
+  const [gravada, setGravada] = useState<{ movimentoId: string; repetido: boolean; itens: number; validadeCurta: ValidadeCurta[]; etiquetas: EtiquetaDoLote[] } | null>(null);
   const travado = useRef(false);
   const minhas = contexto.areas.map((a) => a.valor);
 
@@ -80,7 +81,7 @@ export function EntradaDeMercadoria({ contexto, aoGravar }: { contexto: Contexto
     }
     travado.current = true;
     setOcupado(true);
-    const r = await chamar<{ movimentoId: string; repetido: boolean; validadeCurta?: ValidadeCurta[] }>("/api/estoque/entradas", "POST", {
+    const r = await chamar<{ movimentoId: string; repetido: boolean; validadeCurta?: ValidadeCurta[]; etiquetas?: EtiquetaDoLote[] }>("/api/estoque/entradas", "POST", {
       chave,
       ...(fornecedorId ? { fornecedorId: Number(fornecedorId) } : {}),
       ...(numero.trim() ? { notaNumero: numero } : {}),
@@ -90,7 +91,7 @@ export function EntradaDeMercadoria({ contexto, aoGravar }: { contexto: Contexto
     travado.current = false;
     setOcupado(false);
     if (!r.ok || !r.dados) return setErro(r.mensagem);
-    setGravada({ ...r.dados, itens: itens.length, validadeCurta: r.dados.validadeCurta ?? [] });
+    setGravada({ ...r.dados, itens: itens.length, validadeCurta: r.dados.validadeCurta ?? [], etiquetas: r.dados.etiquetas ?? [] });
     aoGravar();
   }
 
@@ -110,6 +111,8 @@ export function EntradaDeMercadoria({ contexto, aoGravar }: { contexto: Contexto
         <Aviso tipo="sucesso" data-testid="entrada-gravada">
           {gravada.repetido ? T.repetida : T.gravada(gravada.itens)}
         </Aviso>
+        {/* Ideia nº 16: o texto de cada etiqueta, para escrever no pacote antes de guardar. */}
+        <EscrevaNaEtiqueta etiquetas={gravada.etiquetas} tipo="entrada" nivel={2} />
         {/* D4a: a entrada valeu; é só um alerta para falar com o fornecedor. */}
         {gravada.validadeCurta.length > 0 && (
           <Aviso tipo="atencao" data-testid="validade-curta">

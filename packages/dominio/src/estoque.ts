@@ -507,6 +507,32 @@ async function novoMovimento(trx: Trx, c: Cabecalho): Promise<string> {
 /** Resultado de todo lançamento. `repetido` = a mesma chave já tinha sido gravada (nada mudou agora). */
 export type Lancado = { movimentoId: string; repetido: boolean };
 
+/** Etiqueta de um lote que acabou de entrar, para escrever no pacote (ideia nº 16). */
+export type EtiquetaDoLote = {
+  itemId: number;
+  nome: string;
+  /** BAC-002 */
+  etiqueta: string;
+  /** Dia em que o lote entrou (ou foi feito, no preparo), no fuso da loja. */
+  dia: string;
+  validade: string | null;
+};
+
+/** As etiquetas dos lotes que o movimento criou (também no reenvio, para a tela mostrar de novo). */
+export async function etiquetasDoMovimento(db: Banco | Trx, movimentoId: string): Promise<EtiquetaDoLote[]> {
+  const r = await sql<{ item_id: number; nome: string; etiqueta: string; dia: string; validade: string | null }>`
+    SELECT l.item_id, coalesce(i.nome, f.nome) AS nome, l.etiqueta,
+      to_char((l.criado_em AT TIME ZONE coalesce((SELECT fuso_horario FROM unidade ORDER BY id LIMIT 1), 'America/Sao_Paulo'))::date, 'YYYY-MM-DD') AS dia,
+      to_char(l.validade, 'YYYY-MM-DD') AS validade
+    FROM estoque_lote l
+    JOIN estoque_item e ON e.id = l.item_id
+    LEFT JOIN ingrediente i ON i.id = e.ingrediente_id
+    LEFT JOIN ficha f ON f.id = e.preparo_id
+    WHERE l.movimento_id = ${movimentoId}::bigint AND l.etiqueta IS NOT NULL
+    ORDER BY l.id`.execute(db);
+  return r.rows.map((x) => ({ itemId: x.item_id, nome: x.nome, etiqueta: x.etiqueta, dia: x.dia, validade: x.validade }));
+}
+
 /**
  * Assinatura do conteúdo (sem o autor: o reenvio do mesmo pedido por outro aparelho ou pelo worker
  * é o mesmo lançamento). A chave já distingue um lançamento do outro.
@@ -620,19 +646,19 @@ export async function registrarEntrada(db: Banco, ator: Ator | null, dados: unkn
 
 /** Linha da entrada com validade mais curta que o mínimo do ingrediente (D4a). Só alerta: a entrada vale. */
 export type ValidadeCurta = { itemId: number; nome: string; validade: string; dias: number; minimoDias: number };
-export type ResultadoDaEntrada = Lancado & { validadeCurta: ValidadeCurta[] };
+export type ResultadoDaEntrada = Lancado & { validadeCurta: ValidadeCurta[]; etiquetas: EtiquetaDoLote[] };
 export const TIPO_DO_AVISO_DE_VALIDADE_CURTA = "estoque.validade_curta";
 
 /** Dias de `de` até `ate` (AAAA-MM-DD). */
 const diasEntre = (de: string, ate: string) => Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000);
 
 /** O que já havia na loja ao começar a usar o sistema (também aceita preparo). */
-export async function registrarSaldoInicial(db: Banco, ator: Ator | null, dados: unknown): Promise<Lancado> {
+export async function registrarSaldoInicial(db: Banco, ator: Ator | null, dados: unknown): Promise<ResultadoDaEntrada> {
   return lancarEntrada(db, ator, dados, "saldo_inicial");
 }
 
 /** Saldo inicial gravado pela planilha: guarda o resumo do pedido (para o reenvio). Uso de estoque-importar. */
-export async function registrarSaldoInicialDaPlanilha(db: Banco, ator: Ator | null, dados: unknown, resumoDoPedido: string): Promise<Lancado> {
+export async function registrarSaldoInicialDaPlanilha(db: Banco, ator: Ator | null, dados: unknown, resumoDoPedido: string): Promise<ResultadoDaEntrada> {
   return lancarEntrada(db, ator, dados, "saldo_inicial", resumoDoPedido);
 }
 
@@ -653,7 +679,7 @@ async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo:
     if (ja) {
       // Reenvio (a resposta da primeira vez se perdeu): devolve o alerta de novo, sem aviso novo.
       const validadeCurta = tipo === "entrada" ? await conferirValidadeCurta(trx, ator!, ja.movimentoId, d.itens, await garantirItens(trx, d.itens), await hoje(trx), false) : [];
-      return { ...ja, validadeCurta };
+      return { ...ja, validadeCurta, etiquetas: await etiquetasDoMovimento(trx, ja.movimentoId) };
     }
     const ids = await garantirItens(trx, d.itens);
     const itens = await travarItens(trx, ids);
@@ -691,7 +717,7 @@ async function lancarEntrada(db: Banco, ator: Ator | null, dados: unknown, tipo:
     }
     await l.fechar();
     const validadeCurta = tipo === "entrada" ? await conferirValidadeCurta(trx, ator!, mov, d.itens, ids, dia, true) : [];
-    return { movimentoId: mov, repetido: false, validadeCurta };
+    return { movimentoId: mov, repetido: false, validadeCurta, etiquetas: await etiquetasDoMovimento(trx, mov) };
   });
 }
 
@@ -1147,7 +1173,8 @@ export function areasDoAtor(ator: Ator | null): AreaEstoque[] {
   return AREAS_ESTOQUE.filter((a) => pode(ator.cargoAtivo, acaoDaArea(a)));
 }
 
-async function exigirAlgumaArea(db: Banco, ator: Ator | null): Promise<{ ator: Ator; areas: AreaEstoque[] }> {
+/** Recusa quem não cuida de nenhuma área do estoque. */
+export async function exigirAlgumaArea(db: Banco, ator: Ator | null): Promise<{ ator: Ator; areas: AreaEstoque[] }> {
   const areas = areasDoAtor(ator);
   if (!ator || areas.length === 0 || ator.segundoFator === "pendente") {
     await exigir(db, ator, "estoque.cozinha", { tipo: "estoque" });
@@ -1177,6 +1204,12 @@ export type ItemDoPainel = {
   ingredienteId: number | null;
   preparoId: number | null;
   nome: string;
+  /** Código do produto para a etiqueta (BAC = bacalhau; ideia nº 16). */
+  codigo: string | null;
+  /** Falso: o produto não usa etiqueta (sal, açúcar, descartáveis) e o lote entra sem código. */
+  usaEtiqueta: boolean;
+  /** Etiquetas dos lotes com saldo nas áreas da pessoa (para achar pelo código: BAC-002). */
+  etiquetas: string[];
   unidade: string;
   areaPadrao: AreaEstoque;
   /** Nulo enquanto há contagem aberta do item numa área da pessoa (contagem cega). */
@@ -1196,13 +1229,13 @@ export type ItemDoPainel = {
 
 export type SituacaoDaArea = { area: AreaEstoque; situacao: "saudavel" | "repor" | "emergencia" | "esgotado"; usandoGuardado: boolean; abastecer: boolean };
 
-type LinhaDoSaldo = { item_id: number; area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; vencido: boolean; quantidade: string; validade: string | null };
+type LinhaDoSaldo = { item_id: number; area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; vencido: boolean; quantidade: string; validade: string | null; etiqueta: string | null };
 
 async function saldosDosItens(db: Banco, itemIds: readonly number[]): Promise<LinhaDoSaldo[]> {
   if (itemIds.length === 0) return [];
   const r = await sql<LinhaDoSaldo>`
     SELECT s.item_id, s.area, s.local, s.bloqueado, coalesce(l.validade < hoje_na_loja(), false) AS vencido,
-      s.quantidade::text AS quantidade, to_char(l.validade, 'YYYY-MM-DD') AS validade
+      s.quantidade::text AS quantidade, to_char(l.validade, 'YYYY-MM-DD') AS validade, l.etiqueta
     FROM estoque_saldo s JOIN estoque_lote l ON l.id = s.lote_id
     WHERE s.item_id = ANY(${[...itemIds]}::int[]) AND s.quantidade > 0`.execute(db);
   return r.rows;
@@ -1264,15 +1297,16 @@ async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor
       UNION
       SELECT e.ingrediente_id, e.preparo_id FROM estoque_item e
         WHERE EXISTS (SELECT 1 FROM estoque_saldo s WHERE s.item_id = e.id AND s.quantidade > 0 AND s.area = ANY(${areas}::text[]))`;
-  const r = await sql<{ item_id: number | null; ingrediente_id: number | null; preparo_id: number | null; nome: string; unidade: string; area: AreaEstoque; quantidade: string; valor: string }>`
+  const r = await sql<{ item_id: number | null; ingrediente_id: number | null; preparo_id: number | null; nome: string; codigo: string | null; usa_etiqueta: boolean | null; unidade: string; area: AreaEstoque; quantidade: string; valor: string }>`
     WITH candidatos AS (${candidatos})
-    SELECT e.id AS item_id, c.ingrediente_id, c.preparo_id, coalesce(i.nome, f.nome) AS nome,
+    SELECT e.id AS item_id, c.ingrediente_id, c.preparo_id, coalesce(i.nome, f.nome) AS nome, ep.codigo, ep.usa_etiqueta,
       coalesce(i.unidade_base, f.unidade_rendimento) AS unidade, coalesce(i.area_estoque, e.area_preparo, 'cozinha') AS area,
       coalesce(e.quantidade, 0)::text AS quantidade, coalesce(e.valor_centavos, 0)::text AS valor
     FROM candidatos c
     LEFT JOIN ingrediente i ON i.id = c.ingrediente_id
     LEFT JOIN ficha f ON f.id = c.preparo_id AND f.tipo = 'preparo'
     LEFT JOIN estoque_item e ON (e.ingrediente_id = c.ingrediente_id OR e.preparo_id = c.preparo_id)
+    LEFT JOIN etiqueta_produto ep ON (ep.ingrediente_id = c.ingrediente_id OR ep.preparo_id = c.preparo_id)
     WHERE i.id IS NOT NULL OR f.id IS NOT NULL
     ORDER BY lower(coalesce(i.nome, f.nome)), c.ingrediente_id NULLS LAST, c.preparo_id`.execute(db);
   const saldos = await saldosDosItens(
@@ -1298,6 +1332,9 @@ async function carregarPainel(db: Banco, areas: readonly AreaEstoque[], comValor
       ingredienteId: x.ingrediente_id,
       preparoId: x.preparo_id,
       nome: x.nome,
+      codigo: x.codigo,
+      usaEtiqueta: x.usa_etiqueta ?? true,
+      etiquetas: [...new Set(linhas.filter((s) => s.etiqueta !== null && areas.includes(s.area)).map((s) => s.etiqueta!))].sort(),
       unidade: x.unidade,
       areaPadrao: x.area,
       total: textoQ4(qVisivel),
@@ -1350,7 +1387,7 @@ async function esconderEmContagem<T extends ItemDoPainel>(db: Banco, ator: Ator,
     const algum = areas.some((a) => a.emContagem) || chaves.has(`${i.itemId}:${i.areaPadrao}`);
     // A situação também conta quanto há: some na área em contagem.
     const reposicao = i.reposicao.filter((x) => !chaves.has(`${i.itemId}:${x.area}`));
-    return algum ? { ...i, areas, reposicao, total: null, valorCentavos: null, emContagem: true } : { ...i, reposicao };
+    return algum ? { ...i, areas, reposicao, etiquetas: [], total: null, valorCentavos: null, emContagem: true } : { ...i, reposicao };
   });
 }
 
@@ -1359,6 +1396,8 @@ export type LoteDoItem = {
   validade: string | null;
   vencido: boolean;
   codigo: string | null;
+  /** Etiqueta do sistema (BAC-002); nula se o produto não usa etiqueta ou o lote é de antes dela. */
+  etiqueta: string | null;
   entrouEm: string;
   saldos: { area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; quantidade: string | null }[];
 };
@@ -1381,8 +1420,8 @@ export async function estoqueDoItem(db: Banco, ator: Ator | null, ref: unknown):
   } else if (!areas.includes(item.areaPadrao) && item.areas.length === 0) await exigir(db, a, acaoDaArea(item.areaPadrao), { tipo: "estoque_area", id: item.areaPadrao });
   const lotes: LoteDoItem[] = [];
   if (item.itemId !== null) {
-    const l = await sql<{ id: number; validade: string | null; vencido: boolean; codigo: string | null; entrou: string; area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; quantidade: string }>`
-      SELECT l.id, to_char(l.validade, 'YYYY-MM-DD') AS validade, coalesce(l.validade < hoje_na_loja(), false) AS vencido, l.codigo,
+    const l = await sql<{ id: number; validade: string | null; vencido: boolean; codigo: string | null; etiqueta: string | null; entrou: string; area: AreaEstoque; local: LocalDoSaldo; bloqueado: boolean; quantidade: string }>`
+      SELECT l.id, to_char(l.validade, 'YYYY-MM-DD') AS validade, coalesce(l.validade < hoje_na_loja(), false) AS vencido, l.codigo, l.etiqueta,
         to_char(l.criado_em AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS entrou, s.area, s.local, s.bloqueado, s.quantidade::text AS quantidade
       FROM estoque_lote l JOIN estoque_saldo s ON s.lote_id = l.id
       WHERE l.item_id = ${item.itemId} AND s.quantidade > 0 AND s.area = ANY(${areas}::text[])
@@ -1391,7 +1430,7 @@ export async function estoqueDoItem(db: Banco, ator: Ator | null, ref: unknown):
     for (const x of l.rows) {
       let lote = porLote.get(x.id);
       if (!lote) {
-        lote = { loteId: x.id, validade: x.validade, vencido: x.vencido, codigo: x.codigo, entrouEm: x.entrou, saldos: [] };
+        lote = { loteId: x.id, validade: x.validade, vencido: x.vencido, codigo: x.codigo, etiqueta: x.etiqueta, entrouEm: x.entrou, saldos: [] };
         porLote.set(x.id, lote);
         lotes.push(lote);
       }
@@ -1400,7 +1439,15 @@ export async function estoqueDoItem(db: Banco, ator: Ator | null, ref: unknown):
   }
   const [visto] = await esconderEmContagem(db, a, [item]);
   const escondidas = new Set(visto!.areas.filter((x) => x.emContagem).map((x) => x.area));
-  return { ...visto!, lotes: lotes.map((l) => ({ ...l, saldos: l.saldos.map((x) => (escondidas.has(x.area) ? { ...x, quantidade: null } : x)) })) };
+  return {
+    ...visto!,
+    lotes: lotes.map((l) => ({
+      ...l,
+      // Contagem cega: a etiqueta do lote na área em contagem some (não dá para conferir lote a lote).
+      etiqueta: l.saldos.some((x) => escondidas.has(x.area)) ? null : l.etiqueta,
+      saldos: l.saldos.map((x) => (escondidas.has(x.area) ? { ...x, quantidade: null } : x)),
+    })),
+  };
 }
 
 export type MovimentoDoHistorico = {
@@ -1862,6 +1909,8 @@ export type ResultadoDaProducao = Lancado & {
   /** Só com custos.ver: custo total da produção e de 1 unidade do preparo. */
   custoCentavos: string | null;
   custoPorUnidade: string | null;
+  /** A etiqueta do lote feito (vazia se o preparo não usa etiqueta). */
+  etiquetas: EtiquetaDoLote[];
 };
 
 /**
@@ -1885,7 +1934,7 @@ export async function produzirPreparo(db: Banco, ator: Ator | null, dados: unkno
   return db.transaction().execute(async (trx) => {
     const assinatura = assinar("producao", d);
     const ja = await jaLancado(trx, d.chave, assinatura);
-    if (ja) return { ...ja, ...(await resumoDaProducao(trx, ja.movimentoId, d.preparoId, comValor)) };
+    if (ja) return { ...ja, ...(await resumoDaProducao(trx, ja.movimentoId, d.preparoId, comValor)), etiquetas: await etiquetasDoMovimento(trx, ja.movimentoId) };
     const gastos = ficha.consumo.map((c) => ({ ingredienteId: c.ingredienteId ?? undefined, preparoId: c.preparoId ?? undefined, q: q4DaFracao(fracaoDe(c.exata).vezes(previsto)) }));
     const refs: Referencia[] = [{ preparoId: d.preparoId }, ...gastos];
     const ids = await garantirItens(trx, refs);
@@ -1929,6 +1978,7 @@ export async function produzirPreparo(db: Banco, ator: Ator | null, dados: unkno
       diferenca: textoQ4(rendimento - q4DoBanco(d.previsto)),
       custoCentavos: comValor ? valor.toString() : null,
       custoPorUnidade: comValor ? custoMedioPorUnidade(rendimento, valor) : null,
+      etiquetas: await etiquetasDoMovimento(trx, mov),
     };
   });
 }
@@ -1945,7 +1995,7 @@ function somarDias(dia: string, dias: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
-async function resumoDaProducao(trx: Trx, movimentoId: string, preparoId: number, comValor: boolean): Promise<Omit<ResultadoDaProducao, keyof Lancado>> {
+async function resumoDaProducao(trx: Trx, movimentoId: string, preparoId: number, comValor: boolean): Promise<Omit<ResultadoDaProducao, keyof Lancado | "etiquetas">> {
   const r = await sql<{ quantidade: string; valor: string; previsto: string }>`
     SELECT mi.quantidade::text AS quantidade, mi.valor_centavos::text AS valor, m.previsto::text AS previsto
     FROM estoque_movimento m JOIN estoque_movimento_item mi ON mi.movimento_id = m.id JOIN estoque_item e ON e.id = mi.item_id

@@ -6,10 +6,12 @@
  * o saldo depois de cada movimento. "Desfazer" só para quem tem `estoque.desfazer`; o servidor
  * recusa o que não se desfaz e a mensagem dele aparece. Cada envio leva uma chave (toque duplo).
  * As linhas de reposição (E10) ficam no bloco LinhasDoItem, aqui dentro.
+ * Etiqueta do lote (ideia nº 16): cada lote mostra a etiqueta (BAC-002) em destaque; o lote achado
+ * pela busca da etiqueta no painel fica marcado; depois de produzir, "Escreva na etiqueta".
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Aviso, Botao, Selo, varianteDaArea } from "@erp/interface";
-import type { EstoqueDoItem, ItemDoPainel, MovimentoDoHistorico } from "@erp/dominio";
+import type { EstoqueDoItem, EtiquetaDoLote, ItemDoPainel, LoteDoItem, MovimentoDoHistorico } from "@erp/dominio";
 import { chamar } from "../chamar";
 import { AreaDeTexto, Campo, Marcador, Selecao } from "../Campo";
 import { JanelaModal } from "../cadastros/JanelaModal";
@@ -18,13 +20,34 @@ import { consulta, custoMedio, dia, qtd, qtdComSinal, reais, unidadesDoItem } fr
 import type { ContextoDoEstoque, Opcao } from "./contexto";
 import { somaDasAreas } from "./PainelDoEstoque";
 import { useEnvio } from "./envio";
+import { EscrevaNaEtiqueta } from "./EscrevaNaEtiqueta";
 import { LinhasDoItem } from "./LinhasDoItem";
 import { NAO_SE_DESFAZ, NOME_DO_LOCAL, NOME_DO_LOCAL_DO_SALDO, NOME_DO_MOVIMENTO, NOME_DO_RECEBIMENTO, TE } from "./textos";
 
 type Acao = "transferencia" | "perda" | "bloqueio" | "desbloqueio" | "producao";
 const POR_PAGINA = 20;
 
-export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { resumo: ItemDoPainel; contexto: ContextoDoEstoque; areas: Opcao[]; aoFechar: () => void; aoMudar: () => void }) {
+/** O lote achado pela busca da etiqueta no painel (fica marcado na gaveta). */
+export type LoteEmDestaque = { loteId: number | null; etiqueta: string | null };
+
+/** Texto do lote no seletor: começa pela etiqueta quando houver. */
+const textoDoLote = (l: LoteDoItem) => [l.etiqueta, l.validade ? TE.item.validade(dia(l.validade)) : TE.item.semValidade, l.codigo ? TE.item.codigo(l.codigo) : ""].filter(Boolean).join(", ");
+
+export function DetalheDoItem({
+  resumo,
+  contexto,
+  areas,
+  destaque = null,
+  aoFechar,
+  aoMudar,
+}: {
+  resumo: ItemDoPainel;
+  contexto: ContextoDoEstoque;
+  areas: Opcao[];
+  destaque?: LoteEmDestaque | null;
+  aoFechar: () => void;
+  aoMudar: () => void;
+}) {
   const ref = resumo.ingredienteId !== null ? { ingredienteId: resumo.ingredienteId } : { preparoId: resumo.preparoId! };
   const chaveDaRef = JSON.stringify(ref);
   const [item, setItem] = useState<EstoqueDoItem | null>(null);
@@ -34,6 +57,9 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
   const [acao, setAcao] = useState<Acao | null>(null);
   const [feito, setFeito] = useState("");
   const [desfazendo, setDesfazendo] = useState<string | null>(null);
+  /** Etiquetas do lote que a última produção criou (para escrever no pacote). */
+  const [etiquetasFeitas, setEtiquetasFeitas] = useState<EtiquetaDoLote[]>([]);
+  const loteMarcado = useRef<HTMLLIElement | null>(null);
 
   const carregar = useCallback(async () => {
     const ref = JSON.parse(chaveDaRef) as Record<string, number>;
@@ -62,16 +88,23 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
     setTemMais(h.dados.length === POR_PAGINA);
   }
 
-  function pronto(texto: string) {
+  function pronto(texto: string, etiquetas: EtiquetaDoLote[] = []) {
     setAcao(null);
     setDesfazendo(null);
     setFeito(texto);
+    setEtiquetasFeitas(etiquetas);
     void carregar();
     aoMudar();
   }
 
   const codigos = areas.map((a) => a.valor);
   const s = item ? somaDasAreas(item, codigos) : null;
+  const marcado = (l: LoteDoItem) => destaque !== null && ((destaque.loteId !== null && l.loteId === destaque.loteId) || (destaque.etiqueta !== null && l.etiqueta === destaque.etiqueta));
+  const temMarcado = !!item?.lotes.some(marcado);
+  // O lote achado pela etiqueta aparece na tela quando a gaveta carrega.
+  useEffect(() => {
+    if (temMarcado) loteMarcado.current?.scrollIntoView({ block: "center" });
+  }, [temMarcado]);
   const acoes: { valor: Acao; texto: string }[] = [
     { valor: "transferencia", texto: TE.item.transferir },
     { valor: "perda", texto: TE.item.perda },
@@ -122,6 +155,7 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
                 {feito}
               </Aviso>
             )}
+            <EscrevaNaEtiqueta etiquetas={etiquetasFeitas} tipo="producao" />
 
             <section className="est-bloco" aria-labelledby="est-acoes">
               <h3 id="est-acoes">{TE.item.acoes}</h3>
@@ -162,8 +196,21 @@ export function DetalheDoItem({ resumo, contexto, areas, aoFechar, aoMudar }: { 
               ) : (
                 <ul className="est-lotes" data-testid="lotes">
                   {item.lotes.map((l) => (
-                    <li key={l.loteId} className="est-lote">
+                    <li
+                      key={l.loteId}
+                      ref={marcado(l) ? loteMarcado : undefined}
+                      className={marcado(l) ? "est-lote est-lote--destaque" : "est-lote"}
+                      data-testid={l.etiqueta ? `lote-${l.etiqueta}` : undefined}
+                      data-destaque={marcado(l) ? "sim" : undefined}
+                      aria-current={marcado(l) ? "true" : undefined}
+                    >
                       <span className="est-lote__cabeca">
+                        {l.etiqueta && (
+                          <span className="est-lote__etiqueta">
+                            <span className="ajuda__so-leitor">{TE.etiqueta.lote} </span>
+                            {l.etiqueta}
+                          </span>
+                        )}
                         <strong>{l.validade ? TE.item.validade(dia(l.validade)) : TE.item.semValidade}</strong>
                         {l.vencido && <Selo variante="perigo">{TE.painel.vencido}</Selo>}
                         {l.codigo && <span>{TE.item.codigo(l.codigo)}</span>}
@@ -252,7 +299,7 @@ const ROTA: Record<Acao, string> = {
   producao: "/api/estoque/produzir",
 };
 
-function FormDoLancamento({ acao, item, contexto, areas, aoCancelar, aoGravar }: { acao: Acao; item: EstoqueDoItem; contexto: ContextoDoEstoque; areas: Opcao[]; aoCancelar: () => void; aoGravar: (texto: string) => void }) {
+function FormDoLancamento({ acao, item, contexto, areas, aoCancelar, aoGravar }: { acao: Acao; item: EstoqueDoItem; contexto: ContextoDoEstoque; areas: Opcao[]; aoCancelar: () => void; aoGravar: (texto: string, etiquetas?: EtiquetaDoLote[]) => void }) {
   // Preparo conta só na unidade dele (o servidor recusa outra).
   const unidades = item.preparoId !== null ? [{ valor: item.unidade, texto: item.unidade }] : unidadesDoItem(item.unidade);
   const comSaldo = item.areas.find((a) => areas.some((x) => x.valor === a.area));
@@ -304,16 +351,16 @@ function FormDoLancamento({ acao, item, contexto, areas, aoCancelar, aoGravar }:
     else if (acao === "perda") corpo = { ...comum, quantidade, unidade, area, local, motivo, ...(doBloqueado ? { doBloqueado: true } : {}) };
     else if (acao === "bloqueio") corpo = { ...comum, quantidade, unidade, area, local, motivo };
     else corpo = { ...comum, quantidade, unidade, area, local };
-    const r = await enviar<{ repetido: boolean; diferenca?: string; custoCentavos?: string | null; custoPorUnidade?: string | null; aReceber?: { area: string; recebidoPor: { nome: string } } | null }>(ROTA[acao], corpo);
+    const r = await enviar<{ repetido: boolean; diferenca?: string; custoCentavos?: string | null; custoPorUnidade?: string | null; aReceber?: { area: string; recebidoPor: { nome: string } } | null; etiquetas?: EtiquetaDoLote[] }>(ROTA[acao], corpo);
     if (!r) return;
-    if (r.repetido) return aoGravar(TE.form.repetido);
+    if (r.repetido) return aoGravar(TE.form.repetido, r.etiquetas ?? []);
     // Entre áreas: fica a receber até quem recebe confirmar (decisão do responsável, 25/11/2026).
     if (r.aReceber) return aoGravar(TE.form.aReceber(contexto.nomeDaArea[r.aReceber.area] ?? r.aReceber.area, r.aReceber.recebidoPor.nome));
     const extra =
       acao === "producao" && r.diferenca !== undefined
         ? ` ${TE.form.producaoDiferenca(qtdComSinal(r.diferenca, item.unidade))}${r.custoCentavos ? ` ${TE.form.producaoCusto(reais(r.custoCentavos), custoMedio(r.custoPorUnidade ?? null, item.unidade))}` : ""}`
         : "";
-    aoGravar(`${TE.form.feito[acao === "transferencia" ? "transferencia" : acao]}${extra}`);
+    aoGravar(`${TE.form.feito[acao === "transferencia" ? "transferencia" : acao]}${extra}`, r.etiquetas ?? []);
   }
 
   return (
@@ -395,7 +442,7 @@ function FormDoLancamento({ acao, item, contexto, areas, aoCancelar, aoGravar }:
               exemplo={TE.form.loteExemplo}
               value={loteId}
               onChange={(e) => setLoteId(e.target.value)}
-              opcoes={[{ valor: "", texto: TE.form.loteQualquer }, ...lotes.map((l) => ({ valor: String(l.loteId), texto: [l.validade ? TE.item.validade(dia(l.validade)) : TE.item.semValidade, l.codigo ? TE.item.codigo(l.codigo) : ""].filter(Boolean).join(", ") }))]}
+              opcoes={[{ valor: "", texto: TE.form.loteQualquer }, ...lotes.map((l) => ({ valor: String(l.loteId), texto: textoDoLote(l) }))]}
             />
           )}
         </>

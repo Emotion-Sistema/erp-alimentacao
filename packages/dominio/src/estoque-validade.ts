@@ -177,6 +177,7 @@ type Candidato = {
   nome: string;
   validade: string;
   codigo: string | null;
+  etiqueta: string | null;
   dias: number;
   tipo: "perto_do_vencimento" | "vencido_sem_perda";
 };
@@ -202,11 +203,11 @@ export async function avisarValidades(db: Banco, opcoes: { dia?: string; agora?:
       WITH d AS (SELECT coalesce(${opcoes.dia ?? null}::date, hoje_na_loja()) AS dia,
                         coalesce((SELECT fuso_horario FROM unidade ORDER BY id LIMIT 1), 'America/Sao_Paulo') AS fuso),
       c AS (
-        SELECT s.lote_id, s.area, l.item_id, l.validade, l.codigo, l.criado_em, bool_or(NOT s.bloqueado) AS tem_livre
+        SELECT s.lote_id, s.area, l.item_id, l.validade, l.codigo, l.etiqueta, l.criado_em, bool_or(NOT s.bloqueado) AS tem_livre
         FROM estoque_saldo s JOIN estoque_lote l ON l.id = s.lote_id, d
         WHERE s.quantidade > 0 AND s.local IN ('em_uso', 'guardado') AND l.validade IS NOT NULL
           AND (l.validade <= d.dia + ${DIAS_PERTO_DO_VENCIMENTO}::int)
-        GROUP BY s.lote_id, s.area, l.item_id, l.validade, l.codigo, l.criado_em
+        GROUP BY s.lote_id, s.area, l.item_id, l.validade, l.codigo, l.etiqueta, l.criado_em
       ),
       t AS (
         SELECT c.*, CASE
@@ -217,7 +218,7 @@ export async function avisarValidades(db: Banco, opcoes: { dia?: string; agora?:
         FROM c, d
       )
       SELECT t.lote_id, t.area, t.item_id, coalesce(i.nome, f.nome) AS nome, to_char(t.validade, 'YYYY-MM-DD') AS validade,
-        t.codigo, t.dias, t.tipo
+        t.codigo, t.etiqueta, t.dias, t.tipo
       FROM t
       JOIN estoque_item e ON e.id = t.item_id
       LEFT JOIN ingrediente i ON i.id = e.ingrediente_id
@@ -229,8 +230,10 @@ export async function avisarValidades(db: Banco, opcoes: { dia?: string; agora?:
     let vencidos = 0;
     for (const x of r.rows) {
       const lugar = NOME_DA_AREA[x.area];
-      const doLote = x.codigo ? ` (lote ${x.codigo})` : "";
-      const base = { itemId: x.item_id, loteId: x.lote_id, area: x.area, validade: x.validade, codigo: x.codigo };
+      // A etiqueta do sistema (BAC-002) é o que está escrito no pacote; sem ela, o código do fornecedor.
+      const doLote = x.etiqueta ? ` (${x.etiqueta})` : x.codigo ? ` (lote ${x.codigo})` : "";
+      const usePrimeiro = x.etiqueta ? `Use primeiro o ${x.etiqueta}` : "Use primeiro";
+      const base = { itemId: x.item_id, loteId: x.lote_id, area: x.area, validade: x.validade, codigo: x.codigo, etiqueta: x.etiqueta };
       let avisoId: string;
       if (x.tipo === "perto_do_vencimento") {
         avisoId = await criarAviso(trx, {
@@ -238,7 +241,7 @@ export async function avisarValidades(db: Banco, opcoes: { dia?: string; agora?:
           paraCargos: [...new Set([...daArea(x.area), ...GERENCIA])],
           tipo: TIPOS_DE_AVISO_DE_VALIDADE.perto,
           prioridade: "normal",
-          texto: `Perto do vencimento: "${x.nome}"${doLote} vence ${quandoVence(x.dias, x.validade)}, em ${lugar}. Use primeiro ou registre o descarte.`,
+          texto: `Perto do vencimento: "${x.nome}"${doLote} vence ${quandoVence(x.dias, x.validade)}, em ${lugar}. ${usePrimeiro} ou registre o descarte.`,
           dados: { ...base, acao: "usar_primeiro" },
         });
         perto++;
