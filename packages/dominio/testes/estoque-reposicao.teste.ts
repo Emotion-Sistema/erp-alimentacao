@@ -398,6 +398,8 @@ describe("quem define as linhas e o histórico", () => {
       ["400", "Teste gerente geral", "menos movimento"],
       ["500", "Teste cozinheira", null],
     ]);
+    // A observação atual vem com as linhas (a tela reabre o formulário com ela).
+    expect(h.areas.find((a) => a.area === "cozinha")).toMatchObject({ saudavel: "400", observacao: "menos movimento" });
     await expect(sql`UPDATE estoque_linha_mudanca SET saudavel = 1 WHERE item_id = (SELECT id FROM estoque_item WHERE ingrediente_id = ${x})`.execute(db)).rejects.toThrow(/não muda/);
     await expect(sql`DELETE FROM estoque_linha WHERE item_id = (SELECT id FROM estoque_item WHERE ingrediente_id = ${x})`.execute(db)).rejects.toThrow(/não muda/);
     await expect(sql`DELETE FROM estoque_reposicao_estado WHERE item_id = (SELECT id FROM estoque_item WHERE ingrediente_id = ${x})`.execute(db)).rejects.toThrow(/não muda/);

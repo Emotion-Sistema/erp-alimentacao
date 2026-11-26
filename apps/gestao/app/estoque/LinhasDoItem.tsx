@@ -92,7 +92,7 @@ export function LinhasDoItem({ refDoItem, unidade, preparo, contexto, codigos, a
         ...areasDoItem
           .filter((a) => codigos.includes(a) && !dados.areas.some((x) => x.area === a))
           .map(
-            (a): LinhasDaArea => ({ itemId: 0, area: a as LinhasDaArea["area"], unidade, saudavel: null, emergencia: null, abastecimento: null, avisoGuardado: "urgente", alteradoPor: null, alteradoEm: null, situacao: null, usandoGuardado: null, abastecer: null }),
+            (a): LinhasDaArea => ({ itemId: 0, area: a as LinhasDaArea["area"], unidade, saudavel: null, emergencia: null, abastecimento: null, avisoGuardado: "urgente", observacao: null, alteradoPor: null, alteradoEm: null, situacao: null, usandoGuardado: null, abastecer: null }),
           ),
       ]
     : [];
@@ -140,7 +140,7 @@ export function LinhasDoItem({ refDoItem, unidade, preparo, contexto, codigos, a
                     refDoItem={refDoItem}
                     linha={l}
                     preparo={preparo}
-                    observacao={mudancas.find((m) => m.area === l.area)?.observacao ?? ""}
+                    observacao={l.observacao ?? ""}
                     aoCancelar={() => setEditando(null)}
                     aoGravar={() => {
                       setEditando(null);

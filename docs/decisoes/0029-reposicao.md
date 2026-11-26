@@ -146,3 +146,17 @@ movimento = emergência, um aviso, e duas reavaliações em paralelo (3 rodadas)
 acusa reavaliação atrasada. Mutações que derrubam: começo calado antigo; sem começo calado; área do
 item calada; sem olhar o saldo anterior da área; `dados` sempre completo; reavaliação sem trava;
 reavaliação ignorando o dia; sem acusar a atrasada.
+
+## Parte 2 (26/11/2026): telas e começo calado
+- **Telas (visual Balcão, decisão 0028):** no painel do Estoque, cada item ganha o selo da pior
+  situação nas áreas vistas (Repor, Emergência, Esgotou) e "Trazer do guardado"; chip "Para repor".
+  Na gaveta do item, o bloco "Linhas de reposição" (definir as linhas, "Usar sugestão", "dura até",
+  histórico). Em Compras, a primeira aba é "Para repor" (lista por gravidade, por área, baixar CSV;
+  só `compras.gerenciar`). O painel recebe `reposicao` (situação por área, sem quantidades; some na
+  área em contagem cega para quem conta). `LinhasDaArea` traz a observação atual.
+- **Começo calado também na área do item:** a primeira avaliação, sem movimento (definir a linha), de
+  uma área que nunca teve saldo do item não avisa, nem na área do próprio item. Assim a primeira
+  carga de linhas não vira centenas de "esgotou" para ingredientes que nunca foram comprados. O
+  estado nasce "esgotado" e o item entra na lista para repor. Item que já teve saldo avisa normalmente.
+- Evidência: `estoque-reposicao.teste.ts` (parte 2: nunca comprado não avisa e entra na lista; já
+  teve saldo avisa; situação no painel e contagem cega) e `apps/gestao/testes-tela/reposicao.spec.ts`.
