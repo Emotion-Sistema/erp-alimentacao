@@ -88,7 +88,7 @@ describe("estoque pela API", () => {
     const primeira = (await a.json()) as { movimentoId: string; repetido: boolean };
     expect(primeira.repetido).toBe(false);
     const b = await r.darEntrada(req("/api/estoque/entradas", "POST", gerente, corpo));
-    expect(((await b.json()) as { movimentoId: string; repetido: boolean })).toEqual({ movimentoId: primeira.movimentoId, repetido: true });
+    expect(((await b.json()) as { movimentoId: string; repetido: boolean })).toEqual({ movimentoId: primeira.movimentoId, repetido: true, validadeCurta: [] });
     // Mesma chave com outro conteúdo: recusa com a mensagem do servidor.
     const c = await r.darEntrada(req("/api/estoque/entradas", "POST", gerente, { ...corpo, notaNumero: "999" }));
     expect(c.status).toBe(409);

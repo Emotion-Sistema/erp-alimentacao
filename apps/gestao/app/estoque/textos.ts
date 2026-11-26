@@ -85,6 +85,22 @@ export const TE = {
     esgotou: "Esgotou",
     trazerDoGuardado: "Trazer do guardado",
   },
+  /** Dinheiro em risco (D1, ideia nº 15): só para quem vê custos. */
+  emRisco: {
+    titulo: "Dinheiro em risco",
+    vence3: "Vence em até 3 dias",
+    vence7: "Em até 7 dias",
+    vencidoNoEstoque: "Vencido ainda no estoque",
+    nada: "Nada vencendo nos próximos 7 dias.",
+    ver: "Ver os itens",
+    esconder: "Esconder os itens",
+    em3: "Até 3 dias",
+    em7: "Até 7 dias",
+    vencido: "Vencido",
+    primeira: "Primeira validade",
+    abrirBotao: "Abrir o item",
+    abrir: (nome: string, area: string) => `Abrir o item ${nome} (${area})`,
+  },
   /** Linhas de reposição do item (E10, decisão 0029), no detalhe do item. */
   linhas: {
     titulo: "Linhas de reposição",
@@ -368,6 +384,10 @@ export const TE = {
     gravar: (n: number) => `Dar entrada em ${plural(n, "item", "itens")}`,
     gravada: (n: number) => `Entrada gravada: ${plural(n, "item", "itens")}.`,
     repetida: "Esta entrada já tinha sido gravada: nada entrou de novo.",
+    /** D4a: a entrada foi gravada, mas chegou com menos dias de validade que o mínimo do ingrediente. */
+    validadeCurta: "Entrada registrada. Atenção, validade curta:",
+    validadeCurtaItem: (nome: string, dataCurta: string, dias: number, minimo: number) =>
+      `"${nome}" vence ${dataCurta} (${dias < 0 ? "já venceu" : plural(dias, "dia", "dias")}; mínimo ${minimo}).`,
     foto: "Foto da nota",
     fotoAjuda: "Tire a foto da nota ou escolha do aparelho. Até 5 fotos por entrada.",
     fotoExemplo: "A nota inteira, de perto, sem sombra.",

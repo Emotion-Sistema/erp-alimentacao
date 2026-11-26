@@ -187,3 +187,36 @@ reavaliação ignorando o dia; sem acusar a atrasada.
   turno acabado não sobe; esgotou sobe ao dono sem quantidades; guardado trazido não sobe) e
   `agrupar-avisos.teste.ts`. Mutações que derrubam: sem conferir se continua; sem olhar o "visto"; sem a trava; sem o "um
   por item e área". Revisão independente aprovada (26/11/2026), com os ajustes acima.
+## Desperdício por vencimento (26/11/2026): ideia nº 15, D1, D7 e D4a
+Migração 0029; `estoque-validade.ts`; entrada em `estoque.ts`. Só leitura e avisos: não muda saldo
+nem o RC-01.
+- **Dinheiro em risco (D1):** `GET /api/estoque/em-risco`, só com `custos.ver`, nas áreas que a
+  pessoa vê. "Vence em 3 dias" = validade de hoje até hoje + 3 (7 dias inclui os 3); só em uso e
+  guardado, sem o bloqueado (quarentena não vai ser usada) e sem o "a receber". Valor = parte do valor
+  do item que cabe à quantidade (custo médio, como na saída). O vencido que continua no estoque
+  (livre ou bloqueado) aparece à parte. Mostrado no painel do estoque. O "resumo do dia" ainda não
+  existe: entra lá quando ele for feito.
+- **Aviso "perto do vencimento" (D1, RC-09):** normal, para quem cuida da área e o gerente geral, uma
+  vez por lote e área (`estoque_lote_aviso`, chave primária, sob trava), quando o lote livre vence
+  hoje ou nos próximos 2 dias. Não avisa o lote que já entrou com 2 dias ou menos de validade (ex.:
+  molho da casa que vale 2 dias): isso se sabe na entrada e a cozinha usa no dia; senão toda produção
+  curta avisaria.
+- **Vencido parado (D7):** normal, para quem cuida da área, uma vez por lote e área, quando o lote está
+  2 dias depois da validade e ainda tem saldo (livre ou bloqueado): ninguém registrou a perda. Lote
+  sem saldo (perda registrada) não avisa.
+- Os dois rodam no worker de hora em hora (minuto 10) e **só com a loja em turno**: o aviso vale até o
+  fim do turno (RC-18), e um aviso nascido de madrugada morreria antes de alguém ver. Os textos não
+  têm quantidade (contagem cega). Aceito: o aviso de um lote aparece só no turno em que nasceu.
+- **Validade curta na entrada (D4a):** campo opcional "validade mínima na entrada (dias)" no
+  ingrediente (1 a 365; nulo = sem alerta; a alteração sem o campo mantém o valor). A compra que chega
+  com menos dias **entra mesmo assim** (já está na loja): a resposta traz `validadeCurta` para a tela
+  e, se quem deu entrada não é de compras, o gerente geral recebe um aviso normal
+  (`estoque.validade_curta`) para falar com o fornecedor. Reenvio da mesma entrada (mesma chave) não
+  repete o alerta nem o aviso. Não vale para saldo inicial nem para preparo da casa.
+- Hipóteses (26/11/2026): 2 dias para "perto" e 2 dias para "vencido parado", até existir configuração.
+- Evidência: `estoque-validade.teste.ts` (11 testes: somas em 3 e 7 dias, bloqueado fora, vencido à
+  parte, recusa sem custos.ver com auditoria; perto uma vez só, não para o que entrou perto nem para o
+  bloqueado, não fora do turno; vencido parado depois de 2 dias, não com perda registrada; duas
+  execuções juntas = um aviso; histórico imutável; validade curta com aviso, sem aviso para quem
+  compra, reenvio sem repetir; cadastro guarda, mantém e limpa). Mutações que derrubam: sem a trava;
+  sem a regra do lote que entrou perto.

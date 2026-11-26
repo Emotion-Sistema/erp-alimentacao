@@ -41,6 +41,7 @@ export * from "./estoque-recebimento";
 export * from "./estoque-reposicao";
 export * from "./estoque-reposicao-estado";
 export * from "./estoque-avisos-subir";
+export * from "./estoque-validade";
 export * from "./mesas";
 export * from "./mesas-numeros";
 export * from "./cardapio";

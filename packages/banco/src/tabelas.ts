@@ -210,6 +210,8 @@ export interface IngredienteTabela {
   /** Alergênicos conferidos (migração 0020): nulo = ainda não conferido. Os dois juntos. */
   alergenicos_conferidos_em: ColumnType<Date | null, Date | string | null | undefined, Date | string | null>;
   alergenicos_conferidos_por: ColumnType<number | null, number | null | undefined, number | null>;
+  /** Validade mínima na entrada, em dias (migração 0029; D4a). Nulo = sem alerta. */
+  validade_minima_dias: ColumnType<number | null, number | null | undefined, number | null>;
 }
 
 export interface IngredienteConversaoTabela {
@@ -661,6 +663,15 @@ export interface EstoqueLoteTabela {
   criado_em: Instante;
 }
 
+/** Aviso de validade de um lote numa área, um por tipo (migração 0029; D1 e D7). */
+export interface EstoqueLoteAvisoTabela {
+  lote_id: number;
+  area: Area;
+  tipo: "perto_do_vencimento" | "vencido_sem_perda";
+  aviso_id: string;
+  em: Generated<Instante>;
+}
+
 export interface EstoqueSaldoTabela {
   lote_id: number;
   area: Area;
@@ -876,6 +887,7 @@ export interface BancoTabelas {
   estoque_movimento: EstoqueMovimentoTabela;
   estoque_lote: EstoqueLoteTabela;
   estoque_saldo: EstoqueSaldoTabela;
+  estoque_lote_aviso: EstoqueLoteAvisoTabela;
   estoque_movimento_item: EstoqueMovimentoItemTabela;
   estoque_movimento_linha: EstoqueMovimentoLinhaTabela;
   estoque_nota_foto: EstoqueNotaFotoTabela;

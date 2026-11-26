@@ -5,11 +5,12 @@
  * Tarefa agendada (pg-boss `schedule`, que também mora no PostgreSQL): a reavaliação
  * da reposição na virada do dia (E10; decisão 0029), de hora em hora no fuso da loja,
  * com a primeira logo depois da meia-noite dela; e, a cada 5 minutos, o aviso urgente do
- * estoque que ninguém viu sobe para o superior (E10 parte 2, migração 0028).
+ * estoque que ninguém viu sobe para o superior (E10 parte 2, migração 0028); e, de hora em hora, os
+ * avisos de validade por lote: "perto do vencimento" e "vencido sem perda" (ideia nº 15, migração 0029).
  */
 import { PgBoss } from "pg-boss";
 import { criarBanco, urlDoBanco } from "@erp/banco";
-import { reavaliarReposicao, subirAvisosNaoVistos } from "@erp/dominio";
+import { avisarValidades, reavaliarReposicao, subirAvisosNaoVistos } from "@erp/dominio";
 
 const log = (nivel: string, mensagem: string, extra: Record<string, unknown> = {}) =>
   console.log(JSON.stringify({ quando: new Date().toISOString(), processo: "worker", nivel, mensagem, ...extra }));
@@ -52,6 +53,16 @@ await boss.work(FILA_SUBIR, async () => {
   if (r.subiram > 0) log("info", "avisos urgentes subiram para o superior", r);
 });
 await boss.schedule(FILA_SUBIR, "*/5 * * * *", null, { tz: fuso });
+// Validade por lote (D1 e D7): minuto 10 de toda hora. Só avisa com a loja em turno (o aviso vale até o
+// fim do turno); cada lote avisa uma vez por área e tipo (chave primária de estoque_lote_aviso, sob uma trava).
+const FILA_VALIDADE = "estoque-avisos-validade";
+await boss.createQueue(FILA_VALIDADE, { policy: "stately" });
+await boss.work(FILA_VALIDADE, async () => {
+  const r = await avisarValidades(db);
+  if (r.perto + r.vencidos > 0) log("info", "avisos de validade enviados", r);
+});
+await boss.schedule(FILA_VALIDADE, "10 * * * *", null, { tz: fuso });
+await boss.send(FILA_VALIDADE, null);
 log("info", "worker no ar", { fuso });
 
 let saindo = false;
