@@ -1439,7 +1439,15 @@ export async function estoqueDoItem(db: Banco, ator: Ator | null, ref: unknown):
   }
   const [visto] = await esconderEmContagem(db, a, [item]);
   const escondidas = new Set(visto!.areas.filter((x) => x.emContagem).map((x) => x.area));
-  return { ...visto!, lotes: lotes.map((l) => ({ ...l, saldos: l.saldos.map((x) => (escondidas.has(x.area) ? { ...x, quantidade: null } : x)) })) };
+  return {
+    ...visto!,
+    lotes: lotes.map((l) => ({
+      ...l,
+      // Contagem cega: a etiqueta do lote na área em contagem some (não dá para conferir lote a lote).
+      etiqueta: l.saldos.some((x) => escondidas.has(x.area)) ? null : l.etiqueta,
+      saldos: l.saldos.map((x) => (escondidas.has(x.area) ? { ...x, quantidade: null } : x)),
+    })),
+  };
 }
 
 export type MovimentoDoHistorico = {

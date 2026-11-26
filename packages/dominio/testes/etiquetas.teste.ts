@@ -22,6 +22,9 @@ import {
   listarIngredientes,
   mudarCodigoDaEtiqueta,
   normalizarEtiqueta,
+  leiturasDaEtiqueta,
+  abrirContagem,
+  transferir,
   painelDeFichas,
   painelDoEstoque,
   produzirPreparo,
@@ -204,6 +207,41 @@ describe("etiqueta do lote", () => {
     expect(p.etiquetas).toEqual([{ itemId: expect.any(Number), nome: `${r} Molho`, etiqueta: `${cod}-001`, dia: hoje, validade: mais(hoje, 3) }]);
   });
 
+  it("reenvio da produção e do saldo inicial devolve a mesma etiqueta; preparo com etiqueta desligada entra sem", async () => {
+    const r = raiz();
+    const tomate = await ingrediente(`${r} tomate`);
+    await entrada(tomate);
+    const f = await salvarFicha(db, gerente, {
+      tipo: "preparo",
+      nome: `${r} Molho`,
+      unidadeRendimento: "g",
+      receita: { rende: "1000", validadeDias: 3, itens: [{ ingredienteId: tomate, quantidade: "100" }] },
+    });
+    const pedido = { preparoId: f.resumo.id, previsto: "1000", rendimento: "1000", chave: `teste-${randomUUID()}` };
+    const p1 = await produzirPreparo(db, gerente, pedido);
+    const p2 = await produzirPreparo(db, gerente, pedido);
+    expect(p1.etiquetas).toHaveLength(1);
+    expect(p2).toMatchObject({ repetido: true, etiquetas: p1.etiquetas });
+    const si = { itens: [{ ingredienteId: tomate, quantidade: "10", local: "em_uso" as const }], chave: `teste-${randomUUID()}` };
+    const s1 = (await registrarSaldoInicial(db, gerente, si)) as unknown as { etiquetas: unknown[] };
+    const s2 = (await registrarSaldoInicial(db, gerente, si)) as unknown as { etiquetas: unknown[]; repetido: boolean };
+    expect(s1.etiquetas).toHaveLength(1);
+    expect(s2).toMatchObject({ repetido: true, etiquetas: s1.etiquetas });
+    await mudarCodigoDaEtiqueta(db, gerente, { preparoId: f.resumo.id, usaEtiqueta: false });
+    expect((await produzirPreparo(db, gerente, { preparoId: f.resumo.id, previsto: "1000", rendimento: "1000" })).etiquetas).toEqual([]);
+  });
+
+  it("a peça mandada para outro lugar continua com a mesma etiqueta", async () => {
+    const x = await ingrediente(raiz());
+    const cod = await codigoDe(x);
+    await entrada(x);
+    await transferir(db, cozinheira, { ingredienteId: x, quantidade: "400", de: { area: "cozinha", local: "em_uso" }, para: { area: "cozinha", local: "guardado" } });
+    const item = await estoqueDoItem(db, gerente, { ingredienteId: x });
+    expect(item.lotes).toHaveLength(1);
+    expect(item.lotes[0]).toMatchObject({ etiqueta: `${cod}-001` });
+    expect(item.lotes[0]!.saldos.map((x) => x.local).sort()).toEqual(["em_uso", "guardado"]);
+  });
+
   it("produto com etiqueta desligada entra sem código; ligado de novo continua a numeração", async () => {
     const x = await ingrediente(raiz());
     const cod = await codigoDe(x);
@@ -226,6 +264,8 @@ describe("etiqueta do lote", () => {
     await expect(sql`DELETE FROM etiqueta_produto WHERE ingrediente_id = ${x}`.execute(db)).rejects.toThrow();
     await expect(sql`UPDATE etiqueta_produto SET ingrediente_id = NULL, preparo_id = 1 WHERE ingrediente_id = ${x}`.execute(db)).rejects.toThrow();
     await expect(sql`DELETE FROM etiqueta_sequencia`.execute(db)).rejects.toThrow();
+    // O número só anda para a frente (voltar repetiria etiqueta).
+    await expect(sql`UPDATE etiqueta_sequencia SET ultimo = 1 WHERE codigo = ${await codigoDe(x)}`.execute(db)).rejects.toThrow(/só anda para a frente/);
     // Inserir um lote com etiqueta escolhida: o banco ignora e numera ele mesmo.
     const forjado = await sql<{ etiqueta: string | null }>`
       INSERT INTO estoque_lote (item_id, movimento_id, etiqueta) VALUES (${lote.item_id}, ${e.movimentoId}::bigint, 'ZZZ-001') RETURNING etiqueta`.execute(db);
@@ -264,6 +304,37 @@ describe("trocar o código no cadastro", () => {
     const a = await ingrediente(raiz());
     expect((await erroDe(mudarCodigoDaEtiqueta(db, cozinheira, { ingredienteId: a, usaEtiqueta: false }))).codigo).toBe("sem_permissao");
     expect((await erroDe(mudarCodigoDaEtiqueta(db, null, { ingredienteId: a, usaEtiqueta: false }))).codigo).toBe("nao_autenticado");
+  });
+
+  it("trocar o código espera a entrada que ainda está gravando; o código dela não vai para outro produto", async () => {
+    const a = await ingrediente(raiz());
+    const antigo = await codigoDe(a);
+    await entrada(a); // 001 gravado (o item de estoque existe)
+    const item = (await db.selectFrom("estoque_item").select("id").where("ingrediente_id", "=", a).executeTakeFirstOrThrow()).id;
+    const novo = `XW${CONSOANTES[randomInt(CONSOANTES.length)]}${CONSOANTES[randomInt(CONSOANTES.length)]}${CONSOANTES[randomInt(CONSOANTES.length)]}`;
+    let trocou = false;
+    let troca: Promise<unknown> | undefined;
+    let soltar!: () => void;
+    const espera = new Promise<void>((r) => (soltar = r));
+    // Uma entrada que gera o lote 002 e segura a transação aberta.
+    const lancamento = db.transaction().execute(async (trx) => {
+      const m = await sql<{ id: string }>`INSERT INTO estoque_movimento (tipo, autor_id) VALUES ('entrada', ${gerente.usuarioId}) RETURNING id::text`.execute(trx);
+      const l = await sql<{ etiqueta: string }>`INSERT INTO estoque_lote (item_id, movimento_id) VALUES (${item}, ${m.rows[0]!.id}::bigint) RETURNING etiqueta`.execute(trx);
+      expect(l.rows[0]!.etiqueta).toBe(`${antigo}-002`);
+      troca = mudarCodigoDaEtiqueta(db, gerente, { ingredienteId: a, codigo: novo }).then(() => (trocou = true));
+      await new Promise((r) => setTimeout(r, 300));
+      expect(trocou).toBe(false); // esperando a entrada
+      soltar();
+    });
+    await espera;
+    await lancamento;
+    await troca;
+    expect(trocou).toBe(true);
+    // O código antigo já tem o 002 gravado: outro produto não fica com ele.
+    const b = await ingrediente(raiz());
+    expect((await erroDe(mudarCodigoDaEtiqueta(db, gerente, { ingredienteId: b, codigo: antigo }))).codigo).toBe("conflito");
+    // Nem direto no banco.
+    await expect(sql`UPDATE etiqueta_produto SET codigo = ${antigo} WHERE ingrediente_id = ${b}`.execute(db)).rejects.toThrow(/já foi usado/);
   });
 
   it("com código novo, os lotes antigos ficam com a etiqueta antiga; o novo começa do 001; o antigo não vai para outro produto", async () => {
@@ -308,13 +379,42 @@ describe("achar pela etiqueta", () => {
     expect((await erroDe(acharPelaEtiqueta(db, await atorDoCargo(db, "atendente"), `${cod}-002`))).codigo).toBe("sem_permissao");
   });
 
-  it("normaliza o que foi digitado", () => {
+  it("lê o que foi digitado, também sem o traço e com código que tem número", () => {
     expect(normalizarEtiqueta("bac 2")).toBe("BAC-002");
     expect(normalizarEtiqueta("BAC-1234")).toBe("BAC-1234");
     expect(normalizarEtiqueta("ba1-005")).toBe("BA1-005");
+    expect(normalizarEtiqueta("BAC002")).toBe("BAC-002");
+    expect(normalizarEtiqueta("bac2")).toBe("BAC-002");
+    expect(leiturasDaEtiqueta("BA1005").sort()).toEqual(["BA-1005", "BA1-005"]);
+    expect(leiturasDaEtiqueta("LO1007")).toContain("LO1-007");
     expect(normalizarEtiqueta("BAC-0")).toBeNull();
     expect(normalizarEtiqueta("BAC")).toBeNull();
     expect(normalizarEtiqueta(12)).toBeNull();
+  });
+
+  it("sem o traço, acha o lote do código com número (LO1-005)", async () => {
+    const x = await ingrediente(raiz());
+    const cod = `X${CONSOANTES[randomInt(CONSOANTES.length)]}${randomInt(10)}`;
+    await mudarCodigoDaEtiqueta(db, gerente, { ingredienteId: x, codigo: cod });
+    for (let i = 0; i < 5; i++) await entrada(x);
+    expect(await acharPelaEtiqueta(db, cozinheira, `${cod.toLowerCase()}005`)).toMatchObject({ ingredienteId: x, etiqueta: `${cod}-005` });
+  });
+
+  it("com contagem cega aberta, a etiqueta some da gaveta e a busca não confere lote a lote", async () => {
+    const x = await ingrediente(raiz());
+    const cod = await codigoDe(x);
+    await entrada(x);
+    await abrirContagem(db, gerente, { tipo: "item", area: "cozinha", itens: [{ ingredienteId: x, local: "em_uso" }] });
+    const gaveta = await estoqueDoItem(db, cozinheira, { ingredienteId: x });
+    expect(gaveta.lotes.map((l) => l.etiqueta)).toEqual([null]);
+    expect((await painelDoEstoque(db, cozinheira)).find((i) => i.ingredienteId === x)!.etiquetas).toEqual([]);
+    // A mesma resposta para o lote que existe e para o que não tem saldo.
+    const existe = await erroDe(acharPelaEtiqueta(db, cozinheira, `${cod}-001`));
+    await entrada(x); // 002, entra depois de aberta a contagem
+    const outro = await erroDe(acharPelaEtiqueta(db, cozinheira, `${cod}-009`));
+    expect(existe.codigo).toBe("conflito");
+    expect(existe.message).toContain("está em contagem");
+    expect(outro.codigo).toBe("nao_encontrado");
   });
 });
 

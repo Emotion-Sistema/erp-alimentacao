@@ -27,7 +27,9 @@ CREATE TABLE etiqueta_produto (
 CREATE UNIQUE INDEX etiqueta_produto_codigo ON etiqueta_produto (codigo);
 CREATE TRIGGER etiqueta_produto_sem_truncate BEFORE TRUNCATE ON etiqueta_produto
   FOR EACH STATEMENT EXECUTE FUNCTION recusar_alteracao();
--- O código pertence ao produto: não troca de dono e não some.
+-- O código pertence ao produto: não troca de dono e não some. Código novo não pode ser um que já
+-- foi impresso em etiqueta de lote de OUTRO produto (o domínio confere antes, com mensagem; aqui é a
+-- garantia para qualquer caminho).
 CREATE FUNCTION etiqueta_produto_dono_fixo() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
@@ -35,6 +37,12 @@ BEGIN
   END IF;
   IF NEW.ingrediente_id IS DISTINCT FROM OLD.ingrediente_id OR NEW.preparo_id IS DISTINCT FROM OLD.preparo_id THEN
     RAISE EXCEPTION 'O código da etiqueta não muda de produto.' USING ERRCODE = 'check_violation';
+  END IF;
+  IF NEW.codigo <> OLD.codigo AND EXISTS (
+    SELECT 1 FROM estoque_lote l JOIN estoque_item e ON e.id = l.item_id
+    WHERE l.etiqueta LIKE NEW.codigo || '-%'
+      AND NOT (e.ingrediente_id IS NOT DISTINCT FROM NEW.ingrediente_id AND e.preparo_id IS NOT DISTINCT FROM NEW.preparo_id)) THEN
+    RAISE EXCEPTION 'O código % já foi usado nas etiquetas de outro produto.', NEW.codigo USING ERRCODE = 'check_violation';
   END IF;
   RETURN NEW;
 END $$;
@@ -49,6 +57,16 @@ CREATE TABLE etiqueta_sequencia (
 );
 CREATE TRIGGER etiqueta_sequencia_sem_apagar BEFORE DELETE ON etiqueta_sequencia
   FOR EACH ROW EXECUTE FUNCTION recusar_alteracao();
+-- O número só anda para a frente (voltar faria a próxima etiqueta repetir).
+CREATE FUNCTION etiqueta_sequencia_so_avanca() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.codigo <> OLD.codigo OR NEW.ultimo <= OLD.ultimo THEN
+    RAISE EXCEPTION 'O número da etiqueta só anda para a frente.' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER etiqueta_sequencia_avanca BEFORE UPDATE ON etiqueta_sequencia
+  FOR EACH ROW EXECUTE FUNCTION etiqueta_sequencia_so_avanca();
 CREATE TRIGGER etiqueta_sequencia_sem_truncate BEFORE TRUNCATE ON etiqueta_sequencia
   FOR EACH STATEMENT EXECUTE FUNCTION recusar_alteracao();
 
@@ -131,8 +149,10 @@ CREATE TRIGGER ficha_etiqueta AFTER INSERT ON ficha
   FOR EACH ROW WHEN (NEW.tipo = 'preparo') EXECUTE FUNCTION etiqueta_ao_cadastrar();
 
 -- Lote novo de compra, saldo inicial ou produção ganha a etiqueta. Ninguém escolhe a etiqueta à mão.
--- O item já está travado pelo lançamento (FOR UPDATE em ordem de id), então dois lançamentos do
--- mesmo produto não disputam o número.
+-- O número não repete porque a linha do contador fica travada pelo INSERT ... ON CONFLICT DO UPDATE
+-- até o lançamento terminar. A linha do código fica travada em modo compartilhado (FOR SHARE): a troca
+-- de código espera o lançamento gravar, e só então confere "já impresso" (senão o código antigo
+-- poderia ir para outro produto enquanto o lote com ele ainda não estava gravado).
 CREATE FUNCTION estoque_lote_etiquetar() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
   t text;
@@ -146,7 +166,8 @@ BEGIN
   SELECT e.codigo, e.usa_etiqueta INTO c, usa
     FROM estoque_item i
     JOIN etiqueta_produto e ON e.ingrediente_id = i.ingrediente_id OR e.preparo_id = i.preparo_id
-    WHERE i.id = NEW.item_id;
+    WHERE i.id = NEW.item_id
+    FOR SHARE OF e;
   IF c IS NULL OR NOT usa THEN RETURN NEW; END IF;
   INSERT INTO etiqueta_sequencia AS s (codigo, ultimo) VALUES (c, 1)
     ON CONFLICT (codigo) DO UPDATE SET ultimo = s.ultimo + 1
@@ -158,6 +179,7 @@ CREATE TRIGGER estoque_lote_etiqueta BEFORE INSERT ON estoque_lote
   FOR EACH ROW EXECUTE FUNCTION estoque_lote_etiquetar();
 
 -- Os já cadastrados (ativos ou não) ganham código na ordem alfabética, ingredientes e preparos juntos.
+-- A ordem usa as letras sem acento (não depende da ordenação configurada no servidor).
 DO $$
 DECLARE r record;
 BEGIN
@@ -166,7 +188,7 @@ BEGIN
       SELECT 'ingrediente' AS tipo, id, nome FROM ingrediente
       UNION ALL
       SELECT 'preparo', id, nome FROM ficha WHERE tipo = 'preparo'
-    ) x ORDER BY lower(nome), tipo, id
+    ) x ORDER BY array_to_string(etiqueta_palavras(nome), ' '), lower(nome), tipo, id
   LOOP
     IF r.tipo = 'ingrediente' THEN
       INSERT INTO etiqueta_produto (ingrediente_id, codigo) VALUES (r.id, etiqueta_escolher(r.nome));
